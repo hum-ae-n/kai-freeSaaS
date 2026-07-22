@@ -23,6 +23,14 @@
       {
         "name": "Claude",
         "url": "https://claude.ai"
+      },
+      {
+        "name": "Perplexity",
+        "url": "https://www.perplexity.ai"
+      },
+      {
+        "name": "Mistral Le Chat",
+        "url": "https://chat.mistral.ai"
       }
     ],
     "training": [
@@ -32,7 +40,7 @@
       },
       {
         "name": "OpenAI Academy",
-        "url": ""
+        "url": "https://academy.openai.com"
       },
       {
         "name": "YouTube: AI for small business beginners",
@@ -56,12 +64,20 @@
     "description": "Free AI chat via Bing/Edge. If M365 subscriber, in-app Copilot keeps data in tenant but is a separate paid add-on (~£15-18/user/month), not counted as free value.",
     "alternatives": [
       {
-        "name": "Claude Free, ChatGPT Free, Gemini, Perplexity",
-        "url": ""
+        "name": "Claude Free",
+        "url": "https://claude.ai"
       },
       {
-        "name": "Free Copilot Chat is separate from paid M365 Copilot add-on",
-        "url": ""
+        "name": "ChatGPT Free",
+        "url": "https://chatgpt.com"
+      },
+      {
+        "name": "Gemini",
+        "url": "https://gemini.google.com"
+      },
+      {
+        "name": "Perplexity",
+        "url": "https://www.perplexity.ai"
       }
     ],
     "training": [
@@ -78,6 +94,9 @@
         "url": "https://www.youtube.com/results?search_query=Microsoft+Copilot+tutorial"
       }
     ],
+    "notes": [
+      "Free Copilot Chat is separate from the paid M365 Copilot add-on."
+    ],
     "value": 0,
     "when": "M365 subscriber. Paid Copilot is separate product."
   },
@@ -90,13 +109,21 @@
         "domain": "canva.com"
       }
     ],
-    "category": "Design & Creative",
+    "category": "Design & Images",
     "type": "core",
     "description": "Professional design for social graphics, presentations, flyers, branded documents. Templates make it accessible. Substantial free capability.",
     "alternatives": [
       {
         "name": "Adobe Express Free",
         "url": "https://adobe.com/express"
+      },
+      {
+        "name": "Figma Free",
+        "url": "https://www.figma.com"
+      },
+      {
+        "name": "Inkscape",
+        "url": "https://inkscape.org"
       }
     ],
     "training": [
@@ -106,7 +133,7 @@
       },
       {
         "name": "Canva YouTube channel",
-        "url": ""
+        "url": "https://www.youtube.com/@canva"
       },
       {
         "name": "YouTube: Canva for beginners",
@@ -125,13 +152,17 @@
         "domain": "adobe.com"
       }
     ],
-    "category": "Design & Creative",
+    "category": "Design & Images",
     "type": "noncore",
     "description": "Comparable to Canva. Slightly more polished output for professional documents. Worth comparing both. Free tier generous.",
     "alternatives": [
       {
         "name": "Canva Free",
         "url": "https://canva.com"
+      },
+      {
+        "name": "Figma Free",
+        "url": "https://www.figma.com"
       }
     ],
     "training": [
@@ -156,7 +187,7 @@
         "domain": "gimp.org"
       }
     ],
-    "category": "Design & Creative",
+    "category": "Design & Images",
     "type": "noncore",
     "description": "Open-source image editor. Professional-grade alternative to Adobe Photoshop. Layers, masks, filters. Steeper learning curve than Canva but unlimited capability.",
     "alternatives": [
@@ -165,8 +196,8 @@
         "url": "https://photopea.com"
       },
       {
-        "name": "Paid: Adobe Photoshop, Affinity Photo",
-        "url": ""
+        "name": "Krita",
+        "url": "https://krita.org"
       }
     ],
     "training": [
@@ -179,9 +210,12 @@
         "url": "https://www.youtube.com/results?search_query=GIMP+for+beginners"
       },
       {
-        "name": "Davies Media Design YouTube channel (excellent)",
-        "url": ""
+        "name": "Davies Media Design GIMP tutorials",
+        "url": "https://www.youtube.com/results?search_query=Davies+Media+Design+GIMP"
       }
+    ],
+    "notes": [
+      "Paid alternatives: Adobe Photoshop, Affinity Photo."
     ],
     "value": 300,
     "when": "Client needs serious image editing beyond Canva."
@@ -195,7 +229,7 @@
         "domain": "photopea.com"
       }
     ],
-    "category": "Design & Creative",
+    "category": "Design & Images",
     "type": "sector",
     "description": "Free browser-based Photoshop alternative. Opens PSD files, layers, masks. No install needed. Lower learning curve than GIMP if already familiar with Photoshop/Affinity.",
     "alternatives": [
@@ -204,8 +238,8 @@
         "url": "https://gimp.org"
       },
       {
-        "name": "Paid: Adobe Photoshop, Affinity Photo/Designer",
-        "url": ""
+        "name": "Krita",
+        "url": "https://krita.org"
       }
     ],
     "training": [
@@ -217,6 +251,9 @@
         "name": "YouTube: Photopea tutorial beginners",
         "url": "https://www.youtube.com/results?search_query=Photopea+tutorial+beginners"
       }
+    ],
+    "notes": [
+      "Paid alternatives: Adobe Photoshop, Affinity Photo/Designer."
     ],
     "value": 300,
     "when": "Design/print trades, clients with PSD files or Photoshop experience."
@@ -238,7 +275,7 @@
         "domain": "pixabay.com"
       }
     ],
-    "category": "Image & Stock",
+    "category": "Design & Images",
     "type": "core",
     "description": "Free stock photography and video. High quality, no attribution required (check individual licences). Essential for website, social media, marketing materials.",
     "alternatives": [
@@ -247,19 +284,27 @@
         "url": "https://unsplash.com"
       },
       {
-        "name": "Note: Suno/Udio AI music is NOT free for commercial use",
-        "url": ""
+        "name": "Openverse",
+        "url": "https://openverse.org"
+      },
+      {
+        "name": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org"
       }
     ],
     "training": [
       {
-        "name": "Each platform has search guides",
-        "url": ""
-      },
-      {
         "name": "YouTube: free stock images for business",
         "url": "https://www.youtube.com/results?search_query=free+stock+images+for+business"
+      },
+      {
+        "name": "YouTube: Pexels tutorial",
+        "url": "https://www.youtube.com/results?search_query=Pexels+tutorial"
       }
+    ],
+    "notes": [
+      "Suno/Udio AI music is NOT free for commercial use.",
+      "Each platform has its own search guides and licence terms."
     ],
     "value": 200,
     "when": "Every client creating content."
@@ -277,7 +322,7 @@
         "domain": "youtube.com"
       }
     ],
-    "category": "Image & Stock",
+    "category": "Design & Images",
     "type": "noncore",
     "description": "YouTube Audio Library, Uppbeat (uppbeat.io), Pixabay Music for royalty-free tracks. Google Fonts for web typography. Essential components of professional content at zero cost.",
     "alternatives": [
@@ -286,18 +331,26 @@
         "url": "https://youtube.com/audiolibrary"
       },
       {
-        "name": "Fonts: Google Fonts, Font Squirrel",
-        "url": ""
+        "name": "Google Fonts",
+        "url": "https://fonts.google.com"
+      },
+      {
+        "name": "Font Squirrel",
+        "url": "https://www.fontsquirrel.com"
       }
     ],
     "training": [
       {
         "name": "YouTube Audio Library help",
-        "url": ""
+        "url": "https://support.google.com/youtube"
       },
       {
         "name": "Google Fonts getting started guide",
         "url": "https://fonts.google.com/knowledge"
+      },
+      {
+        "name": "YouTube: royalty free music for business",
+        "url": "https://www.youtube.com/results?search_query=royalty+free+music+for+business"
       }
     ],
     "value": 100,
@@ -316,28 +369,38 @@
         "domain": "cleanup.pictures"
       }
     ],
-    "category": "Image Utilities",
+    "category": "Design & Images",
     "type": "noncore",
     "description": "Instant AI background removal (Remove.bg) and object removal from photos (Cleanup.Pictures). One-click fixes for common image problems. Free tiers limited but functional.",
     "alternatives": [
       {
-        "name": "Remove.bg (remove.bg, 1 HD/month free), Cleanup.Pictures (cleanup.pictures), Canva background remover (Pro feature), Photopea (manual)",
-        "url": ""
+        "name": "Remove.bg",
+        "url": "https://www.remove.bg"
       },
       {
-        "name": "Paid: Adobe tools",
-        "url": ""
+        "name": "Cleanup.Pictures",
+        "url": "https://cleanup.pictures"
+      },
+      {
+        "name": "Photopea",
+        "url": "https://photopea.com"
       }
     ],
     "training": [
       {
-        "name": "Each tool is self-explanatory",
-        "url": ""
-      },
-      {
         "name": "YouTube: remove background from image free",
         "url": "https://www.youtube.com/results?search_query=remove+background+from+image+free"
+      },
+      {
+        "name": "YouTube: remove objects from photo free",
+        "url": "https://www.youtube.com/results?search_query=remove+objects+from+photo+free"
       }
+    ],
+    "notes": [
+      "Remove.bg free tier: 1 HD download per month.",
+      "Canva background remover is a Pro (paid) feature.",
+      "Paid alternatives: Adobe tools.",
+      "Each tool is largely self-explanatory."
     ],
     "value": 60,
     "when": "Client with product photos, social media imagery needs."
@@ -355,7 +418,7 @@
         "domain": "squoosh.app"
       }
     ],
-    "category": "Image Utilities",
+    "category": "Design & Images",
     "type": "noncore",
     "description": "Compress images for website without visible quality loss. Faster site = better Google ranking. Also reduces email attachment sizes. Squoosh is Google's own tool.",
     "alternatives": [
@@ -364,19 +427,27 @@
         "url": "https://tinypng.com"
       },
       {
-        "name": "ImageOptim (Mac only)",
-        "url": ""
+        "name": "Squoosh",
+        "url": "https://squoosh.app"
+      },
+      {
+        "name": "ImageOptim",
+        "url": "https://imageoptim.com"
       }
     ],
     "training": [
       {
-        "name": "Self-explanatory tools",
-        "url": ""
-      },
-      {
         "name": "YouTube: image compression for websites",
         "url": "https://www.youtube.com/results?search_query=image+compression+for+websites"
+      },
+      {
+        "name": "YouTube: Squoosh tutorial",
+        "url": "https://www.youtube.com/results?search_query=Squoosh+tutorial"
       }
+    ],
+    "notes": [
+      "ImageOptim is Mac only.",
+      "Tools are largely self-explanatory."
     ],
     "value": 50,
     "when": "Client with a website, especially Shopify/WooCommerce."
@@ -394,28 +465,40 @@
         "domain": "coolors.co"
       }
     ],
-    "category": "Image Utilities",
+    "category": "Design & Images",
     "type": "sector",
     "description": "Vectorizer: convert low-res logos to scalable vectors for printing. Coolors: extract exact hex/RGB from customer logos for brand matching. Niche but solves real problems.",
     "alternatives": [
       {
-        "name": "Vectorizer.ai, Vectorizer.io, Adobe Illustrator Image Trace",
-        "url": ""
+        "name": "Vectorizer.ai",
+        "url": "https://vectorizer.ai"
       },
       {
-        "name": "Coolors.co, Adobe Color",
+        "name": "Coolors",
+        "url": "https://coolors.co"
+      },
+      {
+        "name": "Adobe Color",
         "url": "https://color.adobe.com"
+      },
+      {
+        "name": "Inkscape",
+        "url": "https://inkscape.org"
       }
     ],
     "training": [
       {
-        "name": "Each tool is largely self-explanatory",
-        "url": ""
-      },
-      {
         "name": "YouTube: vectorize logo free",
         "url": "https://www.youtube.com/results?search_query=vectorize+logo+free"
+      },
+      {
+        "name": "YouTube: Coolors tutorial",
+        "url": "https://www.youtube.com/results?search_query=Coolors+tutorial"
       }
+    ],
+    "notes": [
+      "Adobe Illustrator Image Trace (paid) also vectorizes logos.",
+      "Each tool is largely self-explanatory."
     ],
     "value": 60,
     "when": "Print, design, embroidery, signage trades."
@@ -429,7 +512,7 @@
         "domain": "placeit.net"
       }
     ],
-    "category": "Image Utilities",
+    "category": "Design & Images",
     "type": "sector",
     "description": "Show customers how designs look on actual garments/products before printing. T-shirt mockups, hoodies, caps. Essential for website product images. Some free, premium £7.95/download.",
     "alternatives": [
@@ -438,14 +521,14 @@
         "url": "https://smartmockups.com"
       },
       {
-        "name": "Printful has built-in mockup generator",
-        "url": ""
+        "name": "Printful Mockup Generator",
+        "url": "https://www.printful.com"
       }
     ],
     "training": [
       {
-        "name": "Placeit tutorials",
-        "url": ""
+        "name": "YouTube: Placeit tutorial",
+        "url": "https://www.youtube.com/results?search_query=Placeit+tutorial"
       },
       {
         "name": "YouTube: product mockup free",
@@ -473,23 +556,26 @@
         "url": "https://vimeo.com"
       },
       {
-        "name": "Social-first: TikTok, Reels",
-        "url": ""
+        "name": "TikTok",
+        "url": "https://www.tiktok.com"
       }
     ],
     "training": [
       {
-        "name": "YouTube Creator Academy",
-        "url": "https://creatoracademy.youtube.com"
+        "name": "YouTube for Creators",
+        "url": "https://www.youtube.com/creators"
       },
       {
         "name": "YouTube Studio Help",
-        "url": ""
+        "url": "https://support.google.com/youtube"
       },
       {
         "name": "YouTube: YouTube for business",
         "url": "https://www.youtube.com/results?search_query=YouTube+for+business"
       }
+    ],
+    "notes": [
+      "Instagram Reels is another social-first option for short video."
     ],
     "value": 150,
     "when": "Client produces or plans to produce video."
@@ -512,7 +598,7 @@
         "url": "https://inshot.com"
       },
       {
-        "name": "Open source: Shotcut",
+        "name": "Shotcut",
         "url": "https://shotcut.org"
       }
     ],
@@ -547,8 +633,8 @@
         "url": "https://shotcut.org"
       },
       {
-        "name": "Paid: Premiere Pro, Final Cut Pro",
-        "url": ""
+        "name": "Kdenlive",
+        "url": "https://kdenlive.org"
       }
     ],
     "training": [
@@ -557,13 +643,16 @@
         "url": "https://blackmagicdesign.com"
       },
       {
-        "name": "Casey Faris YouTube channel",
-        "url": ""
+        "name": "Casey Faris DaVinci Resolve tutorials",
+        "url": "https://www.youtube.com/results?search_query=Casey+Faris+DaVinci+Resolve"
       },
       {
         "name": "YouTube: DaVinci Resolve beginners",
         "url": "https://www.youtube.com/results?search_query=DaVinci+Resolve+beginners"
       }
+    ],
+    "notes": [
+      "Paid alternatives: Premiere Pro, Final Cut Pro."
     ],
     "value": 400,
     "when": "Serious video production (training, corporate, CPD)."
@@ -586,8 +675,8 @@
         "url": "https://loom.com"
       },
       {
-        "name": "Paid: Camtasia, ScreenFlow (Mac)",
-        "url": ""
+        "name": "ShareX",
+        "url": "https://getsharex.com"
       }
     ],
     "training": [
@@ -599,6 +688,9 @@
         "name": "YouTube: OBS Studio tutorial beginners",
         "url": "https://www.youtube.com/results?search_query=OBS+Studio+tutorial+beginners"
       }
+    ],
+    "notes": [
+      "Paid alternatives: Camtasia, ScreenFlow (Mac)."
     ],
     "value": 150,
     "when": "Client doing live streams, screen recordings, or tutorial creation."
@@ -621,8 +713,8 @@
         "url": "https://obsproject.com"
       },
       {
-        "name": "Paid: Camtasia",
-        "url": ""
+        "name": "ShareX",
+        "url": "https://getsharex.com"
       }
     ],
     "training": [
@@ -634,6 +726,9 @@
         "name": "YouTube: Loom tutorial",
         "url": "https://www.youtube.com/results?search_query=Loom+tutorial"
       }
+    ],
+    "notes": [
+      "Paid alternative: Camtasia."
     ],
     "value": 100,
     "when": "Client onboarding, workshop recording, async communication."
@@ -656,23 +751,26 @@
     "description": "Turn one long video/podcast into multiple social clips. AI finds highlight moments. Directly serves podcast-to-social workflows.",
     "alternatives": [
       {
-        "name": "opus.pro), Descript free tier",
-        "url": "https://descript.com"
+        "name": "Opus Clip",
+        "url": "https://opus.pro"
       },
       {
-        "name": "Canva video trimming",
-        "url": ""
+        "name": "Descript",
+        "url": "https://descript.com"
       }
     ],
     "training": [
       {
-        "name": "Opus Clip tutorials (opus.pro/resources)",
-        "url": ""
+        "name": "YouTube: Opus Clip tutorial",
+        "url": "https://www.youtube.com/results?search_query=Opus+Clip+tutorial"
       },
       {
         "name": "YouTube: repurpose video content free",
         "url": "https://www.youtube.com/results?search_query=repurpose+video+content+free"
       }
+    ],
+    "notes": [
+      "Canva includes basic video trimming."
     ],
     "value": 120,
     "when": "Client with podcast, long-form video, or webinar content."
@@ -695,8 +793,8 @@
         "url": "https://audacityteam.org"
       },
       {
-        "name": "Paid: Adobe Audition",
-        "url": ""
+        "name": "Ocenaudio",
+        "url": "https://www.ocenaudio.com"
       }
     ],
     "training": [
@@ -708,6 +806,9 @@
         "name": "YouTube: Audacity podcast editing tutorial",
         "url": "https://www.youtube.com/results?search_query=Audacity+podcast+editing+tutorial"
       }
+    ],
+    "notes": [
+      "Paid alternative: Adobe Audition."
     ],
     "value": 150,
     "when": "Client producing podcasts or audio content."
@@ -730,8 +831,8 @@
         "url": "https://capcut.com"
       },
       {
-        "name": "For serious edits: DaVinci Resolve",
-        "url": ""
+        "name": "DaVinci Resolve",
+        "url": "https://www.blackmagicdesign.com/products/davinciresolve"
       }
     ],
     "training": [
@@ -743,6 +844,9 @@
         "name": "YouTube: GoPro Quik tutorial",
         "url": "https://www.youtube.com/results?search_query=GoPro+Quik+tutorial"
       }
+    ],
+    "notes": [
+      "Use DaVinci Resolve for serious edits."
     ],
     "value": 60,
     "when": "Adventure, sports, outdoor, activity-based businesses."
@@ -761,12 +865,20 @@
     "description": "Simple video editing included in M365. Social clips, basic cuts, transitions. Already owned if M365 subscriber.",
     "alternatives": [
       {
-        "name": "CapCut (free), InShot (free), VN Video Editor (free), iMovie (Apple)",
-        "url": ""
+        "name": "CapCut",
+        "url": "https://capcut.com"
       },
       {
-        "name": "Serious: DaVinci Resolve (free)",
-        "url": ""
+        "name": "InShot",
+        "url": "https://inshot.com"
+      },
+      {
+        "name": "iMovie",
+        "url": "https://www.apple.com/imovie/"
+      },
+      {
+        "name": "DaVinci Resolve",
+        "url": "https://www.blackmagicdesign.com/products/davinciresolve"
       }
     ],
     "training": [
@@ -777,11 +889,12 @@
       {
         "name": "YouTube: Clipchamp tutorial",
         "url": "https://www.youtube.com/results?search_query=Clipchamp+tutorial"
-      },
-      {
-        "name": "Clipchamp blog",
-        "url": ""
       }
+    ],
+    "notes": [
+      "VN Video Editor (free) is another mobile option.",
+      "The Clipchamp blog offers further tutorials.",
+      "DaVinci Resolve (free) for serious editing."
     ],
     "value": 120,
     "when": "M365 subscriber, simple video editing."
@@ -795,7 +908,7 @@
         "domain": "analytics.google.com"
       }
     ],
-    "category": "Analytics & SEO",
+    "category": "SEO & Analytics",
     "type": "core",
     "description": "Website analytics. Visitor behaviour, traffic sources, conversions. Free and should be on every business website. Takes 10 minutes to set up.",
     "alternatives": [
@@ -804,8 +917,12 @@
         "url": "https://matomo.org"
       },
       {
-        "name": "Wix/Squarespace have built-in analytics",
-        "url": ""
+        "name": "Plausible",
+        "url": "https://plausible.io"
+      },
+      {
+        "name": "Microsoft Clarity",
+        "url": "https://clarity.microsoft.com"
       }
     ],
     "training": [
@@ -815,12 +932,15 @@
       },
       {
         "name": "GA4 Help Center",
-        "url": ""
+        "url": "https://support.google.com/analytics"
       },
       {
         "name": "YouTube: GA4 for small business",
         "url": "https://www.youtube.com/results?search_query=GA4+for+small+business"
       }
+    ],
+    "notes": [
+      "Wix and Squarespace have built-in analytics."
     ],
     "value": 200,
     "when": "Every client with a website."
@@ -834,7 +954,7 @@
         "domain": "clarity.microsoft.com"
       }
     ],
-    "category": "Analytics & SEO",
+    "category": "SEO & Analytics",
     "type": "noncore",
     "description": "Free session recordings and heatmaps. See what visitors actually do. Complements GA4. Unlimited traffic, no cap. Equivalent paid: Hotjar ~£32/month.",
     "alternatives": [
@@ -843,8 +963,8 @@
         "url": "https://hotjar.com"
       },
       {
-        "name": "Clarity's no-cap is rare",
-        "url": ""
+        "name": "Matomo",
+        "url": "https://matomo.org"
       }
     ],
     "training": [
@@ -858,8 +978,11 @@
       },
       {
         "name": "Clarity blog",
-        "url": ""
+        "url": "https://clarity.microsoft.com"
       }
+    ],
+    "notes": [
+      "Clarity's uncapped free traffic is rare among session recording tools."
     ],
     "value": 150,
     "when": "Client has website worth analysing (e-commerce, lead-gen)."
@@ -873,13 +996,17 @@
         "domain": "search.google.com"
       }
     ],
-    "category": "Analytics & SEO",
+    "category": "SEO & Analytics",
     "type": "core",
     "description": "SEO monitoring. Which search queries bring visitors, indexing status, technical issues. Essential for understanding how Google sees the site.",
     "alternatives": [
       {
         "name": "Bing Webmaster Tools",
         "url": "https://bing.com/webmasters"
+      },
+      {
+        "name": "Ahrefs Webmaster Tools",
+        "url": "https://ahrefs.com/webmaster-tools"
       }
     ],
     "training": [
@@ -889,7 +1016,7 @@
       },
       {
         "name": "Google Search Central",
-        "url": ""
+        "url": "https://developers.google.com/search"
       },
       {
         "name": "YouTube: Search Console beginners",
@@ -908,17 +1035,17 @@
         "domain": "bing.com"
       }
     ],
-    "category": "Analytics & SEO",
+    "category": "SEO & Analytics",
     "type": "noncore",
     "description": "Bing/Copilot search visibility. ~15-20% UK search share. Often overlooked. Can import from Search Console. Also feeds Microsoft Copilot answers.",
     "alternatives": [
       {
-        "name": "Google Search Console (primary)",
-        "url": ""
+        "name": "Google Search Console",
+        "url": "https://search.google.com/search-console"
       },
       {
         "name": "Ahrefs Webmaster Tools",
-        "url": ""
+        "url": "https://ahrefs.com/webmaster-tools"
       }
     ],
     "training": [
@@ -930,6 +1057,9 @@
         "name": "YouTube: Bing Webmaster Tools setup",
         "url": "https://www.youtube.com/results?search_query=Bing+Webmaster+Tools+setup"
       }
+    ],
+    "notes": [
+      "Google Search Console is the primary tool; set that up first."
     ],
     "value": 100,
     "when": "Client wanting broader search visibility, AEO readiness."
@@ -943,7 +1073,7 @@
         "domain": "pagespeed.web.dev"
       }
     ],
-    "category": "Analytics & SEO",
+    "category": "SEO & Analytics",
     "type": "noncore",
     "description": "Free website speed and performance testing. Core Web Vitals. Lighthouse (built into Chrome DevTools) for deeper audits. SEO ranking factor.",
     "alternatives": [
@@ -952,27 +1082,26 @@
         "url": "https://gtmetrix.com"
       },
       {
-        "name": "Lighthouse built into Chrome",
-        "url": ""
-      },
-      {
-        "name": "Chrome DevTools for debugging",
-        "url": ""
+        "name": "WebPageTest",
+        "url": "https://www.webpagetest.org"
       }
     ],
     "training": [
       {
-        "name": "web.dev Core Web Vitals guide (free)",
-        "url": ""
+        "name": "web.dev Core Web Vitals guide",
+        "url": "https://web.dev"
       },
       {
         "name": "Google Developers speed guides",
-        "url": ""
+        "url": "https://developers.google.com"
       },
       {
         "name": "YouTube: PageSpeed Insights tutorial",
         "url": "https://www.youtube.com/results?search_query=PageSpeed+Insights+tutorial"
       }
+    ],
+    "notes": [
+      "Lighthouse is built into Chrome DevTools for deeper audits and debugging."
     ],
     "value": 100,
     "when": "Website performance matters (e-commerce, SEO focus)."
@@ -986,7 +1115,7 @@
         "domain": "tagmanager.google.com"
       }
     ],
-    "category": "Analytics & SEO",
+    "category": "SEO & Analytics",
     "type": "noncore",
     "description": "Streamlines tracking setup. Add GA4, Clarity, Facebook Pixel without touching website code. Reduces developer dependency for marketing tracking.",
     "alternatives": [
@@ -995,8 +1124,8 @@
         "url": "https://segment.com"
       },
       {
-        "name": "Most alternatives are paid at scale",
-        "url": ""
+        "name": "Matomo Tag Manager",
+        "url": "https://matomo.org"
       }
     ],
     "training": [
@@ -1005,9 +1134,16 @@
         "url": "https://skillshop.exceedlms.com"
       },
       {
+        "name": "Google Tag Manager Help",
+        "url": "https://support.google.com/tagmanager"
+      },
+      {
         "name": "YouTube: GTM for beginners",
         "url": "https://www.youtube.com/results?search_query=GTM+for+beginners"
       }
+    ],
+    "notes": [
+      "Most alternatives are paid at scale."
     ],
     "value": 100,
     "when": "Client with multiple tracking tools or frequent pixel changes."
@@ -1021,28 +1157,31 @@
         "domain": "lookerstudio.google.com"
       }
     ],
-    "category": "Analytics & SEO",
+    "category": "SEO & Analytics",
     "type": "noncore",
     "description": "Free dashboarding. Pull GA4, Search Console, Sheets data into visual reports. Auto-updating. Professional client reporting at no cost.",
     "alternatives": [
       {
-        "name": "free), Metabase",
+        "name": "Metabase",
         "url": "https://metabase.com"
       },
       {
-        "name": "Paid: Tableau, Power BI",
-        "url": ""
+        "name": "Grafana",
+        "url": "https://grafana.com"
       }
     ],
     "training": [
       {
         "name": "Looker Studio Help Center",
-        "url": ""
+        "url": "https://support.google.com/looker-studio"
       },
       {
         "name": "YouTube: Looker Studio tutorial beginners",
         "url": "https://www.youtube.com/results?search_query=Looker+Studio+tutorial+beginners"
       }
+    ],
+    "notes": [
+      "Paid: Tableau, Power BI."
     ],
     "value": 200,
     "when": "Client wanting automated reporting dashboards."
@@ -1060,7 +1199,7 @@
         "domain": "technicalseo.com"
       }
     ],
-    "category": "Analytics & SEO",
+    "category": "SEO & Analytics",
     "type": "noncore",
     "description": "Structured data markup for rich search results (star ratings, FAQs, events). Free industry standard. Equivalent paid: Schema App ~£100/month.",
     "alternatives": [
@@ -1069,27 +1208,30 @@
         "url": "https://schema.org"
       },
       {
-        "name": "Rank Math / Yoast (WordPress plugins)",
-        "url": ""
+        "name": "Rank Math",
+        "url": "https://rankmath.com"
       },
       {
-        "name": "add schema automatically",
-        "url": ""
+        "name": "Yoast",
+        "url": "https://yoast.com"
       }
     ],
     "training": [
       {
-        "name": "Google Search Central structured data docs (free)",
-        "url": ""
+        "name": "Google Search Central structured data docs",
+        "url": "https://developers.google.com/search"
       },
       {
         "name": "Schema.org documentation",
-        "url": ""
+        "url": "https://schema.org"
       },
       {
         "name": "YouTube: schema markup tutorial",
         "url": "https://www.youtube.com/results?search_query=schema+markup+tutorial"
       }
+    ],
+    "notes": [
+      "WordPress plugins such as Rank Math and Yoast add schema automatically."
     ],
     "value": 100,
     "when": "Client with website wanting rich search results."
@@ -1103,13 +1245,17 @@
         "domain": "hotjar.com"
       }
     ],
-    "category": "Analytics & SEO",
+    "category": "SEO & Analytics",
     "type": "noncore",
     "description": "Heatmaps and basic session recordings. More limited than Clarity (capped sessions) but well-established. Useful if client prefers Hotjar's interface.",
     "alternatives": [
       {
         "name": "Microsoft Clarity",
         "url": "https://clarity.microsoft.com"
+      },
+      {
+        "name": "Matomo",
+        "url": "https://matomo.org"
       }
     ],
     "training": [
@@ -1141,12 +1287,16 @@
       {
         "name": "Ubersuggest",
         "url": "https://neilpatel.com/ubersuggest"
+      },
+      {
+        "name": "AnswerThePublic",
+        "url": "https://answerthepublic.com"
       }
     ],
     "training": [
       {
-        "name": "Google News Initiative Trends training (free)",
-        "url": ""
+        "name": "Google News Initiative Trends training",
+        "url": "https://newsinitiative.withgoogle.com"
       },
       {
         "name": "YouTube: Google Trends for business",
@@ -1170,23 +1320,34 @@
     "description": "Free keyword research even without running ads. Search volume, competition, content ideas. Requires Google Ads account (free to create, no spend needed).",
     "alternatives": [
       {
-        "name": "Ubersuggest (free tier), Keyword Surfer (Chrome extension, free), Ahrefs Webmaster Tools (free), SEMrush free tier",
-        "url": ""
+        "name": "Ubersuggest",
+        "url": "https://neilpatel.com/ubersuggest"
+      },
+      {
+        "name": "Ahrefs Webmaster Tools",
+        "url": "https://ahrefs.com/webmaster-tools"
+      },
+      {
+        "name": "Semrush",
+        "url": "https://semrush.com"
       },
       {
         "name": "AnswerThePublic",
-        "url": ""
+        "url": "https://answerthepublic.com"
       }
     ],
     "training": [
       {
-        "name": "Google Skillshop keyword planning course (free)",
-        "url": ""
+        "name": "Google Skillshop keyword planning course",
+        "url": "https://skillshop.exceedlms.com"
       },
       {
         "name": "YouTube: Google Keyword Planner tutorial no spend",
         "url": "https://www.youtube.com/results?search_query=Google+Keyword+Planner+tutorial+no+spend"
       }
+    ],
+    "notes": [
+      "Keyword Surfer is a free Chrome extension for in-search volume data."
     ],
     "value": 100,
     "when": "Client planning content strategy or considering paid ads."
@@ -1205,23 +1366,27 @@
     "description": "Keyword visualisation. Shows questions people ask about topics. Content ideation. 3 searches/day on free tier. Good for blog/FAQ planning.",
     "alternatives": [
       {
-        "name": "Google Trends, AlsoAsked",
-        "url": "https://alsoasked.com"
+        "name": "Google Trends",
+        "url": "https://trends.google.com"
       },
       {
-        "name": "Google's 'People Also Ask' boxes (free, manual)",
-        "url": ""
+        "name": "AlsoAsked",
+        "url": "https://alsoasked.com"
       }
     ],
     "training": [
       {
-        "name": "Self-explanatory tool",
-        "url": ""
-      },
-      {
         "name": "YouTube: AnswerThePublic tutorial",
         "url": "https://www.youtube.com/results?search_query=AnswerThePublic+tutorial"
+      },
+      {
+        "name": "YouTube: keyword research for beginners",
+        "url": "https://www.youtube.com/results?search_query=keyword+research+for+beginners"
       }
+    ],
+    "notes": [
+      "Largely self-explanatory.",
+      "Google's 'People Also Ask' boxes offer similar insight manually."
     ],
     "value": 60,
     "when": "Client building content strategy, blog planning."
@@ -1240,12 +1405,16 @@
     "description": "Free SEO tool. Keyword research, competitor analysis. Limited daily queries but useful for initial research before committing to SEMrush/Ahrefs.",
     "alternatives": [
       {
-        "name": "Google Keyword Planner (free), Keyword Surfer (Chrome, free), AnswerThePublic, Ahrefs Webmaster Tools (free)",
-        "url": ""
+        "name": "Google Keyword Planner",
+        "url": "https://ads.google.com/home/tools/keyword-planner"
       },
       {
-        "name": "Paid: SEMrush, Ahrefs",
-        "url": ""
+        "name": "AnswerThePublic",
+        "url": "https://answerthepublic.com"
+      },
+      {
+        "name": "Ahrefs Webmaster Tools",
+        "url": "https://ahrefs.com/webmaster-tools"
       }
     ],
     "training": [
@@ -1257,6 +1426,10 @@
         "name": "YouTube: Ubersuggest tutorial",
         "url": "https://www.youtube.com/results?search_query=Ubersuggest+tutorial"
       }
+    ],
+    "notes": [
+      "Keyword Surfer is a free Chrome extension.",
+      "Paid: Semrush, Ahrefs."
     ],
     "value": 60,
     "when": "Client doing DIY SEO research."
@@ -1279,27 +1452,26 @@
         "url": "https://talkwalker.com/alerts"
       },
       {
-        "name": "Social: Hootsuite free social listening",
-        "url": ""
+        "name": "Hootsuite",
+        "url": "https://hootsuite.com"
       },
       {
-        "name": "Manual: Google News",
-        "url": ""
+        "name": "Google News",
+        "url": "https://news.google.com"
       }
     ],
     "training": [
       {
         "name": "Google Alerts Help",
-        "url": ""
-      },
-      {
-        "name": "Self-explanatory tool",
-        "url": ""
+        "url": "https://support.google.com/websearch"
       },
       {
         "name": "YouTube: Google Alerts for business monitoring",
         "url": "https://www.youtube.com/results?search_query=Google+Alerts+for+business+monitoring"
       }
+    ],
+    "notes": [
+      "Largely self-explanatory."
     ],
     "value": 100,
     "when": "Competitor monitoring, brand awareness, industry tracking."
@@ -1326,8 +1498,12 @@
         "url": "https://scholar.google.com"
       },
       {
-        "name": "CORE (core.ac.uk, open access)",
-        "url": ""
+        "name": "CORE",
+        "url": "https://core.ac.uk"
+      },
+      {
+        "name": "Semantic Scholar",
+        "url": "https://www.semanticscholar.org"
       }
     ],
     "training": [
@@ -1336,8 +1512,12 @@
         "url": "https://scholar.google.com/intl/en/scholar/help.html"
       },
       {
-        "name": "ResearchGate help center",
-        "url": ""
+        "name": "ResearchGate",
+        "url": "https://www.researchgate.net"
+      },
+      {
+        "name": "YouTube: Google Scholar tutorial",
+        "url": "https://www.youtube.com/results?search_query=Google+Scholar+tutorial"
       }
     ],
     "value": 200,
@@ -1352,23 +1532,27 @@
         "domain": "business.google.com"
       }
     ],
-    "category": "Local SEO",
+    "category": "SEO & Analytics",
     "type": "core",
     "description": "Free listing in Google Search and Maps. Reviews, hours, photos, posts. Highest-impact free tool for any business with a local or physical presence.",
     "alternatives": [
       {
         "name": "Bing Places",
         "url": "https://bingplaces.com"
+      },
+      {
+        "name": "Apple Business Connect",
+        "url": "https://businessconnect.apple.com"
       }
     ],
     "training": [
       {
-        "name": "Google Business Profile Help Center (free)",
-        "url": ""
+        "name": "Google Business Profile Help Center",
+        "url": "https://support.google.com/business"
       },
       {
-        "name": "Google Skillshop (free certification)",
-        "url": ""
+        "name": "Google Skillshop",
+        "url": "https://skillshop.exceedlms.com"
       },
       {
         "name": "YouTube: Google Business Profile setup",
@@ -1387,7 +1571,7 @@
         "domain": "bingplaces.com"
       }
     ],
-    "category": "Local SEO",
+    "category": "SEO & Analytics",
     "type": "noncore",
     "description": "Free Bing search listing. ~15-20% UK search share. Can import from Google Business Profile. Often overlooked, worth 5 minutes.",
     "alternatives": [
@@ -1396,19 +1580,22 @@
         "url": "https://businessconnect.apple.com"
       },
       {
-        "name": "Google Business Profile is primary",
-        "url": ""
+        "name": "Google Business Profile",
+        "url": "https://business.google.com"
       }
     ],
     "training": [
       {
         "name": "Bing Places documentation",
-        "url": ""
+        "url": "https://www.bingplaces.com"
       },
       {
         "name": "YouTube: Bing Places setup",
         "url": "https://www.youtube.com/results?search_query=Bing+Places+setup"
       }
+    ],
+    "notes": [
+      "Google Business Profile is the primary listing; set that up first."
     ],
     "value": 100,
     "when": "Local service businesses, trades, retail."
@@ -1422,7 +1609,7 @@
         "domain": "business.facebook.com"
       }
     ],
-    "category": "Social Media",
+    "category": "Marketing & CRM",
     "type": "core",
     "description": "Free management for Facebook and Instagram. Schedule posts, analytics, messages, automated replies, appointment booking integration. Essential for social-active businesses.",
     "alternatives": [
@@ -1431,7 +1618,7 @@
         "url": "https://buffer.com"
       },
       {
-        "name": "Open source: Mixpost",
+        "name": "Mixpost",
         "url": "https://mixpost.app"
       }
     ],
@@ -1441,8 +1628,8 @@
         "url": "https://facebook.com/business/learn"
       },
       {
-        "name": "Instagram for Business blog",
-        "url": ""
+        "name": "Instagram for Business",
+        "url": "https://business.instagram.com"
       },
       {
         "name": "YouTube: Meta Business Suite tutorial",
@@ -1461,32 +1648,35 @@
         "domain": "linkedin.com"
       }
     ],
-    "category": "Social Media",
+    "category": "Marketing & CRM",
     "type": "core",
     "description": "Professional networking, credibility, B2B visibility. Free profile sufficient for most. Regular posting more valuable than Premium for most SMEs.",
     "alternatives": [
       {
-        "name": "academic), Bark",
+        "name": "Bark",
         "url": "https://bark.com"
       },
       {
-        "name": "Value is in the network",
-        "url": ""
+        "name": "Alignable",
+        "url": "https://www.alignable.com"
       }
     ],
     "training": [
       {
-        "name": "LinkedIn Learning free courses on LinkedIn",
-        "url": ""
+        "name": "LinkedIn Learning",
+        "url": "https://www.linkedin.com/learning"
       },
       {
         "name": "LinkedIn Help Center",
-        "url": ""
+        "url": "https://www.linkedin.com/help"
       },
       {
         "name": "YouTube: LinkedIn for small business",
         "url": "https://www.youtube.com/results?search_query=LinkedIn+for+small+business"
       }
+    ],
+    "notes": [
+      "The value is in the network and regular posting, not paid features."
     ],
     "value": 300,
     "when": "Every client. Universal."
@@ -1500,13 +1690,17 @@
         "domain": "buffer.com"
       }
     ],
-    "category": "Social Media",
+    "category": "Marketing & CRM",
     "type": "noncore",
     "description": "Schedule posts across 3 channels, 10 posts queued. Free tier below paid Metricool/Hootsuite. Good trial before committing.",
     "alternatives": [
       {
-        "name": "Buffer Free",
-        "url": "https://buffer.com"
+        "name": "Meta Business Suite",
+        "url": "https://business.facebook.com"
+      },
+      {
+        "name": "Mixpost",
+        "url": "https://mixpost.app"
       }
     ],
     "training": [
@@ -1531,7 +1725,7 @@
         "domain": "reddit.com"
       }
     ],
-    "category": "Social Media",
+    "category": "Marketing & CRM",
     "type": "noncore",
     "description": "AI-native discoverability. Genuine, non-marketing contributions answering questions seed AEO pickup by Claude, ChatGPT, Perplexity. Not a broadcast channel; a credibility channel.",
     "alternatives": [
@@ -1540,23 +1734,23 @@
         "url": "https://quora.com"
       },
       {
-        "name": "LinkedIn articles (more professional voice)",
-        "url": ""
+        "name": "LinkedIn",
+        "url": "https://www.linkedin.com"
       }
     ],
     "training": [
       {
-        "name": "Reddit's own Reddiquette guide",
-        "url": ""
+        "name": "Reddit Help Center",
+        "url": "https://support.reddithelp.com"
       },
       {
         "name": "YouTube: Reddit for business marketing",
         "url": "https://www.youtube.com/results?search_query=Reddit+for+business+marketing"
-      },
-      {
-        "name": "Approach with authenticity, not marketing speak",
-        "url": ""
       }
+    ],
+    "notes": [
+      "LinkedIn articles offer a more professional voice.",
+      "Approach with authenticity, not marketing speak."
     ],
     "value": 100,
     "when": "Clients interested in AEO / AI engine visibility."
@@ -1578,28 +1772,36 @@
         "domain": "beacons.ai"
       }
     ],
-    "category": "Social Media",
+    "category": "Marketing & CRM",
     "type": "noncore",
     "description": "Single link page for Instagram/TikTok bio. Multiple links to website, booking, shop, socials. Free tiers on all major platforms.",
     "alternatives": [
       {
-        "name": "linktr.ee), bio.site, Beacons",
-        "url": "https://beacons.ai"
+        "name": "Linktree",
+        "url": "https://linktr.ee"
       },
       {
-        "name": "Many website builders include this feature",
-        "url": ""
+        "name": "Bio Site",
+        "url": "https://bio.site"
+      },
+      {
+        "name": "Beacons",
+        "url": "https://beacons.ai"
       }
     ],
     "training": [
       {
-        "name": "Each platform has setup guides",
-        "url": ""
-      },
-      {
         "name": "YouTube: link in bio setup",
         "url": "https://www.youtube.com/results?search_query=link+in+bio+setup"
+      },
+      {
+        "name": "YouTube: Linktree tutorial",
+        "url": "https://www.youtube.com/results?search_query=Linktree+tutorial"
       }
+    ],
+    "notes": [
+      "Each platform has its own setup guides.",
+      "Many website builders include a link-in-bio style page as a built-in feature."
     ],
     "value": 60,
     "when": "Social-media-active businesses, especially Instagram/TikTok."
@@ -1621,36 +1823,47 @@
         "domain": "brevo.com"
       }
     ],
-    "category": "Email Marketing",
+    "category": "Marketing & CRM",
     "type": "noncore",
     "description": "Email newsletters and automation. Free tiers: MailerLite (1,000 subscribers), Mailchimp (500 contacts), Brevo (300 emails/day). Landing pages, forms, basic automation.",
     "alternatives": [
       {
         "name": "MailerLite",
-        "url": "https://mailerlite.com"
+        "url": "https://www.mailerlite.com"
       },
       {
-        "name": "Self-host: Listmonk",
+        "name": "Mailchimp",
+        "url": "https://mailchimp.com"
+      },
+      {
+        "name": "Brevo",
+        "url": "https://www.brevo.com"
+      },
+      {
+        "name": "Listmonk",
         "url": "https://listmonk.app"
       }
     ],
     "training": [
       {
-        "name": "MailerLite Academy (free)",
-        "url": ""
+        "name": "HubSpot Academy",
+        "url": "https://academy.hubspot.com"
       },
       {
-        "name": "HubSpot Academy email marketing course (free)",
-        "url": ""
+        "name": "Mailchimp Help Center",
+        "url": "https://mailchimp.com/help"
       },
       {
-        "name": "Mailchimp Field Guide",
-        "url": ""
+        "name": "YouTube: MailerLite tutorial",
+        "url": "https://www.youtube.com/results?search_query=MailerLite+tutorial"
       },
       {
         "name": "YouTube: email marketing small business",
         "url": "https://www.youtube.com/results?search_query=email+marketing+small+business"
       }
+    ],
+    "notes": [
+      "Listmonk is open source and self-hosted."
     ],
     "value": 120,
     "when": "Client needs email marketing. Choose one."
@@ -1664,7 +1877,7 @@
         "domain": "hubspot.com"
       }
     ],
-    "category": "CRM",
+    "category": "Marketing & CRM",
     "type": "noncore",
     "description": "Free CRM, unlimited contacts. Pipeline, email integration, customer tracking. Generous free tier. Scalable.",
     "alternatives": [
@@ -1673,8 +1886,8 @@
         "url": "https://capsulecrm.com"
       },
       {
-        "name": "Open source: SuiteCRM",
-        "url": "https://suitecrm.io"
+        "name": "SuiteCRM",
+        "url": "https://suitecrm.com"
       }
     ],
     "training": [
@@ -1684,12 +1897,15 @@
       },
       {
         "name": "HubSpot Knowledge Base",
-        "url": ""
+        "url": "https://knowledge.hubspot.com"
       },
       {
         "name": "YouTube: HubSpot CRM free setup",
         "url": "https://www.youtube.com/results?search_query=HubSpot+CRM+free+setup"
       }
+    ],
+    "notes": [
+      "SuiteCRM is open source."
     ],
     "value": 300,
     "when": "Client needs CRM and doesn't have one."
@@ -1703,7 +1919,7 @@
         "domain": "zoho.com"
       }
     ],
-    "category": "CRM",
+    "category": "Marketing & CRM",
     "type": "noncore",
     "description": "Independent ecosystem: CRM (3 users), Bookings, Mail, Invoice, Writer, Meeting, Forms, all at zero cost. Genuine alternative to Google/Microsoft stacks, not just a CRM.",
     "alternatives": [
@@ -1716,8 +1932,16 @@
         "url": "https://capsulecrm.com"
       },
       {
-        "name": "Open source: SuiteCRM, EspoCRM, ERPNext",
-        "url": ""
+        "name": "SuiteCRM",
+        "url": "https://suitecrm.com"
+      },
+      {
+        "name": "EspoCRM",
+        "url": "https://www.espocrm.com"
+      },
+      {
+        "name": "ERPNext",
+        "url": "https://erpnext.com"
       }
     ],
     "training": [
@@ -1726,13 +1950,16 @@
         "url": "https://zoho.com/academy"
       },
       {
-        "name": "Zoho learning center",
-        "url": ""
+        "name": "YouTube: Zoho CRM tutorial",
+        "url": "https://www.youtube.com/results?search_query=Zoho+CRM+tutorial"
       },
       {
         "name": "YouTube: Zoho free tools for small business",
         "url": "https://www.youtube.com/results?search_query=Zoho+free+tools+for+small+business"
       }
+    ],
+    "notes": [
+      "SuiteCRM, EspoCRM and ERPNext are open source."
     ],
     "value": 400,
     "when": "Client wanting integrated stack outside Google/Microsoft. Strong for sole traders."
@@ -1750,7 +1977,7 @@
         "domain": "medium.com"
       }
     ],
-    "category": "Publishing",
+    "category": "Marketing & CRM",
     "type": "noncore",
     "description": "Free newsletter/article publishing. Build subscriber list, share expertise. Substack: newsletter focus. Medium: existing readership. No cost until monetisation.",
     "alternatives": [
@@ -1759,8 +1986,12 @@
         "url": "https://substack.com"
       },
       {
-        "name": "LinkedIn Articles (free)",
-        "url": ""
+        "name": "LinkedIn Articles",
+        "url": "https://www.linkedin.com"
+      },
+      {
+        "name": "Ghost",
+        "url": "https://ghost.org"
       }
     ],
     "training": [
@@ -1769,13 +2000,17 @@
         "url": "https://on.substack.com"
       },
       {
-        "name": "Medium writing guides",
-        "url": ""
+        "name": "Medium Help Center",
+        "url": "https://help.medium.com"
       },
       {
         "name": "YouTube: Substack/Medium for beginners",
         "url": "https://www.youtube.com/results?search_query=Substack/Medium+for+beginners"
       }
+    ],
+    "notes": [
+      "LinkedIn Articles is free with any LinkedIn profile.",
+      "Ghost is open source; the hosted Ghost(Pro) service is paid."
     ],
     "value": 120,
     "when": "Client publishing thought leadership or newsletters."
@@ -1796,12 +2031,20 @@
       {
         "name": "WhatsApp Business",
         "url": "https://business.whatsapp.com"
+      },
+      {
+        "name": "Facebook Messenger",
+        "url": "https://www.messenger.com"
+      },
+      {
+        "name": "Telegram",
+        "url": "https://telegram.org"
       }
     ],
     "training": [
       {
-        "name": "WhatsApp Business Help Center",
-        "url": ""
+        "name": "WhatsApp Help Center",
+        "url": "https://faq.whatsapp.com"
       },
       {
         "name": "YouTube: WhatsApp Business setup tutorial",
@@ -1829,18 +2072,18 @@
         "url": "https://calendly.com"
       },
       {
-        "name": "Microsoft Bookings (if M365)",
-        "url": ""
+        "name": "Cal.com",
+        "url": "https://cal.com"
       },
       {
-        "name": "Zoho Bookings (free)",
-        "url": ""
+        "name": "Zoho Bookings",
+        "url": "https://www.zoho.com/bookings"
       }
     ],
     "training": [
       {
-        "name": "Calendly Resource Center (free)",
-        "url": ""
+        "name": "Calendly Help Center",
+        "url": "https://help.calendly.com"
       },
       {
         "name": "YouTube: Calendly setup",
@@ -1850,6 +2093,10 @@
         "name": "Cal.com docs",
         "url": "https://cal.com/docs"
       }
+    ],
+    "notes": [
+      "Microsoft Bookings is included with M365 subscriptions.",
+      "Cal.com is open source; Zoho Bookings has a free tier."
     ],
     "value": 100,
     "when": "Appointment-based business."
@@ -1872,22 +2119,26 @@
     "description": "Project management and organisation. Notion: notes, wikis, databases. Trello: visual Kanban boards (Quote → Printing → Shipped). Both generous free tiers.",
     "alternatives": [
       {
-        "name": "notion.so), Trello",
+        "name": "Notion",
+        "url": "https://www.notion.so"
+      },
+      {
+        "name": "Trello",
         "url": "https://trello.com"
       },
       {
-        "name": "Open source: Kanboard",
+        "name": "Kanboard",
         "url": "https://kanboard.org"
       },
       {
-        "name": "Microsoft Planner (if M365)",
-        "url": ""
+        "name": "Obsidian",
+        "url": "https://obsidian.md"
       }
     ],
     "training": [
       {
-        "name": "Notion Help Center (notion.so/help)",
-        "url": ""
+        "name": "Notion Help Center",
+        "url": "https://www.notion.so/help"
       },
       {
         "name": "Trello guides",
@@ -1897,6 +2148,10 @@
         "name": "YouTube: Notion/Trello for small business",
         "url": "https://www.youtube.com/results?search_query=Notion/Trello+for+small+business"
       }
+    ],
+    "notes": [
+      "Kanboard is open source and self-hosted.",
+      "Microsoft Planner is included with M365 subscriptions."
     ],
     "value": 100,
     "when": "Client needing project/task management."
@@ -1923,8 +2178,12 @@
         "url": "https://zapier.com"
       },
       {
-        "name": "Open source: n8n",
+        "name": "n8n",
         "url": "https://n8n.io"
+      },
+      {
+        "name": "Make",
+        "url": "https://www.make.com"
       }
     ],
     "training": [
@@ -1940,6 +2199,9 @@
         "name": "YouTube: Zapier/Make automation for beginners",
         "url": "https://www.youtube.com/results?search_query=Zapier/Make+automation+for+beginners"
       }
+    ],
+    "notes": [
+      "n8n is open source and can be self-hosted."
     ],
     "value": 200,
     "when": "Client wanting workflow automation."
@@ -1966,19 +2228,27 @@
         "url": "https://signwell.com"
       },
       {
-        "name": "Zoho Sign Free",
-        "url": ""
+        "name": "Zoho Sign",
+        "url": "https://www.zoho.com/sign"
+      },
+      {
+        "name": "Dokobit",
+        "url": "https://dokobit.com"
       }
     ],
     "training": [
       {
-        "name": "Each platform has guides",
-        "url": ""
+        "name": "YouTube: SignWell tutorial",
+        "url": "https://www.youtube.com/results?search_query=SignWell+tutorial"
       },
       {
         "name": "YouTube: free electronic signature tools UK",
         "url": "https://www.youtube.com/results?search_query=free+electronic+signature+tools+UK"
       }
+    ],
+    "notes": [
+      "Each platform has its own setup guides.",
+      "Zoho Sign has a free tier."
     ],
     "value": 100,
     "when": "Professional services, legal, consultants needing signed documents."
@@ -2001,19 +2271,23 @@
         "url": "https://qr-code-generator.com"
       },
       {
-        "name": "Chrome built-in QR",
-        "url": ""
+        "name": "QRCode Monkey",
+        "url": "https://www.qrcode-monkey.com"
       }
     ],
     "training": [
       {
-        "name": "Self-explanatory tools",
-        "url": ""
+        "name": "YouTube: QR code generator tutorial",
+        "url": "https://www.youtube.com/results?search_query=QR+code+generator+tutorial"
       },
       {
         "name": "YouTube: QR codes for business UK",
         "url": "https://www.youtube.com/results?search_query=QR+codes+for+business+UK"
       }
+    ],
+    "notes": [
+      "Chrome has a built-in QR code generator in the address bar.",
+      "The tools are largely self-explanatory."
     ],
     "value": 30,
     "when": "Physical-to-digital touchpoints: menus, events, products, feedback."
@@ -2036,19 +2310,27 @@
         "url": "https://hemingwayapp.com"
       },
       {
-        "name": "AI tools also check writing",
-        "url": ""
+        "name": "LanguageTool",
+        "url": "https://languagetool.org"
+      },
+      {
+        "name": "Grammarly Free",
+        "url": "https://www.grammarly.com"
       }
     ],
     "training": [
       {
-        "name": "Self-explanatory tool",
-        "url": ""
-      },
-      {
         "name": "YouTube: Hemingway Editor tutorial",
         "url": "https://www.youtube.com/results?search_query=Hemingway+Editor+tutorial"
+      },
+      {
+        "name": "YouTube: business writing tips",
+        "url": "https://www.youtube.com/results?search_query=business+writing+tips"
       }
+    ],
+    "notes": [
+      "The tool is self-explanatory.",
+      "AI assistants can also check and improve writing."
     ],
     "value": 60,
     "when": "Client writing marketing copy, proposals, web content."
@@ -2071,23 +2353,28 @@
     "description": "Apple Voice Memos, Google Recorder. Record meetings, site visits, client briefs. On-device transcription on newer phones. Pair with AI for notes/summaries.",
     "alternatives": [
       {
-        "name": "Android, auto-transcription), Otter.ai Free",
-        "url": "https://otter.ai"
+        "name": "Google Recorder",
+        "url": "https://recorder.google.com"
       },
       {
-        "name": "Microsoft Teams transcription (if M365)",
-        "url": ""
+        "name": "Otter.ai Free",
+        "url": "https://otter.ai"
       }
     ],
     "training": [
       {
-        "name": "Built into phones",
-        "url": ""
-      },
-      {
         "name": "YouTube: meeting transcription free",
         "url": "https://www.youtube.com/results?search_query=meeting+transcription+free"
+      },
+      {
+        "name": "YouTube: Otter.ai tutorial",
+        "url": "https://www.youtube.com/results?search_query=Otter.ai+tutorial"
       }
+    ],
+    "notes": [
+      "Google Recorder offers on-device auto-transcription on Android.",
+      "Microsoft Teams includes meeting transcription if on M365.",
+      "Voice Memos and Recorder apps are built into phones."
     ],
     "value": 100,
     "when": "Client wanting to capture meetings, site visits, client conversations."
@@ -2110,19 +2397,22 @@
         "url": "https://outlook.com"
       },
       {
-        "name": "Most email clients have similar features",
-        "url": ""
+        "name": "Thunderbird",
+        "url": "https://www.thunderbird.net"
       }
     ],
     "training": [
       {
         "name": "Gmail Help Center",
-        "url": ""
+        "url": "https://support.google.com/mail"
       },
       {
         "name": "YouTube: Gmail productivity tips for business",
         "url": "https://www.youtube.com/results?search_query=Gmail+productivity+tips+for+business"
       }
+    ],
+    "notes": [
+      "Most email clients have similar features."
     ],
     "value": 0,
     "when": "Client already on Gmail, not using features."
@@ -2145,27 +2435,38 @@
     "description": "Free video conferencing. Zoom: 40-min group cap, unlimited 1:1. Google Meet: 60-min limit, no account needed for guests. Both screen share and record.",
     "alternatives": [
       {
-        "name": "zoom.us), Google Meet",
+        "name": "Zoom",
+        "url": "https://zoom.us"
+      },
+      {
+        "name": "Google Meet",
         "url": "https://meet.google.com"
       },
       {
+        "name": "Jitsi Meet",
+        "url": "https://meet.jit.si"
+      },
+      {
         "name": "Microsoft Teams Free",
-        "url": ""
+        "url": "https://teams.microsoft.com"
       }
     ],
     "training": [
       {
-        "name": "Zoom Learning Center (learn.zoom.us, free)",
-        "url": ""
+        "name": "Zoom Learning Center",
+        "url": "https://learn.zoom.us"
       },
       {
         "name": "Google Meet Help",
-        "url": ""
+        "url": "https://support.google.com/meet"
       },
       {
         "name": "YouTube: Zoom/Google Meet basics",
         "url": "https://www.youtube.com/results?search_query=Zoom/Google+Meet+basics"
       }
+    ],
+    "notes": [
+      "Jitsi Meet is open source with no account needed."
     ],
     "value": 120,
     "when": "Client needing video meetings, doesn't have Teams."
@@ -2188,19 +2489,26 @@
         "url": "https://spond.com"
       },
       {
-        "name": "Paid: Doodle Premium, SignUpGenius Premium",
-        "url": ""
+        "name": "Doodle",
+        "url": "https://doodle.com"
+      },
+      {
+        "name": "SignUpGenius",
+        "url": "https://www.signupgenius.com"
       }
     ],
     "training": [
       {
-        "name": "Spond Help Center",
-        "url": ""
+        "name": "Spond support and guides",
+        "url": "https://spond.com"
       },
       {
         "name": "YouTube: Spond app tutorial",
         "url": "https://www.youtube.com/results?search_query=Spond+app+tutorial"
       }
+    ],
+    "notes": [
+      "Doodle Premium and SignUpGenius Premium are paid tiers."
     ],
     "value": 100,
     "when": "Sports clubs, community groups, HAF providers, volunteer orgs."
@@ -2223,7 +2531,11 @@
         "url": "https://slack.com"
       },
       {
-        "name": "rocket.chat), Mattermost",
+        "name": "Rocket.Chat",
+        "url": "https://rocket.chat"
+      },
+      {
+        "name": "Mattermost",
         "url": "https://mattermost.com"
       }
     ],
@@ -2236,6 +2548,9 @@
         "name": "YouTube: Microsoft Teams for small business",
         "url": "https://www.youtube.com/results?search_query=Microsoft+Teams+for+small+business"
       }
+    ],
+    "notes": [
+      "Rocket.Chat and Mattermost are open source and self-hostable."
     ],
     "value": 0,
     "when": "M365 subscriber, internal team communication."
@@ -2258,23 +2573,38 @@
         "url": "https://akaunting.com"
       },
       {
-        "name": "Paid: FreeAgent, Xero, QuickBooks, Sage",
-        "url": ""
+        "name": "FreeAgent",
+        "url": "https://www.freeagent.com"
+      },
+      {
+        "name": "Xero",
+        "url": "https://www.xero.com"
+      },
+      {
+        "name": "QuickBooks",
+        "url": "https://quickbooks.intuit.com"
+      },
+      {
+        "name": "Sage",
+        "url": "https://www.sage.com"
       }
     ],
     "training": [
       {
         "name": "Wave Help Center",
-        "url": ""
+        "url": "https://www.waveapps.com"
+      },
+      {
+        "name": "HMRC Making Tax Digital guidance (GOV.UK)",
+        "url": "https://www.gov.uk"
       },
       {
         "name": "YouTube: Wave accounting UK",
         "url": "https://www.youtube.com/results?search_query=Wave+accounting+UK"
-      },
-      {
-        "name": "HMRC MTD guidance (gov.uk)",
-        "url": ""
       }
+    ],
+    "notes": [
+      "FreeAgent, Xero, QuickBooks and Sage are paid products."
     ],
     "value": 200,
     "when": "Sole trader without accounting software."
@@ -2305,8 +2635,16 @@
         "url": "https://mettle.co.uk"
       },
       {
-        "name": "Paid: Xero, QuickBooks, Sage",
-        "url": ""
+        "name": "Xero",
+        "url": "https://www.xero.com"
+      },
+      {
+        "name": "QuickBooks",
+        "url": "https://quickbooks.intuit.com"
+      },
+      {
+        "name": "Sage",
+        "url": "https://www.sage.com"
       }
     ],
     "training": [
@@ -2315,13 +2653,16 @@
         "url": "https://freeagent.com/support"
       },
       {
-        "name": "Tide Learning Hub",
-        "url": ""
+        "name": "Tide support and guides",
+        "url": "https://www.tide.co"
       },
       {
         "name": "YouTube: FreeAgent free with Mettle",
         "url": "https://www.youtube.com/results?search_query=FreeAgent+free+with+Mettle"
       }
+    ],
+    "notes": [
+      "Xero, QuickBooks and Sage are paid products."
     ],
     "value": 200,
     "when": "Sole trader with NatWest/Mettle account or willing to switch."
@@ -2340,35 +2681,41 @@
     "description": "Free direct access: Self Assessment, tax records, MTD compliance. Required for VAT-registered businesses. Free bridging software available.",
     "alternatives": [
       {
-        "name": "Statutory",
-        "url": ""
+        "name": "FreeAgent",
+        "url": "https://www.freeagent.com"
       },
       {
-        "name": "Free bridging: HMRC's own tools",
-        "url": ""
+        "name": "Xero",
+        "url": "https://www.xero.com"
       },
       {
-        "name": "Paid MTD-compatible: FreeAgent, Xero, QuickBooks, Sage",
-        "url": ""
+        "name": "QuickBooks",
+        "url": "https://quickbooks.intuit.com"
       },
       {
-        "name": "See gov.uk compatible software list",
-        "url": ""
+        "name": "Sage",
+        "url": "https://www.sage.com"
       }
     ],
     "training": [
       {
-        "name": "HMRC MTD guidance (gov.uk)",
-        "url": ""
+        "name": "HMRC Making Tax Digital guidance (GOV.UK)",
+        "url": "https://www.gov.uk"
       },
       {
-        "name": "HMRC webinars (free)",
-        "url": ""
+        "name": "YouTube: HMRC webinars Making Tax Digital",
+        "url": "https://www.youtube.com/results?search_query=HMRC+webinars+Making+Tax+Digital"
       },
       {
         "name": "YouTube: Making Tax Digital UK",
         "url": "https://www.youtube.com/results?search_query=Making+Tax+Digital+UK"
       }
+    ],
+    "notes": [
+      "Statutory: HMRC filing itself has no substitute.",
+      "Free bridging software is available for MTD.",
+      "FreeAgent, Xero, QuickBooks and Sage are paid MTD-compatible options.",
+      "See the GOV.UK list of MTD-compatible software."
     ],
     "value": 0,
     "when": "VAT-registered or approaching threshold. Self Assessment for all."
@@ -2382,7 +2729,7 @@
         "domain": "bitwarden.com"
       }
     ],
-    "category": "Security",
+    "category": "Security & Compliance",
     "type": "core",
     "description": "Free, open-source password manager. Unlimited passwords, sync across devices. Eliminates weak/reused passwords. Implement immediately.",
     "alternatives": [
@@ -2391,14 +2738,18 @@
         "url": "https://keepassxc.org"
       },
       {
-        "name": "Paid: 1Password, Dashlane",
-        "url": ""
+        "name": "1Password",
+        "url": "https://1password.com"
+      },
+      {
+        "name": "Dashlane",
+        "url": "https://www.dashlane.com"
       }
     ],
     "training": [
       {
-        "name": "Bitwarden Help Center (free)",
-        "url": ""
+        "name": "Bitwarden Help Center",
+        "url": "https://bitwarden.com/help"
       },
       {
         "name": "NCSC password guidance",
@@ -2408,6 +2759,9 @@
         "name": "YouTube: Bitwarden setup guide",
         "url": "https://www.youtube.com/results?search_query=Bitwarden+setup+guide"
       }
+    ],
+    "notes": [
+      "1Password and Dashlane are paid."
     ],
     "value": 36,
     "when": "Every client. Non-negotiable."
@@ -2421,7 +2775,7 @@
         "domain": "haveibeenpwned.com"
       }
     ],
-    "category": "Security",
+    "category": "Security & Compliance",
     "type": "core",
     "description": "Free data breach monitoring. Check business email addresses against known breaches. Check now, then periodically. Takes 30 seconds.",
     "alternatives": [
@@ -2430,23 +2784,26 @@
         "url": "https://monitor.mozilla.org"
       },
       {
-        "name": "HIBP is gold standard",
-        "url": ""
+        "name": "Google Password Checkup",
+        "url": "https://passwords.google.com"
       }
     ],
     "training": [
       {
-        "name": "HIBP About page",
-        "url": ""
+        "name": "Have I Been Pwned site guide",
+        "url": "https://haveibeenpwned.com"
       },
       {
         "name": "NCSC data breach guidance",
-        "url": ""
+        "url": "https://www.ncsc.gov.uk"
       },
       {
         "name": "YouTube: Have I Been Pwned how to use",
         "url": "https://www.youtube.com/results?search_query=Have+I+Been+Pwned+how+to+use"
       }
+    ],
+    "notes": [
+      "HIBP is the gold standard for breach checking."
     ],
     "value": 50,
     "when": "Every client. Non-negotiable."
@@ -2460,19 +2817,23 @@
         "domain": "passwords.google.com"
       }
     ],
-    "category": "Security",
+    "category": "Security & Compliance",
     "type": "noncore",
     "description": "Checks saved passwords against known breach databases. Quick 5-minute security audit. Built into Chrome. Complements HIBP.",
     "alternatives": [
       {
         "name": "Have I Been Pwned",
         "url": "https://haveibeenpwned.com"
+      },
+      {
+        "name": "Bitwarden",
+        "url": "https://bitwarden.com"
       }
     ],
     "training": [
       {
-        "name": "Google Safety Center (safety.google)",
-        "url": ""
+        "name": "Google Safety Center",
+        "url": "https://safety.google"
       },
       {
         "name": "YouTube: Google password checkup",
@@ -2498,21 +2859,24 @@
       {
         "name": "IASME Governance",
         "url": "https://iasme.co.uk"
+      },
+      {
+        "name": "ICO security guidance",
+        "url": "https://ico.org.uk"
       }
     ],
     "training": [
       {
-        "name": "NCSC free online training",
-        "url": ""
-      },
-      {
-        "name": "Exercise in a Box (free cyber exercises)",
-        "url": ""
-      },
-      {
         "name": "NCSC Small Business Guide",
-        "url": ""
+        "url": "https://www.ncsc.gov.uk"
+      },
+      {
+        "name": "YouTube: Cyber Essentials for small business",
+        "url": "https://www.youtube.com/results?search_query=Cyber+Essentials+for+small+business"
       }
+    ],
+    "notes": [
+      "NCSC also offers free online training and Exercise in a Box cyber exercises via ncsc.gov.uk."
     ],
     "value": 200,
     "when": "Every client. Universal."
@@ -2531,27 +2895,31 @@
     "description": "Free authoritative UK GDPR reference. Privacy notice templates, data protection self-assessment, DPIA guidance, registration (£35-60/yr). Definitive source. Statutory body.",
     "alternatives": [
       {
-        "name": "Statutory, no substitute",
-        "url": ""
+        "name": "NCSC guidance",
+        "url": "https://www.ncsc.gov.uk"
       },
       {
-        "name": "plain-language), Data Protection Network",
+        "name": "gov.uk data protection guidance",
+        "url": "https://www.gov.uk/data-protection"
+      },
+      {
+        "name": "Data Protection Network",
         "url": "https://dpnetwork.org.uk"
       }
     ],
     "training": [
       {
-        "name": "ICO SME Web Hub (free, designed for small business)",
-        "url": ""
-      },
-      {
-        "name": "ICO direct marketing guidance",
-        "url": ""
+        "name": "ICO SME Web Hub",
+        "url": "https://ico.org.uk"
       },
       {
         "name": "YouTube: GDPR small business UK",
         "url": "https://www.youtube.com/results?search_query=GDPR+small+business+UK"
       }
+    ],
+    "notes": [
+      "The ICO is a statutory body with no direct substitute; the alternatives listed are legitimate complements, not replacements.",
+      "The ICO also publishes plain-language direct marketing guidance on ico.org.uk."
     ],
     "value": 500,
     "when": "Every client. Statutory."
@@ -2570,14 +2938,30 @@
     "description": "15GB free. Docs, Sheets, Slides, Forms. Shareable, collaborative. Available with any Google account. Includes Google Slides for presentations.",
     "alternatives": [
       {
-        "name": "OneDrive (5GB free; 1TB with M365), Dropbox Basic (2GB), Nextcloud (open source, self-host), pCloud (10GB free)",
-        "url": ""
+        "name": "OneDrive",
+        "url": "https://onedrive.live.com"
+      },
+      {
+        "name": "Dropbox",
+        "url": "https://dropbox.com"
+      },
+      {
+        "name": "Nextcloud",
+        "url": "https://nextcloud.com"
+      },
+      {
+        "name": "Proton Drive",
+        "url": "https://proton.me/drive"
+      },
+      {
+        "name": "pCloud",
+        "url": "https://pcloud.com"
       }
     ],
     "training": [
       {
         "name": "Google Drive Help",
-        "url": ""
+        "url": "https://support.google.com/drive"
       },
       {
         "name": "Google Digital Garage",
@@ -2587,6 +2971,10 @@
         "name": "YouTube: Google Drive for business",
         "url": "https://www.youtube.com/results?search_query=Google+Drive+for+business"
       }
+    ],
+    "notes": [
+      "Free tiers: OneDrive 5GB (1TB with M365), Dropbox Basic 2GB, pCloud 10GB.",
+      "Nextcloud is open source and self-hosted."
     ],
     "value": 60,
     "when": "Every client not already on M365."
@@ -2605,8 +2993,20 @@
     "description": "1TB cloud storage included with M365. Auto-backup, file sharing, versioning. Already paid for if M365 subscriber. Needs enabling and configuring.",
     "alternatives": [
       {
-        "name": "Google Drive Free (15GB), Dropbox, Nextcloud (open source, self-host), pCloud",
-        "url": ""
+        "name": "Google Drive",
+        "url": "https://drive.google.com"
+      },
+      {
+        "name": "Dropbox",
+        "url": "https://dropbox.com"
+      },
+      {
+        "name": "Nextcloud",
+        "url": "https://nextcloud.com"
+      },
+      {
+        "name": "pCloud",
+        "url": "https://pcloud.com"
       }
     ],
     "training": [
@@ -2618,6 +3018,9 @@
         "name": "YouTube: OneDrive for business setup",
         "url": "https://www.youtube.com/results?search_query=OneDrive+for+business+setup"
       }
+    ],
+    "notes": [
+      "Google Drive free tier is 15GB. Nextcloud is open source and self-hosted."
     ],
     "value": 0,
     "when": "M365 subscriber. Already paid for; just enable."
@@ -2636,27 +3039,42 @@
     "description": "Task management and databases included in M365. Lists replaces spreadsheet-as-database. Planner for Kanban boards. Syncs with Teams.",
     "alternatives": [
       {
-        "name": "Trello Free, Notion Free, Todoist Free, Airtable Free",
-        "url": ""
+        "name": "Trello",
+        "url": "https://trello.com"
       },
       {
-        "name": "Open source: Kanboard, Taiga",
-        "url": ""
+        "name": "Notion",
+        "url": "https://notion.so"
+      },
+      {
+        "name": "Todoist",
+        "url": "https://todoist.com"
+      },
+      {
+        "name": "Airtable",
+        "url": "https://airtable.com"
+      },
+      {
+        "name": "Kanboard",
+        "url": "https://kanboard.org"
+      },
+      {
+        "name": "Taiga",
+        "url": "https://taiga.io"
       }
     ],
     "training": [
       {
-        "name": "Microsoft Lists Help",
-        "url": ""
-      },
-      {
-        "name": "Planner Help",
-        "url": ""
+        "name": "Microsoft Lists and Planner Help",
+        "url": "https://support.microsoft.com"
       },
       {
         "name": "YouTube: Microsoft Planner tutorial",
         "url": "https://www.youtube.com/results?search_query=Microsoft+Planner+tutorial"
       }
+    ],
+    "notes": [
+      "Kanboard and Taiga are open source."
     ],
     "value": 100,
     "when": "M365 subscriber. Task tracking, project management."
@@ -2675,23 +3093,38 @@
     "description": "Online booking included in M365. Clients self-book. Syncs Outlook. Already paid for if subscriber.",
     "alternatives": [
       {
-        "name": "Calendly Free, Cal.com (open source), Setmore Free, TidyCal, Zoho Bookings Free",
-        "url": ""
+        "name": "Calendly",
+        "url": "https://calendly.com"
+      },
+      {
+        "name": "Cal.com",
+        "url": "https://cal.com"
+      },
+      {
+        "name": "Setmore",
+        "url": "https://setmore.com"
+      },
+      {
+        "name": "TidyCal",
+        "url": "https://tidycal.com"
+      },
+      {
+        "name": "Zoho Bookings",
+        "url": "https://zoho.com/bookings"
       }
     ],
     "training": [
       {
         "name": "Microsoft Bookings Help",
-        "url": ""
-      },
-      {
-        "name": "Bookings documentation",
-        "url": ""
+        "url": "https://support.microsoft.com"
       },
       {
         "name": "YouTube: Microsoft Bookings setup",
         "url": "https://www.youtube.com/results?search_query=Microsoft+Bookings+setup"
       }
+    ],
+    "notes": [
+      "Cal.com is open source and self-hostable."
     ],
     "value": 150,
     "when": "M365 subscriber, appointment-based business."
@@ -2710,23 +3143,38 @@
     "description": "Surveys, feedback, consent capture. Data in M365 tenant. QR codes for physical-to-digital touchpoints.",
     "alternatives": [
       {
-        "name": "Google Forms (free), Tally (tally.so, free), Typeform Free, JotForm Free (5 forms)",
-        "url": ""
+        "name": "Google Forms",
+        "url": "https://forms.google.com"
       },
       {
-        "name": "Open source: LimeSurvey",
-        "url": ""
+        "name": "Tally",
+        "url": "https://tally.so"
+      },
+      {
+        "name": "Typeform",
+        "url": "https://typeform.com"
+      },
+      {
+        "name": "Jotform",
+        "url": "https://jotform.com"
+      },
+      {
+        "name": "LimeSurvey",
+        "url": "https://limesurvey.org"
       }
     ],
     "training": [
       {
         "name": "Microsoft Forms Help",
-        "url": ""
+        "url": "https://support.microsoft.com"
       },
       {
         "name": "YouTube: Microsoft Forms tutorial",
         "url": "https://www.youtube.com/results?search_query=Microsoft+Forms+tutorial"
       }
+    ],
+    "notes": [
+      "Jotform free tier allows 5 forms. LimeSurvey is open source."
     ],
     "value": 100,
     "when": "M365 subscriber. Feedback, consent, event check-ins."
@@ -2744,27 +3192,35 @@
         "domain": "online.norfolk.gov.uk"
       }
     ],
-    "category": "Business Support",
+    "category": "Grants & Business Support",
     "type": "core",
     "description": "Free, impartial business advice for Norfolk and Suffolk. GoDigital supplier portal for vetted digital service providers. Access to grants, finance, specialist advice.",
     "alternatives": [
       {
         "name": "Norfolk Chamber of Commerce",
         "url": "https://norfolkchamber.co.uk"
+      },
+      {
+        "name": "Federation of Small Businesses",
+        "url": "https://www.fsb.org.uk"
+      },
+      {
+        "name": "gov.uk business support",
+        "url": "https://www.gov.uk/browse/business"
       }
     ],
     "training": [
       {
-        "name": "Growth Hub events calendar (free workshops)",
-        "url": ""
+        "name": "Growth Hub events and workshops",
+        "url": "https://newangliagrowthhub.co.uk"
       },
       {
         "name": "gov.uk business finance finder",
-        "url": ""
+        "url": "https://www.gov.uk/business-finance-support"
       },
       {
         "name": "GoDigital supplier portal",
-        "url": ""
+        "url": "https://online.norfolk.gov.uk/GoDigital"
       }
     ],
     "value": 300,
@@ -2779,23 +3235,23 @@
         "domain": "norfolkchamber.co.uk"
       }
     ],
-    "category": "Business Support",
+    "category": "Grants & Business Support",
     "type": "noncore",
     "description": "Networking, events, business support resources. Free resources available. Membership for full benefits. Often overlooked by sole traders.",
     "alternatives": [
       {
-        "name": "free), FSB",
-        "url": "https://fsb.org.uk"
+        "name": "Federation of Small Businesses",
+        "url": "https://www.fsb.org.uk"
       },
       {
-        "name": "gov.uk/business",
-        "url": ""
+        "name": "gov.uk business support",
+        "url": "https://www.gov.uk/browse/business"
       }
     ],
     "training": [
       {
         "name": "Norfolk Chamber events page",
-        "url": ""
+        "url": "https://norfolkchamber.co.uk"
       },
       {
         "name": "YouTube: Chamber of Commerce benefits for small business",
@@ -2823,19 +3279,50 @@
     "description": "Structured free upskilling. HubSpot Academy (CRM, marketing), Meta Blueprint (social), Google Skillshop & Digital Garage (analytics, ads, digital), Xero U (accounting), SEMrush Academy (SEO).",
     "alternatives": [
       {
-        "name": "HubSpot Academy, Meta Blueprint, Google Skillshop, Google Digital Garage, Xero U, SEMrush Academy, Canva Design School, MailerLite Academy",
-        "url": ""
-      }
-    ],
-    "training": [
+        "name": "HubSpot Academy",
+        "url": "https://academy.hubspot.com"
+      },
       {
-        "name": "Each platform is self-serve",
-        "url": ""
+        "name": "Meta Blueprint",
+        "url": "https://facebook.com/business/learn"
+      },
+      {
+        "name": "Google Skillshop",
+        "url": "https://skillshop.exceedlms.com"
       },
       {
         "name": "Google Digital Garage",
         "url": "https://learndigital.withgoogle.com"
+      },
+      {
+        "name": "Xero U",
+        "url": "https://www.xero.com"
+      },
+      {
+        "name": "SEMrush Academy",
+        "url": "https://www.semrush.com/academy/"
+      },
+      {
+        "name": "Canva Design School",
+        "url": "https://canva.com/designschool"
+      },
+      {
+        "name": "MailerLite Academy",
+        "url": "https://www.mailerlite.com"
       }
+    ],
+    "training": [
+      {
+        "name": "Google Digital Garage",
+        "url": "https://learndigital.withgoogle.com"
+      },
+      {
+        "name": "YouTube: free online business courses",
+        "url": "https://www.youtube.com/results?search_query=free+online+business+courses"
+      }
+    ],
+    "notes": [
+      "Each academy is free and self-serve."
     ],
     "value": 300,
     "when": "Every client interested in upskilling. Recommend specific academies matching their needs."
@@ -2860,17 +3347,28 @@
       {
         "name": "Coursera",
         "url": "https://coursera.org"
+      },
+      {
+        "name": "edX",
+        "url": "https://www.edx.org"
+      },
+      {
+        "name": "FutureLearn",
+        "url": "https://www.futurelearn.com"
       }
     ],
     "training": [
       {
-        "name": "Coursera and Khan Academy are self-serve",
-        "url": ""
-      },
-      {
         "name": "YouTube: free online courses business UK",
         "url": "https://www.youtube.com/results?search_query=free+online+courses+business+UK"
+      },
+      {
+        "name": "YouTube: how to audit Coursera courses free",
+        "url": "https://www.youtube.com/results?search_query=how+to+audit+Coursera+courses+free"
       }
+    ],
+    "notes": [
+      "Coursera and Khan Academy are self-serve; audit mode gives course content without certificates."
     ],
     "value": 200,
     "when": "Client wanting structured learning beyond platform academies."
@@ -2884,24 +3382,35 @@
         "domain": "bridgeai.net"
       }
     ],
-    "category": "Grants & Programmes",
+    "category": "Grants & Business Support",
     "type": "noncore",
     "description": "UK-government-backed programme helping SMEs adopt and build AI-powered products. Advisor access, funded pilot projects, training. Low effort to apply.",
     "alternatives": [
       {
-        "name": "BridgeAI",
-        "url": "https://bridgeai.net"
+        "name": "Innovate UK (UKRI)",
+        "url": "https://www.ukri.org"
+      },
+      {
+        "name": "Microsoft for Startups",
+        "url": "https://microsoft.com/startups"
+      },
+      {
+        "name": "Nvidia Inception",
+        "url": "https://www.nvidia.com/en-gb/startups"
       }
     ],
     "training": [
       {
-        "name": "BridgeAI website application process",
-        "url": ""
+        "name": "BridgeAI website and application process",
+        "url": "https://bridgeai.net"
       },
       {
-        "name": "Connected via Growth Hub",
-        "url": ""
+        "name": "YouTube: AI adoption small business UK",
+        "url": "https://www.youtube.com/results?search_query=AI+adoption+small+business+UK"
       }
+    ],
+    "notes": [
+      "Access can also be arranged via the New Anglia Growth Hub."
     ],
     "value": 300,
     "when": "SMEs exploring AI adoption. Tech-forward clients."
@@ -2919,23 +3428,27 @@
         "domain": "gov.uk"
       }
     ],
-    "category": "Grants & Programmes",
+    "category": "Grants & Business Support",
     "type": "noncore",
     "description": "Grant funding (non-dilutive) for UK SMEs pursuing R&D. Gov.uk grants portal aggregates available funding. Competitive but worth monitoring.",
     "alternatives": [
       {
-        "name": "Innovate UK",
-        "url": "https://ukri.org"
+        "name": "UKRI",
+        "url": "https://www.ukri.org"
+      },
+      {
+        "name": "British Business Bank",
+        "url": "https://www.british-business-bank.co.uk"
       }
     ],
     "training": [
       {
-        "name": "Innovate UK funding finder",
-        "url": ""
+        "name": "Innovate UK funding service",
+        "url": "https://apply-for-innovation-funding.service.gov.uk"
       },
       {
         "name": "gov.uk business finance support",
-        "url": ""
+        "url": "https://www.gov.uk/business-finance-support"
       },
       {
         "name": "YouTube: Innovate UK Smart Grant application",
@@ -2954,23 +3467,35 @@
         "domain": "nvidia.com"
       }
     ],
-    "category": "Grants & Programmes",
+    "category": "Grants & Business Support",
     "type": "sector",
     "description": "Startup programme: cloud credits, go-to-market support, co-marketing, free training. Low effort to apply. Relevant for any AI-native business.",
     "alternatives": [
       {
-        "name": "Nvidia Inception, Microsoft for Startups",
+        "name": "Microsoft for Startups",
         "url": "https://microsoft.com/startups"
+      },
+      {
+        "name": "AWS Activate",
+        "url": "https://aws.amazon.com/activate"
+      },
+      {
+        "name": "Google for Startups",
+        "url": "https://startup.google.com"
       }
     ],
     "training": [
       {
         "name": "Nvidia Inception application",
-        "url": "https://nvidia.com"
+        "url": "https://www.nvidia.com/en-gb/startups"
       },
       {
-        "name": "Nvidia Deep Learning Institute (free courses)",
-        "url": ""
+        "name": "Nvidia Deep Learning Institute",
+        "url": "https://www.nvidia.com"
+      },
+      {
+        "name": "YouTube: Nvidia Inception programme",
+        "url": "https://www.youtube.com/results?search_query=Nvidia+Inception+programme"
       }
     ],
     "value": 500,
@@ -2994,8 +3519,16 @@
     "description": "Free premium theme + comprehensive e-commerce education covering setup, photography, marketing, fulfilment. Dawn is fast, accessible, customisable.",
     "alternatives": [
       {
-        "name": "free with Shopify), WooCommerce",
+        "name": "WooCommerce",
         "url": "https://woocommerce.com"
+      },
+      {
+        "name": "Ecwid",
+        "url": "https://www.ecwid.com"
+      },
+      {
+        "name": "Big Cartel",
+        "url": "https://www.bigcartel.com"
       }
     ],
     "training": [
@@ -3005,12 +3538,15 @@
       },
       {
         "name": "Shopify Help Center",
-        "url": ""
+        "url": "https://help.shopify.com"
       },
       {
         "name": "YouTube: Shopify Dawn theme setup",
         "url": "https://www.youtube.com/results?search_query=Shopify+Dawn+theme+setup"
       }
+    ],
+    "notes": [
+      "Dawn theme is free with any Shopify plan. WooCommerce is open source."
     ],
     "value": 0,
     "when": "E-commerce businesses on or considering Shopify."
@@ -3029,14 +3565,18 @@
     "description": "Secondary marketplace for digital guides, branded merch. Higher margins than Printful for some products. No seller account cost until listing.",
     "alternatives": [
       {
-        "name": "Amazon Seller Central, Etsy",
+        "name": "Etsy",
         "url": "https://etsy.com"
+      },
+      {
+        "name": "eBay",
+        "url": "https://www.ebay.co.uk"
       }
     ],
     "training": [
       {
-        "name": "Amazon Seller University (free video tutorials)",
-        "url": ""
+        "name": "Amazon Seller University",
+        "url": "https://sellercentral.amazon.co.uk"
       },
       {
         "name": "YouTube: Amazon UK seller setup beginners",
@@ -3060,18 +3600,18 @@
     "description": "Low-risk print-on-demand merchandise. No inventory. Integrates with Shopify, Etsy, WooCommerce. Test brand appetite before committing to stock.",
     "alternatives": [
       {
-        "name": "Printful",
-        "url": "https://printful.com"
+        "name": "Printify",
+        "url": "https://printify.com"
+      },
+      {
+        "name": "Gelato",
+        "url": "https://www.gelato.com"
       }
     ],
     "training": [
       {
-        "name": "Printful webinars (free)",
-        "url": ""
-      },
-      {
-        "name": "Printful blog",
-        "url": ""
+        "name": "Printful webinars and guides",
+        "url": "https://printful.com"
       },
       {
         "name": "YouTube: print on demand UK beginners",
@@ -3095,12 +3635,16 @@
     "description": "Entry-level 3D CAD for visualisations. Garden designs, room layouts, construction planning. Free web version, Go for iPad.",
     "alternatives": [
       {
-        "name": "web), Tinkercad",
+        "name": "Tinkercad",
         "url": "https://tinkercad.com"
       },
       {
-        "name": "Paid: Sketchup Pro, AutoCAD, Vectorworks",
-        "url": ""
+        "name": "Blender",
+        "url": "https://www.blender.org"
+      },
+      {
+        "name": "FreeCAD",
+        "url": "https://www.freecad.org"
       }
     ],
     "training": [
@@ -3112,6 +3656,9 @@
         "name": "YouTube: Sketchup for beginners",
         "url": "https://www.youtube.com/results?search_query=Sketchup+for+beginners"
       }
+    ],
+    "notes": [
+      "Paid options: Sketchup Pro, AutoCAD, Vectorworks. Blender and FreeCAD are open source."
     ],
     "value": 200,
     "when": "Garden/landscape, construction, interior design, architecture."
@@ -3134,23 +3681,34 @@
     "description": "Sector-specific free training and compliance resources. Safety, emergency response, EDI, governance. Equivalent paid LMS content: £500-2,000/year.",
     "alternatives": [
       {
-        "name": "OPITO",
-        "url": "https://opito.com"
+        "name": "HSE",
+        "url": "https://www.hse.gov.uk"
       },
       {
-        "name": "Sector-specific; no cross-alternatives",
-        "url": ""
+        "name": "Global Wind Organisation",
+        "url": "https://www.globalwindsafety.org"
+      },
+      {
+        "name": "Charity Commission",
+        "url": "https://www.gov.uk/government/organisations/charity-commission"
       }
     ],
     "training": [
       {
-        "name": "Each body has its own training portal",
-        "url": ""
+        "name": "HSE free guidance library",
+        "url": "https://www.hse.gov.uk"
       },
       {
-        "name": "HSE has extensive free guidance library",
-        "url": ""
+        "name": "OPITO training portal",
+        "url": "https://opito.com"
+      },
+      {
+        "name": "YouTube: free health and safety training UK",
+        "url": "https://www.youtube.com/results?search_query=free+health+and+safety+training+UK"
       }
+    ],
+    "notes": [
+      "Sector specific: each body runs its own training portal and there are no direct cross-sector alternatives."
     ],
     "value": 500,
     "when": "Safety training, energy sector, charities, regulated industries."
@@ -3169,12 +3727,16 @@
     "description": "Product analytics, session replay, feature flags, A/B testing. Open source. Generous free tier. For tech businesses building software products.",
     "alternatives": [
       {
-        "name": "open source), Mixpanel Free",
+        "name": "Mixpanel",
         "url": "https://mixpanel.com"
       },
       {
-        "name": "Simpler: GA4 + Clarity",
-        "url": ""
+        "name": "Matomo",
+        "url": "https://matomo.org"
+      },
+      {
+        "name": "Plausible",
+        "url": "https://plausible.io"
       }
     ],
     "training": [
@@ -3186,6 +3748,9 @@
         "name": "YouTube: PostHog tutorial",
         "url": "https://www.youtube.com/results?search_query=PostHog+tutorial"
       }
+    ],
+    "notes": [
+      "PostHog is open source and self-hostable. For simpler needs, GA4 plus Microsoft Clarity covers most cases."
     ],
     "value": 300,
     "when": "Tech/SaaS businesses building software products."
