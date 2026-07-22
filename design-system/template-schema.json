@@ -1,0 +1,43 @@
+{
+  "$comment": "Machine-readable copy of TEMPLATE_SCHEMA.md. Keep both in sync. Consumed by automation/validate-template-structure.js.",
+  "schemaVersion": "1.0",
+  "regions": {
+    "page": {
+      "cardinality": "one-or-more",
+      "parent": null,
+      "description": "One physical printed page. Background and margin tokens apply here."
+    },
+    "header": {
+      "cardinality": "one",
+      "parent": "page",
+      "description": "Holds the logo and the per-page meta line."
+    },
+    "footer": {
+      "cardinality": "one",
+      "parent": "page",
+      "description": "Holds the legal line and pagination."
+    }
+  },
+  "slots": {
+    "logo": {
+      "cardinality": "one",
+      "parent": "header",
+      "description": "The brand mark image."
+    },
+    "pagination": {
+      "cardinality": "one",
+      "parent": "footer",
+      "description": "The page-number readout."
+    },
+    "legal-line": {
+      "cardinality": "one",
+      "parent": "footer",
+      "description": "The copyright and company-number line."
+    },
+    "corner-decoration": {
+      "cardinality": "zero-or-one",
+      "parent": "page",
+      "description": "The decorative corner graphic. Optional, no asset supplied to the design system as of schema v1.0."
+    }
+  }
+}

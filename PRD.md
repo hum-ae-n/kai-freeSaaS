@@ -2,7 +2,7 @@
 
 **Project:** `free-stack`
 **Owner:** Kaipability Ltd (Rocky Verma)
-**Version:** 1.1
+**Version:** 1.3
 **Date:** 22 July 2026 (v1.0: 14 July 2026)
 **Build tool:** Claude Code from this PRD
 **Deploy target:** Netlify via GitHub
@@ -45,8 +45,7 @@ free-stack/
 │   ├── data-loader.js      # Loads tools.json, parses URL params, routes to mode
 │   ├── curator.js           # Curator mode: table, filters, selection, link gen
 │   └── client.js            # Client mode: card rendering, grouped by category
-├── assets/
-│   └── logo.svg            # Kaipability logo for branding
+├── design-system/           # Kaipability brand system: tokens, fonts, logos. Source of truth for styling.
 ├── netlify.toml             # Netlify deploy config
 ├── README.md                # How to add tools, deploy, URL schema
 └── PRD.md                   # This document
@@ -115,14 +114,18 @@ Validate with `node scripts/validate-data.mjs`, which enforces this section and 
 
 | Type | Meaning | Badge colour | Default state |
 |------|---------|-------------|---------------|
-| `core` | Recommend for virtually every small business | Green `#d4edda` | Pre-checked |
-| `noncore` | Depends on client need | Yellow `#fff3cd` | Unchecked |
-| `m365` | Only relevant if client has Microsoft 365 | Blue `#cce5ff` | Unchecked |
-| `sector` | Industry-specific | Purple `#f0e6ff` | Unchecked |
+| `core` | Recommend for virtually every small business | Sage tint (`--positive-tint`) | Pre-checked |
+| `noncore` | Depends on client need | Aged amber tint (`--caution-tint`) | Unchecked |
+| `m365` | Only relevant if client has Microsoft 365 | Slate tint (`--info-tint`) | Unchecked |
+| `sector` | Industry-specific | Lavender tint (`--lavender-2`) | Unchecked |
+
+Badge colours are the semantic tints from the Kaipability design system (v1.3; the original bootstrap-style pastels are superseded). Badges always carry a text label, never colour alone.
 
 ### Categories (initial set, expandable)
 
-AI Assistants, Analytics & SEO, Business Operations, Business Support, Cloud & Docs, Communication, CRM, Design & Creative, E-commerce, Email Marketing, Finance, Grants & Programmes, Image & Stock, Image Utilities, Learning, Local SEO, Market Research, Publishing, Sector Specific, Security, Security & Compliance, Social Media, Video & Audio
+AI Assistants, Business Operations, Cloud & Docs, Communication, Design & Images, E-commerce, Finance, Grants & Business Support, Learning, Market Research, Marketing & CRM, SEO & Analytics, Sector Specific, Security & Compliance, Video & Audio
+
+Fifteen categories. Consolidated from the original 23 in v1.2: near-duplicates ("Security" vs "Security & Compliance", "Image & Stock" vs "Image Utilities") produced one-tool section headers in client mode, which read as clutter. Keep categories broad enough that a typical 12-tool client selection produces 5-8 sections, not 10+.
 
 ---
 
@@ -252,9 +255,13 @@ TOTAL FREE VALUE\t15 tools available at zero cost\t~£2,896/yr
 
 - **Mobile-first.** Most recipients open this on a phone. Cards stack vertically. Touch targets are generous.
 - **Read-only.** No controls, no checkboxes, no filters. This is a deliverable, not a tool.
-- **Branded.** Kaipability red accent, Source Sans 3. Professional, not templated.
+- **Branded.** The Kaipability design system: cream paper, oxblood accent, Sonny Gothic body with Galano Grotesque headings, flat editorial surfaces. Professional, not templated.
 - **Everything links.** Every URL, alternative, and training resource is a live clickable link with `target="_blank" rel="noopener noreferrer"`.
 - **Print-friendly.** `@media print`: URLs shown after link text, cards don't break across pages, summary bar simplified.
+
+### Security (both modes)
+
+All text originating from URL parameters (`client`) or from `tools.json` must be inserted into the DOM via `textContent`, or passed through an HTML-escaping helper before any `innerHTML` use. URLs from data are only ever set as attribute values (`href`, `src`), never concatenated into markup strings. Acceptance test: `?client=<img src=x onerror=alert(1)>` renders as literal text in the header.
 
 ---
 
@@ -289,13 +296,11 @@ function getDomain(url) {
 
 ```html
 <img src="https://icons.duckduckgo.com/ip3/canva.com.ico"
-     width="16" height="16" alt=""
-     loading="lazy"
-     style="vertical-align: middle; margin-right: 4px;"
-     onerror="this.style.display='none'">
+     width="16" height="16" alt="" loading="lazy" class="favicon"
+     data-domain="canva.com">
 ```
 
-`onerror` hides the image on failure. `loading="lazy"` because 85 tools × multiple links = many favicon requests. `alt=""` because favicons are decorative.
+A single delegated `error` listener implements the fallback chain: on first failure swap `src` to the Google URL for the same domain, on second failure hide the image. This makes the §8 fallback real rather than aspirational. `loading="lazy"` because 85 tools × multiple links = many favicon requests. `alt=""` because favicons are decorative.
 
 ### Where favicons appear
 
@@ -366,34 +371,17 @@ Not for consultants, not for SEO. Write as if explaining to a smart person who h
 
 ## 11. Styling
 
-### Fonts
+**Source of truth: `design-system/`** — the Kaipability brand system (v1.3; this section's original provisional palette of Source Sans 3 and `#c0392b` is superseded, recorded in the BUILD-PLAN changelog).
 
-- **Primary:** Source Sans 3 via Google Fonts, fallback Source Sans Pro, system sans-serif
-- **Monospace:** system stack (URLs, code)
+`css/styles.css` imports `design-system/colors_and_type.css` (tokens, self-hosted fonts, base type) and adds the app layer on top. Rules that bind:
 
-### Colour tokens
-
-| Token | Hex | Usage |
-|-------|-----|-------|
-| `--brand` | `#c0392b` | Accent, headers, borders |
-| `--brand-dark` | `#a93226` | Hover |
-| `--nav` | `#2c3e50` | Table headers, secondary buttons |
-| `--success` | `#2d7d46` | Value totals, toast |
-| `--core-bg` | `#d4edda` | Core badge/row |
-| `--core-fg` | `#155724` | Core text |
-| `--noncore-bg` | `#fff3cd` | Non-core badge/row |
-| `--noncore-fg` | `#856404` | Non-core text |
-| `--m365-bg` | `#cce5ff` | M365 badge/row |
-| `--m365-fg` | `#004085` | M365 text |
-| `--sector-bg` | `#f0e6ff` | Sector badge/row |
-| `--sector-fg` | `#4a148c` | Sector text |
-| `--bg` | `#f7f7f5` | Page background |
-| `--card` | `#ffffff` | Card/table fill |
-| `--border` | `#e0e0e0` | Card borders |
-| `--text` | `#1a1a1a` | Body |
-| `--text-2` | `#666666` | Secondary |
-| `--text-3` | `#888888` | Muted/labels |
-| `--link` | `#2980b9` | Links |
+- **Surfaces:** warm cream paper (`--paper` `#F4F1EA`), two-tone variation via `--paper-2`, hairline rules on `--paper-edge`. Flat: no gradients, shadows only on overlays.
+- **Accent:** oxblood (`--oxblood` `#A40000`) for primary buttons, rules, eyebrows, link hover. One accent only.
+- **Type:** Sonny Gothic (body), Galano Grotesque Medium (headings, labels, buttons), Sonny Gothic UltraBlack (display moments: client-mode hero, summary numbers). Self-hosted from `design-system/fonts/`, no Google Fonts.
+- **Corners:** square by default; 2px inputs, 4px buttons/cards. Pills only for status chips in data tables (the type badges qualify).
+- **Tool types** map to the semantic palette: core → sage (`--positive`), noncore → aged amber (`--caution`), m365 → slate (`--info`), sector → lavender. Badge text colours are darkened variants holding 4.5:1 on their tints.
+- **Logos:** `design-system/assets/kaipability-logo-lockup.png` in headers/footer, `kaipability-mark.png` as favicon.
+- **House-style note:** the brand brief endorses em dashes for Kaipability marketing copy; this product's §10 no-em-dash rule still governs `tools.json` content, which is written for end clients.
 
 ### Responsive
 

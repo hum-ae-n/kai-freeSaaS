@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Free Stack · Kaipability</title>
+  <meta name="description" content="A curated directory of free and freemium software for small business. No affiliate links, no sponsored placements. Every tool comes with alternatives and training resources.">
+  <link rel="icon" type="image/png" href="design-system/assets/kaipability-mark.png">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <noscript>
+    <div class="app-message">Free Stack needs JavaScript to render the tool directory. Please enable it and reload.</div>
+  </noscript>
+
+  <div id="loading" class="app-message" aria-live="polite">Loading the directory…</div>
+
+  <main id="curator-root" hidden></main>
+  <main id="client-root" hidden></main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script type="module" src="js/data-loader.js"></script>
+</body>
+</html>

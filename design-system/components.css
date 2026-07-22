@@ -1,0 +1,190 @@
+/* Kaipability — Component patterns. Reusable across previews and UI kit. */
+@import url("./colors_and_type.css");
+
+/* ---------------- BUTTONS ---------------- */
+.k-btn {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 15px;
+  line-height: 1;
+  letter-spacing: 0;
+  padding: 13px 22px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  transition: background var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-out);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.k-btn:active { transform: translateY(1px); }
+
+.k-btn--primary {
+  background: var(--oxblood);
+  color: var(--paper);
+}
+.k-btn--primary:hover { background: var(--oxblood-deep); }
+
+.k-btn--secondary {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--ink);
+}
+.k-btn--secondary:hover { background: var(--ink); color: var(--paper); }
+
+.k-btn--ghost {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--paper-edge);
+}
+.k-btn--ghost:hover { background: var(--paper-2); border-color: var(--ink-3); }
+
+.k-btn--link {
+  background: transparent;
+  color: var(--ink);
+  border: 0;
+  padding: 6px 0;
+  border-bottom: 1.5px solid var(--oxblood);
+  border-radius: 0;
+}
+.k-btn--link:hover { color: var(--oxblood); }
+
+.k-btn--sm { padding: 9px 14px; font-size: 13px; }
+.k-btn--lg { padding: 17px 28px; font-size: 17px; }
+
+/* ---------------- INPUTS ---------------- */
+.k-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.k-field__label {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.k-input, .k-select, .k-textarea {
+  font-family: var(--font-text);
+  font-size: 16px;
+  line-height: 1.4;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--paper-edge);
+  border-radius: 2px;
+  padding: 12px 14px;
+  outline: none;
+  transition: border-color var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-fast) var(--ease-out);
+}
+.k-input:hover, .k-select:hover, .k-textarea:hover { border-color: var(--ink-3); }
+.k-input:focus, .k-select:focus, .k-textarea:focus {
+  border-color: var(--oxblood);
+  box-shadow: 0 0 0 3px var(--oxblood-tint);
+}
+.k-input::placeholder, .k-textarea::placeholder { color: var(--ink-4); }
+.k-textarea { resize: vertical; min-height: 96px; }
+
+/* ---------------- CARDS ---------------- */
+.k-card {
+  background: var(--paper);
+  border: 1px solid var(--paper-edge);
+  border-radius: 4px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.k-card--feature { padding: 48px; }
+.k-card--ink { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.k-card--interactive { cursor: pointer; transition: border-color var(--dur-fast) var(--ease-out); }
+.k-card--interactive:hover { border-color: var(--ink-3); }
+
+/* ---------------- CHIPS / BADGES ---------------- */
+.k-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--paper-2);
+  color: var(--ink-2);
+  border: 1px solid var(--paper-edge);
+}
+.k-chip--positive { background: var(--positive-tint); color: var(--positive); border-color: transparent; }
+.k-chip--caution  { background: var(--caution-tint);  color: #7A5A1F; border-color: transparent; }
+.k-chip--negative { background: var(--negative-tint); color: var(--oxblood-deep); border-color: transparent; }
+.k-chip--info     { background: var(--info-tint);     color: #2A4258; border-color: transparent; }
+.k-chip__dot      { width:6px; height:6px; border-radius:999px; background: currentColor; }
+
+/* ---------------- TAG ---------------- */
+.k-tag {
+  display: inline-flex;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-2);
+  padding: 4px 8px;
+  background: var(--paper-2);
+  border-radius: 2px;
+}
+
+/* ---------------- EYEBROW ---------------- */
+.k-eyebrow {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--oxblood);
+}
+.k-eyebrow::before {
+  content: "";
+  display: inline-block;
+  width: 28px;
+  height: 2px;
+  background: var(--oxblood);
+  vertical-align: middle;
+  margin-right: 12px;
+  transform: translateY(-2px);
+}
+
+/* ---------------- NAV LINK ---------------- */
+.k-nav-link {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  text-decoration: none;
+  padding: 8px 2px;
+  border-bottom: 1.5px solid transparent;
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+.k-nav-link:hover, .k-nav-link.is-active { border-bottom-color: var(--oxblood); }
+
+/* ---------------- TABLE ---------------- */
+.k-table { width: 100%; border-collapse: collapse; font-family: var(--font-text); }
+.k-table th, .k-table td { text-align: left; padding: 14px 16px; font-size: 14px; }
+.k-table thead th {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  border-bottom: 1px solid var(--ink);
+}
+.k-table tbody tr { border-bottom: 1px solid var(--paper-edge); }
+.k-table tbody tr:last-child { border-bottom: 0; }

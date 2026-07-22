@@ -1,0 +1,280 @@
+/* =============================================================================
+   Kaipability — Colors & Type
+   Senior advisory practice in advanced manufacturing.
+   Editorial gravitas, warm paper foundation, oxblood authority.
+   ============================================================================= */
+
+/* ---------- FONTS ---------- */
+@font-face {
+  font-family: "Sonny Gothic";
+  src: url("./fonts/SonnyGothic-Regular.woff") format("woff");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Sonny Gothic";
+  src: url("./fonts/SonnyGothic-UltraBlack.ttf") format("truetype");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Galano Grotesque";
+  src: url("./fonts/GalanoGrotesqueMedium.otf") format("opentype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ---------- TOKENS ---------- */
+:root {
+  /* ---- Paper & ink ---- */
+  --paper:        #F4F1EA;  /* warm cream — primary background, "page" */
+  --paper-2:      #EAE5DA;  /* deeper cream, panels, alt rows */
+  --paper-edge:   #DCD5C6;  /* hairline rule on paper */
+  --ink:          #1A1714;  /* warm near-black, primary text */
+  --ink-2:        #3A332D;  /* secondary text */
+  --ink-3:        #6B645B;  /* tertiary / meta */
+  --ink-4:        #A39B8E;  /* placeholder, captions */
+
+  /* ---- Brand ---- */
+  --oxblood:      #A40000;  /* primary brand, from logo wordmark */
+  --oxblood-deep: #7A0000;  /* hover / pressed */
+  --oxblood-tint: #F3E0E0;  /* tinted block, badge bg */
+  --coral:        #FF828C;  /* secondary accent, from icon mark */
+  --coral-soft:   #FFD9DC;
+  --lavender:     #E3D7EC;  /* tertiary accent from icon mark */
+  --lavender-2:   #F2ECF5;
+  --mauve:        #EAD4E1;
+
+  /* ---- Industrial neutrals (charts, data, technical) ---- */
+  --graphite:     #2B2A28;
+  --steel:        #6E6B66;
+  --steel-2:      #98948C;
+  --steel-3:      #C5C0B6;
+
+  /* ---- Semantic ---- */
+  --positive:     #4F6B3A;  /* sage — capability earned */
+  --positive-tint:#E4EAD9;
+  --caution:      #B8893B;  /* aged amber */
+  --caution-tint: #F1E4CC;
+  --negative:     var(--oxblood);
+  --negative-tint:var(--oxblood-tint);
+  --info:         #3A5878;  /* slate blue */
+  --info-tint:    #DCE3EC;
+
+  /* ---- Fonts ---- */
+  --font-display: "Sonny Gothic", "Source Sans Pro", "Helvetica Neue", sans-serif;
+  --font-sans:    "Galano Grotesque", "Inter", "Helvetica Neue", sans-serif;
+  --font-text:    "Sonny Gothic", "Source Sans Pro", "Helvetica Neue", sans-serif;
+  --font-mono:    "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
+  /* The wordmark is set in Proxima Nova (the Canva default). The font is
+     commercial; when it is not licensed for the build we are in, the chain
+     falls back to Mona Sans / Montserrat — geometric humanists with similar
+     proportions. Use --font-brand only for the literal word "Kaipability". */
+  --font-brand:   "Proxima Nova", "Mona Sans", "Montserrat", "Helvetica Neue", Helvetica, Arial, sans-serif;
+
+  /* ---- Type scale (modular, 1.250 major-third on a 16px base) ---- */
+  --fs-12: 12px;   --lh-12: 16px;
+  --fs-14: 14px;   --lh-14: 20px;
+  --fs-16: 16px;   --lh-16: 24px;
+  --fs-18: 18px;   --lh-18: 28px;
+  --fs-21: 21px;   --lh-21: 30px;
+  --fs-26: 26px;   --lh-26: 34px;
+  --fs-34: 34px;   --lh-34: 40px;
+  --fs-44: 44px;   --lh-44: 50px;
+  --fs-58: 58px;   --lh-58: 62px;
+  --fs-76: 76px;   --lh-76: 78px;
+  --fs-100: 100px; --lh-100: 96px;
+
+  /* ---- Tracking ---- */
+  --tr-tight:     -0.02em;
+  --tr-normal:     0em;
+  --tr-loose:      0.04em;
+  --tr-eyebrow:    0.14em;  /* uppercase eyebrows */
+
+  /* ---- Spacing (4px base) ---- */
+  --s-1: 4px;   --s-2: 8px;   --s-3: 12px;  --s-4: 16px;
+  --s-5: 20px;  --s-6: 24px;  --s-8: 32px;  --s-10: 40px;
+  --s-12: 48px; --s-16: 64px; --s-20: 80px; --s-24: 96px;
+  --s-32: 128px;--s-40: 160px;
+
+  /* ---- Radii (minimal — editorial, not app-y) ---- */
+  --r-0:  0px;   /* default; most surfaces square */
+  --r-1:  2px;   /* fields, tags */
+  --r-2:  4px;   /* small buttons, cards */
+  --r-3:  8px;   /* large cards */
+  --r-pill: 999px;
+
+  /* ---- Borders ---- */
+  --bw-hair:   1px;
+  --bw-rule:   2px;
+  --bw-heavy:  3px;
+  --border:    var(--bw-hair) solid var(--paper-edge);
+  --border-ink:var(--bw-hair) solid var(--ink);
+
+  /* ---- Shadows (used sparingly — editorial feel) ---- */
+  --shadow-0:  none;
+  --shadow-1:  0 1px 0 rgba(26,23,20,0.06);
+  --shadow-2:  0 1px 2px rgba(26,23,20,0.06), 0 2px 8px rgba(26,23,20,0.04);
+  --shadow-3:  0 2px 4px rgba(26,23,20,0.06), 0 8px 24px rgba(26,23,20,0.08);
+
+  /* ---- Motion ---- */
+  --ease-out:   cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-in:    cubic-bezier(0.5, 0, 0.8, 0.3);
+  --ease-in-out:cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast:   120ms;
+  --dur-base:   200ms;
+  --dur-slow:   360ms;
+
+  /* ---- Layout ---- */
+  --content-max: 1240px;
+  --measure:     68ch;       /* body copy reading width */
+}
+
+/* ---------- BASE ---------- */
+html, body { background: var(--paper); color: var(--ink); }
+body {
+  font-family: var(--font-text);
+  font-size: var(--fs-18);
+  line-height: var(--lh-18);
+  font-weight: 400;
+  letter-spacing: var(--tr-normal);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---------- SEMANTIC TYPE ---------- */
+.t-display, h1.display {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(58px, 7vw, 100px);
+  line-height: 0.96;
+  letter-spacing: var(--tr-tight);
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+h1, .t-h1 {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--fs-58);
+  line-height: var(--lh-58);
+  letter-spacing: var(--tr-tight);
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+h2, .t-h2 {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--fs-44);
+  line-height: var(--lh-44);
+  letter-spacing: var(--tr-tight);
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+h3, .t-h3 {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--fs-34);
+  line-height: var(--lh-34);
+  letter-spacing: var(--tr-tight);
+  color: var(--ink);
+}
+
+h4, .t-h4 {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--fs-26);
+  line-height: var(--lh-26);
+  color: var(--ink);
+}
+
+h5, .t-h5 {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--fs-21);
+  line-height: var(--lh-21);
+  color: var(--ink);
+}
+
+.t-lede {
+  font-family: var(--font-text);
+  font-size: var(--fs-26);
+  line-height: 1.38;
+  letter-spacing: -0.005em;
+  color: var(--ink-2);
+  max-width: var(--measure);
+}
+
+p, .t-body {
+  font-family: var(--font-text);
+  font-size: var(--fs-18);
+  line-height: var(--lh-18);
+  color: var(--ink);
+  max-width: var(--measure);
+}
+
+.t-small {
+  font-size: var(--fs-14);
+  line-height: var(--lh-14);
+  color: var(--ink-2);
+}
+
+.t-meta {
+  font-size: var(--fs-12);
+  line-height: var(--lh-12);
+  color: var(--ink-3);
+}
+
+.t-eyebrow {
+  font-family: var(--font-sans);
+  font-size: var(--fs-12);
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: var(--tr-eyebrow);
+  text-transform: uppercase;
+  color: var(--oxblood);
+}
+
+.t-quote {
+  font-family: var(--font-text);
+  font-size: var(--fs-34);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  font-weight: 400;
+}
+
+code, .t-mono {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  background: var(--paper-2);
+  padding: 0.1em 0.35em;
+  border-radius: var(--r-1);
+}
+
+a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--oxblood);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1.5px;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+a:hover { color: var(--oxblood); }
+
+hr {
+  border: none;
+  border-top: var(--bw-hair) solid var(--paper-edge);
+  margin: var(--s-6) 0;
+}
+
+/* ---------- UTILITY ---------- */
+.paper   { background: var(--paper); }
+.paper-2 { background: var(--paper-2); }
+.ink     { background: var(--ink); color: var(--paper); }
+.oxblood { background: var(--oxblood); color: var(--paper); }
