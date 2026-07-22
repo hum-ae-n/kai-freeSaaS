@@ -4,9 +4,12 @@ Open items as of 22 July 2026. Build state: Phases 0-4 done and verified, Phase 
 
 ## Deploy (Phase 6)
 
-- [ ] Connect this repo to Netlify, confirm auto-deploy on push to `main`
-- [ ] Optional: custom domain (e.g. `freestack.kaipability.com`)
+- [~] Connect this repo to Netlify, confirm auto-deploy on push to `main`
+  - Done 22 Jul: Netlify project created on team `mrv`: **kai-freestack**, site id `3bbf5cb0-fbf6-4ccc-b07a-b377af02b444`, will serve at `https://kai-freestack.netlify.app`. Build settings read from `netlify.toml` (publish `.`, no build command).
+  - Remaining (Rocky, ~5 clicks, needs GitHub OAuth so cannot be done by an agent): [app.netlify.com/projects/kai-freestack](https://app.netlify.com/projects/kai-freestack) > Project configuration > Build & deploy > Continuous deployment > Link repository > GitHub > `hum-ae-n/kai-freeSaaS`, production branch `main`. Link to this existing site, not "Add new site", to avoid a duplicate.
+- [ ] Custom domain: **tools.airl.io** (decided 22 Jul, replaces the `freestack.kaipability.com` example). Do after the repo link: Domain management > add custom domain > CNAME to `kai-freestack.netlify.app`.
 - [ ] Full Definition of Done pass (PRD §14, all 10 items) against the live URL, not localhost
+  - Pre-deploy gates green 22 Jul in this environment: `validate-data.mjs` exit 0 (85 tools, 15/50/7/13 split), `smoke-test.mjs` 15/15 PASS.
 
 ## Decisions only Rocky can make
 
