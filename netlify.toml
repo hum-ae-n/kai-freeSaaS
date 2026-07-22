@@ -1,0 +1,25 @@
+# Netlify config per PRD section 9. No build step: static files served as-is.
+
+[build]
+  publish = "."
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Keep tools.json uncached-ish so a data-only push shows up without a hard refresh.
+[[headers]]
+  for = "/data/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# SPA fallback. Netlify serves real files first and only applies this rule for
+# paths that do not exist, so /data/tools.json and /css/* still resolve normally.
+# Do not add force = true here or it will shadow the data file and break the app.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

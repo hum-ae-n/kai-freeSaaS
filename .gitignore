@@ -1,0 +1,17 @@
+# OS and cloud sync artifacts. This repo lives inside a OneDrive folder.
+.DS_Store
+Thumbs.db
+desktop.ini
+*~
+*.tmp
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Netlify local state
+.netlify/
+
+# Node is dev-time only (scripts/), never a runtime dependency.
+node_modules/

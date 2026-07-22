@@ -1,0 +1,9 @@
+# Normalise line endings. This repo is edited on Windows inside a OneDrive
+# folder but deployed to Netlify on Linux, so store everything as LF.
+* text=auto eol=lf
+
+# Keep JSON diffs readable: tools.json is the file a non developer edits.
+*.json text eol=lf diff
+*.svg text eol=lf
+*.ico binary
+*.png binary
