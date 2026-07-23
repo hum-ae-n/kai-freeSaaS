@@ -77,6 +77,38 @@ export function showToast(message, kind = 'success') {
   toastTimer = setTimeout(() => { toast.hidden = true; }, 2600);
 }
 
+/** Cap a URL text param at maxLen and collapse whitespace-only input to
+    absent. Reused for any text param read off the URL, not only ?client=. */
+export function sanitizeParam(raw, maxLen = 80) {
+  if (raw == null) return '';
+  return raw.slice(0, maxLen).trim();
+}
+
+/** Share a URL via the native share sheet where available, falling back to
+    clipboard copy plus toast. AbortError (user dismissed the sheet) is a
+    silent no-op; any other share failure also falls back to clipboard. */
+export async function shareUrl(url, text) {
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: document.title, text, url });
+    } catch (err) {
+      if (err && err.name === 'AbortError') return;
+      await copyLink(url);
+    }
+    return;
+  }
+  await copyLink(url);
+}
+
+async function copyLink(url) {
+  try {
+    await navigator.clipboard.writeText(url);
+    showToast('Link copied');
+  } catch {
+    showToast('Copy failed: your browser blocked clipboard access', 'error');
+  }
+}
+
 /* Favicon fallback chain, one delegated listener for every icon on the page:
    DuckDuckGo fails → retry via Google → fails again → hide. */
 document.addEventListener('error', (event) => {
@@ -131,10 +163,17 @@ async function boot() {
     root.hidden = false;
     renderCurator(root, tools);
   } else {
+    // JS-added noindex only, per item 2: Google honours it, and a static tag
+    // in the shared <head> would deindex curator mode too.
+    const robots = document.createElement('meta');
+    robots.name = 'robots';
+    robots.content = 'noindex';
+    document.head.appendChild(robots);
+
     const { renderClient } = await import('./client.js');
     const root = document.getElementById('client-root');
     root.hidden = false;
-    renderClient(root, tools, selection, params.get('client') || '');
+    renderClient(root, tools, selection, sanitizeParam(params.get('client')));
   }
 }
 

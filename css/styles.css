@@ -89,6 +89,8 @@ button { font: inherit; }
 .btn-ghost { background: transparent; color: var(--ink); border-color: var(--ink-3); }
 .btn-ghost:hover { background: var(--paper-2); }
 .btn-sm { padding: 7px 12px; font-size: var(--fs-12); }
+/* Client-mode chrome (print, share): WCAG 2.2 target size, 44px minimum tall */
+.btn-lg { min-height: 44px; padding: 12px 20px; }
 
 /* Inputs */
 .input, .select {
@@ -172,6 +174,9 @@ button { font: inherit; }
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 
+/* Screen-only chrome (print/share controls): hidden in @media print below */
+.no-print { }
+
 /* === CURATOR =============================================================== */
 
 #curator-root {
@@ -198,6 +203,7 @@ button { font: inherit; }
   letter-spacing: var(--tr-tight);
 }
 .cur-header .subtitle { color: var(--ink-2); font-size: var(--fs-14); max-width: none; }
+.cur-header .trust-line { color: var(--ink-3); font-size: var(--fs-12); max-width: none; margin-top: var(--s-1); }
 .cur-header .tool-count {
   margin-left: auto;
   color: var(--ink-3);
@@ -266,6 +272,11 @@ button { font: inherit; }
   border: var(--border);
   font-size: var(--fs-14);
   color: var(--ink-2);
+  /* Sticks beneath the table's sticky header row, offset set from JS
+     (--thead-h) to the header's measured height. Opaque bg, own row. */
+  position: sticky;
+  top: var(--thead-h, 41px);
+  z-index: 1;
 }
 .cur-stats strong {
   font-family: var(--font-sans);
@@ -381,8 +392,17 @@ button { font: inherit; }
   margin-top: var(--s-4);
   max-width: none;
 }
+.cli-header .curated-by { color: var(--ink-3); font-size: var(--fs-14); margin-top: var(--s-1); max-width: none; }
 .cli-header .cli-date { color: var(--ink-3); font-size: var(--fs-14); margin-top: var(--s-2); max-width: none; }
 .cli-header .cli-context { margin-top: var(--s-5); color: var(--ink-2); }
+
+/* Screen-only chrome: share + print, hidden entirely in @media print */
+.cli-toolbar {
+  display: flex;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--s-6);
+}
 
 .cli-summary {
   display: flex;
@@ -427,6 +447,9 @@ button { font: inherit; }
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--s-5);
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
 /* Cards: square, hairline border, no lift — border darkens on hover */
@@ -436,6 +459,34 @@ button { font: inherit; }
   transition: border-color var(--dur-fast) var(--ease-out);
 }
 .tool-card:hover { border-color: var(--ink-3); }
+
+/* Entrance: fade plus a small rise, staggered per card. Opacity/transform
+   only, and only when the reader hasn't asked for reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .tool-card {
+    animation: card-in 240ms cubic-bezier(0, 0, 0.38, 0.9) both;
+    animation-delay: calc(var(--i, 0) * 40ms);
+  }
+}
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Archived tool arriving via an old link: compact, muted, no value claim */
+.tool-card-archived { padding: var(--s-6); }
+.tool-card-archived h3 { color: var(--ink-2); }
+.tool-card-archived .card-archived-note {
+  margin-top: var(--s-2);
+  color: var(--ink-3);
+  font-size: var(--fs-14);
+}
+
+.card-verified {
+  margin-top: var(--s-3);
+  font-size: var(--fs-12);
+  color: var(--ink-4);
+}
 .tool-card .card-top {
   display: flex;
   align-items: baseline;
@@ -510,6 +561,9 @@ button { font: inherit; }
 @media (min-width: 1200px) {
   .card-grid { grid-template-columns: 1fr 1fr; }
   #client-root { max-width: 1240px; }
+  /* A category with exactly one card would otherwise leave a half-page of
+     empty cream beside it. Read as a deliberate wide card instead. */
+  .card-solo { grid-column: 1 / -1; }
 }
 
 @media (max-width: 767px) {
@@ -529,9 +583,25 @@ button { font: inherit; }
 /* === PRINT ================================================================= */
 
 @media print {
+  @page { size: A4; margin: 14mm; }
   body { background: #fff; }
+  .no-print { display: none !important; }
+
   .tool-card { break-inside: avoid; }
+  .cli-category { break-after: avoid; }
+  .card-desc { orphans: 3; widows: 3; }
+
+  /* Backgrounds that carry meaning (summary bar, notes block) must survive
+     the print pipeline, which otherwise strips them by default. */
+  .cli-summary, .card-notes {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
   .cli-header { border-top-width: 6px; }
+  /* Single column card flow on paper, regardless of the 2-col screen grid */
+  .card-grid { grid-template-columns: 1fr; }
+
   #client-root a[href^="http"]::after {
     content: " (" attr(href) ")";
     font-size: 0.7em;

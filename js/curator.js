@@ -2,11 +2,15 @@
  * curator.js — curator mode per PRD section 6.
  * Owns the .cur- classes and the tools table. DOM contract in data-loader.js.
  */
-import { el, favicon, extLink, money, showToast } from './data-loader.js';
+import { el, favicon, extLink, money, showToast, shareUrl } from './data-loader.js';
 
 const TYPE_LABEL = { core: 'CORE', noncore: 'NON-CORE', m365: 'M365', sector: 'SECTOR' };
 
-export function renderCurator(root, tools) {
+export function renderCurator(root, allTools) {
+  // Archived tools are retired: hidden from the table, counts and select-all
+  // actions, but never deleted from data/tools.json (§4 ID permanence). An
+  // old client link to one still resolves via client.js, just not from here.
+  const tools = allTools.filter((t) => !t.archived);
   const selected = new Set(tools.filter((t) => t.type === 'core').map((t) => t.id));
   const filters = { type: 'all', category: 'all', search: '' };
   const categories = [...new Set(tools.map((t) => t.category))].sort();
@@ -17,6 +21,7 @@ export function renderCurator(root, tools) {
     el('div', {},
       el('h1', {}, 'Free Stack'),
       el('p', { class: 'subtitle' }, 'Curated free software for small business'),
+      el('p', { class: 'trust-line' }, 'No affiliates, no sponsors, no paid placement.'),
     ),
     el('p', { class: 'tool-count' }, `${tools.length} tools in the catalogue`),
   );
@@ -46,6 +51,7 @@ export function renderCurator(root, tools) {
     resultBox.replaceChildren(
       el('span', { class: 'generated-url' }, url),
       copyButton('Copy', () => url),
+      shareButton(() => url),
     );
     resultBox.hidden = false;
   });
@@ -210,6 +216,15 @@ export function renderCurator(root, tools) {
     actions,
   );
   update();
+
+  // Stats bar sticks beneath the sticky table header once measured (item 8).
+  // Falls back to the CSS default if the table has no rows to measure yet.
+  const syncStickyOffset = () => {
+    const theadHeight = table.querySelector('thead')?.getBoundingClientRect().height;
+    if (theadHeight) stats.style.setProperty('--thead-h', `${theadHeight}px`);
+  };
+  requestAnimationFrame(syncStickyOffset);
+  window.addEventListener('resize', syncStickyOffset);
 }
 
 /* --- small helpers ------------------------------------------------------- */
@@ -233,5 +248,10 @@ function copyButton(label, getText, extraClass = 'btn-ghost btn-sm') {
       showToast('Copy failed: your browser blocked clipboard access', 'error');
     }
   });
+  return btn;
+}
+function shareButton(getUrl, extraClass = 'btn-ghost btn-sm') {
+  const btn = el('button', { class: `btn ${extraClass}`, type: 'button' }, 'Share');
+  btn.addEventListener('click', () => shareUrl(getUrl(), 'Your free software stack from Kaipability'));
   return btn;
 }
