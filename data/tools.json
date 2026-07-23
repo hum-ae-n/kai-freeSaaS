@@ -2966,7 +2966,8 @@
     "last_verified": "2026-07-23",
     "free_limit": "Free forever, statutory service, no paid tier.",
     "paid_from": 0,
-    "scales_with": "none"
+    "scales_with": "none",
+    "archived": true
   },
   {
     "id": 62,
@@ -3143,7 +3144,8 @@
     "last_verified": "2026-07-23",
     "free_limit": "Free forever, government guidance, no paid tier.",
     "paid_from": 0,
-    "scales_with": "none"
+    "scales_with": "none",
+    "archived": true
   },
   {
     "id": 66,
@@ -3190,7 +3192,8 @@
     "last_verified": "2026-07-23",
     "free_limit": "Free forever, statutory guidance, no paid tier (separate from the mandatory £35-60/year ICO data protection fee every controller pays regardless of which tools they use).",
     "paid_from": 0,
-    "scales_with": "none"
+    "scales_with": "none",
+    "archived": true
   },
   {
     "id": 67,
@@ -4037,7 +4040,8 @@
     "last_verified": "2026-07-23",
     "free_limit": "Free forever: government and sector-body resources with no paid tier.",
     "paid_from": 0,
-    "scales_with": "none"
+    "scales_with": "none",
+    "archived": true
   },
   {
     "id": 84,
