@@ -15,6 +15,11 @@ export function renderCurator(root, allTools) {
   const filters = { type: 'all', category: 'all', search: '' };
   const categories = [...new Set(tools.map((t) => t.category))].sort();
 
+  // Starter pack state: which chip (if any) was last applied, so a later
+  // manual edit can be flagged "modified" instead of silently reverting
+  // the chip to its unpressed look.
+  let activeChip = null;
+
   /* --- header ------------------------------------------------------------ */
   const header = el('header', { class: 'cur-header' },
     el('img', { class: 'logo', src: 'design-system/assets/kaipability-logo-lockup.png', alt: 'Kaipability' }),
@@ -32,6 +37,11 @@ export function renderCurator(root, allTools) {
     placeholder: 'Client or recipient name (optional)',
     'aria-label': 'Client or recipient name',
   });
+  const noteInput = el('input', {
+    class: 'input', type: 'text', id: 'client-note', maxlength: '280',
+    placeholder: 'Personal note (optional)',
+    'aria-label': 'Personal note',
+  });
   const resultBox = el('div', { class: 'linkgen-result', hidden: true });
 
   const buildUrl = () => {
@@ -40,6 +50,8 @@ export function renderCurator(root, allTools) {
     params.set('t', ids.join(','));
     const name = nameInput.value.trim();
     if (name) params.set('client', name);
+    const note = noteInput.value.trim().slice(0, 280);
+    if (note) params.set('note', note);
     // keep commas readable per PRD section 5 (%2C decodes identically)
     return `${location.origin}${location.pathname}?${params.toString().replace(/%2C/g, ',')}`;
   };
@@ -65,8 +77,17 @@ export function renderCurator(root, allTools) {
   const linkgen = el('section', { class: 'panel linkgen', 'aria-label': 'Link generator' },
     el('span', { class: 'eyebrow' }, 'Link generator'),
     el('h2', {}, 'Share a stack'),
-    el('div', { class: 'linkgen-controls' }, nameInput, generateBtn, previewBtn),
+    el('div', { class: 'linkgen-controls' }, nameInput, noteInput, generateBtn, previewBtn),
     resultBox,
+  );
+
+  /* --- starter packs (presets) --------------------------------------------
+     Fetched separately from tools.json, non-blocking: a missing or broken
+     data/presets.json must never stop the rest of curator mode rendering. */
+  const chipRow = el('div', { class: 'cur-chip-row' });
+  const presetsRow = el('div', { class: 'cur-presets', hidden: true },
+    el('span', { class: 'eyebrow cur-presets-label' }, 'Starter packs'),
+    chipRow,
   );
 
   /* --- filters ----------------------------------------------------------- */
@@ -146,6 +167,7 @@ export function renderCurator(root, allTools) {
     const id = Number(box.dataset.id);
     box.checked ? selected.add(id) : selected.delete(id);
     update();
+    noteManualSelectionChange();
   });
 
   const table = el('table', { class: 'tools-table' },
@@ -159,12 +181,19 @@ export function renderCurator(root, allTools) {
   /* --- actions ----------------------------------------------------------- */
   const actions = el('div', { class: 'cur-actions' },
     copyButton('Copy selected → tab-separated', () => copyPayload(), 'btn-secondary'),
-    actionBtn('Select all CORE', () => setSelection(tools.filter((t) => t.type === 'core').map((t) => t.id))),
+    actionBtn('Select all CORE', () => {
+      setSelection(tools.filter((t) => t.type === 'core').map((t) => t.id));
+      noteManualSelectionChange();
+    }),
     actionBtn('Select all visible', () => {
       for (const { tr, tool } of rows.values()) if (tr.style.display !== 'none') selected.add(tool.id);
       syncCheckboxes();
+      noteManualSelectionChange();
     }),
-    actionBtn('Deselect all', () => setSelection([])),
+    actionBtn('Deselect all', () => {
+      setSelection([]);
+      noteManualSelectionChange();
+    }),
   );
 
   function setSelection(ids) {
@@ -210,12 +239,80 @@ export function renderCurator(root, allTools) {
     statShowing.firstChild.textContent = String(showing);
   }
 
+  /* --- starter packs: apply, and flag manual edits afterwards ------------- */
+  function applyPreset(preset, chip, label) {
+    // rows is keyed by real tool ids, id 0 included: Map#has is a membership
+    // test, never a truthiness test, so tool 0 survives this filter.
+    const validIds = preset.ids.filter((id) => rows.has(id));
+    setSelection(validIds);
+
+    if (activeChip && activeChip !== chip) {
+      activeChip.setAttribute('aria-pressed', 'false');
+      activeChip.classList.remove('is-active', 'is-modified');
+      activeChip.textContent = activeChip.dataset.baseLabel;
+    }
+    chip.dataset.baseLabel = label;
+    chip.textContent = label;
+    chip.setAttribute('aria-pressed', 'true');
+    chip.classList.add('is-active');
+    chip.classList.remove('is-modified');
+    activeChip = chip;
+
+    scrollFirstSelected(validIds);
+  }
+
+  function scrollFirstSelected(ids) {
+    for (const id of ids) {
+      const row = rows.get(id);
+      if (!row) continue;
+      const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      row.tr.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' });
+      return;
+    }
+  }
+
+  // A manual edit after a preset was applied does not snap the chip back to
+  // unpressed: it stays the active, selected pack, just visibly modified.
+  function noteManualSelectionChange() {
+    if (!activeChip) return;
+    activeChip.classList.add('is-modified');
+    if (!activeChip.textContent.endsWith(' *')) {
+      activeChip.textContent = `${activeChip.dataset.baseLabel} *`;
+    }
+  }
+
+  async function loadPresets() {
+    let presets;
+    try {
+      const res = await fetch('data/presets.json');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      presets = await res.json();
+    } catch (cause) {
+      console.warn('Starter packs unavailable, continuing without them:', cause);
+      return;
+    }
+    if (!Array.isArray(presets) || !presets.length) return;
+
+    for (const preset of presets) {
+      const validIds = preset.ids.filter((id) => rows.has(id));
+      const label = `${preset.name} (${validIds.length} tools)`;
+      const chip = el('button', {
+        class: 'cur-chip', type: 'button', 'aria-pressed': 'false', title: preset.description,
+      }, label);
+      chip.dataset.baseLabel = label;
+      chip.addEventListener('click', () => applyPreset(preset, chip, label));
+      chipRow.append(chip);
+    }
+    presetsRow.hidden = false;
+  }
+
   root.replaceChildren(
-    header, linkgen, toolbar, stats, legend,
+    header, linkgen, presetsRow, toolbar, stats, legend,
     el('div', { class: 'table-wrap' }, table),
     actions,
   );
   update();
+  loadPresets();
 
   // Stats bar sticks beneath the sticky table header once measured (item 8).
   // Falls back to the CSS default if the table has no rows to measure yet.

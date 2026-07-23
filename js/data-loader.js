@@ -173,7 +173,7 @@ async function boot() {
     const { renderClient } = await import('./client.js');
     const root = document.getElementById('client-root');
     root.hidden = false;
-    renderClient(root, tools, selection, sanitizeParam(params.get('client')));
+    renderClient(root, tools, selection, sanitizeParam(params.get('client')), sanitizeParam(params.get('note'), 280));
   }
 }
 

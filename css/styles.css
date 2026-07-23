@@ -251,6 +251,40 @@ button { font: inherit; }
   white-space: nowrap;
 }
 
+/* Starter packs: one-click preset chips, above the filters bar. Selection
+   stays fully editable after applying one, see is-modified below. */
+.cur-presets {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--s-5);
+}
+.cur-presets-label { flex: none; }
+.cur-chip-row { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+.cur-chip {
+  padding: 6px 14px;
+  border: var(--bw-hair) solid var(--steel-3);
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  color: var(--ink-2);
+  font-family: var(--font-sans);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  letter-spacing: var(--tr-loose);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.cur-chip:hover { border-color: var(--ink-3); color: var(--ink); }
+.cur-chip.is-active {
+  background: var(--oxblood-tint);
+  border-color: var(--oxblood);
+  color: var(--oxblood-deep);
+}
+/* Modified state rides on top of is-active, never replaces it: the applied
+   pack is still the applied pack, just no longer an exact match. */
+.cur-chip.is-modified { font-style: italic; }
+
 /* Filters + stats */
 .cur-toolbar {
   display: flex;
@@ -396,6 +430,17 @@ button { font: inherit; }
 .cli-header .cli-date { color: var(--ink-3); font-size: var(--fs-14); margin-top: var(--s-2); max-width: none; }
 .cli-header .cli-context { margin-top: var(--s-5); color: var(--ink-2); }
 
+/* Personal note from the curator: quiet panel, oxblood rule, same family
+   as .card-notes but on brand rather than neutral steel. */
+.cli-note {
+  margin-top: var(--s-5);
+  padding: var(--s-4) var(--s-5);
+  background: var(--paper-2);
+  border-left: var(--bw-heavy) solid var(--oxblood);
+}
+.cli-note-label { display: block; margin-bottom: var(--s-1); }
+.cli-note-text { color: var(--ink-2); max-width: none; }
+
 /* Screen-only chrome: share + print, hidden entirely in @media print */
 .cli-toolbar {
   display: flex;
@@ -432,6 +477,9 @@ button { font: inherit; }
 }
 
 .cli-category {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
   font-family: var(--font-sans);
   font-weight: 500;
   font-size: var(--fs-26);
@@ -442,6 +490,23 @@ button { font: inherit; }
   border-bottom: var(--bw-rule) solid var(--oxblood);
 }
 .cli-category:first-of-type { margin-top: 0; }
+/* Lucide icons (ISC licence), inlined by hand in client.js */
+.cli-category-icon { flex: none; color: var(--oxblood); }
+
+/* Adoption checklist progress line, in the summary bar area */
+.cli-progress {
+  margin-top: calc(-1 * var(--s-6));
+  margin-bottom: var(--s-10);
+  font-size: var(--fs-14);
+  color: var(--ink-2);
+}
+.cli-progress p { margin: 0; max-width: none; }
+.cli-progress-note {
+  margin-top: var(--s-1);
+  font-size: var(--fs-12);
+  color: var(--ink-3);
+  max-width: none;
+}
 
 .card-grid {
   display: grid;
@@ -543,6 +608,36 @@ button { font: inherit; }
   color: var(--ink-2);
 }
 .tool-card .card-notes p + p { margin-top: var(--s-2); }
+
+/* Adoption checklist toggle: a real button, not a decorative checkbox, so
+   state reads out to assistive tech via aria-pressed plus its own label.
+   Colour is never the only signal, the tick character and word carry it. */
+.card-toggle {
+  display: inline-flex;
+  align-items: center;
+  margin-top: var(--s-6);
+  min-height: 44px;
+  padding: 10px 18px;
+  border: var(--bw-hair) solid var(--steel-3);
+  border-radius: var(--r-2);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--fs-14);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.card-toggle:hover { border-color: var(--ink-3); }
+.card-toggle[aria-pressed="true"] {
+  background: var(--positive-tint);
+  border-color: var(--positive);
+  color: var(--core-fg); /* the same dark sage already used for core badge text */
+}
+
+/* Muted-but-legible treatment: background shifts, text keeps its own
+   contrast-checked colours, the card never moves or disappears. */
+.tool-card.is-done { background: var(--paper-2); }
 
 .cli-footer {
   margin-top: var(--s-20);
