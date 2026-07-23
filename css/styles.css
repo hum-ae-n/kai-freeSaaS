@@ -778,7 +778,12 @@ button { font: inherit; }
 
   .tools-table .cell-check { grid-area: check; align-self: start; }
   .cur-check-label { min-width: 44px; min-height: 44px; justify-content: center; }
+  /* Grid and flex items default to a min-width equal to their content's
+     min-content size, which for an unbroken domain name is the whole word:
+     without this, a single long tool URL forces the card wider than the
+     viewport regardless of the grid track width above it. */
   .tools-table .cell-name { grid-area: name; min-width: 0; }
+  .tools-table .cell-name .tool-urls a { min-width: 0; overflow-wrap: anywhere; }
   .tools-table .cell-value { grid-area: value; align-self: start; text-align: right; }
   .tools-table .cell-type { grid-area: type; align-self: start; }
   .tools-table .cell-category { grid-area: cat; align-self: center; color: var(--ink-2); font-size: var(--fs-14); }
