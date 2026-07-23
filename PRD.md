@@ -110,6 +110,7 @@ Array of tool objects. Single source of truth. Every field required.
 | `free_limit` | string | Optional. What the free tier genuinely includes and where it stops, in plain English for the end user ("Free for 1 user and 3 social channels", "Free forever, no paid tier"). Same honesty bar as `value` (§10). |
 | `paid_from` | integer | Optional. GBP per month for the cheapest paid tier a growing business would realistically hit after outgrowing the free tier. `0` means genuinely free with nothing to outgrow. Annual-only prices are divided by 12 and rounded. |
 | `scales_with` | enum | Optional. What drives the cost up: `users` (per-seat), `usage` (volume, storage, sends), `features` (capability gates), `none` (free tier is the product). Drives the client-mode cost-growth visual. |
+| `byo` | string | Optional. One or two honest sentences on building a lightweight replacement yourself instead of adopting the tool, now realistic with AI-assisted development for many categories. Only present where a competent generalist could genuinely build and maintain the result; never on security, compliance, accounting or deliverability-critical categories, where the honest advice is to use the real thing. Renders as a distinct "Or build your own" line on client cards. |
 
 ### ID permanence
 
