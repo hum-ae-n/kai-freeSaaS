@@ -2,7 +2,7 @@
  * curator.js: curator mode per PRD section 6.
  * Owns the .cur- classes and the tools table. DOM contract in data-loader.js.
  */
-import { el, favicon, extLink, money, showToast, shareUrl } from './data-loader.js';
+import { el, favicon, extLink, money, showToast, shareUrl, themeToggleButton } from './data-loader.js';
 
 const TYPE_LABEL = { core: 'CORE', noncore: 'NON-CORE', m365: 'M365', sector: 'SECTOR' };
 
@@ -37,6 +37,7 @@ export function renderCurator(root, allTools) {
       el('p', { class: 'trust-line' }, 'No affiliates, no sponsors, no paid placement.'),
     ),
     el('p', { class: 'tool-count' }, `${tools.length} tools in the catalogue`),
+    themeToggleButton(),
   );
 
   /* --- link generator ---------------------------------------------------- */
@@ -52,7 +53,10 @@ export function renderCurator(root, allTools) {
   });
   const resultBox = el('div', { class: 'linkgen-result', hidden: true });
 
-  const buildUrl = () => {
+  // extra is only ever populated by the "Save as PDF" export button (Batch
+  // E), which adds print=1. Generate link / Preview / Share / Copy all call
+  // this with no argument, so print=1 never leaks into a link a client sees.
+  const buildUrl = (extra = {}) => {
     const ids = tools.filter((t) => selected.has(t.id)).map((t) => t.id); // data order
     const params = new URLSearchParams();
     params.set('t', ids.join(','));
@@ -60,6 +64,7 @@ export function renderCurator(root, allTools) {
     if (name) params.set('client', name);
     const note = noteInput.value.trim().slice(0, 280);
     if (note) params.set('note', note);
+    for (const [key, value] of Object.entries(extra)) params.set(key, value);
     // keep commas readable per PRD section 5 (%2C decodes identically)
     return `${location.origin}${location.pathname}?${params.toString().replace(/%2C/g, ',')}`;
   };
@@ -82,11 +87,60 @@ export function renderCurator(root, allTools) {
     window.open(buildUrl(), '_blank', 'noopener');
   });
 
+  /* --- branded exports (Batch E) ------------------------------------------
+     All four act on the current selection plus the name/note fields above,
+     same as the link generator. Real disabled attribute (not just a style)
+     while nothing is selected, kept in sync from update() below. */
+  const csvBtn = el('button', { class: 'btn btn-ghost', type: 'button', disabled: true }, 'Download CSV');
+  const htmlBtn = el('button', { class: 'btn btn-ghost', type: 'button', disabled: true }, 'Download HTML');
+  const pdfBtn = el('button', { class: 'btn btn-ghost', type: 'button', disabled: true }, 'Save as PDF');
+  const emailBtn = el('button', { class: 'btn btn-ghost', type: 'button', disabled: true }, 'Email this stack');
+
+  csvBtn.addEventListener('click', () => {
+    const picked = tools.filter((t) => selected.has(t.id));
+    if (!picked.length) return;
+    const csv = buildCsv(picked);
+    downloadFile(exportFilename('csv'), 'text/csv;charset=utf-8', '\uFEFF' + csv);
+  });
+
+  htmlBtn.addEventListener('click', () => {
+    const picked = tools.filter((t) => selected.has(t.id));
+    if (!picked.length) return;
+    const html = buildStandaloneHtml(picked, nameInput.value.trim(), noteInput.value.trim().slice(0, 280));
+    downloadFile(exportFilename('html'), 'text/html;charset=utf-8', html);
+  });
+
+  pdfBtn.addEventListener('click', () => {
+    if (!selected.size) return showToast('Select at least one tool first', 'error');
+    window.open(buildUrl({ print: '1' }), '_blank', 'noopener');
+  });
+
+  emailBtn.addEventListener('click', () => {
+    const picked = tools.filter((t) => selected.has(t.id));
+    if (!picked.length) return showToast('Select at least one tool first', 'error');
+    location.href = buildMailto(picked, buildUrl(), nameInput.value.trim());
+  });
+
+  function exportFilename(ext) {
+    const name = nameInput.value.trim();
+    const ids = tools.filter((t) => selected.has(t.id)).map((t) => t.id);
+    const slug = name
+      ? name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+      : `${ids.length}-tools`;
+    return `free-stack-${slug || 'selection'}.${ext}`;
+  }
+
+  const exportRow = el('div', { class: 'linkgen-export' },
+    el('span', { class: 'eyebrow' }, 'Export'),
+    el('div', { class: 'linkgen-export-buttons' }, csvBtn, htmlBtn, pdfBtn, emailBtn),
+  );
+
   const linkgen = el('section', { class: 'panel linkgen', 'aria-label': 'Link generator' },
     el('span', { class: 'eyebrow' }, 'Link generator'),
     el('h2', {}, 'Share a stack'),
     el('div', { class: 'linkgen-controls' }, nameInput, noteInput, generateBtn, previewBtn),
     resultBox,
+    exportRow,
   );
 
   /* --- starter packs (presets) --------------------------------------------
@@ -329,6 +383,12 @@ export function renderCurator(root, allTools) {
     statSelected.firstChild.textContent = String(picked.length);
     statValue.firstChild.textContent = money(picked.reduce((sum, t) => sum + t.value, 0));
     statShowing.firstChild.textContent = String(showing);
+
+    const anySelected = picked.length > 0;
+    csvBtn.disabled = !anySelected;
+    htmlBtn.disabled = !anySelected;
+    pdfBtn.disabled = !anySelected;
+    emailBtn.disabled = !anySelected;
   }
 
   /* --- starter packs: apply, and flag manual edits afterwards ------------- */
@@ -465,4 +525,187 @@ function shareButton(getUrl, extraClass = 'btn-ghost btn-sm') {
   const btn = el('button', { class: `btn ${extraClass}`, type: 'button' }, 'Share');
   btn.addEventListener('click', () => shareUrl(getUrl(), 'Your free software stack from Kaipability'));
   return btn;
+}
+
+/* --- branded exports (Batch E) -------------------------------------------- */
+
+/** Triggers a browser download via a detached, temporary <a download>. The
+    object URL is revoked shortly after the click, once the download has
+    definitely started. */
+function downloadFile(filename, mime, content) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const link = el('a', { href: url, download: filename });
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** RFC 4180: quote a field only when it needs it, doubling internal quotes. */
+function csvField(value) {
+  const s = String(value ?? '');
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function buildCsv(picked) {
+  const header = [
+    'Tool', 'Category', 'Type', 'Description', 'Value per year (GBP)',
+    'Free tier', 'Paid from (GBP/month)', 'Scales with', 'URLs', 'Alternatives', 'Training',
+  ];
+  const rows = [header];
+  for (const t of picked) {
+    rows.push([
+      t.name,
+      t.category,
+      TYPE_LABEL[t.type] ?? t.type,
+      t.description,
+      String(t.value),
+      t.free_limit ?? '',
+      Number.isInteger(t.paid_from) ? String(t.paid_from) : '',
+      t.scales_with ?? '',
+      t.urls.map((u) => `https://${u.domain}`).join('; '),
+      t.alternatives.map((a) => `${a.name} (${a.url})`).join('; '),
+      t.training.map((r) => `${r.name} (${r.url})`).join('; '),
+    ]);
+  }
+  return rows.map((row) => row.map(csvField).join(',')).join('\r\n');
+}
+
+/** mailto: draft for the current selection. Capped at 30 tools and 1800
+    characters of body text: if either limit is hit the tool list is
+    trimmed and an "...and N more" line takes its place, rather than
+    producing a mailto: link so long some mail clients refuse to open it. */
+function buildMailto(picked, url, clientName) {
+  const subject = 'Your free software stack from Kaipability';
+  const intro = clientName
+    ? `Hi ${clientName}, here is your free software stack from Kaipability:`
+    : 'Here is your free software stack from Kaipability:';
+
+  const buildBody = (list, omitted) => {
+    const lines = [intro, '', url, ''];
+    for (const t of list) lines.push(`- ${t.name}: ${t.urls[0]?.domain ?? ''}`);
+    if (omitted > 0) lines.push(`...and ${omitted} more`);
+    return lines.join('\n');
+  };
+
+  let list = picked.slice(0, 30);
+  let omitted = picked.length - list.length;
+  let body = buildBody(list, omitted);
+  // Trim further, oldest-first from the end of the list, until the body
+  // fits under the character cap even for a very long client name or a
+  // full 30-tool selection with long tool names.
+  while (body.length > 1800 && list.length > 0) {
+    list = list.slice(0, -1);
+    omitted = picked.length - list.length;
+    body = buildBody(list, omitted);
+  }
+
+  return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+/* --- standalone HTML snapshot ----------------------------------------------
+   Every data string reaches the DOM via el()/createElement + textContent, on
+   a tree that is never attached to the visible page. Only after the tree is
+   fully built do we read .outerHTML to get a serialised, already-escaped
+   string: markup is never assembled by concatenating data into a template,
+   which is the XSS trap the task guards against (the tool name or client
+   name could in principle contain "<img src=x onerror=...>" and it must
+   come out as literal text in the downloaded file). */
+const SNAPSHOT_CSS = `
+:root { color-scheme: light; }
+body { margin: 0; padding: 32px 20px 64px; background: #F4F1EA; color: #1A1714;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.5; }
+.snap-header, .snap-category, .snap-card, .snap-footer { max-width: 760px; margin-left: auto; margin-right: auto; }
+.snap-header { border-top: 3px solid #A40000; padding-top: 16px; margin-bottom: 24px; }
+.snap-wordmark { font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #A40000; margin: 0 0 4px; }
+.snap-header h1 { margin: 0 0 8px; font-size: 28px; }
+.snap-prepared, .snap-date, .snap-note, .snap-summary { margin: 2px 0; color: #3A332D; }
+.snap-category { border-bottom: 2px solid #A40000; padding-bottom: 6px; margin-top: 32px; margin-bottom: 12px; font-size: 20px; font-weight: 600; }
+.snap-card { padding: 16px 20px; margin-bottom: 16px; border: 1px solid #DCD5C6; border-radius: 4px; background: #fff; }
+.snap-card-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.snap-card-top h3 { margin: 0; font-size: 18px; }
+.snap-value { color: #4F6B3A; font-weight: 600; white-space: nowrap; }
+.snap-desc { color: #3A332D; }
+.snap-free { color: #3A332D; font-size: 14px; }
+.snap-label { margin: 12px 0 4px; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #6B645B; }
+.snap-card-links { margin: 0; }
+.snap-link-item { display: inline-block; margin: 0 12px 4px 0; }
+.snap-card-links a, .snap-card a { color: #1A1714; }
+.snap-notes { margin-top: 8px; padding: 8px 12px; background: #EAE5DA; border-left: 3px solid #C5C0B6; font-size: 14px; color: #3A332D; }
+.snap-footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #DCD5C6; color: #6B645B; font-size: 14px; text-align: center; }
+`;
+
+function snapshotLinks(entries, hrefOf, textOf) {
+  return entries.map((entry) => el('span', { class: 'snap-link-item' },
+    el('a', { href: hrefOf(entry), target: '_blank', rel: 'noopener noreferrer' }, textOf(entry)),
+  ));
+}
+
+function snapshotCard(tool) {
+  return el('article', { class: 'snap-card' },
+    el('div', { class: 'snap-card-top' },
+      el('h3', {}, tool.name),
+      tool.archived ? null : el('span', { class: 'snap-value' }, `~${money(tool.value)}/yr`),
+    ),
+    el('p', { class: 'snap-card-links' }, snapshotLinks(tool.urls, (u) => `https://${u.domain}`, (u) => u.label)),
+    el('p', { class: 'snap-desc' }, tool.description),
+    tool.free_limit ? el('p', { class: 'snap-free' }, `Free tier: ${tool.free_limit}`) : null,
+    el('p', { class: 'snap-label' }, 'Alternatives'),
+    el('p', { class: 'snap-card-links' }, snapshotLinks(tool.alternatives, (a) => a.url, (a) => a.name)),
+    el('p', { class: 'snap-label' }, 'Get started'),
+    el('p', { class: 'snap-card-links' }, snapshotLinks(tool.training, (t) => t.url, (t) => t.name)),
+    tool.notes?.length ? el('div', { class: 'snap-notes' }, tool.notes.map((n) => el('p', {}, n))) : null,
+  );
+}
+
+function snapshotBody(picked, clientName, noteText) {
+  const totalValue = picked.reduce((sum, t) => sum + (t.archived ? 0 : t.value), 0);
+  const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  const header = el('header', { class: 'snap-header' },
+    el('p', { class: 'snap-wordmark' }, 'Kaipability'),
+    el('h1', {}, 'Your Free Software Stack'),
+    clientName ? el('p', { class: 'snap-prepared' }, `Prepared for ${clientName}`) : null,
+    el('p', { class: 'snap-date' }, today),
+    noteText ? el('p', { class: 'snap-note' }, noteText) : null,
+    el('p', { class: 'snap-summary' },
+      `${picked.length} tool${picked.length === 1 ? '' : 's'} selected, about ${money(totalValue)} a year at zero cost.`),
+  );
+
+  const groups = new Map();
+  for (const t of picked) {
+    if (!groups.has(t.category)) groups.set(t.category, []);
+    groups.get(t.category).push(t);
+  }
+  const sections = [];
+  for (const [category, list] of groups) {
+    sections.push(el('h2', { class: 'snap-category' }, category));
+    for (const tool of list) sections.push(snapshotCard(tool));
+  }
+
+  const footer = el('footer', { class: 'snap-footer' }, 'Curated by Kaipability Ltd');
+
+  return el('body', {}, header, sections, footer);
+}
+
+/** Wraps the serialised, already-safe body in a static shell: doctype, meta,
+    inline style, no external requests of any kind (no fonts, no favicons).
+    The <title> text is built the same safe way, via its own detached
+    element, never spliced into the shell string as raw data. */
+function buildStandaloneHtml(picked, clientName, noteText) {
+  const bodyEl = snapshotBody(picked, clientName, noteText);
+  const titleEl = el('title', {}, clientName ? `Free Software Stack for ${clientName}` : 'Your Free Software Stack');
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+${titleEl.outerHTML}
+<style>${SNAPSHOT_CSS}</style>
+</head>
+${bodyEl.outerHTML}
+</html>
+`;
 }

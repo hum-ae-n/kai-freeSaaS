@@ -21,6 +21,16 @@
   <link rel="canonical" href="https://kai-freestack.netlify.app/">
 
   <link rel="icon" type="image/png" href="design-system/assets/kaipability-mark.png">
+
+  <!-- No-flash-of-wrong-theme: stored choice wins, otherwise OS preference.
+       Runs before the stylesheet loads so the first paint is already correct. -->
+  <script>
+    try {
+      var t = localStorage.getItem('freestack:v1:theme');
+      if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  </script>
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>

@@ -2,7 +2,7 @@
    Free Stack — stylesheet
    The brand source of truth is design-system/colors_and_type.css (tokens,
    fonts, base type). This file consumes those tokens and adds the app layer:
-   APP TOKENS → BASE → COMPONENTS → CURATOR → CLIENT → PRINT.
+   APP TOKENS → DARK MODE → BASE → COMPONENTS → CURATOR → CLIENT → PRINT.
    Mapping documented in DESIGN-SYSTEM.md. The vibe: a confidential memo
    printed on good paper. Flat, square, cream and oxblood.
    ========================================================================== */
@@ -24,6 +24,65 @@
   --m365-rule: var(--info);
   --sector-rule: #8A79A0;
 }
+
+/* === DARK MODE ==============================================================
+   Every token below is overridden here and only here; design-system files
+   are never edited. Higher specificity than the plain :root blocks above
+   (an attribute selector on :root beats a bare :root), so it wins regardless
+   of source order. Everything else in the app (cards, table, chips, chart)
+   inherits these same custom properties, so this block is the entire theme.
+
+   Computed contrast (WCAG relative-luminance formula, scratch script, see
+   task report): every body-text pair below clears 4.5:1, every non-text/
+   focus pair clears 3:1, both against --paper and --paper-2. Two tokens
+   deliberately do NOT track the light-mode relationship:
+     --oxblood-deep ends up LIGHTER than --oxblood (light mode is the other
+       way round), because on dark backgrounds it is read as text (error
+       copy, the active starter-pack chip) as often as it is read as a
+       button fill, and every one of those text uses needs to be light
+       enough to sit on a near-black surface.
+     --graphite is flipped light-for-dark, because .btn-secondary and the
+       cost-chart bar both use it as a hover fill that has to keep working
+       against text colours that swap with the theme (see the button rules
+       just below the token list). */
+:root[data-theme="dark"] {
+  --paper:        #16130F;
+  --paper-2:      #201C16;
+  --paper-edge:   #353028;
+  --ink:          #EFEAE0;
+  --ink-2:        #C9C2B4;
+  --ink-3:        #9C9384;
+  --ink-4:        #847C6C;
+
+  --oxblood:      #D97369;  /* lightened: text, links, rules, focus ring */
+  --oxblood-deep: #E2887F;  /* lighter still: see note above */
+  --oxblood-tint: #301A14;
+
+  --graphite:     #DCD4C2;
+  --steel-3:      #4C463A;
+
+  --positive:      #8FBF6F;
+  --positive-tint: #2A3320;
+  --caution:       #D1A24C;
+  --caution-tint:  #3A2E14;
+  --info:          #7EA6CC;
+  --info-tint:     #1E2A38;
+  --lavender-2:    #2E2438;
+
+  /* Badge text: hardcoded hex in APP TOKENS above, so hardcoded again here. */
+  --core-fg:    #B7D69C;
+  --noncore-fg: #E3B968;
+  --m365-fg:    #9FC1E0;
+  --sector-fg:  #D8C3EA;
+  --sector-rule: #B39FCB;
+}
+
+/* .btn-primary keeps its normal rule (background: var(--oxblood); color:
+   var(--paper);) unmodified: with the tokens above that already resolves to
+   a light red button with near-black text at 5.8:1, no override needed. The
+   :hover swap to --oxblood-deep is the one path that would otherwise pair
+   two similarly dark colours, so it is the one rule this theme touches. */
+:root[data-theme="dark"] .btn-primary:hover { background: var(--oxblood-deep); }
 
 /* === BASE ================================================================== */
 *, *::before, *::after { box-sizing: border-box; }
@@ -91,6 +150,13 @@ button { font: inherit; }
 .btn-sm { padding: 7px 12px; font-size: var(--fs-12); }
 /* Client-mode chrome (print, share): WCAG 2.2 target size, 44px minimum tall */
 .btn-lg { min-height: 44px; padding: 12px 20px; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+
+/* Theme toggle: shared between curator (near the tool count) and client
+   (in the no-print share/print toolbar). Icon plus a text label that always
+   names the mode a click would switch TO, never the current one. */
+.theme-toggle { gap: var(--s-1); }
+.theme-toggle-icon { flex: none; }
 
 /* Inputs */
 .input, .select {
@@ -250,6 +316,16 @@ button { font: inherit; }
   overflow-x: auto;
   white-space: nowrap;
 }
+
+/* Branded exports (Batch E): a labelled row inside the same panel as the
+   link generator, acting on the same selection and name/note fields. */
+.linkgen-export {
+  margin-top: var(--s-5);
+  padding-top: var(--s-4);
+  border-top: var(--border);
+}
+.linkgen-export .eyebrow { display: block; margin-bottom: var(--s-2); }
+.linkgen-export-buttons { display: flex; gap: var(--s-2); flex-wrap: wrap; }
 
 /* Starter packs: one-click preset chips, above the filters bar. Selection
    stays fully editable after applying one, see is-modified below. */
@@ -866,6 +942,8 @@ button { font: inherit; }
   .cur-header .tool-count { margin-left: 0; width: 100%; }
   .cur-toolbar { flex-direction: column; align-items: stretch; }
   .cur-toolbar .select, .cur-toolbar .input { width: 100%; }
+  /* In a column, the desktop flex-basis 14rem would become height. */
+  .cur-toolbar .input { flex: 0 0 auto; }
   .linkgen { padding: var(--s-5); }
   .linkgen-controls { flex-direction: column; align-items: stretch; }
   /* In a column, the desktop flex-basis 16rem would become height. */
@@ -933,6 +1011,43 @@ button { font: inherit; }
 /* === PRINT ================================================================= */
 
 @media print {
+  /* Print is always light, regardless of the reader's on-screen choice: a
+     PDF or printed page in the reversed palette wastes ink and is exactly
+     the surface (a client deliverable) this rule protects. Every token the
+     DARK MODE block overrides is re-asserted here to its light-mode value,
+     read straight off that block. Selector matches :root[data-theme="dark"]
+     exactly (not just [data-theme="dark"]): an attribute selector alone is
+     LESS specific than the screen rule's :root[data-theme="dark"], so a
+     plain attribute selector here would lose the cascade and never apply,
+     regardless of appearing later in the file. */
+  :root[data-theme="dark"] {
+    --paper:        #F4F1EA;
+    --paper-2:      #EAE5DA;
+    --paper-edge:   #DCD5C6;
+    --ink:          #1A1714;
+    --ink-2:        #3A332D;
+    --ink-3:        #6B645B;
+    --ink-4:        #A39B8E;
+    --oxblood:      #A40000;
+    --oxblood-deep: #7A0000;
+    --oxblood-tint: #F3E0E0;
+    --graphite:     #2B2A28;
+    --steel-3:      #C5C0B6;
+    --positive:      #4F6B3A;
+    --positive-tint: #E4EAD9;
+    --caution:       #B8893B;
+    --caution-tint:  #F1E4CC;
+    --info:          #3A5878;
+    --info-tint:     #DCE3EC;
+    --lavender-2:    #F2ECF5;
+    --core-fg:    #445C32;
+    --noncore-fg: #7A5A20;
+    --m365-fg:    #2F4763;
+    --sector-fg:  #5C4A70;
+    --sector-rule: #8A79A0;
+  }
+  :root[data-theme="dark"] .btn-primary:hover { background: var(--oxblood-deep); }
+
   @page { size: A4; margin: 14mm; }
   body { background: #fff; }
   .no-print { display: none !important; }

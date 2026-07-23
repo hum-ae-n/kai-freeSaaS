@@ -4,12 +4,12 @@
  * Client name and note come from the URL: they are ALWAYS inserted via
  * textContent (el()), never innerHTML, since both are attacker controlled.
  */
-import { el, favicon, extLink, getDomain, money, shareUrl } from './data-loader.js';
+import { el, favicon, extLink, getDomain, money, shareUrl, themeToggleButton } from './data-loader.js';
 
 const MAX_STAGGER = 8; // entrance stagger caps at 8 cards, per item 6a
 const PROGRESS_PREFIX = 'freestack:v1:progress:';
 
-export function renderClient(root, tools, selection, clientName, noteText) {
+export function renderClient(root, tools, selection, clientName, noteText, printMode = false) {
   const byId = new Map(tools.map((t) => [t.id, t]));
   const picked = selection.map((id) => byId.get(id)).filter((t) => t !== undefined);
 
@@ -62,7 +62,7 @@ export function renderClient(root, tools, selection, clientName, noteText) {
   const printBtn = el('button', { class: 'btn btn-secondary btn-lg', type: 'button' }, 'Print or save as PDF');
   printBtn.addEventListener('click', () => window.print());
 
-  const toolbar = el('div', { class: 'cli-toolbar no-print' }, shareBtn, printBtn);
+  const toolbar = el('div', { class: 'cli-toolbar no-print' }, shareBtn, printBtn, themeToggleButton('btn-ghost btn-lg'));
 
   /* --- summary ----------------------------------------------------------- */
   const valueFigure = el('span', { class: 'num' }, money(0));
@@ -130,6 +130,11 @@ export function renderClient(root, tools, selection, clientName, noteText) {
   document.title = clientName ? `Free Software Stack · ${clientName}` : 'Your Free Software Stack';
 
   countUp(valueFigure, totalValue, (n) => `~${money(n)}/yr`);
+
+  // Save as PDF (Batch E): the curator's export button opens this same URL
+  // with &print=1 added. Fires once, after a short settle so fonts and the
+  // count-up/entrance layout are stable before the print dialogue opens.
+  if (printMode) setTimeout(() => window.print(), 400);
 }
 
 /** rAF count-up on the summary value, triggered once on scroll into view.
