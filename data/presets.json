@@ -1,0 +1,27 @@
+[
+  {
+    "name": "Solo founder, day one",
+    "description": "The absolute basics for a one-person business that is just starting out.",
+    "ids": [0, 2, 6, 36, 47, 62, 67]
+  },
+  {
+    "name": "Shopfront retail",
+    "description": "Local visibility and customer contact for a physical shop or venue.",
+    "ids": [0, 2, 6, 36, 37, 38, 47, 52, 62]
+  },
+  {
+    "name": "Getting off spreadsheets",
+    "description": "First proper systems: CRM, scheduling, task boards, invoicing and e-signing.",
+    "ids": [0, 44, 48, 49, 50, 51, 59, 67]
+  },
+  {
+    "name": "Building an online presence",
+    "description": "Website analytics, search visibility, social channels and an email list.",
+    "ids": [0, 2, 6, 21, 23, 36, 38, 39, 43]
+  },
+  {
+    "name": "Microsoft 365 shop",
+    "description": "Already paying for Microsoft 365: the tools included in that subscription.",
+    "ids": [1, 20, 58, 68, 69, 70, 71]
+  }
+]
