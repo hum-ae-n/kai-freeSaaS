@@ -445,13 +445,13 @@ Not for consultants, not for SEO. Write as if explaining to a smart person who h
 
 ## 15. Data
 
-The companion `tools.json` contains the initial dataset of 85 tools, structured per §4. This was calibrated from real-world consulting engagements across approximately 30 small business digital audits. The dataset covers:
+The companion `tools.json` was calibrated from real-world consulting engagements across approximately 30 small business digital audits, then extended. As of 23 July 2026 it holds 98 entries, of which 93 are active and 5 are archived per the §4 retirement rule (grant bodies and support programmes removed from circulation without breaking old client links). The active set covers:
 
-- 15 core tools (recommended for virtually every small business)
-- 50 non-core tools (situation-dependent)
+- 14 core tools (recommended for virtually every small business)
+- 60 non-core tools (situation-dependent), including the Developer & Web set added in Phase 8
 - 7 Microsoft 365 included tools
-- 13 sector-specific tools
+- 12 sector-specific tools
 
-23 categories spanning AI, design, video, analytics, SEO, security, finance, CRM, marketing, e-commerce, and business operations.
+15 active categories spanning AI, design, video, analytics, SEO, security, finance, CRM, marketing, e-commerce, business operations and developer infrastructure. The Grants & Business Support category holds only archived entries and no longer appears in the interface.
 
 When converting or extending the dataset, ensure every entry has: at least 2 alternatives with full URLs, at least 2 training resources with full URLs, a `domain` field in every `urls[]` entry for favicon resolution, and no em dashes in any text field.
