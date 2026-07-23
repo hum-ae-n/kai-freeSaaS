@@ -123,6 +123,22 @@ for (const [index, tool] of tools.entries()) {
     err(id, 'notes-type', 'optional "notes" must be an array of strings');
   }
 
+  if (tool.archived !== undefined && typeof tool.archived !== 'boolean') {
+    err(id, 'archived-type', `optional "archived" must be a boolean, got ${JSON.stringify(tool.archived)}`);
+  }
+
+  // last_verified: optional ISO date, must parse and must not be in the future.
+  if (tool.last_verified !== undefined) {
+    const ok = typeof tool.last_verified === 'string'
+      && /^\d{4}-\d{2}-\d{2}$/.test(tool.last_verified)
+      && !Number.isNaN(Date.parse(tool.last_verified));
+    if (!ok) {
+      err(id, 'last-verified-format', `optional "last_verified" must be an ISO date YYYY-MM-DD, got ${JSON.stringify(tool.last_verified)}`);
+    } else if (Date.parse(tool.last_verified) > Date.now()) {
+      err(id, 'last-verified-future', `"last_verified" is in the future: ${tool.last_verified}`);
+    }
+  }
+
   // PRD section 10: house style bans em dashes. En dashes for ranges are fine.
   for (const [field, value] of strings(tool)) {
     if (typeof value === 'string' && value.includes('—')) {

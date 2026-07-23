@@ -48,7 +48,8 @@
       }
     ],
     "value": 200,
-    "when": "Every client. Universal."
+    "when": "Every client. Universal.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 1,
@@ -98,7 +99,8 @@
       "Free Copilot Chat is separate from the paid M365 Copilot add-on."
     ],
     "value": 0,
-    "when": "M365 subscriber. Paid Copilot is separate product."
+    "when": "M365 subscriber. Paid Copilot is separate product.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 2,
@@ -141,7 +143,8 @@
       }
     ],
     "value": 100,
-    "when": "Every client. Universal."
+    "when": "Every client. Universal.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 3,
@@ -176,7 +179,8 @@
       }
     ],
     "value": 100,
-    "when": "Client already in Adobe ecosystem or wants alternative to Canva."
+    "when": "Client already in Adobe ecosystem or wants alternative to Canva.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 4,
@@ -218,7 +222,8 @@
       "Paid alternatives: Adobe Photoshop, Affinity Photo."
     ],
     "value": 300,
-    "when": "Client needs serious image editing beyond Canva."
+    "when": "Client needs serious image editing beyond Canva.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 5,
@@ -256,7 +261,8 @@
       "Paid alternatives: Adobe Photoshop, Affinity Photo/Designer."
     ],
     "value": 300,
-    "when": "Design/print trades, clients with PSD files or Photoshop experience."
+    "when": "Design/print trades, clients with PSD files or Photoshop experience.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 6,
@@ -307,7 +313,8 @@
       "Each platform has its own search guides and licence terms."
     ],
     "value": 200,
-    "when": "Every client creating content."
+    "when": "Every client creating content.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 7,
@@ -354,7 +361,8 @@
       }
     ],
     "value": 100,
-    "when": "Client producing video or web content."
+    "when": "Client producing video or web content.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 8,
@@ -403,7 +411,8 @@
       "Each tool is largely self-explanatory."
     ],
     "value": 60,
-    "when": "Client with product photos, social media imagery needs."
+    "when": "Client with product photos, social media imagery needs.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 9,
@@ -450,7 +459,8 @@
       "Tools are largely self-explanatory."
     ],
     "value": 50,
-    "when": "Client with a website, especially Shopify/WooCommerce."
+    "when": "Client with a website, especially Shopify/WooCommerce.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 10,
@@ -501,7 +511,8 @@
       "Each tool is largely self-explanatory."
     ],
     "value": 60,
-    "when": "Print, design, embroidery, signage trades."
+    "when": "Print, design, embroidery, signage trades.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 11,
@@ -536,7 +547,8 @@
       }
     ],
     "value": 100,
-    "when": "Print-on-demand, merch, garment businesses."
+    "when": "Print-on-demand, merch, garment businesses.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 12,
@@ -578,7 +590,8 @@
       "Instagram Reels is another social-first option for short video."
     ],
     "value": 150,
-    "when": "Client produces or plans to produce video."
+    "when": "Client produces or plans to produce video.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 13,
@@ -613,7 +626,8 @@
       }
     ],
     "value": 120,
-    "when": "Client creating social media video content."
+    "when": "Client creating social media video content.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 14,
@@ -655,7 +669,8 @@
       "Paid alternatives: Premiere Pro, Final Cut Pro."
     ],
     "value": 400,
-    "when": "Serious video production (training, corporate, CPD)."
+    "when": "Serious video production (training, corporate, CPD).",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 15,
@@ -693,7 +708,8 @@
       "Paid alternatives: Camtasia, ScreenFlow (Mac)."
     ],
     "value": 150,
-    "when": "Client doing live streams, screen recordings, or tutorial creation."
+    "when": "Client doing live streams, screen recordings, or tutorial creation.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 16,
@@ -731,7 +747,8 @@
       "Paid alternative: Camtasia."
     ],
     "value": 100,
-    "when": "Client onboarding, workshop recording, async communication."
+    "when": "Client onboarding, workshop recording, async communication.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 17,
@@ -773,7 +790,8 @@
       "Canva includes basic video trimming."
     ],
     "value": 120,
-    "when": "Client with podcast, long-form video, or webinar content."
+    "when": "Client with podcast, long-form video, or webinar content.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 18,
@@ -811,7 +829,8 @@
       "Paid alternative: Adobe Audition."
     ],
     "value": 150,
-    "when": "Client producing podcasts or audio content."
+    "when": "Client producing podcasts or audio content.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 19,
@@ -849,7 +868,8 @@
       "Use DaVinci Resolve for serious edits."
     ],
     "value": 60,
-    "when": "Adventure, sports, outdoor, activity-based businesses."
+    "when": "Adventure, sports, outdoor, activity-based businesses.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 20,
@@ -897,7 +917,8 @@
       "DaVinci Resolve (free) for serious editing."
     ],
     "value": 120,
-    "when": "M365 subscriber, simple video editing."
+    "when": "M365 subscriber, simple video editing.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 21,
@@ -943,7 +964,8 @@
       "Wix and Squarespace have built-in analytics."
     ],
     "value": 200,
-    "when": "Every client with a website."
+    "when": "Every client with a website.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 22,
@@ -985,7 +1007,8 @@
       "Clarity's uncapped free traffic is rare among session recording tools."
     ],
     "value": 150,
-    "when": "Client has website worth analysing (e-commerce, lead-gen)."
+    "when": "Client has website worth analysing (e-commerce, lead-gen).",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 23,
@@ -1024,7 +1047,8 @@
       }
     ],
     "value": 150,
-    "when": "Every client with a website."
+    "when": "Every client with a website.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 24,
@@ -1062,7 +1086,8 @@
       "Google Search Console is the primary tool; set that up first."
     ],
     "value": 100,
-    "when": "Client wanting broader search visibility, AEO readiness."
+    "when": "Client wanting broader search visibility, AEO readiness.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 25,
@@ -1104,7 +1129,8 @@
       "Lighthouse is built into Chrome DevTools for deeper audits and debugging."
     ],
     "value": 100,
-    "when": "Website performance matters (e-commerce, SEO focus)."
+    "when": "Website performance matters (e-commerce, SEO focus).",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 26,
@@ -1146,7 +1172,8 @@
       "Most alternatives are paid at scale."
     ],
     "value": 100,
-    "when": "Client with multiple tracking tools or frequent pixel changes."
+    "when": "Client with multiple tracking tools or frequent pixel changes.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 27,
@@ -1184,7 +1211,8 @@
       "Paid: Tableau, Power BI."
     ],
     "value": 200,
-    "when": "Client wanting automated reporting dashboards."
+    "when": "Client wanting automated reporting dashboards.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 28,
@@ -1234,7 +1262,8 @@
       "WordPress plugins such as Rank Math and Yoast add schema automatically."
     ],
     "value": 100,
-    "when": "Client with website wanting rich search results."
+    "when": "Client with website wanting rich search results.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 29,
@@ -1269,7 +1298,8 @@
       }
     ],
     "value": 100,
-    "when": "Alternative to Clarity. Client may already have Hotjar."
+    "when": "Alternative to Clarity. Client may already have Hotjar.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 30,
@@ -1304,7 +1334,8 @@
       }
     ],
     "value": 100,
-    "when": "Marketing-focused client, seasonal business."
+    "when": "Marketing-focused client, seasonal business.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 31,
@@ -1350,7 +1381,8 @@
       "Keyword Surfer is a free Chrome extension for in-search volume data."
     ],
     "value": 100,
-    "when": "Client planning content strategy or considering paid ads."
+    "when": "Client planning content strategy or considering paid ads.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 32,
@@ -1389,7 +1421,8 @@
       "Google's 'People Also Ask' boxes offer similar insight manually."
     ],
     "value": 60,
-    "when": "Client building content strategy, blog planning."
+    "when": "Client building content strategy, blog planning.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 33,
@@ -1432,7 +1465,8 @@
       "Paid: Semrush, Ahrefs."
     ],
     "value": 60,
-    "when": "Client doing DIY SEO research."
+    "when": "Client doing DIY SEO research.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 34,
@@ -1474,7 +1508,8 @@
       "Largely self-explanatory."
     ],
     "value": 100,
-    "when": "Competitor monitoring, brand awareness, industry tracking."
+    "when": "Competitor monitoring, brand awareness, industry tracking.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 35,
@@ -1521,7 +1556,8 @@
       }
     ],
     "value": 200,
-    "when": "Academic, CPD, research-based, health, education sectors."
+    "when": "Academic, CPD, research-based, health, education sectors.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 36,
@@ -1560,7 +1596,8 @@
       }
     ],
     "value": 300,
-    "when": "Every client. Universal."
+    "when": "Every client. Universal.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 37,
@@ -1598,7 +1635,8 @@
       "Google Business Profile is the primary listing; set that up first."
     ],
     "value": 100,
-    "when": "Local service businesses, trades, retail."
+    "when": "Local service businesses, trades, retail.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 38,
@@ -1637,7 +1675,8 @@
       }
     ],
     "value": 180,
-    "when": "Every client with social media."
+    "when": "Every client with social media.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 39,
@@ -1679,7 +1718,8 @@
       "The value is in the network and regular posting, not paid features."
     ],
     "value": 300,
-    "when": "Every client. Universal."
+    "when": "Every client. Universal.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 40,
@@ -1714,7 +1754,8 @@
       }
     ],
     "value": 60,
-    "when": "Client managing multiple social platforms."
+    "when": "Client managing multiple social platforms.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 41,
@@ -1753,7 +1794,8 @@
       "Approach with authenticity, not marketing speak."
     ],
     "value": 100,
-    "when": "Clients interested in AEO / AI engine visibility."
+    "when": "Clients interested in AEO / AI engine visibility.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 42,
@@ -1804,7 +1846,8 @@
       "Many website builders include a link-in-bio style page as a built-in feature."
     ],
     "value": 60,
-    "when": "Social-media-active businesses, especially Instagram/TikTok."
+    "when": "Social-media-active businesses, especially Instagram/TikTok.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 43,
@@ -1866,7 +1909,8 @@
       "Listmonk is open source and self-hosted."
     ],
     "value": 120,
-    "when": "Client needs email marketing. Choose one."
+    "when": "Client needs email marketing. Choose one.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 44,
@@ -1908,7 +1952,8 @@
       "SuiteCRM is open source."
     ],
     "value": 300,
-    "when": "Client needs CRM and doesn't have one."
+    "when": "Client needs CRM and doesn't have one.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 45,
@@ -1962,7 +2007,8 @@
       "SuiteCRM, EspoCRM and ERPNext are open source."
     ],
     "value": 400,
-    "when": "Client wanting integrated stack outside Google/Microsoft. Strong for sole traders."
+    "when": "Client wanting integrated stack outside Google/Microsoft. Strong for sole traders.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 46,
@@ -2013,7 +2059,8 @@
       "Ghost is open source; the hosted Ghost(Pro) service is paid."
     ],
     "value": 120,
-    "when": "Client publishing thought leadership or newsletters."
+    "when": "Client publishing thought leadership or newsletters.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 47,
@@ -2052,7 +2099,8 @@
       }
     ],
     "value": 120,
-    "when": "Every client using WhatsApp for business (most Norfolk SMEs)."
+    "when": "Every client using WhatsApp for business (most Norfolk SMEs).",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 48,
@@ -2099,7 +2147,8 @@
       "Cal.com is open source; Zoho Bookings has a free tier."
     ],
     "value": 100,
-    "when": "Appointment-based business."
+    "when": "Appointment-based business.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 49,
@@ -2154,7 +2203,8 @@
       "Microsoft Planner is included with M365 subscriptions."
     ],
     "value": 100,
-    "when": "Client needing project/task management."
+    "when": "Client needing project/task management.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 50,
@@ -2204,7 +2254,8 @@
       "n8n is open source and can be self-hosted."
     ],
     "value": 200,
-    "when": "Client wanting workflow automation."
+    "when": "Client wanting workflow automation.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 51,
@@ -2251,7 +2302,8 @@
       "Zoho Sign has a free tier."
     ],
     "value": 100,
-    "when": "Professional services, legal, consultants needing signed documents."
+    "when": "Professional services, legal, consultants needing signed documents.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 52,
@@ -2290,7 +2342,8 @@
       "The tools are largely self-explanatory."
     ],
     "value": 30,
-    "when": "Physical-to-digital touchpoints: menus, events, products, feedback."
+    "when": "Physical-to-digital touchpoints: menus, events, products, feedback.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 53,
@@ -2333,7 +2386,8 @@
       "AI assistants can also check and improve writing."
     ],
     "value": 60,
-    "when": "Client writing marketing copy, proposals, web content."
+    "when": "Client writing marketing copy, proposals, web content.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 54,
@@ -2377,7 +2431,8 @@
       "Voice Memos and Recorder apps are built into phones."
     ],
     "value": 100,
-    "when": "Client wanting to capture meetings, site visits, client conversations."
+    "when": "Client wanting to capture meetings, site visits, client conversations.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 55,
@@ -2415,7 +2470,8 @@
       "Most email clients have similar features."
     ],
     "value": 0,
-    "when": "Client already on Gmail, not using features."
+    "when": "Client already on Gmail, not using features.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 56,
@@ -2469,7 +2525,8 @@
       "Jitsi Meet is open source with no account needed."
     ],
     "value": 120,
-    "when": "Client needing video meetings, doesn't have Teams."
+    "when": "Client needing video meetings, doesn't have Teams.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 57,
@@ -2511,7 +2568,8 @@
       "Doodle Premium and SignUpGenius Premium are paid tiers."
     ],
     "value": 100,
-    "when": "Sports clubs, community groups, HAF providers, volunteer orgs."
+    "when": "Sports clubs, community groups, HAF providers, volunteer orgs.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 58,
@@ -2553,7 +2611,8 @@
       "Rocket.Chat and Mattermost are open source and self-hostable."
     ],
     "value": 0,
-    "when": "M365 subscriber, internal team communication."
+    "when": "M365 subscriber, internal team communication.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 59,
@@ -2607,7 +2666,8 @@
       "FreeAgent, Xero, QuickBooks and Sage are paid products."
     ],
     "value": 200,
-    "when": "Sole trader without accounting software."
+    "when": "Sole trader without accounting software.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 60,
@@ -2665,7 +2725,8 @@
       "Xero, QuickBooks and Sage are paid products."
     ],
     "value": 200,
-    "when": "Sole trader with NatWest/Mettle account or willing to switch."
+    "when": "Sole trader with NatWest/Mettle account or willing to switch.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 61,
@@ -2718,7 +2779,8 @@
       "See the GOV.UK list of MTD-compatible software."
     ],
     "value": 0,
-    "when": "VAT-registered or approaching threshold. Self Assessment for all."
+    "when": "VAT-registered or approaching threshold. Self Assessment for all.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 62,
@@ -2764,7 +2826,8 @@
       "1Password and Dashlane are paid."
     ],
     "value": 36,
-    "when": "Every client. Non-negotiable."
+    "when": "Every client. Non-negotiable.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 63,
@@ -2806,7 +2869,8 @@
       "HIBP is the gold standard for breach checking."
     ],
     "value": 50,
-    "when": "Every client. Non-negotiable."
+    "when": "Every client. Non-negotiable.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 64,
@@ -2841,7 +2905,8 @@
       }
     ],
     "value": 0,
-    "when": "Every client using Chrome. Quick addition to HIBP."
+    "when": "Every client using Chrome. Quick addition to HIBP.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 65,
@@ -2879,7 +2944,8 @@
       "NCSC also offers free online training and Exercise in a Box cyber exercises via ncsc.gov.uk."
     ],
     "value": 200,
-    "when": "Every client. Universal."
+    "when": "Every client. Universal.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 66,
@@ -2922,7 +2988,8 @@
       "The ICO also publishes plain-language direct marketing guidance on ico.org.uk."
     ],
     "value": 500,
-    "when": "Every client. Statutory."
+    "when": "Every client. Statutory.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 67,
@@ -2977,7 +3044,8 @@
       "Nextcloud is open source and self-hosted."
     ],
     "value": 60,
-    "when": "Every client not already on M365."
+    "when": "Every client not already on M365.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 68,
@@ -3023,7 +3091,8 @@
       "Google Drive free tier is 15GB. Nextcloud is open source and self-hosted."
     ],
     "value": 0,
-    "when": "M365 subscriber. Already paid for; just enable."
+    "when": "M365 subscriber. Already paid for; just enable.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 69,
@@ -3077,7 +3146,8 @@
       "Kanboard and Taiga are open source."
     ],
     "value": 100,
-    "when": "M365 subscriber. Task tracking, project management."
+    "when": "M365 subscriber. Task tracking, project management.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 70,
@@ -3127,7 +3197,8 @@
       "Cal.com is open source and self-hostable."
     ],
     "value": 150,
-    "when": "M365 subscriber, appointment-based business."
+    "when": "M365 subscriber, appointment-based business.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 71,
@@ -3177,7 +3248,8 @@
       "Jotform free tier allows 5 forms. LimeSurvey is open source."
     ],
     "value": 100,
-    "when": "M365 subscriber. Feedback, consent, event check-ins."
+    "when": "M365 subscriber. Feedback, consent, event check-ins.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 72,
@@ -3224,7 +3296,8 @@
       }
     ],
     "value": 300,
-    "when": "Every Norfolk GoDigital client."
+    "when": "Every Norfolk GoDigital client.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 73,
@@ -3259,7 +3332,8 @@
       }
     ],
     "value": 150,
-    "when": "Networking-interested clients, B2B businesses."
+    "when": "Networking-interested clients, B2B businesses.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 74,
@@ -3325,7 +3399,8 @@
       "Each academy is free and self-serve."
     ],
     "value": 300,
-    "when": "Every client interested in upskilling. Recommend specific academies matching their needs."
+    "when": "Every client interested in upskilling. Recommend specific academies matching their needs.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 75,
@@ -3371,7 +3446,8 @@
       "Coursera and Khan Academy are self-serve; audit mode gives course content without certificates."
     ],
     "value": 200,
-    "when": "Client wanting structured learning beyond platform academies."
+    "when": "Client wanting structured learning beyond platform academies.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 76,
@@ -3413,7 +3489,8 @@
       "Access can also be arranged via the New Anglia Growth Hub."
     ],
     "value": 300,
-    "when": "SMEs exploring AI adoption. Tech-forward clients."
+    "when": "SMEs exploring AI adoption. Tech-forward clients.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 77,
@@ -3456,7 +3533,8 @@
       }
     ],
     "value": 300,
-    "when": "R&D active businesses, innovation-led SMEs."
+    "when": "R&D active businesses, innovation-led SMEs.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 78,
@@ -3499,7 +3577,8 @@
       }
     ],
     "value": 500,
-    "when": "AI-native startups and tech businesses building on GPU/AI."
+    "when": "AI-native startups and tech businesses building on GPU/AI.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 79,
@@ -3549,7 +3628,8 @@
       "Dawn theme is free with any Shopify plan. WooCommerce is open source."
     ],
     "value": 0,
-    "when": "E-commerce businesses on or considering Shopify."
+    "when": "E-commerce businesses on or considering Shopify.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 80,
@@ -3584,7 +3664,8 @@
       }
     ],
     "value": 0,
-    "when": "Merch, digital products, physical goods businesses."
+    "when": "Merch, digital products, physical goods businesses.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 81,
@@ -3619,7 +3700,8 @@
       }
     ],
     "value": 0,
-    "when": "Merch, branded goods, testing product-market fit."
+    "when": "Merch, branded goods, testing product-market fit.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 82,
@@ -3661,7 +3743,8 @@
       "Paid options: Sketchup Pro, AutoCAD, Vectorworks. Blender and FreeCAD are open source."
     ],
     "value": 200,
-    "when": "Garden/landscape, construction, interior design, architecture."
+    "when": "Garden/landscape, construction, interior design, architecture.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 83,
@@ -3711,7 +3794,8 @@
       "Sector specific: each body runs its own training portal and there are no direct cross-sector alternatives."
     ],
     "value": 500,
-    "when": "Safety training, energy sector, charities, regulated industries."
+    "when": "Safety training, energy sector, charities, regulated industries.",
+    "last_verified": "2026-07-22"
   },
   {
     "id": 84,
@@ -3753,6 +3837,7 @@
       "PostHog is open source and self-hostable. For simpler needs, GA4 plus Microsoft Clarity covers most cases."
     ],
     "value": 300,
-    "when": "Tech/SaaS businesses building software products."
+    "when": "Tech/SaaS businesses building software products.",
+    "last_verified": "2026-07-22"
   }
 ]
