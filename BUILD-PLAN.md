@@ -180,6 +180,25 @@ Deliberately NOT in this phase, decisions reserved for Rocky: public curator mod
 
 ---
 
+## Phase 8: Dataset truth, cost model, mobile, dark mode, exports `[~]`
+
+Rocky's 23 Jul direction: remove non-SaaS, cover the developer/web gap, model real costs and scaling, fix mobile, smarter entry point, dark mode, branded exports. Verifier-gated per batch on branch `claude/read-todo-bk47qb`; merge only on Rocky's approval.
+
+- [x] 8.1 Schema: pricing trio `free_limit` / `paid_from` / `scales_with` (PRD section 4), validator enforcement, smoke counts derived from data
+- [x] 8.2 Data: five non-SaaS entries archived (72, 73, 76, 77, 78), 13 tools added including the new Developer & Web category (98 entries, 93 active). Borderline non-SaaS flagged for Rocky, not archived: 61 HMRC, 65 NCSC, 66 ICO, 74 training academies, 83 sector training
+- [x] 8.3 Data: pricing trio researched and populated for all 80 active pre-phase tools, `last_verified` bumped. Sketchup free tier found to be non-commercial only; three `value` figures flagged to the 1.5 review (66 ICO high, 29 Hotjar low, 82 Sketchup licensing)
+- [x] 8.4 Mobile curator: under 768px the table renders as type-tinted stacked cards with 44px targets and a details "More" section; desktop unchanged. Verifier PASS
+- [x] 8.5 "Start here" need chips filtering by intent, ghost-styled, one active at a time, manual edits clear. Verifier PASS
+- [x] 8.6 Cost model: per-card free-tier line and pricing pill, "How costs could grow" hand-built SVG chart (four team sizes, tooltip on hover and focus, table fallback, print-safe). Verifier PASS, model arithmetic independently recomputed
+- [~] 8.7 Dark mode: top-right toggle, warm dark token palette, stored choice, system default, print always light
+- [~] 8.8 Branded exports from the curator selection: CSV, standalone HTML snapshot (DOM-built, self-contained), Save as PDF via print param, Email this stack mailto draft
+- [ ] 8.9 Content pass: README/TODO refresh, PRD section 15 already updated, changelog rows
+- [ ] 8.10 Final verifier sweep and fresh screenshots
+
+Decisions this phase surfaced for Rocky, additive to the list above: archive or keep the borderline non-SaaS five; the three challenged value figures; whether Vercel stays listed given its Hobby tier bans commercial use.
+
+---
+
 ## Open spec questions
 
 Raised by the PRD review and not yet resolved. Each needs an answer before the phase that depends on it closes.
