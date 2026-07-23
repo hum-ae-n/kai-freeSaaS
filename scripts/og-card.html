@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face {
+    font-family: 'Sonny Gothic';
+    src: url('../design-system/fonts/SonnyGothic-Regular.woff') format('woff');
+    font-weight: 400;
+  }
+  @font-face {
+    font-family: 'Sonny Gothic UltraBlack';
+    src: url('../design-system/fonts/SonnyGothic-UltraBlack.ttf') format('truetype');
+    font-weight: 900;
+  }
+  @font-face {
+    font-family: 'Galano Grotesque';
+    src: url('../design-system/fonts/GalanoGrotesqueMedium.otf') format('opentype');
+    font-weight: 500;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1200px; height: 630px;
+    background: #F4F1EA;
+    font-family: 'Sonny Gothic', sans-serif;
+    color: #1A1714;
+    display: flex; flex-direction: column;
+    padding: 60px 84px 56px;
+    position: relative;
+    overflow: hidden;
+  }
+  .rule-top { position: absolute; top: 0; left: 0; right: 0; height: 10px; background: #A40000; }
+  .brand { display: flex; align-items: center; gap: 18px; }
+  .brand img { height: 56px; }
+  .eyebrow {
+    font-family: 'Galano Grotesque', sans-serif;
+    font-size: 22px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: #A40000; margin-top: 40px;
+  }
+  h1 {
+    font-family: 'Sonny Gothic UltraBlack', sans-serif;
+    font-size: 96px; line-height: 0.98; letter-spacing: -0.01em;
+    margin-top: 14px;
+  }
+  .sub {
+    font-size: 30px; line-height: 1.4; color: #3A332D;
+    margin-top: 22px; max-width: 840px;
+  }
+  .footer {
+    margin-top: auto; display: flex; align-items: baseline; justify-content: space-between;
+    border-top: 2px solid #DCD5C6; padding-top: 26px;
+  }
+  .stat { font-family: 'Sonny Gothic UltraBlack', sans-serif; font-size: 40px; color: #4C6B43; }
+  .stat small { font-family: 'Galano Grotesque', sans-serif; font-size: 20px; letter-spacing: 0.12em; text-transform: uppercase; color: #6B645B; margin-left: 14px; }
+  .curated { font-family: 'Galano Grotesque', sans-serif; font-size: 22px; color: #6B645B; }
+</style>
+</head>
+<body>
+  <div class="rule-top"></div>
+  <div class="brand">
+    <img src="../design-system/assets/kaipability-logo-lockup.png" alt="">
+  </div>
+  <div class="eyebrow">Free Stack</div>
+  <h1>Your Free<br>Software Stack</h1>
+  <p class="sub">Curated free software for small business. Every tool with alternatives and training, no affiliate links, no vendor bias.</p>
+  <div class="footer">
+    <div class="stat">85 tools<small>at zero cost</small></div>
+    <div class="curated">kaipability.com</div>
+  </div>
+</body>
+</html>
