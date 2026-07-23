@@ -49,7 +49,10 @@
     ],
     "value": 200,
     "when": "Every client. Universal.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Each provider gives a daily message allowance on an older or smaller model with no memory of past chats between sessions; the roughly £16/month Pro/Plus tier per provider removes the daily cap and unlocks the top model.",
+    "paid_from": 16,
+    "scales_with": "features"
   },
   {
     "id": 1,
@@ -100,7 +103,10 @@
     ],
     "value": 0,
     "when": "M365 subscriber. Paid Copilot is separate product.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Unlimited free chat at copilot.microsoft.com and in Bing/Edge, no sign-in required; the in-tenant Microsoft 365 Copilot add-on that keeps prompts inside the business's own data is a separate paid product, not counted here.",
+    "paid_from": 15,
+    "scales_with": "users"
   },
   {
     "id": 2,
@@ -144,7 +150,10 @@
     ],
     "value": 100,
     "when": "Every client. Universal.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "250,000+ templates, 5GB storage and 50 AI credits a month at no cost; Pro adds the brand kit, background remover and hundreds more AI credits for about £12/month.",
+    "paid_from": 12,
+    "scales_with": "features"
   },
   {
     "id": 3,
@@ -180,7 +189,10 @@
     ],
     "value": 100,
     "when": "Client already in Adobe ecosystem or wants alternative to Canva.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "100,000 templates, 5GB storage and 25 AI credits a month free; Premium (about £8/month) unlocks the full 200-million-asset stock library, more fonts and video background removal.",
+    "paid_from": 8,
+    "scales_with": "features"
   },
   {
     "id": 4,
@@ -223,7 +235,10 @@
     ],
     "value": 300,
     "when": "Client needs serious image editing beyond Canva.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever, open source, every feature and every release at no cost.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 5,
@@ -262,7 +277,10 @@
     ],
     "value": 300,
     "when": "Design/print trades, clients with PSD files or Photoshop experience.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "The full editor is free forever, supported by ads; Premium (about £4/month) removes the ads and adds extra cloud storage.",
+    "paid_from": 4,
+    "scales_with": "features"
   },
   {
     "id": 6,
@@ -314,7 +332,10 @@
     ],
     "value": 200,
     "when": "Every client creating content.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Unlimited free downloads across all three libraries, no paid tier for standard use.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 7,
@@ -362,7 +383,10 @@
     ],
     "value": 100,
     "when": "Client producing video or web content.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever: the YouTube Audio Library and Google Fonts have no paid tier.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 8,
@@ -412,7 +436,10 @@
     ],
     "value": 60,
     "when": "Client with product photos, social media imagery needs.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Remove.bg: 1 free HD download plus low-res previews a month. Cleanup.Pictures: a limited number of free edits a month. Paid credits for either start at about £7/month.",
+    "paid_from": 7,
+    "scales_with": "usage"
   },
   {
     "id": 9,
@@ -460,7 +487,10 @@
     ],
     "value": 50,
     "when": "Client with a website, especially Shopify/WooCommerce.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "TinyPNG's web tool is capped at 20 images a month before it asks you to pay; Squoosh (Google's own tool) runs entirely in the browser and is free forever with no cap.",
+    "paid_from": 2,
+    "scales_with": "usage"
   },
   {
     "id": 10,
@@ -512,7 +542,10 @@
     ],
     "value": 60,
     "when": "Print, design, embroidery, signage trades.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Vectorizer.ai gives a few free low-res preview conversions before requiring paid credits; Coolors' colour palette extraction is free forever.",
+    "paid_from": 8,
+    "scales_with": "usage"
   },
   {
     "id": 11,
@@ -548,7 +581,10 @@
     ],
     "value": 100,
     "when": "Print-on-demand, merch, garment businesses.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "A small selection of mockups are free to download; unlimited downloads across the full template library need a subscription, cheapest on an annual plan at about £6/month.",
+    "paid_from": 6,
+    "scales_with": "usage"
   },
   {
     "id": 12,
@@ -591,7 +627,10 @@
     ],
     "value": 150,
     "when": "Client produces or plans to produce video.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever, no paid tier: hosting, distribution and analytics all included.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 13,
@@ -627,7 +666,10 @@
     ],
     "value": 120,
     "when": "Client creating social media video content.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "The free tier exports with a watermark; Standard (about £8/month) removes the watermark at 1080p, Pro adds 4K and the full AI toolkit.",
+    "paid_from": 8,
+    "scales_with": "features"
   },
   {
     "id": 14,
@@ -670,7 +712,10 @@
     ],
     "value": 400,
     "when": "Serious video production (training, corporate, CPD).",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "The free version is fully featured (editing, colour grading, Fairlight audio, Fusion VFX) with no watermark or time limit. Studio is a one-off £233 purchase, not a subscription, adding AI tools and advanced formats.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 15,
@@ -709,7 +754,10 @@
     ],
     "value": 150,
     "when": "Client doing live streams, screen recordings, or tutorial creation.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever, open source, no paid tier.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 16,
@@ -748,7 +796,10 @@
     ],
     "value": 100,
     "when": "Client onboarding, workshop recording, async communication.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "25 videos per member with a 5-minute cap each; Business (about £14/seat/month) removes the video count and time limits and adds 4K export.",
+    "paid_from": 14,
+    "scales_with": "users"
   },
   {
     "id": 17,
@@ -791,7 +842,10 @@
     ],
     "value": 120,
     "when": "Client with podcast, long-form video, or webinar content.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Opus Clip: 60 processing minutes a month, watermarked exports that expire after 3 days. Descript: 1 hour of transcription a month, 720p export, watermarked. Opus Clip's Starter plan (about £12/month) is the cheaper route to watermark-free exports.",
+    "paid_from": 12,
+    "scales_with": "usage"
   },
   {
     "id": 18,
@@ -830,7 +884,10 @@
     ],
     "value": 150,
     "when": "Client producing podcasts or audio content.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever, open source, no paid tier.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 19,
@@ -869,7 +926,10 @@
     ],
     "value": 60,
     "when": "Adventure, sports, outdoor, activity-based businesses.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "The free app gives basic auto-edits; the Quik/GoPro subscription (from about £2/month) adds extra filters, music tracks and cloud backup.",
+    "paid_from": 2,
+    "scales_with": "features"
   },
   {
     "id": 20,
@@ -918,7 +978,10 @@
     ],
     "value": 120,
     "when": "M365 subscriber, simple video editing.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free at 1080p with basic cuts and transitions, included with any Microsoft account; standalone Premium (or bundled with Microsoft 365) adds 4K export and the full stock library for about £9/month.",
+    "paid_from": 9,
+    "scales_with": "features"
   },
   {
     "id": 21,
@@ -965,7 +1028,10 @@
     ],
     "value": 200,
     "when": "Every client with a website.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever for the traffic volumes any small business generates, no paid tier; GA4 360 is priced for organisations far larger than an SME.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 22,
@@ -1008,7 +1074,10 @@
     ],
     "value": 150,
     "when": "Client has website worth analysing (e-commerce, lead-gen).",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever, unlimited traffic, no paid tier.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 23,
@@ -1048,7 +1117,10 @@
     ],
     "value": 150,
     "when": "Every client with a website.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever, no paid tier.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 24,
@@ -1087,7 +1159,10 @@
     ],
     "value": 100,
     "when": "Client wanting broader search visibility, AEO readiness.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever, no paid tier.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 25,
@@ -1130,7 +1205,10 @@
     ],
     "value": 100,
     "when": "Website performance matters (e-commerce, SEO focus).",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever, no paid tier.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 26,
@@ -1173,7 +1251,10 @@
     ],
     "value": 100,
     "when": "Client with multiple tracking tools or frequent pixel changes.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever for standard use, no paid tier for a small business.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 27,
@@ -1212,7 +1293,10 @@
     ],
     "value": 200,
     "when": "Client wanting automated reporting dashboards.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Unlimited free reports and data sources; Looker Studio Pro (about £7/user/project/month) adds team workspaces, more scheduled deliveries and Gemini AI.",
+    "paid_from": 7,
+    "scales_with": "features"
   },
   {
     "id": 28,
@@ -1263,7 +1347,10 @@
     ],
     "value": 100,
     "when": "Client with website wanting rich search results.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever: an open standard plus a free generator tool, no paid tier.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 29,
@@ -1299,7 +1386,10 @@
     ],
     "value": 100,
     "when": "Alternative to Clarity. Client may already have Hotjar.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "200,000 sessions and 10,000 recordings a month free; paid Observe plans, needed only once daily session caps are exceeded, start at about £31/month.",
+    "paid_from": 31,
+    "scales_with": "usage"
   },
   {
     "id": 30,
@@ -1335,7 +1425,10 @@
     ],
     "value": 100,
     "when": "Marketing-focused client, seasonal business.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever, no paid tier.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 31,
@@ -1382,7 +1475,10 @@
     ],
     "value": 100,
     "when": "Client planning content strategy or considering paid ads.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever with a free Google Ads account, no ad spend required, no paid tier.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 32,
@@ -1422,7 +1518,10 @@
     ],
     "value": 60,
     "when": "Client building content strategy, blog planning.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "3 searches a day free; the paid Individual plan (about £12/month) removes the daily cap and adds CSV export.",
+    "paid_from": 12,
+    "scales_with": "usage"
   },
   {
     "id": 33,
@@ -1466,7 +1565,10 @@
     ],
     "value": 60,
     "when": "Client doing DIY SEO research.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "A handful of free searches a day; the paid Individual plan (about £9/month) removes the daily cap.",
+    "paid_from": 9,
+    "scales_with": "usage"
   },
   {
     "id": 34,
@@ -1509,7 +1611,10 @@
     ],
     "value": 100,
     "when": "Competitor monitoring, brand awareness, industry tracking.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever, no paid tier.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 35,
@@ -1557,7 +1662,10 @@
     ],
     "value": 200,
     "when": "Academic, CPD, research-based, health, education sectors.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever for individual researchers, no paid tier.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 36,
@@ -1597,7 +1705,10 @@
     ],
     "value": 300,
     "when": "Every client. Universal.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever, no paid tier.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 37,
@@ -1636,7 +1747,10 @@
     ],
     "value": 100,
     "when": "Local service businesses, trades, retail.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever, no paid tier.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 38,
@@ -1676,7 +1790,10 @@
     ],
     "value": 180,
     "when": "Every client with social media.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever, no paid tier; running paid Meta ads is a separate product and spend, not part of this tool.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 39,
@@ -1719,7 +1836,10 @@
     ],
     "value": 300,
     "when": "Every client. Universal.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "The free profile and posting are enough for most SMEs; Premium Career (about £24/month) adds who's-viewed-your-profile and LinkedIn Learning, rarely essential for basic visibility.",
+    "paid_from": 24,
+    "scales_with": "features"
   },
   {
     "id": 40,
@@ -1755,7 +1875,10 @@
     ],
     "value": 60,
     "when": "Client managing multiple social platforms.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "3 channels, 10 scheduled posts queued per channel; paid Essentials removes the queue cap, billed per connected channel from about £5/month.",
+    "paid_from": 5,
+    "scales_with": "usage"
   },
   {
     "id": 41,
@@ -1795,7 +1918,10 @@
     ],
     "value": 100,
     "when": "Clients interested in AEO / AI engine visibility.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever, no paid tier for posting and participating.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 42,
@@ -1847,7 +1973,10 @@
     ],
     "value": 60,
     "when": "Social-media-active businesses, especially Instagram/TikTok.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Unlimited links and basic themes free forever on all three; paid plans (from about £6/month) add custom domains and reduce or remove the platform's commission on digital product sales.",
+    "paid_from": 6,
+    "scales_with": "features"
   },
   {
     "id": 43,
@@ -1910,7 +2039,10 @@
     ],
     "value": 120,
     "when": "Client needs email marketing. Choose one.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "MailerLite: 250 subscribers, 2,500 emails a month. Mailchimp: 250 contacts, 500 emails a month. Brevo: unlimited contacts, 300 emails a day (about 9,000/month), the most generous of the three. All three free tiers have shrunk noticeably in the last two years.",
+    "paid_from": 7,
+    "scales_with": "usage"
   },
   {
     "id": 44,
@@ -1953,7 +2085,10 @@
     ],
     "value": 300,
     "when": "Client needs CRM and doesn't have one.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever for up to 2 users and around 1,000 contacts, with 'Powered by HubSpot' branding on every email and form; Starter (about £16/month) removes the branding and the seat cap.",
+    "paid_from": 16,
+    "scales_with": "users"
   },
   {
     "id": 45,
@@ -2008,7 +2143,10 @@
     ],
     "value": 400,
     "when": "Client wanting integrated stack outside Google/Microsoft. Strong for sole traders.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free CRM for up to 3 users plus Bookings, Mail, Invoice, Writer, Meeting and Forms, all at no cost; CRM Standard, needed beyond 3 users or for more automation, starts at about £16/user/month.",
+    "paid_from": 16,
+    "scales_with": "users"
   },
   {
     "id": 46,
@@ -2060,7 +2198,10 @@
     ],
     "value": 120,
     "when": "Client publishing thought leadership or newsletters.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever to publish on either platform; Substack takes a 10% cut only once and if you charge for subscriptions, with no monthly fee either way.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 47,
@@ -2100,7 +2241,10 @@
     ],
     "value": 120,
     "when": "Every client using WhatsApp for business (most Norfolk SMEs).",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever for the app itself; the WhatsApp Business Platform (API), needed only once volume requires third-party integration, is billed per conversation instead.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 48,
@@ -2148,7 +2292,10 @@
     ],
     "value": 100,
     "when": "Appointment-based business.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "1 event type and 1 calendar connection free forever; Standard (about £9/month) removes the event-type cap and adds reminders and integrations.",
+    "paid_from": 9,
+    "scales_with": "users"
   },
   {
     "id": 49,
@@ -2204,7 +2351,10 @@
     ],
     "value": 100,
     "when": "Client needing project/task management.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Notion: unlimited pages but 7-day version history and a 5MB upload cap. Trello: unlimited cards but capped at 10 boards and 250 automation runs a month. Trello Standard is the cheaper upgrade route at about £5/user/month.",
+    "paid_from": 5,
+    "scales_with": "usage"
   },
   {
     "id": 50,
@@ -2255,7 +2405,10 @@
     ],
     "value": 200,
     "when": "Client wanting workflow automation.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Zapier: 100 tasks a month, two-step Zaps only. Make: 1,000 operations a month, 2 active scenarios. Apple Shortcuts: free forever, no limit. Make's Core plan is the cheaper upgrade route at about £8/month.",
+    "paid_from": 8,
+    "scales_with": "usage"
   },
   {
     "id": 51,
@@ -2303,7 +2456,10 @@
     ],
     "value": 100,
     "when": "Professional services, legal, consultants needing signed documents.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "SignWell: 3 documents a month free. Zoho Sign: 5 envelopes a month free. Paid plans removing the document cap start at about £6/month.",
+    "paid_from": 6,
+    "scales_with": "usage"
   },
   {
     "id": 52,
@@ -2343,7 +2499,10 @@
     ],
     "value": 30,
     "when": "Physical-to-digital touchpoints: menus, events, products, feedback.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Static QR codes are free forever and never expire; paid plans are only needed for dynamic, trackable codes with scan analytics, which most small businesses don't require.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 53,
@@ -2387,7 +2546,10 @@
     ],
     "value": 60,
     "when": "Client writing marketing copy, proposals, web content.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "The web editor is free forever with no limits; the optional desktop app is a one-off £16 purchase, not a subscription.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 54,
@@ -2432,7 +2594,10 @@
     ],
     "value": 100,
     "when": "Client wanting to capture meetings, site visits, client conversations.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Apple Voice Memos and Google Recorder are free forever, built into the phone. Otter.ai gives 300 free transcription minutes a month; Otter Pro (about £13/month) raises this to 1,200 minutes.",
+    "paid_from": 13,
+    "scales_with": "usage"
   },
   {
     "id": 55,
@@ -2471,7 +2636,10 @@
     ],
     "value": 0,
     "when": "Client already on Gmail, not using features.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever, no paid tier: these are features already included in any Google account.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 56,
@@ -2526,7 +2694,10 @@
     ],
     "value": 120,
     "when": "Client needing video meetings, doesn't have Teams.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Zoom: unlimited one-to-one calls, 40-minute cap on group calls. Google Meet: 60-minute cap on group calls. Zoom Pro (about £13/month) removes the group time cap.",
+    "paid_from": 13,
+    "scales_with": "users"
   },
   {
     "id": 57,
@@ -2569,7 +2740,10 @@
     ],
     "value": 100,
     "when": "Sports clubs, community groups, HAF providers, volunteer orgs.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever for organising, messaging and attendance tracking; only a 2.5% + 20p transaction fee applies when collecting payments through the app.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 58,
@@ -2612,7 +2786,10 @@
     ],
     "value": 0,
     "when": "M365 subscriber, internal team communication.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever for internal chat and meetings, whether used standalone or included with Microsoft 365.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 59,
@@ -2667,7 +2844,10 @@
     ],
     "value": 200,
     "when": "Sole trader without accounting software.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever for invoicing and manual bookkeeping; automatic bank transaction imports and collaborator access now require the paid Pro plan, about £13/month.",
+    "paid_from": 13,
+    "scales_with": "features"
   },
   {
     "id": 60,
@@ -2726,7 +2906,10 @@
     ],
     "value": 200,
     "when": "Sole trader with NatWest/Mettle account or willing to switch.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "FreeAgent is free indefinitely with an active Mettle or NatWest business account (at least one transaction a month); Tide's free account has no monthly fee either. Tide's paid Smart plan, needed for more transfers and features, starts at about £12/month.",
+    "paid_from": 12,
+    "scales_with": "features"
   },
   {
     "id": 61,
@@ -2780,7 +2963,10 @@
     ],
     "value": 0,
     "when": "VAT-registered or approaching threshold. Self Assessment for all.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever, statutory service, no paid tier.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 62,
@@ -2827,7 +3013,10 @@
     ],
     "value": 36,
     "when": "Every client. Non-negotiable.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Unlimited passwords and devices free forever for individuals, including a free 2-person shared organisation; sharing across a team of 3 or more costs about £3/user/month.",
+    "paid_from": 3,
+    "scales_with": "users"
   },
   {
     "id": 63,
@@ -2870,7 +3059,10 @@
     ],
     "value": 50,
     "when": "Every client. Non-negotiable.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever for checking individual email addresses; a paid subscription is only needed for automated, domain-wide monitoring.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 64,
@@ -2906,7 +3098,10 @@
     ],
     "value": 0,
     "when": "Every client using Chrome. Quick addition to HIBP.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever, built into Chrome and any Google account, no paid tier.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 65,
@@ -2945,7 +3140,10 @@
     ],
     "value": 200,
     "when": "Every client. Universal.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever, government guidance, no paid tier.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 66,
@@ -2989,7 +3187,10 @@
     ],
     "value": 500,
     "when": "Every client. Statutory.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever, statutory guidance, no paid tier (separate from the mandatory £35-60/year ICO data protection fee every controller pays regardless of which tools they use).",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 67,
@@ -3045,7 +3246,10 @@
     ],
     "value": 60,
     "when": "Every client not already on M365.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "15GB free storage per Google account; Google One's cheapest paid tier (100GB, needed once files outgrow the free allowance) is about £2/month.",
+    "paid_from": 2,
+    "scales_with": "usage"
   },
   {
     "id": 68,
@@ -3092,7 +3296,10 @@
     ],
     "value": 0,
     "when": "M365 subscriber. Already paid for; just enable.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "1TB included at no extra cost with any Microsoft 365 subscription, nothing further to pay for storage itself.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 69,
@@ -3147,7 +3354,10 @@
     ],
     "value": 100,
     "when": "M365 subscriber. Task tracking, project management.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Included at no extra cost with any Microsoft 365 subscription.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 70,
@@ -3198,7 +3408,10 @@
     ],
     "value": 150,
     "when": "M365 subscriber, appointment-based business.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Included at no extra cost with any Microsoft 365 subscription.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 71,
@@ -3249,7 +3462,10 @@
     ],
     "value": 100,
     "when": "M365 subscriber. Feedback, consent, event check-ins.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Included at no extra cost with any Microsoft 365 subscription.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 72,
@@ -3402,7 +3618,10 @@
     ],
     "value": 300,
     "when": "Every client interested in upskilling. Recommend specific academies matching their needs.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever: every academy listed (HubSpot Academy, Meta Blueprint, Google Skillshop, Digital Garage, Xero U, SEMrush Academy) is self-serve at no cost, regardless of whether the underlying product is paid.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 75,
@@ -3449,7 +3668,10 @@
     ],
     "value": 200,
     "when": "Client wanting structured learning beyond platform academies.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Khan Academy is free forever. Coursera's audit mode gives free access to course content with no certificate; Coursera Plus, needed only for a certificate, is a separate paid subscription from about £47/month.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 76,
@@ -3634,7 +3856,10 @@
     ],
     "value": 0,
     "when": "E-commerce businesses on or considering Shopify.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "The Dawn theme and Shopify Learn courses are free, but Shopify itself has no free storefront tier: the cheapest plan able to run a full Dawn-themed store is Basic, about £31/month.",
+    "paid_from": 31,
+    "scales_with": "usage"
   },
   {
     "id": 80,
@@ -3670,7 +3895,10 @@
     ],
     "value": 0,
     "when": "Merch, digital products, physical goods businesses.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Individual plan: no monthly fee, 99p per item sold, suits under about 40 sales a month. Professional plan, better value above that volume, is about £32/month flat.",
+    "paid_from": 32,
+    "scales_with": "usage"
   },
   {
     "id": 81,
@@ -3706,7 +3934,10 @@
     ],
     "value": 0,
     "when": "Merch, branded goods, testing product-market fit.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever with no monthly fee, paying only for products as customers order them; the optional Growth plan (about £20/month) adds product and shipping discounts once volume justifies it.",
+    "paid_from": 20,
+    "scales_with": "usage"
   },
   {
     "id": 82,
@@ -3749,7 +3980,10 @@
     ],
     "value": 200,
     "when": "Garden/landscape, construction, interior design, architecture.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "The free web version is licensed for personal, non-commercial use only, so a paying client's project isn't covered by it; SketchUp Go, needed for any commercial work, is about £16/month.",
+    "paid_from": 16,
+    "scales_with": "features"
   },
   {
     "id": 83,
@@ -3800,7 +4034,10 @@
     ],
     "value": 500,
     "when": "Safety training, energy sector, charities, regulated industries.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever: government and sector-body resources with no paid tier.",
+    "paid_from": 0,
+    "scales_with": "none"
   },
   {
     "id": 84,
@@ -3843,7 +4080,10 @@
     ],
     "value": 300,
     "when": "Tech/SaaS businesses building software products.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-23",
+    "free_limit": "1 million analytics events, 5,000 session recordings and 1 million feature-flag requests a month free, resetting monthly; beyond that it's metered per event, typically a few pounds a month for a small site, rather than a fixed subscription tier.",
+    "paid_from": 5,
+    "scales_with": "usage"
   },
   {
     "id": 85,
