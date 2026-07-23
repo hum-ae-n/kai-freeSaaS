@@ -174,7 +174,7 @@ Post-launch expansion, 23 Jul. Research-driven (two web research passes on 2024-
 - [x] 7.10 `?note=` personal message param (280 chars, sanitized) with curator input
 - [x] 7.11 Lucide category icons inline on client section headers (ISC licence)
 - [x] 7.12 Content pass: copy polish (header redundancy, summary caption), README feature docs
-- [ ] 7.13 Final verifier pass over the whole phase plus fresh screenshots
+- [x] 7.13 Final verifier pass over the whole phase plus fresh screenshots (23 Jul: PASS, every commit in the range builds, docs verified truthful against behaviour, contrast pairs all 4.5:1+, ready for merge review)
 
 Deliberately NOT in this phase, decisions reserved for Rocky: public curator mode / `when` column exposure, value figure honesty review (1.5), favicon self-hosting (5.6), analytics provider (Plausible recommended by research), "How we choose" page content.
 
