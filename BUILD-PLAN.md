@@ -150,11 +150,33 @@ Acceptance: [DoD 5], [DoD 6]. Verifier signs off against PRD section 12.
 Owner: **content-editor**, deploy by main thread.
 
 - [x] 6.1 `README.md`: how to add a tool, how to edit one, the URL schema, how to run locally including the `file://` trap, how to deploy, how to run the validator
-- [ ] 6.2 Connect the GitHub repo to Netlify, confirm auto deploy on push to `main`
-- [ ] 6.3 Optional custom domain, for example `freestack.kaipability.com`
-- [ ] 6.4 Full Definition of Done pass, all ten items, on the deployed URL rather than localhost
+- [x] 6.2 Connect the GitHub repo to Netlify, confirm auto deploy on push to `main` (site `kai-freestack`, live 23 Jul, status badge in README)
+- [ ] 6.3 Custom domain: `tools.airl.io`, deferred to the end by decision 23 Jul. When it lands, update the `og:url`, `og:image` and canonical URLs in `index.html`.
+- [~] 6.4 Full Definition of Done pass, all ten items, on the deployed URL rather than localhost. 23 Jul: live files byte-verified against `origin/main`, headers and favicon proxy confirmed; human checks outstanding (favicons on a real phone, copy-paste into Word).
 
 Acceptance: [DoD 9], [DoD 10].
+
+---
+
+## Phase 7: Hardening, social layer and features `[~]`
+
+Post-launch expansion, 23 Jul. Research-driven (two web research passes on 2024-2026 best practice: social unfurling, print, share, motion, WCAG 2.2, directory trust patterns, preset UX, icon licensing). Verifier-gated per batch. Runs on branch `claude/read-todo-bk47qb` until merged.
+
+- [x] 7.1 CI: GitHub Actions runs validator + smoke test on every push to `main` and every PR
+- [x] 7.2 Schema: ID permanence rule, optional `archived` flag, optional `last_verified` date (PRD section 4 amended); all 85 tools stamped with the Phase 1 link-sweep date
+- [x] 7.3 Social: static OG/Twitter meta before the stylesheet, canonical link, branded 1200x630 `assets/og-image.png` (regenerable from `scripts/og-card.html`), JS-injected `noindex` in client mode only
+- [x] 7.4 Hardening: `sanitizeParam` caps `?client=` at 80 chars, whitespace collapses to absent
+- [x] 7.5 Print and share: A4 print stylesheet with visible "Print or save as PDF" button, Web Share API with clipboard fallback in both modes
+- [x] 7.6 Motion and layout: Carbon-spec card entrance and value count-up behind `prefers-reduced-motion`, single-card categories span full row, sticky stats bar, 44px client buttons, `ul/li` card semantics, trust and provenance lines, freshness badge, archived-tool retirement card
+- [x] 7.7 Smoke suite extended 15 to 27 checks covering the 7.3-7.6 surface
+- [~] 7.8 Presets: five persona starter packs in `data/presets.json`, one-click chips above the curator filters, editable after apply
+- [~] 7.9 Adoption checklist: per-card "Mark as set up" toggle, localStorage per selection hash, progress line, device-only honesty note
+- [~] 7.10 `?note=` personal message param (280 chars, sanitized) with curator input
+- [~] 7.11 Lucide category icons inline on client section headers (ISC licence)
+- [ ] 7.12 Content pass: copy polish (header redundancy, summary caption), README feature docs
+- [ ] 7.13 Final verifier pass over the whole phase plus fresh screenshots
+
+Deliberately NOT in this phase, decisions reserved for Rocky: public curator mode / `when` column exposure, value figure honesty review (1.5), favicon self-hosting (5.6), analytics provider (Plausible recommended by research), "How we choose" page content.
 
 ---
 
@@ -182,3 +204,6 @@ Record deliberate deviations from the PRD here so the spec and the build stay re
 | 2026-07-22 | Added `DESIGN-SYSTEM.md` and `scripts/smoke-test.mjs` beyond the PRD section 3 file list | Token/component documentation, and a repeatable headless-Chromium gate covering DoD 1-8 (15 checks: both modes, filter composition, link round trip including tool 0, XSS literal rendering, empty state, 375px overflow). Favicon rendering and real-world contrast remain human checks per BUILD-LOOP |
 | 2026-07-22 | PRD v1.3: styling source of truth is now `design-system/` (Kaipability brand system found in-repo). Cream/oxblood/ink palette, Sonny Gothic + Galano Grotesque self-hosted, editorial flat surfaces. Supersedes PRD section 11's provisional Source Sans 3 / `#c0392b` palette, the section 4 pastel badge colours, and the interim `assets/logo.svg` placeholder (deleted; real lockup + mark adopted) | The user's design system landed in `design-system/` mid-build; the PRD palette was always a stand-in |
 | 2026-07-22 | PRD v1.2: categories consolidated 23 to 15 (Security merged into Security & Compliance; Design & Creative, Image & Stock, Image Utilities merged into Design & Images; Analytics & SEO plus Local SEO into SEO & Analytics; Social Media, Email Marketing, Publishing, CRM into Marketing & CRM; Business Support plus Grants & Programmes into Grants & Business Support) | 23 categories over 85 tools produced one-tool client-mode sections and near-duplicate headers |
+| 2026-07-23 | PRD section 4: ID permanence rule, optional `archived` boolean, optional `last_verified` ISO date | Client links carry only ids, so deleting a tool silently mutates every deliverable ever sent; archived tools now render an explicit retirement card |
+| 2026-07-23 | Added `data/presets.json`, `assets/og-image.png`, `scripts/og-card.html`, `.github/workflows/ci.yml` beyond the PRD section 3 file list | Persona starter packs (research: persona-named bundles beat category lists), social unfurl image, and a CI gate so a web-UI edit cannot deploy unvalidated |
+| 2026-07-23 | OG meta targets the client-mode reader on the shared URL; `noindex` is JS-injected in client mode only | Crawlers do not run JS, so per-mode static meta on one URL is impossible without SSR; the client link is the one that gets shared, and a static noindex would deindex curator mode too |
