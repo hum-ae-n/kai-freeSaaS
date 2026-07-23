@@ -14,14 +14,14 @@ Open items as of 23 July 2026. Build state: Phases 0-4 done and verified, Phase 
 
 ## Merging Phase 7
 
-- [ ] **Merge `claude/read-todo-bk47qb` into `main`.** Phase 7 (7.1 to 7.12) is built and verifier-passed on this branch but sits unmerged, so none of it is live yet: starter packs, the adoption checklist, the `?note=` field, category icons, print/share, the social preview image, archived-tool handling and CI. Review, then merge, then a normal push to `main` deploys it.
+- [x] **Merge `claude/read-todo-bk47qb` into `main`.** Approved by Rocky 23 Jul ("go for it"), merged and deployed the same day.
 
 ## Decisions only Rocky can make
 
 - [ ] **Public curator mode.** The bare URL serves the full curator interface, including the internal `when` column (consulting guidance) and value calibrations. Decide before sharing any client link: acceptable public, hide the column, or add the token auth deferred in PRD §13. Blocks Phase 6 sign-off.
 - [ ] **Value figure spot-check (Phase 1.5).** The validator can't judge honesty (PRD §10). Review the `value` field across `data/tools.json`; flag anything indefensible.
 - [ ] **Favicon self-hosting (Phase 5.6).** Client pages currently hit DuckDuckGo/Google proxies per link. Decide whether to inline/self-host icons for the 15 core tools (privacy + reliability) or accept the proxies.
-- [ ] **Analytics provider.** PRD §13 flags this as post-v1. Research points to Plausible: $9/month (roughly £7), cookieless, and it strips query strings by default, which matters here because the client link carries the recipient's name in `?client=`. Fathom is the other option raised. Either keeps client names out of analytics; a plain page-view counter would not do that on its own. Needs a decision and, if approved, a small script tag in `index.html`.
+- [x] **Analytics provider.** Decided 23 Jul: not needed. No analytics on the site. If that ever changes, the research notes favoured Plausible ($9/month, strips query strings so client names stay out of the data).
 - [ ] **"How we choose" page.** Nothing written yet. Decide whether the site needs a page explaining the selection criteria (free tier scope, why an alternative is listed, how `value` is worked out) and, if so, who drafts it.
 
 ## Nice-to-have / flagged
