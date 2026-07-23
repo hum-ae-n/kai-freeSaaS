@@ -1,5 +1,5 @@
 /**
- * curator.js — curator mode per PRD section 6.
+ * curator.js: curator mode per PRD section 6.
  * Owns the .cur- classes and the tools table. DOM contract in data-loader.js.
  */
 import { el, favicon, extLink, money, showToast, shareUrl } from './data-loader.js';

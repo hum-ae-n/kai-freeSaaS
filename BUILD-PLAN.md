@@ -168,12 +168,12 @@ Post-launch expansion, 23 Jul. Research-driven (two web research passes on 2024-
 - [x] 7.4 Hardening: `sanitizeParam` caps `?client=` at 80 chars, whitespace collapses to absent
 - [x] 7.5 Print and share: A4 print stylesheet with visible "Print or save as PDF" button, Web Share API with clipboard fallback in both modes
 - [x] 7.6 Motion and layout: Carbon-spec card entrance and value count-up behind `prefers-reduced-motion`, single-card categories span full row, sticky stats bar, 44px client buttons, `ul/li` card semantics, trust and provenance lines, freshness badge, archived-tool retirement card
-- [x] 7.7 Smoke suite extended 15 to 27 checks covering the 7.3-7.6 surface
-- [~] 7.8 Presets: five persona starter packs in `data/presets.json`, one-click chips above the curator filters, editable after apply
-- [~] 7.9 Adoption checklist: per-card "Mark as set up" toggle, localStorage per selection hash, progress line, device-only honesty note
-- [~] 7.10 `?note=` personal message param (280 chars, sanitized) with curator input
-- [~] 7.11 Lucide category icons inline on client section headers (ISC licence)
-- [ ] 7.12 Content pass: copy polish (header redundancy, summary caption), README feature docs
+- [x] 7.7 Smoke suite extended 15 to 28 checks covering the 7.2-7.11 surface
+- [x] 7.8 Presets: five persona starter packs in `data/presets.json`, one-click chips above the curator filters, editable after apply
+- [x] 7.9 Adoption checklist: per-card "Mark as set up" toggle, localStorage per selection hash, progress line, device-only honesty note
+- [x] 7.10 `?note=` personal message param (280 chars, sanitized) with curator input
+- [x] 7.11 Lucide category icons inline on client section headers (ISC licence)
+- [x] 7.12 Content pass: copy polish (header redundancy, summary caption), README feature docs
 - [ ] 7.13 Final verifier pass over the whole phase plus fresh screenshots
 
 Deliberately NOT in this phase, decisions reserved for Rocky: public curator mode / `when` column exposure, value figure honesty review (1.5), favicon self-hosting (5.6), analytics provider (Plausible recommended by research), "How we choose" page content.

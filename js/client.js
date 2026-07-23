@@ -1,5 +1,5 @@
 /**
- * client.js — client mode per PRD section 7. A read-only deliverable.
+ * client.js: client mode per PRD section 7. A read-only deliverable.
  * Owns the .cli- and .tool-card classes. DOM contract in data-loader.js.
  * Client name and note come from the URL: they are ALWAYS inserted via
  * textContent (el()), never innerHTML, since both are attacker controlled.
@@ -39,8 +39,7 @@ export function renderClient(root, tools, selection, clientName, noteText) {
     el('img', { class: 'logo', src: 'design-system/assets/kaipability-logo-lockup.png', alt: 'Kaipability' }),
     el('h1', {}, 'Your Free Software Stack'),
     clientName ? el('p', { class: 'prepared-for eyebrow' }, `Prepared for ${clientName}`) : null,
-    el('p', { class: 'curated-by' },
-      clientName ? `Curated for ${clientName} by Kaipability` : 'Curated by Kaipability'),
+    el('p', { class: 'curated-by' }, 'Curated by Kaipability'),
     el('p', { class: 'cli-date' }, today),
     el('p', { class: 'cli-context' },
       'Free tools selected for your business. Every tool includes alternatives and training resources to get started.'),
@@ -68,7 +67,7 @@ export function renderClient(root, tools, selection, clientName, noteText) {
     ),
     el('div', {},
       valueFigure,
-      el('span', { class: 'lbl' }, `replaces roughly ${money(totalValue)}/yr of software, at zero cost`),
+      el('span', { class: 'lbl' }, 'what you would otherwise pay for software, at zero cost'),
     ),
   );
 
