@@ -783,6 +783,29 @@ button { font: inherit; }
   border: var(--bw-hair) solid var(--steel-3);
 }
 
+/* Build-your-own aside (optional `byo` field, PRD section 4): kin to
+   .card-notes but a sage rule, not steel, since this is a genuine option
+   rather than a caveat. Sits between Alternatives and Get started. */
+.tool-card .card-byo {
+  margin-top: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  background: var(--paper-2);
+  border-left: var(--bw-rule) solid var(--positive);
+  font-size: var(--fs-14);
+  line-height: var(--lh-14);
+  color: var(--ink-2);
+}
+.tool-card .card-byo-label {
+  display: block;
+  margin-bottom: var(--s-1);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--fs-12);
+  letter-spacing: var(--tr-eyebrow);
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
 /* Adoption checklist toggle: a real button, not a decorative checkbox, so
    state reads out to assistive tech via aria-pressed plus its own label.
    Colour is never the only signal, the tick character and word carry it. */
@@ -1059,7 +1082,7 @@ button { font: inherit; }
   /* Backgrounds that carry meaning (summary bar, notes block) must survive
      the print pipeline, which otherwise strips them by default. Same for
      the cost-growth bar fill: without this the bars print hollow. */
-  .cli-summary, .card-notes, .cli-cost-bar-fill {
+  .cli-summary, .card-notes, .card-byo, .cli-cost-bar-fill {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
