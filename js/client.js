@@ -206,6 +206,13 @@ function card(tool, i, doneIds, onToggle) {
       tool.alternatives.map((a) => extLink(a.url, a.name, true)),
     ),
 
+    tool.byo
+      ? el('div', { class: 'card-byo' },
+          el('p', { class: 'card-byo-label' }, 'Or build your own'),
+          el('p', { class: 'card-byo-text' }, tool.byo),
+        )
+      : null,
+
     el('p', { class: 'card-section-label' }, 'Get started'),
     el('div', { class: 'card-links' },
       tool.training.map((t) => extLink(t.url, t.name, true)),

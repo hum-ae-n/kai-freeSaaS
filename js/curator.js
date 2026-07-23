@@ -551,7 +551,7 @@ function csvField(value) {
 function buildCsv(picked) {
   const header = [
     'Tool', 'Category', 'Type', 'Description', 'Value per year (GBP)',
-    'Free tier', 'Paid from (GBP/month)', 'Scales with', 'URLs', 'Alternatives', 'Training',
+    'Free tier', 'Paid from (GBP/month)', 'Scales with', 'Build your own', 'URLs', 'Alternatives', 'Training',
   ];
   const rows = [header];
   for (const t of picked) {
@@ -564,6 +564,7 @@ function buildCsv(picked) {
       t.free_limit ?? '',
       Number.isInteger(t.paid_from) ? String(t.paid_from) : '',
       t.scales_with ?? '',
+      t.byo ?? '',
       t.urls.map((u) => `https://${u.domain}`).join('; '),
       t.alternatives.map((a) => `${a.name} (${a.url})`).join('; '),
       t.training.map((r) => `${r.name} (${r.url})`).join('; '),
@@ -696,6 +697,41 @@ function snapshotBody(picked, clientName, noteText) {
     element, never spliced into the shell string as raw data. */
 function buildStandaloneHtml(picked, clientName, noteText) {
   const bodyEl = snapshotBody(picked, clientName, noteText);
+
+  // The optional byo field (PRD section 4) renders after ALTERNATIVES and
+  // before GET STARTED on the client card; this batch only touches this
+  // function, so the line is spliced into the already-built snapshot tree by
+  // DOM insertion rather than by editing snapshotCard. Card order matches
+  // snapshotBody's own category grouping exactly, same "picked" input, same
+  // grouping algorithm, so re-deriving it here is safe to zip against the
+  // rendered .snap-card elements in order. Text still reaches the DOM only
+  // via el()/textContent, never string concatenation.
+  const groups = new Map();
+  for (const tool of picked) {
+    if (!groups.has(tool.category)) groups.set(tool.category, []);
+    groups.get(tool.category).push(tool);
+  }
+  const orderedTools = [...groups.values()].flat();
+  const cards = bodyEl.querySelectorAll('.snap-card');
+  orderedTools.forEach((tool, i) => {
+    if (!tool.byo) return;
+    const card = cards[i];
+    const getStartedLabel = [...card.querySelectorAll('.snap-label')]
+      .find((p) => p.textContent === 'Get started');
+    if (!getStartedLabel) return;
+    const byoBlock = el('div', {
+      style: 'margin-top:8px;padding:8px 12px;background:#EAE5DA;'
+        + 'border-left:3px solid #4F6B3A;font-size:14px;color:#3A332D;',
+    },
+      el('p', {
+        style: 'margin:0 0 4px;font-size:11px;letter-spacing:0.1em;'
+          + 'text-transform:uppercase;color:#6B645B;font-weight:600;',
+      }, 'Or build your own'),
+      el('p', { style: 'margin:0;' }, tool.byo),
+    );
+    getStartedLabel.before(byoBlock);
+  });
+
   const titleEl = el('title', {}, clientName ? `Free Software Stack for ${clientName}` : 'Your Free Software Stack');
   return `<!DOCTYPE html>
 <html lang="en">
