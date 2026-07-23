@@ -20,6 +20,14 @@ export function renderCurator(root, allTools) {
   // the chip to its unpressed look.
   let activeChip = null;
 
+  // "Start here" need chip state, separate from starter packs: a need chip
+  // sets a filter, not a selection, so it tracks independently of activeChip.
+  let activeNeedChip = null;
+  // True only while a chip click is itself dispatching the change/input
+  // event on catSelect/searchInput, so that synthetic event does not read
+  // as a manual edit and immediately clear the very chip that caused it.
+  let chipDrivenChange = false;
+
   /* --- header ------------------------------------------------------------ */
   const header = el('header', { class: 'cur-header' },
     el('img', { class: 'logo', src: 'design-system/assets/kaipability-logo-lockup.png', alt: 'Kaipability' }),
@@ -103,11 +111,85 @@ export function renderCurator(root, allTools) {
     class: 'input', type: 'search', placeholder: 'Search tools, descriptions, alternatives…',
     'aria-label': 'Search tools',
   });
-  typeSelect.addEventListener('change', () => { filters.type = typeSelect.value; update(); });
-  catSelect.addEventListener('change', () => { filters.category = catSelect.value; update(); });
-  searchInput.addEventListener('input', () => { filters.search = searchInput.value.trim().toLowerCase(); update(); });
+  typeSelect.addEventListener('change', () => { filters.type = typeSelect.value; clearNeedChipIfManual(); update(); });
+  catSelect.addEventListener('change', () => { filters.category = catSelect.value; clearNeedChipIfManual(); update(); });
+  searchInput.addEventListener('input', () => { filters.search = searchInput.value.trim().toLowerCase(); clearNeedChipIfManual(); update(); });
 
   const toolbar = el('div', { class: 'cur-toolbar' }, typeSelect, catSelect, searchInput);
+
+  /* --- "Start here" need chips ---------------------------------------------
+     For someone who does not know tool names yet: each chip applies a filter
+     (category or search), never a selection, so it is a thin layer on top of
+     the existing filter state and reuses the same change/input listeners a
+     person driving the controls by hand would trigger. Categories are looked
+     up against this dataset's actual categories at render time: a need whose
+     category is not present in the current catalogue is simply not offered,
+     rather than filtering to an empty table. */
+  const NEEDS = [
+    { label: 'Build a website', kind: 'search', value: 'website hosting builder' },
+    { label: 'Look professional', kind: 'category', value: 'Design & Images' },
+    { label: 'Get customers', kind: 'category', value: 'Marketing & CRM' },
+    { label: 'Be found on Google', kind: 'category', value: 'SEO & Analytics' },
+    { label: 'Get paid and keep the books', kind: 'category', value: 'Finance' },
+    { label: 'Run the day to day', kind: 'category', value: 'Business Operations' },
+    { label: 'Stay secure', kind: 'category', value: 'Security & Compliance' },
+    { label: 'Make content and video', kind: 'category', value: 'Video & Audio' },
+  ];
+  const availableNeeds = NEEDS.filter((n) => n.kind === 'search' || categories.includes(n.value));
+  const needsChipRow = el('div', { class: 'cur-chip-row' });
+  const needsRow = el('div', { class: 'cur-needs', hidden: !availableNeeds.length },
+    el('span', { class: 'eyebrow cur-needs-label' }, 'Start here: what do you need?'),
+    needsChipRow,
+  );
+  for (const need of availableNeeds) {
+    const chip = el('button', {
+      class: 'cur-chip cur-chip-ghost', type: 'button', 'aria-pressed': 'false',
+    }, need.label);
+    chip.addEventListener('click', () => toggleNeedChip(need, chip));
+    needsChipRow.append(chip);
+  }
+
+  function setDropdown(select, value) {
+    select.value = value;
+    chipDrivenChange = true;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    chipDrivenChange = false;
+  }
+  function setSearch(value) {
+    searchInput.value = value;
+    chipDrivenChange = true;
+    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+    chipDrivenChange = false;
+  }
+
+  function toggleNeedChip(need, chip) {
+    const wasActive = chip === activeNeedChip;
+    if (activeNeedChip) {
+      activeNeedChip.classList.remove('is-active');
+      activeNeedChip.setAttribute('aria-pressed', 'false');
+      activeNeedChip = null;
+    }
+    // Clearing both dimensions before (re)applying keeps only one need's
+    // filter live at a time, regardless of which one the previous chip used.
+    setDropdown(catSelect, 'all');
+    setSearch('');
+    if (wasActive) return; // second click on the active chip: back to All
+    if (need.kind === 'category') setDropdown(catSelect, need.value);
+    else setSearch(need.value);
+    chip.classList.add('is-active');
+    chip.setAttribute('aria-pressed', 'true');
+    activeNeedChip = chip;
+  }
+
+  // A manual edit to any filter control, including one made mid chip-driven
+  // update, unpicks the active need chip: the chip only ever reflects an
+  // exact, current filter state, never a stale one.
+  function clearNeedChipIfManual() {
+    if (chipDrivenChange || !activeNeedChip) return;
+    activeNeedChip.classList.remove('is-active');
+    activeNeedChip.setAttribute('aria-pressed', 'false');
+    activeNeedChip = null;
+  }
 
   /* --- stats + legend ---------------------------------------------------- */
   const statSelected = el('span', {}, el('strong', {}, '0'), ' selected');
@@ -131,9 +213,12 @@ export function renderCurator(root, allTools) {
       dataset: { id: String(tool.id) },
     });
     checkbox.checked = selected.has(tool.id);
+    // Wrapping label gives the checkbox a >=44px tap target on the mobile
+    // card layout without resizing it in the desktop table.
+    const checkboxLabel = el('label', { class: 'cur-check-label' }, checkbox);
 
     const tr = el('tr', { class: `row-${tool.type}` },
-      el('td', {}, checkbox),
+      el('td', { class: 'cell-check' }, checkboxLabel),
       el('td', { class: 'cell-name' },
         tool.name,
         el('div', { class: 'tool-urls' },
@@ -142,13 +227,20 @@ export function renderCurator(root, allTools) {
           }, favicon(u.domain), u.label)),
         ),
       ),
-      el('td', {}, tool.category),
-      el('td', {}, el('span', { class: `badge badge-${tool.type}` }, TYPE_LABEL[tool.type] ?? tool.type)),
+      el('td', { class: 'cell-category' }, tool.category),
+      el('td', { class: 'cell-type' }, el('span', { class: `badge badge-${tool.type}` }, TYPE_LABEL[tool.type] ?? tool.type)),
       el('td', { class: 'cell-desc' }, tool.description),
       el('td', { class: 'cell-links' }, tool.alternatives.map((a) => extLink(a.url, a.name, false))),
       el('td', { class: 'cell-links' }, tool.training.map((t) => extLink(t.url, t.name, false))),
       el('td', { class: 'cell-value' }, `~${money(tool.value)}/yr`),
       el('td', { class: 'cell-when' }, tool.when),
+      // Mobile-only column: same alternatives/training/when data, grouped
+      // into a native <details> "More" disclosure. Desktop hides this cell
+      // entirely and keeps the three columns above instead (see CURATOR
+      // mobile block in styles.css); it is a duplicate DOM node rather than
+      // a shared one because a <details> cannot also serve as three
+      // independent table columns.
+      el('td', { class: 'cell-more' }, buildMoreDetails(tool)),
     );
 
     const haystack = [
@@ -307,7 +399,7 @@ export function renderCurator(root, allTools) {
   }
 
   root.replaceChildren(
-    header, linkgen, presetsRow, toolbar, stats, legend,
+    header, linkgen, needsRow, presetsRow, toolbar, stats, legend,
     el('div', { class: 'table-wrap' }, table),
     actions,
   );
@@ -327,6 +419,28 @@ export function renderCurator(root, allTools) {
 /* --- small helpers ------------------------------------------------------- */
 function option(value, label) {
   return el('option', { value }, label);
+}
+function buildMoreDetails(tool) {
+  const sections = [];
+  if (tool.alternatives.length) {
+    sections.push(el('div', { class: 'cur-more-section' },
+      el('span', { class: 'cur-more-label' }, 'Alternatives'),
+      el('div', { class: 'cell-links' }, tool.alternatives.map((a) => extLink(a.url, a.name, false))),
+    ));
+  }
+  if (tool.training.length) {
+    sections.push(el('div', { class: 'cur-more-section' },
+      el('span', { class: 'cur-more-label' }, 'Training'),
+      el('div', { class: 'cell-links' }, tool.training.map((t) => extLink(t.url, t.name, false))),
+    ));
+  }
+  if (tool.when) {
+    sections.push(el('div', { class: 'cur-more-section' },
+      el('span', { class: 'cur-more-label' }, 'Include when'),
+      el('p', { class: 'cur-more-when' }, tool.when),
+    ));
+  }
+  return el('details', { class: 'cur-more' }, el('summary', {}, 'More'), sections);
 }
 function actionBtn(label, onClick) {
   const btn = el('button', { class: 'btn btn-ghost', type: 'button' }, label);

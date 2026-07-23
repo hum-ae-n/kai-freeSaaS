@@ -285,6 +285,30 @@ button { font: inherit; }
    pack is still the applied pack, just no longer an exact match. */
 .cur-chip.is-modified { font-style: italic; }
 
+/* "Start here" need chips: a filter, not a selection, so deliberately
+   quieter than the starter pack chips above (dashed ghost outline, muted
+   ink rather than oxblood) to read as a different kind of control. */
+.cur-needs {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--s-3);
+}
+.cur-needs-label { flex: none; }
+.cur-chip-ghost {
+  background: transparent;
+  border-style: dashed;
+  color: var(--ink-3);
+}
+.cur-chip-ghost:hover { border-color: var(--ink-3); color: var(--ink); }
+.cur-chip-ghost.is-active {
+  background: var(--paper-2);
+  border-style: solid;
+  border-color: var(--ink-3);
+  color: var(--ink);
+}
+
 /* Filters + stats */
 .cur-toolbar {
   display: flex;
@@ -392,6 +416,40 @@ button { font: inherit; }
   accent-color: var(--oxblood);
   cursor: pointer;
 }
+.cur-check-label { display: inline-flex; align-items: center; cursor: pointer; }
+
+/* Mobile-only "More" column: same data as the Alternatives/Training/Include
+   When columns, duplicated into a single collapsible cell. Hidden above the
+   767px breakpoint, where the three columns it duplicates are shown instead. */
+.tools-table td.cell-more { display: none; }
+.cur-more summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  min-height: 44px;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--fs-14);
+  color: var(--oxblood);
+}
+.cur-more summary::-webkit-details-marker { display: none; }
+.cur-more summary::before { content: '+'; }
+.cur-more[open] summary::before { content: '\2212'; } /* minus sign */
+.cur-more-section + .cur-more-section { margin-top: var(--s-3); }
+.cur-more-section:first-of-type { margin-top: var(--s-1); }
+.cur-more-label {
+  display: block;
+  margin-bottom: var(--s-1);
+  font-family: var(--font-sans);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  letter-spacing: var(--tr-eyebrow);
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.cur-more-when { color: var(--ink-2); font-size: var(--fs-14); line-height: var(--lh-14); }
 
 .cur-actions {
   display: flex;
@@ -679,6 +737,54 @@ button { font: inherit; }
   .tool-card { padding: var(--s-6); }
   /* Generous touch targets */
   .card-links a, .card-domains a { padding: 6px 0; }
+
+  /* Mobile curator table: each row becomes a bordered, type-tinted card via
+     CSS grid on the existing <tr>/<td> DOM. No row is added or removed, so
+     filters, search, presets, checkboxes and bulk actions keep working
+     against the same elements as the desktop table. */
+  .table-wrap { overflow-x: visible; border-top: none; background: transparent; }
+  .tools-table {
+    display: block;
+    min-width: 0;
+    width: 100%;
+    border: none;
+  }
+  .tools-table thead { display: none; }
+  .tools-table tbody { display: block; }
+  .tools-table tr {
+    display: grid;
+    width: 100%;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "check name  value"
+      "type  cat   cat"
+      "desc  desc  desc"
+      "more  more  more";
+    column-gap: var(--s-3);
+    row-gap: var(--s-2);
+    padding: var(--s-4);
+    margin-bottom: var(--s-3);
+    background: var(--paper);
+    border: var(--bw-hair) solid var(--paper-edge);
+    border-radius: var(--r-2);
+  }
+  .tools-table tr:hover td { background: transparent; }
+  .tools-table tr.row-core    { background: var(--core-bg);    border-left: var(--bw-heavy) solid var(--core-rule); }
+  .tools-table tr.row-noncore { background: var(--noncore-bg); border-left: var(--bw-heavy) solid var(--noncore-rule); }
+  .tools-table tr.row-m365    { background: var(--m365-bg);    border-left: var(--bw-heavy) solid var(--m365-rule); }
+  .tools-table tr.row-sector  { background: var(--sector-bg);  border-left: var(--bw-heavy) solid var(--sector-rule); }
+  .tools-table tr td:first-child { box-shadow: none; }
+  .tools-table td { display: block; padding: 0; border: none; }
+
+  .tools-table .cell-check { grid-area: check; align-self: start; }
+  .cur-check-label { min-width: 44px; min-height: 44px; justify-content: center; }
+  .tools-table .cell-name { grid-area: name; min-width: 0; }
+  .tools-table .cell-value { grid-area: value; align-self: start; text-align: right; }
+  .tools-table .cell-type { grid-area: type; align-self: start; }
+  .tools-table .cell-category { grid-area: cat; align-self: center; color: var(--ink-2); font-size: var(--fs-14); }
+  .tools-table .cell-desc { grid-area: desc; min-width: 0; max-width: none; }
+  .tools-table td.cell-links, .tools-table td.cell-when { display: none; }
+  .tools-table td.cell-more { grid-area: more; display: block; }
 }
 
 /* === PRINT ================================================================= */
