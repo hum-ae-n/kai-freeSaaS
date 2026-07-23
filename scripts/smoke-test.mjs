@@ -158,6 +158,15 @@ const soloSpan = await wide.locator('li.card-solo').first().evaluate((li) => get
 check('client: single-card category spans full row', /1 \/ -1/.test(soloSpan), `gridColumn=${soloSpan}`);
 await wide.close();
 
+/* --- hostile-length params must not break the 375px layout ---------------- */
+const hostile = await browser.newPage({ viewport: { width: 375, height: 812 } });
+await hostile.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await hostile.goto(`${base}/?t=0,2&client=${'A'.repeat(80)}&note=${'B'.repeat(280)}`);
+await hostile.waitForSelector('.tool-card');
+const hostileW = await hostile.evaluate(() => document.documentElement.scrollWidth);
+check('client: unbroken 80-char name + 280-char note wrap at 375px', hostileW <= 375, `scrollWidth=${hostileW}`);
+await hostile.close();
+
 /* --- archived rendering (served from a mutated copy, repo data untouched) -- */
 archiveIds = new Set([2]);
 await page.goto(`${base}/`);

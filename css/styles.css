@@ -425,8 +425,11 @@ button { font: inherit; }
 .cli-header .prepared-for {
   margin-top: var(--s-4);
   max-width: none;
+  /* Names and notes come off the URL: an unbroken 80-char string must wrap,
+     not push the page wide on a phone. */
+  overflow-wrap: anywhere;
 }
-.cli-header .curated-by { color: var(--ink-3); font-size: var(--fs-14); margin-top: var(--s-1); max-width: none; }
+.cli-header .curated-by { color: var(--ink-3); font-size: var(--fs-14); margin-top: var(--s-1); max-width: none; overflow-wrap: anywhere; }
 .cli-header .cli-date { color: var(--ink-3); font-size: var(--fs-14); margin-top: var(--s-2); max-width: none; }
 .cli-header .cli-context { margin-top: var(--s-5); color: var(--ink-2); }
 
@@ -439,7 +442,7 @@ button { font: inherit; }
   border-left: var(--bw-heavy) solid var(--oxblood);
 }
 .cli-note-label { display: block; margin-bottom: var(--s-1); }
-.cli-note-text { color: var(--ink-2); max-width: none; }
+.cli-note-text { color: var(--ink-2); max-width: none; overflow-wrap: anywhere; }
 
 /* Screen-only chrome: share + print, hidden entirely in @media print */
 .cli-toolbar {
@@ -550,7 +553,8 @@ button { font: inherit; }
 .card-verified {
   margin-top: var(--s-3);
   font-size: var(--fs-12);
-  color: var(--ink-4);
+  /* ink-3, not ink-4: 4.65:1 on paper-2, the card surface (WCAG 4.5:1) */
+  color: var(--ink-3);
 }
 .tool-card .card-top {
   display: flex;
@@ -668,6 +672,8 @@ button { font: inherit; }
   .cur-toolbar .select, .cur-toolbar .input { width: 100%; }
   .linkgen { padding: var(--s-5); }
   .linkgen-controls { flex-direction: column; align-items: stretch; }
+  /* In a column, the desktop flex-basis 16rem would become height. */
+  .linkgen-controls .input { flex: 0 0 auto; }
   .cli-header { padding: var(--s-6) var(--s-5); }
   .cli-summary { gap: var(--s-6); padding: var(--s-5); }
   .tool-card { padding: var(--s-6); }
