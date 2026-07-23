@@ -190,10 +190,10 @@ Rocky's 23 Jul direction: remove non-SaaS, cover the developer/web gap, model re
 - [x] 8.4 Mobile curator: under 768px the table renders as type-tinted stacked cards with 44px targets and a details "More" section; desktop unchanged. Verifier PASS
 - [x] 8.5 "Start here" need chips filtering by intent, ghost-styled, one active at a time, manual edits clear. Verifier PASS
 - [x] 8.6 Cost model: per-card free-tier line and pricing pill, "How costs could grow" hand-built SVG chart (four team sizes, tooltip on hover and focus, table fallback, print-safe). Verifier PASS, model arithmetic independently recomputed
-- [~] 8.7 Dark mode: top-right toggle, warm dark token palette, stored choice, system default, print always light
-- [~] 8.8 Branded exports from the curator selection: CSV, standalone HTML snapshot (DOM-built, self-contained), Save as PDF via print param, Email this stack mailto draft
+- [x] 8.7 Dark mode: top-right toggle, warm dark token palette, stored choice, system default, print always light
+- [x] 8.8 Branded exports from the curator selection: CSV, standalone HTML snapshot (DOM-built, self-contained), Save as PDF via print param, Email this stack mailto draft
 - [ ] 8.9 Content pass: README/TODO refresh, PRD section 15 already updated, changelog rows
-- [ ] 8.10 Final verifier sweep and fresh screenshots
+- [~] 8.10 Final verifier sweep and fresh screenshots, in progress
 
 Decisions this phase surfaced for Rocky, additive to the list above: archive or keep the borderline non-SaaS five; the three challenged value figures; whether Vercel stays listed given its Hobby tier bans commercial use.
 
@@ -226,3 +226,7 @@ Record deliberate deviations from the PRD here so the spec and the build stay re
 | 2026-07-23 | PRD section 4: ID permanence rule, optional `archived` boolean, optional `last_verified` ISO date | Client links carry only ids, so deleting a tool silently mutates every deliverable ever sent; archived tools now render an explicit retirement card |
 | 2026-07-23 | Added `data/presets.json`, `assets/og-image.png`, `scripts/og-card.html`, `.github/workflows/ci.yml` beyond the PRD section 3 file list | Persona starter packs (research: persona-named bundles beat category lists), social unfurl image, and a CI gate so a web-UI edit cannot deploy unvalidated |
 | 2026-07-23 | OG meta targets the client-mode reader on the shared URL; `noindex` is JS-injected in client mode only | Crawlers do not run JS, so per-mode static meta on one URL is impossible without SSR; the client link is the one that gets shared, and a static noindex would deindex curator mode too |
+| 2026-07-23 | PRD section 4 amended: pricing trio added to the schema, `free_limit` (string), `paid_from` (integer, GBP/month), `scales_with` (enum: users/usage/features/none) | A tool's own `value` figure said nothing about what happens once a business outgrows the free tier; Rocky's Phase 8 direction asked for the cost-growth story to be modelled, which needs machine-readable pricing data per tool, not just prose |
+| 2026-07-23 | Added the Developer & Web category, 13 tools including GitHub, Vercel, Netlify, Cloudflare, Hugging Face and Supabase | Rocky's Phase 8 direction identified developer and web infrastructure as a gap in the catalogue |
+| 2026-07-23 | Archived the five Grants & Business Support entries (72, 73, 76, 77, 78) via the section 4 `archived` flag; the category now holds only archived entries and no longer appears in either mode | Grant and support-body listings drift out of date faster than software free tiers and were judged out of scope for a software directory; archiving rather than deleting keeps any client link that already included one resolving |
+| 2026-07-23 | PRD section 15 rewritten to state the current 98-entry, 93-active dataset and its type/category breakdown, superseding the "85 tools, 15 core/50 noncore/7 m365/13 sector" figures from Phase 1 | The Phase 8 additions and archiving changed every number in the old section 15 summary; left uncorrected it would read as a false description of the shipped data |

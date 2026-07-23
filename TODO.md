@@ -1,6 +1,6 @@
 # TODO
 
-Open items as of 23 July 2026. Build state: Phases 0-4 done and verified, Phase 5 done except 5.6, Phase 6 done bar the custom domain and a final human eyeball pass, Phase 7 (presets, adoption checklist, personal note, category icons, print/share, social preview, CI, retirement flow) is essentially complete on branch `claude/read-todo-bk47qb` and not yet merged to `main`. Detail in [BUILD-PLAN.md](BUILD-PLAN.md); run `node scripts/validate-data.mjs` and `node scripts/smoke-test.mjs` before any push (a push to `main` is a production release once Netlify is connected, and CI now runs both automatically on every push and PR).
+Open items as of 23 July 2026. Build state: Phases 0-4 done and verified, Phase 5 done except 5.6, Phase 6 done bar the custom domain and a final human eyeball pass, Phase 7 (presets, adoption checklist, personal note, category icons, print/share, social preview, CI, retirement flow) merged to `main`. Phase 8 (dataset truth, pricing/cost model, mobile curator, need chips, dark mode, branded exports) is complete pending the final verifier sweep (8.10), still on branch `claude/read-todo-bk47qb` and not yet merged. Detail in [BUILD-PLAN.md](BUILD-PLAN.md); run `node scripts/validate-data.mjs` and `node scripts/smoke-test.mjs` before any push (a push to `main` is a production release once Netlify is connected, and CI now runs both automatically on every push and PR).
 
 ## Deploy (Phase 6)
 
@@ -23,6 +23,9 @@ Open items as of 23 July 2026. Build state: Phases 0-4 done and verified, Phase 
 - [ ] **Favicon self-hosting (Phase 5.6).** Client pages currently hit DuckDuckGo/Google proxies per link. Decide whether to inline/self-host icons for the 15 core tools (privacy + reliability) or accept the proxies.
 - [x] **Analytics provider.** Decided 23 Jul: not needed. No analytics on the site. If that ever changes, the research notes favoured Plausible ($9/month, strips query strings so client names stay out of the data).
 - [ ] **"How we choose" page.** Nothing written yet. Decide whether the site needs a page explaining the selection criteria (free tier scope, why an alternative is listed, how `value` is worked out) and, if so, who drafts it.
+- [ ] **Borderline non-SaaS entries (Phase 8.2).** Five entries read as guidance, a training programme or a government portal rather than a piece of software: 61 HMRC Tools (MTD, Self Assessment), 65 NCSC Cyber Essentials Guidance, 66 ICO.org.uk GDPR Guidance, 74 Free Training Academies, 83 OPITO/GWO/HSE/Charities Commission Free Training. Flagged during the Phase 8 archiving pass but kept active rather than archived, pending a decision on each.
+- [ ] **Value figures the pricing research turned up as questionable (Phase 8.3).** Three flagged for the Phase 1.5 review, additive to that item: 66 ICO.org.uk GDPR Guidance looks high at `value: 500` for what is guidance, not a tool; 29 Hotjar Free looks low at `value: 100` since Contentsquare's acquisition of Hotjar; 82 Sketchup Free / Go carries `value: 200` but its free tier is licensed for non-commercial use only, which the value figure doesn't currently reflect.
+- [ ] **Vercel listing (id 86, Vercel Hobby).** Its free Hobby tier's terms of service ban commercial use, unusual among the tools in this directory. Currently kept, with a `notes` entry warning that a client's production site needs Vercel Pro or an alternative such as Netlify Free. Decide whether that warning is enough or whether it should be archived instead.
 
 ## Nice-to-have / flagged
 
