@@ -3297,7 +3297,8 @@
     ],
     "value": 300,
     "when": "Every Norfolk GoDigital client.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-22",
+    "archived": true
   },
   {
     "id": 73,
@@ -3333,7 +3334,8 @@
     ],
     "value": 150,
     "when": "Networking-interested clients, B2B businesses.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-22",
+    "archived": true
   },
   {
     "id": 74,
@@ -3490,7 +3492,8 @@
     ],
     "value": 300,
     "when": "SMEs exploring AI adoption. Tech-forward clients.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-22",
+    "archived": true
   },
   {
     "id": 77,
@@ -3534,7 +3537,8 @@
     ],
     "value": 300,
     "when": "R&D active businesses, innovation-led SMEs.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-22",
+    "archived": true
   },
   {
     "id": 78,
@@ -3578,7 +3582,8 @@
     ],
     "value": 500,
     "when": "AI-native startups and tech businesses building on GPU/AI.",
-    "last_verified": "2026-07-22"
+    "last_verified": "2026-07-22",
+    "archived": true
   },
   {
     "id": 79,
@@ -3839,5 +3844,588 @@
     "value": 300,
     "when": "Tech/SaaS businesses building software products.",
     "last_verified": "2026-07-22"
+  },
+  {
+    "id": 85,
+    "name": "GitHub Free",
+    "urls": [
+      {
+        "label": "github.com",
+        "domain": "github.com"
+      }
+    ],
+    "category": "Developer & Web",
+    "type": "noncore",
+    "description": "Cloud hosting for source code with unlimited public and private repositories, pull requests, issue tracking, and 2,000 minutes a month of GitHub Actions for automated testing and deployment. The default home for a codebase at almost every software business, from a solo developer to a small team.",
+    "alternatives": [
+      {
+        "name": "GitLab",
+        "url": "https://gitlab.com"
+      },
+      {
+        "name": "Gitea",
+        "url": "https://about.gitea.com"
+      },
+      {
+        "name": "Codeberg",
+        "url": "https://codeberg.org"
+      }
+    ],
+    "training": [
+      {
+        "name": "GitHub Docs",
+        "url": "https://docs.github.com"
+      },
+      {
+        "name": "GitHub Skills",
+        "url": "https://skills.github.com"
+      },
+      {
+        "name": "YouTube: Git and GitHub for beginners",
+        "url": "https://www.youtube.com/results?search_query=Git+and+GitHub+for+beginners"
+      }
+    ],
+    "value": 120,
+    "when": "Any client writing or maintaining code, from a single developer to a small in-house team. Core recommendation for anyone commissioning a custom website, app or automation scripts.",
+    "last_verified": "2026-07-23",
+    "free_limit": "Unlimited public and private repositories, 2,000 GitHub Actions minutes a month on private repos (unlimited on public repos), 500MB of package storage.",
+    "paid_from": 3,
+    "scales_with": "users"
+  },
+  {
+    "id": 86,
+    "name": "Vercel Hobby",
+    "urls": [
+      {
+        "label": "vercel.com",
+        "domain": "vercel.com"
+      }
+    ],
+    "category": "Developer & Web",
+    "type": "noncore",
+    "description": "Free hosting for websites and web apps built with modern frameworks such as Next.js, with automatic deployment straight from a GitHub repository. Vercel's terms restrict the free Hobby tier to personal, non-commercial projects, so a paying client's live site needs the paid Pro plan.",
+    "alternatives": [
+      {
+        "name": "Netlify",
+        "url": "https://www.netlify.com"
+      },
+      {
+        "name": "Cloudflare Pages",
+        "url": "https://pages.cloudflare.com"
+      },
+      {
+        "name": "Coolify",
+        "url": "https://coolify.io"
+      }
+    ],
+    "training": [
+      {
+        "name": "Vercel Docs",
+        "url": "https://vercel.com/docs"
+      },
+      {
+        "name": "Vercel Guides",
+        "url": "https://vercel.com/guides"
+      },
+      {
+        "name": "YouTube: deploy Next.js to Vercel",
+        "url": "https://www.youtube.com/results?search_query=deploy+Next.js+to+Vercel"
+      }
+    ],
+    "notes": [
+      "Vercel's Hobby plan terms of service prohibit commercial or revenue-generating use. For a client's production business site, use Vercel Pro or choose Netlify Free instead, which does permit commercial use."
+    ],
+    "value": 100,
+    "when": "Prototypes, personal projects and internal demos only. Not suitable for a client's live commercial website without upgrading.",
+    "last_verified": "2026-07-23",
+    "free_limit": "100GB bandwidth, 1 million function invocations and 100 build minutes a month, for non-commercial projects only.",
+    "paid_from": 16,
+    "scales_with": "usage"
+  },
+  {
+    "id": 87,
+    "name": "Netlify Free",
+    "urls": [
+      {
+        "label": "netlify.com",
+        "domain": "netlify.com"
+      }
+    ],
+    "category": "Developer & Web",
+    "type": "noncore",
+    "description": "Free hosting and deployment for static sites and web apps, with commercial use explicitly permitted, unlike some rival platforms. Automatic builds from GitHub, serverless functions and a global CDN, all covered by a monthly credit allowance.",
+    "alternatives": [
+      {
+        "name": "Vercel",
+        "url": "https://vercel.com"
+      },
+      {
+        "name": "Cloudflare Pages",
+        "url": "https://pages.cloudflare.com"
+      },
+      {
+        "name": "GitHub Pages",
+        "url": "https://pages.github.com"
+      }
+    ],
+    "training": [
+      {
+        "name": "Netlify Docs",
+        "url": "https://docs.netlify.com"
+      },
+      {
+        "name": "YouTube: Netlify tutorial for beginners",
+        "url": "https://www.youtube.com/results?search_query=Netlify+tutorial+for+beginners"
+      }
+    ],
+    "value": 150,
+    "when": "Client websites and web apps that need reliable free hosting with genuine commercial use permitted. A good default for agency and small business sites.",
+    "last_verified": "2026-07-23",
+    "free_limit": "300 credits a month covering deploys, bandwidth, compute and requests. Commercial projects are allowed.",
+    "paid_from": 16,
+    "scales_with": "usage"
+  },
+  {
+    "id": 88,
+    "name": "Cloudflare Free",
+    "urls": [
+      {
+        "label": "cloudflare.com",
+        "domain": "cloudflare.com"
+      }
+    ],
+    "category": "Developer & Web",
+    "type": "noncore",
+    "description": "A free content delivery network, DNS host and basic web application firewall that sits in front of a website to speed it up and absorb attacks. Includes Cloudflare Pages for static site hosting. Used by a large share of the web, from personal blogs to enterprise sites.",
+    "alternatives": [
+      {
+        "name": "Fastly",
+        "url": "https://www.fastly.com"
+      },
+      {
+        "name": "AWS CloudFront",
+        "url": "https://aws.amazon.com/cloudfront"
+      },
+      {
+        "name": "PowerDNS",
+        "url": "https://www.powerdns.com"
+      }
+    ],
+    "training": [
+      {
+        "name": "Cloudflare Developer Docs",
+        "url": "https://developers.cloudflare.com"
+      },
+      {
+        "name": "Cloudflare Learning Center",
+        "url": "https://www.cloudflare.com/learning"
+      },
+      {
+        "name": "YouTube: Cloudflare for beginners",
+        "url": "https://www.youtube.com/results?search_query=Cloudflare+for+beginners"
+      }
+    ],
+    "value": 250,
+    "when": "Every client with a website. Free CDN, DNS and basic security are close to a universal recommendation.",
+    "last_verified": "2026-07-23",
+    "free_limit": "Unlimited bandwidth and DDoS mitigation, up to 1,000 DNS records, 5 page rules and 500 Cloudflare Pages builds a month.",
+    "paid_from": 16,
+    "scales_with": "features"
+  },
+  {
+    "id": 89,
+    "name": "Hugging Face",
+    "urls": [
+      {
+        "label": "huggingface.co",
+        "domain": "huggingface.co"
+      }
+    ],
+    "category": "Developer & Web",
+    "type": "noncore",
+    "description": "The largest public library of open-source AI models and datasets, plus free hosting for small AI demos called Spaces. Useful for a business experimenting with AI features before committing to a paid API.",
+    "alternatives": [
+      {
+        "name": "Ollama",
+        "url": "https://ollama.com"
+      },
+      {
+        "name": "Kaggle Models",
+        "url": "https://www.kaggle.com/models"
+      },
+      {
+        "name": "Replicate",
+        "url": "https://replicate.com"
+      }
+    ],
+    "training": [
+      {
+        "name": "Hugging Face Docs",
+        "url": "https://huggingface.co/docs"
+      },
+      {
+        "name": "Hugging Face Learn (free courses)",
+        "url": "https://huggingface.co/learn"
+      }
+    ],
+    "value": 150,
+    "when": "Tech-forward clients exploring AI features, or anyone wanting to try open models before paying for a hosted AI API.",
+    "last_verified": "2026-07-23",
+    "free_limit": "Free access to over 2 million models and 500,000 datasets, 100GB of private storage, and community GPU access for Spaces demos.",
+    "paid_from": 7,
+    "scales_with": "usage"
+  },
+  {
+    "id": 90,
+    "name": "Supabase Free",
+    "urls": [
+      {
+        "label": "supabase.com",
+        "domain": "supabase.com"
+      }
+    ],
+    "category": "Developer & Web",
+    "type": "noncore",
+    "description": "An open-source backend for apps: a hosted Postgres database, user authentication, file storage and instant APIs generated automatically from the database schema. The open-source alternative to Google Firebase, with no lock-in since the underlying database is standard Postgres.",
+    "alternatives": [
+      {
+        "name": "Firebase",
+        "url": "https://firebase.google.com"
+      },
+      {
+        "name": "PocketBase",
+        "url": "https://pocketbase.io"
+      },
+      {
+        "name": "Appwrite",
+        "url": "https://appwrite.io"
+      }
+    ],
+    "training": [
+      {
+        "name": "Supabase Docs",
+        "url": "https://supabase.com/docs"
+      },
+      {
+        "name": "YouTube: Supabase crash course",
+        "url": "https://www.youtube.com/results?search_query=Supabase+crash+course"
+      }
+    ],
+    "value": 250,
+    "when": "Clients building a custom app or website with user accounts and a database, who want to avoid lock-in to a single proprietary cloud provider.",
+    "last_verified": "2026-07-23",
+    "free_limit": "500MB database, 1GB file storage, 50,000 monthly active users and unlimited API requests, across up to 2 active projects. Free projects pause after a week of inactivity.",
+    "paid_from": 20,
+    "scales_with": "usage"
+  },
+  {
+    "id": 91,
+    "name": "VS Code / VSCodium",
+    "urls": [
+      {
+        "label": "code.visualstudio.com",
+        "domain": "code.visualstudio.com"
+      },
+      {
+        "label": "vscodium.com",
+        "domain": "vscodium.com"
+      }
+    ],
+    "category": "Developer & Web",
+    "type": "noncore",
+    "description": "The most widely used code editor, free with a huge extension marketplace covering every programming language. VSCodium is the same editor rebuilt from the open-source code without Microsoft's telemetry and branding, for anyone who wants a fully open-source build.",
+    "alternatives": [
+      {
+        "name": "JetBrains IDEs",
+        "url": "https://www.jetbrains.com"
+      },
+      {
+        "name": "Neovim",
+        "url": "https://neovim.io"
+      },
+      {
+        "name": "Eclipse Theia",
+        "url": "https://theia-ide.org"
+      }
+    ],
+    "training": [
+      {
+        "name": "VS Code Docs",
+        "url": "https://code.visualstudio.com/docs"
+      },
+      {
+        "name": "VS Code: Learn",
+        "url": "https://code.visualstudio.com/learn"
+      }
+    ],
+    "value": 150,
+    "when": "Every client writing code. Universal recommendation for developers.",
+    "last_verified": "2026-07-23",
+    "free_limit": "Free forever, no paid tier. All features and the extension marketplace are included at no cost (VSCodium uses the open Open VSX registry instead of Microsoft's marketplace).",
+    "paid_from": 0,
+    "scales_with": "none"
+  },
+  {
+    "id": 92,
+    "name": "Google Colab Free",
+    "urls": [
+      {
+        "label": "colab.research.google.com",
+        "domain": "colab.research.google.com"
+      }
+    ],
+    "category": "Developer & Web",
+    "type": "noncore",
+    "description": "Free Jupyter notebooks in the browser with access to a shared GPU, for running Python data science and machine learning code without installing anything locally. Handy for testing an AI or data idea before investing in dedicated infrastructure.",
+    "alternatives": [
+      {
+        "name": "Kaggle Notebooks",
+        "url": "https://www.kaggle.com/code"
+      },
+      {
+        "name": "JupyterLab",
+        "url": "https://jupyter.org"
+      },
+      {
+        "name": "Paperspace Gradient",
+        "url": "https://www.paperspace.com/gradient"
+      }
+    ],
+    "training": [
+      {
+        "name": "Colab: Welcome notebook",
+        "url": "https://colab.research.google.com/notebooks/intro.ipynb"
+      },
+      {
+        "name": "YouTube: Google Colab tutorial for beginners",
+        "url": "https://www.youtube.com/results?search_query=Google+Colab+tutorial+for+beginners"
+      }
+    ],
+    "value": 120,
+    "when": "Clients experimenting with data science or AI prototypes who need occasional GPU access without buying hardware.",
+    "last_verified": "2026-07-23",
+    "free_limit": "Free GPU/TPU access with session limits (around 12 hours) on a rotating pool of hardware shared with other free users, so availability varies.",
+    "paid_from": 9,
+    "scales_with": "usage"
+  },
+  {
+    "id": 93,
+    "name": "Render Free",
+    "urls": [
+      {
+        "label": "render.com",
+        "domain": "render.com"
+      }
+    ],
+    "category": "Developer & Web",
+    "type": "noncore",
+    "description": "Free hosting for backend web services, static sites, cron jobs and small databases, deployed straight from a GitHub repository. Free web services sleep after 15 minutes without traffic and take about a minute to wake, so it suits demos and internal tools better than a client-facing production site.",
+    "alternatives": [
+      {
+        "name": "Fly.io",
+        "url": "https://fly.io"
+      },
+      {
+        "name": "Coolify",
+        "url": "https://coolify.io"
+      },
+      {
+        "name": "Railway",
+        "url": "https://railway.com"
+      }
+    ],
+    "training": [
+      {
+        "name": "Render Docs",
+        "url": "https://render.com/docs"
+      },
+      {
+        "name": "YouTube: Render.com tutorial",
+        "url": "https://www.youtube.com/results?search_query=Render.com+tutorial"
+      }
+    ],
+    "notes": [
+      "Free web services spin down after 15 minutes of inactivity and take roughly a minute to restart, which makes the free tier a poor fit for a client's primary production site."
+    ],
+    "value": 120,
+    "when": "Small backend services, APIs, or internal tools that can tolerate a cold-start delay after inactivity.",
+    "last_verified": "2026-07-23",
+    "free_limit": "750 instance hours a month per workspace on free web services, which spin down after 15 minutes of inactivity.",
+    "paid_from": 6,
+    "scales_with": "usage"
+  },
+  {
+    "id": 94,
+    "name": "Docker Personal",
+    "urls": [
+      {
+        "label": "docker.com",
+        "domain": "docker.com"
+      }
+    ],
+    "category": "Developer & Web",
+    "type": "noncore",
+    "description": "Packages an application and everything it needs to run into a portable container, so it behaves the same on a developer's laptop, a test server and in production. Docker Desktop Personal is free for individuals and for small businesses with under 250 employees and under $10 million in annual revenue, which covers the overwhelming majority of Free Stack clients.",
+    "alternatives": [
+      {
+        "name": "Podman",
+        "url": "https://podman.io"
+      },
+      {
+        "name": "Rancher Desktop",
+        "url": "https://rancherdesktop.io"
+      }
+    ],
+    "training": [
+      {
+        "name": "Docker Docs: Get started",
+        "url": "https://docs.docker.com/get-started"
+      },
+      {
+        "name": "YouTube: Docker tutorial for beginners",
+        "url": "https://www.youtube.com/results?search_query=Docker+tutorial+for+beginners"
+      }
+    ],
+    "notes": [
+      "Free eligibility requires both under 250 employees and under $10 million annual revenue. Confirm the client stays under both thresholds before recommending it."
+    ],
+    "value": 100,
+    "when": "Developers packaging an app for consistent deployment across machines and servers. Confirm the client's headcount and revenue stay under Docker's free thresholds.",
+    "last_verified": "2026-07-23",
+    "free_limit": "Free for individuals, students, and businesses under 250 employees and under $10 million annual revenue. 1 private repository and 40 authenticated pulls an hour on Docker Hub.",
+    "paid_from": 7,
+    "scales_with": "users"
+  },
+  {
+    "id": 95,
+    "name": "Postman Free",
+    "urls": [
+      {
+        "label": "postman.com",
+        "domain": "postman.com"
+      }
+    ],
+    "category": "Developer & Web",
+    "type": "noncore",
+    "description": "A graphical tool for building, testing and documenting API calls, widely used when integrating two systems together. Since March 2026 the free plan has been limited to a single user, so it now suits a solo developer better than a team.",
+    "alternatives": [
+      {
+        "name": "Bruno",
+        "url": "https://www.usebruno.com"
+      },
+      {
+        "name": "Insomnia",
+        "url": "https://insomnia.rest"
+      },
+      {
+        "name": "Hoppscotch",
+        "url": "https://hoppscotch.io"
+      }
+    ],
+    "training": [
+      {
+        "name": "Postman Learning Center",
+        "url": "https://learning.postman.com"
+      },
+      {
+        "name": "Postman Academy",
+        "url": "https://academy.postman.com"
+      }
+    ],
+    "notes": [
+      "Postman's free plan dropped team collaboration in March 2026 and is now single-user only. For a team, the open-source Bruno is a better free fit."
+    ],
+    "value": 80,
+    "when": "A solo developer testing and documenting API calls. For a team, recommend the open-source Bruno instead.",
+    "last_verified": "2026-07-23",
+    "free_limit": "One user only, 25 collection runs a month and 1,000 mock server requests a month.",
+    "paid_from": 11,
+    "scales_with": "users"
+  },
+  {
+    "id": 96,
+    "name": "Slack Free",
+    "urls": [
+      {
+        "label": "slack.com",
+        "domain": "slack.com"
+      }
+    ],
+    "category": "Communication",
+    "type": "noncore",
+    "description": "Team messaging with channels, direct messages and app integrations, replacing scattered email threads for day-to-day internal chat. The free plan keeps the last 90 days of messages and files searchable.",
+    "alternatives": [
+      {
+        "name": "Microsoft Teams",
+        "url": "https://www.microsoft.com/microsoft-teams"
+      },
+      {
+        "name": "Mattermost",
+        "url": "https://mattermost.com"
+      },
+      {
+        "name": "Rocket.Chat",
+        "url": "https://www.rocket.chat"
+      }
+    ],
+    "training": [
+      {
+        "name": "Slack Help Center",
+        "url": "https://slack.com/help"
+      },
+      {
+        "name": "YouTube: Slack tutorial for beginners",
+        "url": "https://www.youtube.com/results?search_query=Slack+tutorial+for+beginners"
+      }
+    ],
+    "value": 150,
+    "when": "Any team of more than one or two people who need faster internal communication than email.",
+    "last_verified": "2026-07-23",
+    "free_limit": "90 days of searchable message history, 10 app integrations, and one-to-one voice/video huddles only.",
+    "paid_from": 6,
+    "scales_with": "users"
+  },
+  {
+    "id": 97,
+    "name": "Airtable Free",
+    "urls": [
+      {
+        "label": "airtable.com",
+        "domain": "airtable.com"
+      }
+    ],
+    "category": "Business Operations",
+    "type": "noncore",
+    "description": "A spreadsheet that behaves like a database, with custom views, linked records and simple automations. Good for tracking customers, inventory or projects without building a bespoke system.",
+    "alternatives": [
+      {
+        "name": "Google Sheets",
+        "url": "https://www.google.com/sheets/about"
+      },
+      {
+        "name": "Baserow",
+        "url": "https://baserow.io"
+      },
+      {
+        "name": "NocoDB",
+        "url": "https://nocodb.com"
+      }
+    ],
+    "training": [
+      {
+        "name": "Airtable Support Center",
+        "url": "https://support.airtable.com"
+      },
+      {
+        "name": "YouTube: Airtable tutorial for beginners",
+        "url": "https://www.youtube.com/results?search_query=Airtable+tutorial+for+beginners"
+      }
+    ],
+    "value": 180,
+    "when": "Clients tracking structured data (customers, stock, bookings, projects) who have outgrown a plain spreadsheet but do not need a full bespoke database build.",
+    "last_verified": "2026-07-23",
+    "free_limit": "Unlimited bases with up to 1,000 records each, 1GB of attachments per base, 5 editors per workspace and 100 automation runs a month.",
+    "paid_from": 16,
+    "scales_with": "usage"
   }
 ]
