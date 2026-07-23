@@ -107,6 +107,9 @@ Array of tool objects. Single source of truth. Every field required.
 | `when` | string | Curator guidance: when to include this tool for a client. |
 | `archived` | boolean | Optional, default false. Retires a tool without deleting it (see ID permanence below). Archived tools are hidden from the curator table and excluded from new links. On an old client link they render a compact "no longer recommended" state pointing at their alternatives, never a silent disappearance. |
 | `last_verified` | string | Optional. ISO date (`YYYY-MM-DD`) when the tool's links and free-tier claim were last checked by a human or the link sweep. Client mode may surface it as a freshness signal. |
+| `free_limit` | string | Optional. What the free tier genuinely includes and where it stops, in plain English for the end user ("Free for 1 user and 3 social channels", "Free forever, no paid tier"). Same honesty bar as `value` (§10). |
+| `paid_from` | integer | Optional. GBP per month for the cheapest paid tier a growing business would realistically hit after outgrowing the free tier. `0` means genuinely free with nothing to outgrow. Annual-only prices are divided by 12 and rounded. |
+| `scales_with` | enum | Optional. What drives the cost up: `users` (per-seat), `usage` (volume, storage, sends), `features` (capability gates), `none` (free tier is the product). Drives the client-mode cost-growth visual. |
 
 ### ID permanence
 
@@ -442,13 +445,13 @@ Not for consultants, not for SEO. Write as if explaining to a smart person who h
 
 ## 15. Data
 
-The companion `tools.json` contains the initial dataset of 85 tools, structured per §4. This was calibrated from real-world consulting engagements across approximately 30 small business digital audits. The dataset covers:
+The companion `tools.json` was calibrated from real-world consulting engagements across approximately 30 small business digital audits, then extended. As of 23 July 2026 it holds 98 entries, of which 89 are active and 9 are archived per the §4 retirement rule (grant bodies, support programmes and government or regulatory guidance removed from circulation without breaking old client links). The active set covers:
 
-- 15 core tools (recommended for virtually every small business)
-- 50 non-core tools (situation-dependent)
+- 12 core tools (recommended for virtually every small business)
+- 59 non-core tools (situation-dependent), including the Developer & Web set added in Phase 8
 - 7 Microsoft 365 included tools
-- 13 sector-specific tools
+- 11 sector-specific tools
 
-23 categories spanning AI, design, video, analytics, SEO, security, finance, CRM, marketing, e-commerce, and business operations.
+15 active categories spanning AI, design, video, analytics, SEO, security, finance, CRM, marketing, e-commerce, business operations and developer infrastructure. The Grants & Business Support category holds only archived entries and no longer appears in the interface.
 
 When converting or extending the dataset, ensure every entry has: at least 2 alternatives with full URLs, at least 2 training resources with full URLs, a `domain` field in every `urls[]` entry for favicon resolution, and no em dashes in any text field.

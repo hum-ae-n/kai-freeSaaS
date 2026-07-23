@@ -127,6 +127,17 @@ for (const [index, tool] of tools.entries()) {
     err(id, 'archived-type', `optional "archived" must be a boolean, got ${JSON.stringify(tool.archived)}`);
   }
 
+  // Pricing trio (PRD section 4): each optional, validated when present.
+  if (tool.free_limit !== undefined && (typeof tool.free_limit !== 'string' || !tool.free_limit.trim())) {
+    err(id, 'free-limit-type', 'optional "free_limit" must be a non-empty string');
+  }
+  if (tool.paid_from !== undefined && (!Number.isInteger(tool.paid_from) || tool.paid_from < 0)) {
+    err(id, 'paid-from-type', `optional "paid_from" must be a non-negative integer (GBP/month), got ${JSON.stringify(tool.paid_from)}`);
+  }
+  if (tool.scales_with !== undefined && !['users', 'usage', 'features', 'none'].includes(tool.scales_with)) {
+    err(id, 'scales-with-enum', `optional "scales_with" must be users, usage, features or none, got ${JSON.stringify(tool.scales_with)}`);
+  }
+
   // last_verified: optional ISO date, must parse and must not be in the future.
   if (tool.last_verified !== undefined) {
     const ok = typeof tool.last_verified === 'string'

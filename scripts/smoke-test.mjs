@@ -67,6 +67,13 @@ const check = (name, ok, detail = '') => {
   if (!ok) failures.push(name);
 };
 
+/* Expected counts come from the data itself, so adding or archiving tools
+   never breaks the suite; the suite checks the app agrees with the data. */
+const allTools = JSON.parse(await readFile(join(ROOT, 'data', 'tools.json'), 'utf8'));
+const active = allTools.filter((t) => !t.archived);
+const activeCore = active.filter((t) => t.type === 'core').length;
+const activeCategories = new Set(active.map((t) => t.category)).size;
+
 const browser = await chromium.launch();
 const page = await browser.newPage();
 const pageErrors = [];
@@ -77,9 +84,9 @@ await page.route(/^(?!.*localhost).*$/, (route) => route.abort());
 /* --- curator mode -------------------------------------------------------- */
 await page.goto(`${base}/`);
 await page.waitForSelector('.tools-table');
-check('curator: 85 rows', await page.locator('.tools-table tbody tr').count() === 85);
-check('curator: 15 core pre-checked', await page.locator('tbody input[type=checkbox]:checked').count() === 15);
-check('curator: category dropdown has 15 + All', await page.locator('select >> nth=1 >> option').count() === 16);
+check(`curator: ${active.length} active rows`, await page.locator('.tools-table tbody tr').count() === active.length);
+check(`curator: ${activeCore} core pre-checked`, await page.locator('tbody input[type=checkbox]:checked').count() === activeCore);
+check(`curator: category dropdown has ${activeCategories} + All`, await page.locator('select >> nth=1 >> option').count() === activeCategories + 1);
 
 await page.locator('select').first().selectOption('core');
 await page.fill('input[type=search]', 'canva');
@@ -96,9 +103,9 @@ check('curator: generated URL has t= and client=', /[?&]t=0,/.test(url) && url.i
 /* --- client mode --------------------------------------------------------- */
 await page.goto(url);
 await page.waitForSelector('.tool-card');
-check('client: 15 cards for 15 core tools', await page.locator('.tool-card').count() === 15);
+check(`client: ${activeCore} cards for ${activeCore} core tools`, await page.locator('.tool-card').count() === activeCore);
 check('client: prepared-for shows name', (await page.locator('.prepared-for').textContent()).includes('Acme Ltd'));
-check('client: summary shows count', (await page.locator('.cli-summary').textContent()).includes('15'));
+check('client: summary shows count', (await page.locator('.cli-summary').textContent()).includes(String(activeCore)));
 const deadLinks = await page.locator('#client-root a:not([href^="http"]):not([href^="/"])').count();
 check('client: no dead links', deadLinks === 0, `dead=${deadLinks}`);
 check('client: category sections present', await page.locator('.cli-category').count() >= 5);
@@ -171,13 +178,41 @@ await hostile.close();
 archiveIds = new Set([2]);
 await page.goto(`${base}/`);
 await page.waitForSelector('.tools-table');
-check('curator: archived tool excluded from table', await page.locator('.tools-table tbody tr').count() === 84);
+check('curator: archived tool excluded from table', await page.locator('.tools-table tbody tr').count() === active.length - 1);
 await page.goto(`${base}/?t=0,2`);
 await page.waitForSelector('.tool-card');
 check('client: archived tool renders retirement card, not silence',
   await page.locator('.tool-card-archived').count() === 1
   && (await page.locator('.tool-card-archived').textContent()).includes('No longer recommended'));
 archiveIds = null;
+
+/* --- dark mode and exports (batch E surface) ------------------------------- */
+await page.goto(`${base}/`);
+await page.waitForSelector('.tools-table');
+await page.click('text=Deselect all');
+const exportButtons = page.locator('.cur-exports button, [class*=export] button');
+const exportCount = await exportButtons.count();
+let disabledCount = 0;
+for (let i = 0; i < exportCount; i++) if (await exportButtons.nth(i).isDisabled()) disabledCount++;
+check('curator: four export buttons, disabled with empty selection', exportCount === 4 && disabledCount === 4, `count=${exportCount} disabled=${disabledCount}`);
+await page.locator('tbody input[type=checkbox]').first().check();
+let enabledCount = 0;
+for (let i = 0; i < exportCount; i++) if (!(await exportButtons.nth(i).isDisabled())) enabledCount++;
+check('curator: export buttons enable with a selection', enabledCount === 4, `enabled=${enabledCount}`);
+
+const themeBtn = page.locator('.theme-toggle').first();
+await themeBtn.click();
+const darkSet = await page.evaluate(() => document.documentElement.dataset.theme);
+await page.reload();
+await page.waitForSelector('.tools-table');
+const darkPersists = await page.evaluate(() => document.documentElement.dataset.theme);
+check('curator: theme toggle flips to dark and persists across reload', darkSet === 'dark' && darkPersists === 'dark');
+await page.locator('.theme-toggle').first().click(); // restore light for later checks
+await page.evaluate(() => { try { localStorage.removeItem('freestack:v1:theme'); } catch {} });
+
+await page.goto(`${base}/?t=0,2`);
+await page.waitForSelector('.tool-card');
+check('client: theme toggle present in no-print toolbar', await page.locator('.no-print .theme-toggle, .cli-toolbar .theme-toggle').count() >= 1);
 
 check('no page errors across all loads', pageErrors.length === 0, pageErrors.join(' | ').slice(0, 300));
 
