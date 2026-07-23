@@ -8,8 +8,9 @@ Open items as of 22 July 2026. Build state: Phases 0-4 done and verified, Phase 
   - 22 Jul: project **kai-freestack** created on team `mrv`, site id `3bbf5cb0-fbf6-4ccc-b07a-b377af02b444`. 23 Jul: Rocky linked `hum-ae-n/kai-freeSaaS` via GitHub OAuth; live at `https://kai-freestack.netlify.app` (200, `tools.json` serving). Status badge added to README.
   - Note: curator mode (including the internal `when` column) is now publicly reachable at that URL. The public-curator decision below is now live, not theoretical.
 - [ ] Custom domain: **tools.airl.io** (decided 22 Jul, replaces the `freestack.kaipability.com` example). Do after the repo link: Domain management > add custom domain > CNAME to `kai-freestack.netlify.app`.
-- [ ] Full Definition of Done pass (PRD §14, all 10 items) against the live URL, not localhost
-  - Pre-deploy gates green 22 Jul in this environment: `validate-data.mjs` exit 0 (85 tools, 15/50/7/13 split), `smoke-test.mjs` 15/15 PASS.
+- [~] Full Definition of Done pass (PRD §14, all 10 items) against the live URL, not localhost
+  - 23 Jul live verification: all 7 shipped files byte-identical to `origin/main` on the live URL; security headers and `tools.json` cache-control serving per `netlify.toml`; SPA fallback works and does not expose `netlify.toml`; DuckDuckGo favicon proxy returns 200. Combined with `smoke-test.mjs` 15/15 on those same bytes, DoD 1-5, 8, 10 are evidenced; DoD 9 pending `tools.airl.io`.
+  - Remaining human eyeball (agents cannot drive a browser against the live URL from this sandbox): DoD 6 favicons render on a real phone, DoD 7 copy button pastes cleanly into Word. Two minutes on your phone: https://kai-freestack.netlify.app/?t=0,2,6&client=Test
 
 ## Decisions only Rocky can make
 
