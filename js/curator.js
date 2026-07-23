@@ -551,7 +551,7 @@ function csvField(value) {
 function buildCsv(picked) {
   const header = [
     'Tool', 'Category', 'Type', 'Description', 'Value per year (GBP)',
-    'Free tier', 'Paid from (GBP/month)', 'Scales with', 'URLs', 'Alternatives', 'Training',
+    'Free tier', 'Paid from (GBP/month)', 'Scales with', 'Build your own', 'URLs', 'Alternatives', 'Training',
   ];
   const rows = [header];
   for (const t of picked) {
@@ -564,6 +564,7 @@ function buildCsv(picked) {
       t.free_limit ?? '',
       Number.isInteger(t.paid_from) ? String(t.paid_from) : '',
       t.scales_with ?? '',
+      t.byo ?? '',
       t.urls.map((u) => `https://${u.domain}`).join('; '),
       t.alternatives.map((a) => `${a.name} (${a.url})`).join('; '),
       t.training.map((r) => `${r.name} (${r.url})`).join('; '),

@@ -199,6 +199,21 @@ Decisions this phase surfaced for Rocky, additive to the list above: archive or 
 
 ---
 
+## Phase 9: Alternatives audit and build-your-own `[x]`
+
+Rocky's 23 Jul direction after the Phase 8 look: HubSpot needed Zoho and more; suggest building your own where realistic; full review of alternatives coverage. Verifier PASS 23 Jul (relaunched once after a worker restart killed the first run mid-flight).
+
+- [x] 9.1 Schema: optional `byo` string (PRD section 4), validator enforcement, house-style sweep extended to `byo` and `free_limit`
+- [x] 9.2 Render: "Or build your own" sage-ruled block on client cards between alternatives and get started, in the standalone HTML export, and as a CSV export column; XSS-verified in page and snapshot
+- [x] 9.3 Data: full alternatives audit, roughly 35 tools gained verified entries (Zoho CRM, Odoo, EspoCRM on HubSpot per Rocky; Ollama, LinkStack, Documenso, Akaunting, Coolify, Colima, Whisper among the open-source additions). Affinity relaunched free October 2025: stale paid notes on ids 2-5 converted to live links
+- [x] 9.4 Data: nine `byo` entries (27, 42, 44, 45, 48, 49, 50, 52, 97), each stating what is realistically buildable and where the real tool earns its keep; none on security, e-signing, accounting, deliverability or commerce. Copy-voice variety pass after verifier feedback
+- [x] 9.5 Smoke suite: byo presence/absence checks added (34 checks total)
+- [x] 9.6 Verifier findings closed: CSV byo column, README field list, this section
+
+Flagged for the Phase 1.5 value review: 27 Looker Studio possibly undervalued, 4 GIMP's comparator reasoning shifted now Affinity is free.
+
+---
+
 ## Open spec questions
 
 Raised by the PRD review and not yet resolved. Each needs an answer before the phase that depends on it closes.

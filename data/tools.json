@@ -2088,7 +2088,7 @@
     "free_limit": "Unlimited links and basic themes free forever on all three; paid plans (from about £6/month) add custom domains and reduce or remove the platform's commission on digital product sales.",
     "paid_from": 6,
     "scales_with": "features",
-    "byo": "A page of buttons linking out to a website, shop and socials is one of the simplest things on the web to build and host yourself for nothing: a single static HTML page does the whole job, and an AI coding assistant can put one together in minutes. The only thing you lose versus the hosted tools is built-in click analytics."
+    "byo": "A page of buttons linking out to a website, shop and socials is one of the simplest things on the web to build and host yourself for nothing: a single static HTML page does the whole job, and an AI coding assistant can put one together in minutes. You host and look after it yourself, though with a page this simple there is very little to go wrong; the only real loss versus the hosted tools is built-in click analytics."
   },
   {
     "id": 43,
@@ -2272,7 +2272,7 @@
     "free_limit": "Free CRM for up to 3 users plus Bookings, Mail, Invoice, Writer, Meeting and Forms, all at no cost; CRM Standard, needed beyond 3 users or for more automation, starts at about £16/user/month.",
     "paid_from": 16,
     "scales_with": "users",
-    "byo": "A simple contact-and-follow-up tracker is a realistic solo build, an afternoon's work with an AI coding assistant. What you'd be giving up is the wider Zoho ecosystem (bookings, invoicing, mail, forms) working together out of the box, which is the actual reason to use a suite like this rather than several small homemade tools."
+    "byo": "A simple contact-and-follow-up tracker is a realistic solo build with today's AI development tools. What you would be giving up is the wider Zoho ecosystem (bookings, invoicing, mail, forms) working together out of the box, which is the actual reason to use a suite like this rather than several small homemade tools."
   },
   {
     "id": 46,
@@ -2426,7 +2426,7 @@
     "free_limit": "1 event type and 1 calendar connection free forever; Standard (about £9/month) removes the event-type cap and adds reminders and integrations.",
     "paid_from": 9,
     "scales_with": "users",
-    "byo": "A single booking form that checks a calendar and confirms a slot is a well-trodden small build, an AI coding assistant can wire one up against a calendar API in an afternoon. The trade-off is you maintain it: double-bookings, time zone bugs and calendar sync edge cases are exactly what a mature booking tool has already debugged for you."
+    "byo": "A single booking form that checks a calendar and confirms a slot is a well-trodden small build against a calendar API. The trade-off is that you maintain it: double-bookings, time zone bugs and calendar sync edge cases are exactly what a mature booking tool has already debugged for you."
   },
   {
     "id": 49,
@@ -2486,7 +2486,7 @@
     "free_limit": "Notion: unlimited pages but 7-day version history and a 5MB upload cap. Trello: unlimited cards but capped at 10 boards and 250 automation runs a month. Trello Standard is the cheaper upgrade route at about £5/user/month.",
     "paid_from": 5,
     "scales_with": "usage",
-    "byo": "A simple Kanban board, cards moving through columns like Quote, In Progress, Shipped, is a well-understood small build that an AI coding assistant can produce in an afternoon. It's rarely worth it for a small team: the free tiers of Notion or Trello already do this, with mobile apps and notifications thrown in, for nothing."
+    "byo": "A simple Kanban board, cards moving through columns like Quote, In Progress and Shipped, is one of the most well-understood small builds there is. It is rarely worth it for a small team: the free tiers of Notion or Trello already do this, with mobile apps and notifications thrown in, for nothing."
   },
   {
     "id": 50,
@@ -2541,7 +2541,7 @@
     "free_limit": "Zapier: 100 tasks a month, two-step Zaps only. Make: 1,000 operations a month, 2 active scenarios. Apple Shortcuts: free forever, no limit. Make's Core plan is the cheaper upgrade route at about £8/month.",
     "paid_from": 8,
     "scales_with": "usage",
-    "byo": "A single fixed workflow, such as a form submission writing a row to a spreadsheet and sending a confirmation email, is a small, well-defined script an AI coding assistant can write and schedule in an afternoon. Once you need several connected steps, error handling and a UI for someone non-technical to check on runs, that ongoing maintenance is what you're paying Zapier or Make to carry instead of you."
+    "byo": "A single fixed workflow, such as a form submission writing a row to a spreadsheet and sending a confirmation email, is a small, well-defined script that modern AI tooling makes quick to write and schedule. Once you need several connected steps, error handling and a way for someone non-technical to check on runs, that ongoing maintenance is what you are paying Zapier or Make to carry instead of you."
   },
   {
     "id": 51,
@@ -4836,6 +4836,6 @@
     "free_limit": "Unlimited bases with up to 1,000 records each, 1GB of attachments per base, 5 editors per workspace and 100 automation runs a month.",
     "paid_from": 16,
     "scales_with": "usage",
-    "byo": "A structured tracker for one specific job, customers with notes and follow-up dates, or stock with reorder levels, is a small spreadsheet-plus-script or one-page web app, the kind of thing an AI coding assistant can build in an afternoon. Airtable earns its keep once several people need to view and edit the same data with proper permissions and linked tables, which a homemade tool has to be built to handle from the start."
+    "byo": "A structured tracker for one specific job, customers with notes and follow-up dates, or stock with reorder levels, is a small spreadsheet-plus-script or a one-page web app, well within reach of an AI-assisted build. Airtable earns its keep once several people need to view and edit the same data with proper permissions and linked tables, which a homemade tool has to handle from day one."
   }
 ]
