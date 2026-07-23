@@ -31,6 +31,12 @@ export function renderClient(root, tools, selection, clientName, noteText) {
 
   // Archived tools get no adoption toggle and are excluded from the total.
   const checklistable = picked.filter((t) => !t.archived);
+
+  // Cost-growth section (Batch D) only earns its place when at least one
+  // selected, non-archived tool actually carries pricing data. paid_from can
+  // legitimately be 0 (genuinely free forever), so presence is tested with
+  // Number.isInteger, never a truthiness check.
+  const hasPricingData = checklistable.some((t) => Number.isInteger(t.paid_from));
   const progressKey = progressStorageKey(selection, clientName);
   const doneIds = loadProgress(progressKey, checklistable.map((t) => t.id));
 
@@ -69,6 +75,9 @@ export function renderClient(root, tools, selection, clientName, noteText) {
       valueFigure,
       el('span', { class: 'lbl' }, 'what you would otherwise pay for software, at zero cost'),
     ),
+    hasPricingData
+      ? el('p', { class: 'cli-summary-note' }, 'Scroll down for how costs could grow as you scale.')
+      : null,
   );
 
   /* --- adoption checklist progress line ----------------------------------- */
@@ -103,6 +112,9 @@ export function renderClient(root, tools, selection, clientName, noteText) {
     if (items.length === 1) items[0].classList.add('card-solo');
     sections.push(el('ul', { class: 'card-grid' }, items));
   }
+
+  /* --- how costs could grow, after the categories, before the footer ----- */
+  if (hasPricingData) sections.push(costGrowthSection(checklistable));
 
   /* --- footer ------------------------------------------------------------ */
   const footer = el('footer', { class: 'cli-footer' },
@@ -175,6 +187,15 @@ function card(tool, i, doneIds, onToggle) {
     ),
     el('p', { class: 'card-desc' }, tool.description),
 
+    tool.free_limit
+      ? el('p', { class: 'card-free-tier' },
+          el('span', { class: 'card-free-tier-label' }, 'Free tier'),
+          ' ',
+          tool.free_limit,
+        )
+      : null,
+    pricingPill(tool),
+
     el('p', { class: 'card-section-label' }, 'Alternatives'),
     el('div', { class: 'card-links' },
       tool.alternatives.map((a) => extLink(a.url, a.name, true)),
@@ -212,6 +233,260 @@ function archivedCard(tool, style) {
     el('div', { class: 'card-links' },
       tool.alternatives.map((a) => extLink(a.url, a.name, true)),
     ),
+  );
+}
+
+/** Pricing honesty pill (Feature 1). paid_from is only rendered when it is
+    actually present: Number.isInteger, since 0 is a real "free forever"
+    value and must not be treated as absent. One neutral style either way,
+    the wording carries the meaning, never colour alone. */
+function pricingPill(tool) {
+  if (!Number.isInteger(tool.paid_from)) return null;
+  const label = tool.paid_from === 0
+    ? 'Free forever'
+    : `Paid plans from ${money(tool.paid_from)}/month`;
+  return el('p', { class: 'card-pricing' }, el('span', { class: 'badge badge-pricing' }, label));
+}
+
+/* --- how costs could grow (Feature 2) --------------------------------------
+   An honest indicative model, not a forecast. Stage 1 assumes every free
+   tier still holds (so it is always £0, regardless of what the per-tool
+   formula would otherwise say for a flat-fee tool at team size 1). From
+   stage 2 on, each tool contributes per scales_with:
+     'users'    -> paid_from x team size (per seat)
+     'usage' or 'features' -> paid_from flat, whatever the headcount
+     'none', or paid_from 0, or no pricing data at all -> nothing
+   Archived tools are excluded from the whole model by the caller, since the
+   caller passes the already-archived-filtered checklistable list. */
+const COST_STAGES = [
+  { label: 'Just you', team: 1 },
+  { label: 'Team of 5', team: 5 },
+  { label: 'Team of 10', team: 10 },
+  { label: 'Team of 25', team: 25 },
+];
+
+function toolStageCost(tool, stageIndex, team) {
+  if (stageIndex === 0) return 0; // stage 1: every free tier assumed to hold
+  if (!Number.isInteger(tool.paid_from) || tool.paid_from === 0) return 0;
+  if (tool.scales_with === 'users') return tool.paid_from * team;
+  if (tool.scales_with === 'usage' || tool.scales_with === 'features') return tool.paid_from;
+  return 0; // 'none', or scales_with absent/unrecognised
+}
+
+/** Returns one entry per stage: { label, total, drivers, stillFree }.
+    drivers is every costed tool at that stage, sorted highest first, so the
+    tooltip can take the top 5 without a second pass. stillFree counts every
+    modelled tool that contributes nothing at that stage, including tools
+    with no pricing data at all: this feature never claims to know a cost
+    it can't source, it only ever names the ones it can. */
+function computeCostStages(tools) {
+  return COST_STAGES.map((stage, i) => {
+    const drivers = [];
+    for (const tool of tools) {
+      const cost = toolStageCost(tool, i, stage.team);
+      if (cost > 0) drivers.push({ name: tool.name, cost });
+    }
+    drivers.sort((a, b) => b.cost - a.cost);
+    const total = drivers.reduce((sum, d) => sum + d.cost, 0);
+    return { label: stage.label, total, drivers, stillFree: tools.length - drivers.length };
+  });
+}
+
+/** Smallest "nice" (1/2/5/10 x 10^n) number at or above value, so the y axis
+    never truncates the baseline and never lands on an odd top figure. */
+function niceCeil(value) {
+  if (value <= 0) return 100;
+  const exp = Math.floor(Math.log10(value));
+  const base = 10 ** exp;
+  const fraction = value / base;
+  const niceFraction = fraction <= 1 ? 1 : fraction <= 2 ? 2 : fraction <= 5 ? 5 : 10;
+  return niceFraction * base;
+}
+
+/** Path for a bar with square corners at the baseline and rounded corners
+    only at the data end (the top), per the dataviz rule: never round the
+    end that touches zero. */
+function roundedTopBarPath(x, y, w, h, radius) {
+  const r = Math.max(0, Math.min(radius, h, w / 2));
+  if (r === 0) return `M${x},${y + h} L${x},${y} L${x + w},${y} L${x + w},${y + h} Z`;
+  return `M${x},${y + h} L${x},${y + r} A${r},${r} 0 0 1 ${x + r},${y} `
+    + `L${x + w - r},${y} A${r},${r} 0 0 1 ${x + w},${y + r} L${x + w},${y + h} Z`;
+}
+
+function svgText(x, y, cls, text) {
+  const node = svgNode('text', { x, y, class: cls, 'text-anchor': 'middle' });
+  node.textContent = text;
+  return node;
+}
+
+/* Base geometry chosen so the chart reads at true size at a 375px viewport
+   (client-root and chart-wrap padding leaves roughly 310-320px of width
+   there): the viewBox is that same width, so at the narrowest supported
+   screen the scale factor is close to 1. CSS then caps the rendered width
+   on wider screens, so text only ever scales up from this base, never down
+   past legible. */
+const CHART_W = 320, CHART_H = 210;
+const CHART_TOP = 28, CHART_BASELINE = 155, CHART_LABEL_Y = 178;
+const CHART_COLS = COST_STAGES.length;
+const CHART_COL_W = CHART_W / CHART_COLS;
+const CHART_BAR_W = Math.min(48, CHART_COL_W - 16);
+const CHART_BAR_AREA_H = CHART_BASELINE - CHART_TOP;
+
+function buildCostChart(stages) {
+  const yMax = niceCeil(Math.max(...stages.map((s) => s.total), 1));
+
+  const svg = svgNode('svg', {
+    viewBox: `0 0 ${CHART_W} ${CHART_H}`,
+    class: 'cli-cost-chart',
+    role: 'group',
+    'aria-label': 'Indicative monthly cost by team size',
+  });
+
+  // At most 3 recessive gridlines, no axis box, no gridline value labels:
+  // the bars already carry their own direct £ labels.
+  for (const frac of [0.25, 0.5, 0.75]) {
+    const y = CHART_BASELINE - frac * CHART_BAR_AREA_H;
+    svg.append(svgNode('line', { x1: 0, x2: CHART_W, y1: y, y2: y, class: 'cli-cost-grid' }));
+  }
+  svg.append(svgNode('line', {
+    x1: 0, x2: CHART_W, y1: CHART_BASELINE, y2: CHART_BASELINE, class: 'cli-cost-baseline',
+  }));
+
+  const bars = [];
+  stages.forEach((stage, i) => {
+    const colX = i * CHART_COL_W;
+    const barX = colX + (CHART_COL_W - CHART_BAR_W) / 2;
+    const barH = (stage.total / yMax) * CHART_BAR_AREA_H;
+    const barY = CHART_BASELINE - barH;
+
+    const g = svgNode('g', {
+      class: 'cli-cost-bar',
+      tabindex: '0',
+      role: 'img',
+      'aria-label': `${stage.label}: about ${money(stage.total)} per month`,
+    });
+
+    // Hit target spans the full column, full chart height: at least the
+    // full bar column width, easily hoverable and keyboard-focusable.
+    g.append(svgNode('rect', { x: colX, y: 0, width: CHART_COL_W, height: CHART_H, class: 'cli-cost-hit' }));
+
+    if (barH > 0) {
+      g.append(svgNode('path', {
+        d: roundedTopBarPath(barX, barY, CHART_BAR_W, barH, 4),
+        class: 'cli-cost-bar-fill',
+      }));
+    }
+
+    g.append(svgText(colX + CHART_COL_W / 2, Math.max(12, barY - 8), 'cli-cost-bar-value', money(stage.total)));
+    g.append(svgText(colX + CHART_COL_W / 2, CHART_LABEL_Y, 'cli-cost-bar-stage', stage.label));
+
+    svg.append(g);
+    bars.push({ g, hit: g.firstChild, stage });
+  });
+
+  return { svg, bars };
+}
+
+function buildTooltip() {
+  return el('div', { class: 'cli-cost-tooltip no-print', role: 'status', hidden: true });
+}
+
+function renderTooltipContent(tooltip, stage) {
+  const top5 = stage.drivers.slice(0, 5);
+  const driversLine = top5.length
+    ? top5.flatMap((d, i) => (i > 0 ? [', ', `${d.name} ${money(d.cost)}`] : [`${d.name} ${money(d.cost)}`]))
+    : ['No tools cost extra yet'];
+  const freeLine = stage.stillFree === 1 ? '1 tool still free' : `${stage.stillFree} tools still free`;
+  tooltip.replaceChildren(
+    el('p', { class: 'cli-cost-tooltip-drivers' }, driversLine),
+    el('p', { class: 'cli-cost-tooltip-free' }, freeLine),
+  );
+}
+
+function positionTooltip(tooltip, hitEl, wrap) {
+  const wrapRect = wrap.getBoundingClientRect();
+  const hitRect = hitEl.getBoundingClientRect();
+  const tipWidth = tooltip.offsetWidth;
+  const rawLeft = (hitRect.left - wrapRect.left) + hitRect.width / 2 - tipWidth / 2;
+  const left = Math.max(4, Math.min(rawLeft, wrap.clientWidth - tipWidth - 4));
+  const top = (hitRect.top - wrapRect.top) - tooltip.offsetHeight - 8;
+  tooltip.style.left = `${left}px`;
+  tooltip.style.top = `${Math.max(0, top)}px`;
+}
+
+function wireCostChartInteractivity(bars, tooltip, wrap) {
+  const show = (bar) => {
+    renderTooltipContent(tooltip, bar.stage);
+    tooltip.hidden = false;
+    positionTooltip(tooltip, bar.hit, wrap);
+  };
+  const hide = () => { tooltip.hidden = true; };
+  for (const bar of bars) {
+    bar.g.addEventListener('mouseenter', () => show(bar));
+    bar.g.addEventListener('mouseleave', hide);
+    bar.g.addEventListener('focus', () => show(bar));
+    bar.g.addEventListener('blur', hide);
+  }
+}
+
+/** Accessible table fallback, per §12: a proper <table>, always in the DOM
+    (not built lazily), collapsed under a <details> on screen and forced
+    open in print (see the CLIENT/PRINT block in styles.css). */
+function buildCostTable(stages) {
+  const rows = stages.map((stage) => el('tr', {},
+    el('td', {}, stage.label),
+    el('td', {}, money(stage.total)),
+    el('td', {}, String(stage.drivers.length)),
+  ));
+  return el('table', { class: 'cli-cost-table' },
+    el('thead', {},
+      el('tr', {},
+        el('th', {}, 'Stage'),
+        el('th', {}, 'Indicative £ per month'),
+        el('th', {}, 'Tools no longer free'),
+      ),
+    ),
+    el('tbody', {}, rows),
+  );
+}
+
+/** Chromium's newer <details> implementation collapses its content with
+    content-visibility internally, which a CSS display override cannot see
+    past. Toggling the real open attribute around the print event is the
+    only reliable way to guarantee the table fallback prints expanded while
+    still defaulting to collapsed on screen. */
+function wirePrintExpand(details) {
+  let wasOpen = false;
+  window.addEventListener('beforeprint', () => {
+    wasOpen = details.open;
+    details.open = true;
+  });
+  window.addEventListener('afterprint', () => {
+    details.open = wasOpen;
+  });
+}
+
+function costGrowthSection(tools) {
+  const stages = computeCostStages(tools);
+  const { svg, bars } = buildCostChart(stages);
+  const tooltip = buildTooltip();
+  const wrap = el('div', { class: 'cli-cost-chart-wrap' }, svg, tooltip);
+  wireCostChartInteractivity(bars, tooltip, wrap);
+
+  const details = el('details', { class: 'cli-cost-table-details' },
+    el('summary', {}, 'View as a table'),
+    buildCostTable(stages),
+  );
+  wirePrintExpand(details);
+
+  return el('section', { class: 'cli-cost-growth', 'aria-labelledby': 'cli-cost-heading' },
+    el('h2', { class: 'cli-cost-heading', id: 'cli-cost-heading' }, 'How costs could grow'),
+    el('p', { class: 'cli-cost-caption' },
+      'Indicative monthly cost if you outgrew every free tier at once. Most businesses never do; many of these free tiers hold for years.'),
+    el('p', { class: 'cli-cost-caption-note' },
+      'Per-user tools are costed at their per-seat price times your team size. Tools that gate on usage or features are costed at their flat starting price, whatever your headcount.'),
+    wrap,
+    details,
   );
 }
 

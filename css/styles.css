@@ -536,6 +536,16 @@ button { font: inherit; }
   text-transform: uppercase;
   color: var(--ink-3);
 }
+/* Points at the cost-growth section (Feature 3): a full width row under the
+   number blocks, not another flex item beside them, thanks to flex-wrap
+   already set on .cli-summary above. */
+.cli-summary-note {
+  flex-basis: 100%;
+  margin-top: var(--s-2);
+  font-size: var(--fs-12);
+  color: var(--ink-3);
+  max-width: none;
+}
 
 .cli-category {
   display: flex;
@@ -671,6 +681,32 @@ button { font: inherit; }
 }
 .tool-card .card-notes p + p { margin-top: var(--s-2); }
 
+/* Pricing honesty (Batch D, Feature 1): a quiet free-tier line plus one
+   neutral status pill. Neutral, not semantic-tinted like the type badges,
+   since "free forever" is not inherently good and "paid plans from" is not
+   inherently bad: the wording carries the meaning, the colour stays flat. */
+.tool-card .card-free-tier {
+  margin-top: var(--s-3);
+  font-size: var(--fs-14);
+  line-height: var(--lh-14);
+  color: var(--ink-2);
+}
+.tool-card .card-free-tier-label {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--fs-12);
+  letter-spacing: var(--tr-eyebrow);
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-right: var(--s-1);
+}
+.tool-card .card-pricing { margin-top: var(--s-3); }
+.badge-pricing {
+  background: var(--paper-2);
+  color: var(--ink-2);
+  border: var(--bw-hair) solid var(--steel-3);
+}
+
 /* Adoption checklist toggle: a real button, not a decorative checkbox, so
    state reads out to assistive tech via aria-pressed plus its own label.
    Colour is never the only signal, the tick character and word carry it. */
@@ -712,6 +748,108 @@ button { font: inherit; }
   font-size: var(--fs-14);
 }
 .cli-footer .logo { height: 26px; width: auto; }
+
+/* How costs could grow (Batch D, Feature 2): single-series bar chart, no
+   legend needed since the section heading already names the series. */
+.cli-cost-growth { margin-top: var(--s-12); }
+.cli-cost-heading {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--fs-26);
+  line-height: var(--lh-26);
+  letter-spacing: var(--tr-tight);
+  margin-bottom: var(--s-5);
+  padding-bottom: var(--s-2);
+  border-bottom: var(--bw-rule) solid var(--oxblood);
+}
+.cli-cost-caption { color: var(--ink-2); max-width: none; }
+.cli-cost-caption-note {
+  margin-top: var(--s-1);
+  color: var(--ink-3);
+  font-size: var(--fs-14);
+  max-width: none;
+}
+
+.cli-cost-chart-wrap {
+  position: relative;
+  margin-top: var(--s-6);
+  padding: var(--s-6) var(--s-4) var(--s-4);
+}
+.cli-cost-chart {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  height: auto;
+  margin: 0 auto;
+}
+.cli-cost-grid { stroke: var(--paper-edge); stroke-width: 1; }
+.cli-cost-baseline { stroke: var(--paper-edge); stroke-width: 1.5; }
+.cli-cost-bar-fill { fill: var(--ink-2); }
+.cli-cost-bar-value {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 15px;
+  fill: var(--ink);
+}
+.cli-cost-bar-stage {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  fill: var(--ink-3);
+}
+.cli-cost-hit { fill: transparent; cursor: pointer; }
+/* [tabindex] already earns a focus-visible ring from the BASE block rule.
+   No animation, no hover/focus movement: the chart stays static at rest
+   and under interaction, per the reduced-motion rule for this feature. */
+.cli-cost-bar:hover .cli-cost-bar-fill,
+.cli-cost-bar:focus .cli-cost-bar-fill { fill: var(--graphite); }
+
+.cli-cost-tooltip {
+  position: absolute;
+  z-index: 5;
+  max-width: 220px;
+  padding: var(--s-3) var(--s-4);
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-sans);
+  font-size: var(--fs-12);
+  line-height: var(--lh-12);
+  box-shadow: var(--shadow-2);
+  pointer-events: none;
+}
+.cli-cost-tooltip p { margin: 0; max-width: none; color: inherit; }
+.cli-cost-tooltip-free { margin-top: var(--s-1) !important; opacity: 0.8; }
+
+.cli-cost-table-details { margin-top: var(--s-5); }
+.cli-cost-table-details summary {
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--fs-14);
+  color: var(--ink-2);
+}
+.cli-cost-table-details summary:hover { color: var(--oxblood); }
+.cli-cost-table {
+  margin-top: var(--s-3);
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-14);
+}
+.cli-cost-table th,
+.cli-cost-table td {
+  padding: var(--s-2) var(--s-3);
+  border-bottom: var(--bw-hair) solid var(--paper-edge);
+  text-align: left;
+}
+.cli-cost-table th {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--fs-12);
+  letter-spacing: var(--tr-eyebrow);
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.cli-cost-table th:nth-child(2), .cli-cost-table th:nth-child(3),
+.cli-cost-table td:nth-child(2), .cli-cost-table td:nth-child(3) { text-align: right; }
 
 /* === RESPONSIVE ============================================================ */
 
@@ -804,11 +942,21 @@ button { font: inherit; }
   .card-desc { orphans: 3; widows: 3; }
 
   /* Backgrounds that carry meaning (summary bar, notes block) must survive
-     the print pipeline, which otherwise strips them by default. */
-  .cli-summary, .card-notes {
+     the print pipeline, which otherwise strips them by default. Same for
+     the cost-growth bar fill: without this the bars print hollow. */
+  .cli-summary, .card-notes, .cli-cost-bar-fill {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
+
+  /* Cost-growth chart (Batch D): tooltip is already .no-print, hidden above.
+     The <details> table fallback is expanded by client.js on the browser's
+     beforeprint event (the native <open> attribute, not a CSS override: a
+     recent Chromium <details> uses content-visibility internally, which a
+     display override cannot see past). The disclosure triangle serves no
+     purpose once the table is already showing, so it is hidden here. */
+  .cli-cost-growth { break-inside: avoid; }
+  .cli-cost-table-details summary { display: none; }
 
   .cli-header { border-top-width: 6px; }
   /* Single column card flow on paper, regardless of the 2-col screen grid */
