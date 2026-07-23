@@ -174,8 +174,8 @@ button { font: inherit; }
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 
-/* Screen-only chrome (print/share controls): hidden in @media print below */
-.no-print { }
+/* Screen-only chrome (print/share controls) is hidden in @media print below
+   via the .no-print class; it needs no screen styles. */
 
 /* === CURATOR =============================================================== */
 

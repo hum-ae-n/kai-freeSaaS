@@ -81,7 +81,7 @@ export function showToast(message, kind = 'success') {
     absent. Reused for any text param read off the URL, not only ?client=. */
 export function sanitizeParam(raw, maxLen = 80) {
   if (raw == null) return '';
-  return raw.slice(0, maxLen).trim();
+  return raw.trim().slice(0, maxLen).trim();
 }
 
 /** Share a URL via the native share sheet where available, falling back to
