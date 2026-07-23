@@ -192,8 +192,8 @@ Rocky's 23 Jul direction: remove non-SaaS, cover the developer/web gap, model re
 - [x] 8.6 Cost model: per-card free-tier line and pricing pill, "How costs could grow" hand-built SVG chart (four team sizes, tooltip on hover and focus, table fallback, print-safe). Verifier PASS, model arithmetic independently recomputed
 - [x] 8.7 Dark mode: top-right toggle, warm dark token palette, stored choice, system default, print always light
 - [x] 8.8 Branded exports from the curator selection: CSV, standalone HTML snapshot (DOM-built, self-contained), Save as PDF via print param, Email this stack mailto draft
-- [ ] 8.9 Content pass: README/TODO refresh, PRD section 15 already updated, changelog rows
-- [~] 8.10 Final verifier sweep and fresh screenshots, in progress
+- [x] 8.9 Content pass: README/TODO refresh, PRD section 15 already updated, changelog rows
+- [x] 8.10 Final verifier sweep: PASS, merge-ready. Smoke suite extended to 32 checks (dark mode, exports), six pre-existing comment em dashes cleaned, every commit in the range builds.
 
 Decisions this phase surfaced for Rocky, additive to the list above: archive or keep the borderline non-SaaS five; the three challenged value figures; whether Vercel stays listed given its Hobby tier bans commercial use.
 

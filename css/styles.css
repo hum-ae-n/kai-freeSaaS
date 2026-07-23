@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Free Stack — stylesheet
+   Free Stack stylesheet
    The brand source of truth is design-system/colors_and_type.css (tokens,
    fonts, base type). This file consumes those tokens and adds the app layer:
    APP TOKENS → DARK MODE → BASE → COMPONENTS → CURATOR → CLIENT → PRINT.
@@ -12,7 +12,7 @@
 /* === APP TOKENS ============================================================ */
 :root {
   /* Tool types mapped to the brand's semantic palette.
-     Badges are status chips in a data table — the one sanctioned pill. */
+     Badges are status chips in a data table, the one sanctioned pill. */
   --core-bg: var(--positive-tint);  --core-fg: #445C32;
   --noncore-bg: var(--caution-tint); --noncore-fg: #7A5A20;
   --m365-bg: var(--info-tint);      --m365-fg: #2F4763;
@@ -664,7 +664,7 @@ button { font: inherit; }
   padding: 0;
 }
 
-/* Cards: square, hairline border, no lift — border darkens on hover */
+/* Cards: square, hairline border, no lift, border darkens on hover */
 .tool-card {
   padding: var(--s-8);
   border-radius: var(--r-2);

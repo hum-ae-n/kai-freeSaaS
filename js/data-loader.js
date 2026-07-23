@@ -1,8 +1,8 @@
 /**
- * data-loader.js — entry module. Loads tools.json, parses the URL, routes to a mode.
+ * data-loader.js: entry module. Loads tools.json, parses the URL, routes to a mode.
  *
  * ==========================================================================
- * DOM CONTRACT (frozen, Phase 2.7) — curator.js and client.js may rely on:
+ * DOM CONTRACT (frozen, Phase 2.7): curator.js and client.js may rely on:
  *   #curator-root   curator mode mount point, [hidden] until routed
  *   #client-root    client mode mount point, [hidden] until routed
  *   #loading        initial loading message, removed once routed
@@ -208,7 +208,7 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (event) =>
 });
 
 /** Parse ?t= into valid, deduplicated tool ids. Invalid entries are skipped
-    silently (PRD section 5). Number.isInteger keeps id 0 — do not filter(Boolean). */
+    silently (PRD section 5). Number.isInteger keeps id 0, do not filter(Boolean). */
 function parseSelection(raw, tools) {
   if (raw == null) return null; // no t param at all → curator mode
   const known = new Set(tools.map((t) => t.id));

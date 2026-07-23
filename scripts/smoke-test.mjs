@@ -186,6 +186,34 @@ check('client: archived tool renders retirement card, not silence',
   && (await page.locator('.tool-card-archived').textContent()).includes('No longer recommended'));
 archiveIds = null;
 
+/* --- dark mode and exports (batch E surface) ------------------------------- */
+await page.goto(`${base}/`);
+await page.waitForSelector('.tools-table');
+await page.click('text=Deselect all');
+const exportButtons = page.locator('.cur-exports button, [class*=export] button');
+const exportCount = await exportButtons.count();
+let disabledCount = 0;
+for (let i = 0; i < exportCount; i++) if (await exportButtons.nth(i).isDisabled()) disabledCount++;
+check('curator: four export buttons, disabled with empty selection', exportCount === 4 && disabledCount === 4, `count=${exportCount} disabled=${disabledCount}`);
+await page.locator('tbody input[type=checkbox]').first().check();
+let enabledCount = 0;
+for (let i = 0; i < exportCount; i++) if (!(await exportButtons.nth(i).isDisabled())) enabledCount++;
+check('curator: export buttons enable with a selection', enabledCount === 4, `enabled=${enabledCount}`);
+
+const themeBtn = page.locator('.theme-toggle').first();
+await themeBtn.click();
+const darkSet = await page.evaluate(() => document.documentElement.dataset.theme);
+await page.reload();
+await page.waitForSelector('.tools-table');
+const darkPersists = await page.evaluate(() => document.documentElement.dataset.theme);
+check('curator: theme toggle flips to dark and persists across reload', darkSet === 'dark' && darkPersists === 'dark');
+await page.locator('.theme-toggle').first().click(); // restore light for later checks
+await page.evaluate(() => { try { localStorage.removeItem('freestack:v1:theme'); } catch {} });
+
+await page.goto(`${base}/?t=0,2`);
+await page.waitForSelector('.tool-card');
+check('client: theme toggle present in no-print toolbar', await page.locator('.no-print .theme-toggle, .cli-toolbar .theme-toggle').count() >= 1);
+
 check('no page errors across all loads', pageErrors.length === 0, pageErrors.join(' | ').slice(0, 300));
 
 await browser.close();
