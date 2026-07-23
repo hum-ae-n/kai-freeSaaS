@@ -105,6 +105,12 @@ Array of tool objects. Single source of truth. Every field required.
 | `notes` | array of strings | Optional. Non-linkable caveats: pricing gotchas, platform restrictions, "paid alternative" asides. Renders as plain text in client mode. |
 | `value` | integer | Annual value equivalent in GBP. Honest (see §10). |
 | `when` | string | Curator guidance: when to include this tool for a client. |
+| `archived` | boolean | Optional, default false. Retires a tool without deleting it (see ID permanence below). Archived tools are hidden from the curator table and excluded from new links. On an old client link they render a compact "no longer recommended" state pointing at their alternatives, never a silent disappearance. |
+| `last_verified` | string | Optional. ISO date (`YYYY-MM-DD`) when the tool's links and free-tier claim were last checked by a human or the link sweep. Client mode may surface it as a freshness signal. |
+
+### ID permanence
+
+Client links carry only tool IDs, so every link ever sent is a live dependency on this file. IDs are therefore permanent: **never delete a tool's entry and never reuse its ID.** To retire a tool, set `archived: true` and keep the entry. Deleting an entry silently removes that tool from every client page it was ever included on, with no trace for the reader.
 
 **Every entry in `alternatives` and `training` must carry a live URL.** Both render as `<a href>` tags, so an entry with an empty `url` becomes a dead link on a page a client opens. Anything that is a caveat rather than a destination belongs in `notes`. The minimums above count linkable entries only, not raw array length.
 
