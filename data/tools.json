@@ -31,6 +31,14 @@
       {
         "name": "Mistral Le Chat",
         "url": "https://chat.mistral.ai"
+      },
+      {
+        "name": "Microsoft Copilot",
+        "url": "https://copilot.microsoft.com"
+      },
+      {
+        "name": "Ollama",
+        "url": "https://ollama.com"
       }
     ],
     "training": [
@@ -82,6 +90,10 @@
       {
         "name": "Perplexity",
         "url": "https://www.perplexity.ai"
+      },
+      {
+        "name": "Ollama",
+        "url": "https://ollama.com"
       }
     ],
     "training": [
@@ -132,6 +144,10 @@
       {
         "name": "Inkscape",
         "url": "https://inkscape.org"
+      },
+      {
+        "name": "Affinity",
+        "url": "https://www.affinity.studio"
       }
     ],
     "training": [
@@ -175,6 +191,14 @@
       {
         "name": "Figma Free",
         "url": "https://www.figma.com"
+      },
+      {
+        "name": "Inkscape",
+        "url": "https://inkscape.org"
+      },
+      {
+        "name": "Affinity",
+        "url": "https://www.affinity.studio"
       }
     ],
     "training": [
@@ -214,6 +238,14 @@
       {
         "name": "Krita",
         "url": "https://krita.org"
+      },
+      {
+        "name": "Adobe Photoshop",
+        "url": "https://www.adobe.com/products/photoshop.html"
+      },
+      {
+        "name": "Affinity",
+        "url": "https://www.affinity.studio"
       }
     ],
     "training": [
@@ -231,7 +263,7 @@
       }
     ],
     "notes": [
-      "Paid alternatives: Adobe Photoshop, Affinity Photo."
+      "Affinity by Canva relaunched as a single free app in October 2025, covering photo editing, vector design and page layout, so it is now a genuinely free professional-grade alternative, not just a cheaper paid one."
     ],
     "value": 300,
     "when": "Client needs serious image editing beyond Canva.",
@@ -260,6 +292,14 @@
       {
         "name": "Krita",
         "url": "https://krita.org"
+      },
+      {
+        "name": "Adobe Photoshop",
+        "url": "https://www.adobe.com/products/photoshop.html"
+      },
+      {
+        "name": "Affinity",
+        "url": "https://www.affinity.studio"
       }
     ],
     "training": [
@@ -273,7 +313,7 @@
       }
     ],
     "notes": [
-      "Paid alternatives: Adobe Photoshop, Affinity Photo/Designer."
+      "Affinity by Canva relaunched as a single free app in October 2025, so it is now a genuinely free professional-grade alternative for anyone who doesn't specifically need Photopea's in-browser convenience."
     ],
     "value": 300,
     "when": "Design/print trades, clients with PSD files or Photoshop experience.",
@@ -365,6 +405,10 @@
       {
         "name": "Font Squirrel",
         "url": "https://www.fontsquirrel.com"
+      },
+      {
+        "name": "Uppbeat",
+        "url": "https://www.uppbeat.io"
       }
     ],
     "training": [
@@ -567,6 +611,10 @@
       {
         "name": "Printful Mockup Generator",
         "url": "https://www.printful.com"
+      },
+      {
+        "name": "Canva",
+        "url": "https://canva.com"
       }
     ],
     "training": [
@@ -606,6 +654,10 @@
       {
         "name": "TikTok",
         "url": "https://www.tiktok.com"
+      },
+      {
+        "name": "PeerTube",
+        "url": "https://joinpeertube.org"
       }
     ],
     "training": [
@@ -652,6 +704,10 @@
       {
         "name": "Shotcut",
         "url": "https://shotcut.org"
+      },
+      {
+        "name": "VN Video Editor",
+        "url": "https://www.vlognow.me"
       }
     ],
     "training": [
@@ -691,6 +747,14 @@
       {
         "name": "Kdenlive",
         "url": "https://kdenlive.org"
+      },
+      {
+        "name": "Adobe Premiere Pro",
+        "url": "https://www.adobe.com/products/premiere.html"
+      },
+      {
+        "name": "Apple Final Cut Pro",
+        "url": "https://www.apple.com/final-cut-pro/"
       }
     ],
     "training": [
@@ -706,9 +770,6 @@
         "name": "YouTube: DaVinci Resolve beginners",
         "url": "https://www.youtube.com/results?search_query=DaVinci+Resolve+beginners"
       }
-    ],
-    "notes": [
-      "Paid alternatives: Premiere Pro, Final Cut Pro."
     ],
     "value": 400,
     "when": "Serious video production (training, corporate, CPD).",
@@ -737,6 +798,10 @@
       {
         "name": "ShareX",
         "url": "https://getsharex.com"
+      },
+      {
+        "name": "Camtasia",
+        "url": "https://www.techsmith.com/video-editor.html"
       }
     ],
     "training": [
@@ -750,7 +815,7 @@
       }
     ],
     "notes": [
-      "Paid alternatives: Camtasia, ScreenFlow (Mac)."
+      "ScreenFlow (Mac only) is another paid screen recording option."
     ],
     "value": 150,
     "when": "Client doing live streams, screen recordings, or tutorial creation.",
@@ -779,6 +844,10 @@
       {
         "name": "ShareX",
         "url": "https://getsharex.com"
+      },
+      {
+        "name": "Camtasia",
+        "url": "https://www.techsmith.com/video-editor.html"
       }
     ],
     "training": [
@@ -790,9 +859,6 @@
         "name": "YouTube: Loom tutorial",
         "url": "https://www.youtube.com/results?search_query=Loom+tutorial"
       }
-    ],
-    "notes": [
-      "Paid alternative: Camtasia."
     ],
     "value": 100,
     "when": "Client onboarding, workshop recording, async communication.",
@@ -825,6 +891,10 @@
       {
         "name": "Descript",
         "url": "https://descript.com"
+      },
+      {
+        "name": "Submagic",
+        "url": "https://www.submagic.co"
       }
     ],
     "training": [
@@ -861,12 +931,12 @@
     "description": "Open-source audio editor. Podcast editing, voiceover cleanup, noise removal, audio file conversion. Professional results at zero cost.",
     "alternatives": [
       {
-        "name": "Audacity",
-        "url": "https://audacityteam.org"
-      },
-      {
         "name": "Ocenaudio",
         "url": "https://www.ocenaudio.com"
+      },
+      {
+        "name": "Adobe Audition",
+        "url": "https://www.adobe.com/products/audition.html"
       }
     ],
     "training": [
@@ -878,9 +948,6 @@
         "name": "YouTube: Audacity podcast editing tutorial",
         "url": "https://www.youtube.com/results?search_query=Audacity+podcast+editing+tutorial"
       }
-    ],
-    "notes": [
-      "Paid alternative: Adobe Audition."
     ],
     "value": 150,
     "when": "Client producing podcasts or audio content.",
