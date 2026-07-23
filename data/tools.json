@@ -1026,6 +1026,10 @@
       {
         "name": "DaVinci Resolve",
         "url": "https://www.blackmagicdesign.com/products/davinciresolve"
+      },
+      {
+        "name": "VN Video Editor",
+        "url": "https://www.vlognow.me"
       }
     ],
     "training": [
@@ -1039,9 +1043,7 @@
       }
     ],
     "notes": [
-      "VN Video Editor (free) is another mobile option.",
-      "The Clipchamp blog offers further tutorials.",
-      "DaVinci Resolve (free) for serious editing."
+      "Use DaVinci Resolve instead for serious, professional-grade editing."
     ],
     "value": 120,
     "when": "M365 subscriber, simple video editing.",
@@ -1120,6 +1122,10 @@
       {
         "name": "Matomo",
         "url": "https://matomo.org"
+      },
+      {
+        "name": "Crazy Egg",
+        "url": "https://www.crazyegg.com"
       }
     ],
     "training": [
@@ -1166,6 +1172,10 @@
       {
         "name": "Ahrefs Webmaster Tools",
         "url": "https://ahrefs.com/webmaster-tools"
+      },
+      {
+        "name": "Screaming Frog SEO Spider",
+        "url": "https://www.screamingfrog.co.uk/seo-spider/"
       }
     ],
     "training": [
@@ -1251,6 +1261,10 @@
       {
         "name": "WebPageTest",
         "url": "https://www.webpagetest.org"
+      },
+      {
+        "name": "Lighthouse (open source, CLI)",
+        "url": "https://github.com/GoogleChrome/lighthouse"
       }
     ],
     "training": [
@@ -1343,6 +1357,14 @@
       {
         "name": "Grafana",
         "url": "https://grafana.com"
+      },
+      {
+        "name": "Power BI Desktop",
+        "url": "https://www.microsoft.com/en-us/power-platform/products/power-bi/desktop"
+      },
+      {
+        "name": "Tableau Public",
+        "url": "https://www.tableau.com/products/public"
       }
     ],
     "training": [
@@ -1356,14 +1378,15 @@
       }
     ],
     "notes": [
-      "Paid: Tableau, Power BI."
+      "Power BI Desktop is free to build reports in but the Pro tier is needed to share them; Tableau Public is free but every workbook published is visible to anyone, so it isn't suited to confidential client data."
     ],
     "value": 200,
     "when": "Client wanting automated reporting dashboards.",
     "last_verified": "2026-07-23",
     "free_limit": "Unlimited free reports and data sources; Looker Studio Pro (about £7/user/project/month) adds team workspaces, more scheduled deliveries and Gemini AI.",
     "paid_from": 7,
-    "scales_with": "features"
+    "scales_with": "features",
+    "byo": "A single-source dashboard (say, sales figures from a spreadsheet) is a realistic small build: a script pulls the data and a simple charting library renders it, refreshed on a schedule. Multi-source, drag-and-drop reporting for non-technical staff is where Looker Studio earns its keep, and where DIY stops being worth your time."
   },
   {
     "id": 28,
@@ -1439,6 +1462,10 @@
       {
         "name": "Matomo",
         "url": "https://matomo.org"
+      },
+      {
+        "name": "Crazy Egg",
+        "url": "https://www.crazyegg.com"
       }
     ],
     "training": [
@@ -1567,6 +1594,10 @@
       {
         "name": "AlsoAsked",
         "url": "https://alsoasked.com"
+      },
+      {
+        "name": "Ubersuggest",
+        "url": "https://neilpatel.com/ubersuggest"
       }
     ],
     "training": [
@@ -1839,6 +1870,10 @@
       {
         "name": "Mixpost",
         "url": "https://mixpost.app"
+      },
+      {
+        "name": "Hootsuite",
+        "url": "https://hootsuite.com"
       }
     ],
     "training": [
@@ -1928,6 +1963,10 @@
       {
         "name": "Mixpost",
         "url": "https://mixpost.app"
+      },
+      {
+        "name": "Later",
+        "url": "https://later.com"
       }
     ],
     "training": [
@@ -2022,6 +2061,10 @@
       {
         "name": "Beacons",
         "url": "https://beacons.ai"
+      },
+      {
+        "name": "LinkStack",
+        "url": "https://linkstack.org"
       }
     ],
     "training": [
@@ -2036,14 +2079,16 @@
     ],
     "notes": [
       "Each platform has its own setup guides.",
-      "Many website builders include a link-in-bio style page as a built-in feature."
+      "Many website builders include a link-in-bio style page as a built-in feature.",
+      "LinkStack is open source and self-hosted."
     ],
     "value": 60,
     "when": "Social-media-active businesses, especially Instagram/TikTok.",
     "last_verified": "2026-07-23",
     "free_limit": "Unlimited links and basic themes free forever on all three; paid plans (from about £6/month) add custom domains and reduce or remove the platform's commission on digital product sales.",
     "paid_from": 6,
-    "scales_with": "features"
+    "scales_with": "features",
+    "byo": "A page of buttons linking out to a website, shop and socials is one of the simplest things on the web to build and host yourself for nothing: a single static HTML page does the whole job, and an AI coding assistant can put one together in minutes. The only thing you lose versus the hosted tools is built-in click analytics."
   },
   {
     "id": 43,
@@ -2131,6 +2176,18 @@
       {
         "name": "SuiteCRM",
         "url": "https://suitecrm.com"
+      },
+      {
+        "name": "Zoho CRM Free",
+        "url": "https://www.zoho.com/crm/"
+      },
+      {
+        "name": "Odoo",
+        "url": "https://www.odoo.com"
+      },
+      {
+        "name": "EspoCRM",
+        "url": "https://www.espocrm.com"
       }
     ],
     "training": [
@@ -2148,14 +2205,15 @@
       }
     ],
     "notes": [
-      "SuiteCRM is open source."
+      "SuiteCRM, Odoo and EspoCRM are open source and can be self-hosted."
     ],
     "value": 300,
     "when": "Client needs CRM and doesn't have one.",
     "last_verified": "2026-07-23",
     "free_limit": "Free forever for up to 2 users and around 1,000 contacts, with 'Powered by HubSpot' branding on every email and form; Starter (about £16/month) removes the branding and the seat cap.",
     "paid_from": 16,
-    "scales_with": "users"
+    "scales_with": "users",
+    "byo": "A basic contact tracker, a spreadsheet or small database of who to follow up with and when, is a genuinely small build: an AI coding assistant can put together a one-page contact-and-notes app in an afternoon. Pipeline stages, email sync and reporting across a team are where a proper CRM starts paying for itself and DIY stops being the sensible choice."
   },
   {
     "id": 45,
@@ -2213,7 +2271,8 @@
     "last_verified": "2026-07-23",
     "free_limit": "Free CRM for up to 3 users plus Bookings, Mail, Invoice, Writer, Meeting and Forms, all at no cost; CRM Standard, needed beyond 3 users or for more automation, starts at about £16/user/month.",
     "paid_from": 16,
-    "scales_with": "users"
+    "scales_with": "users",
+    "byo": "A simple contact-and-follow-up tracker is a realistic solo build, an afternoon's work with an AI coding assistant. What you'd be giving up is the wider Zoho ecosystem (bookings, invoicing, mail, forms) working together out of the box, which is the actual reason to use a suite like this rather than several small homemade tools."
   },
   {
     "id": 46,
@@ -2294,6 +2353,10 @@
       {
         "name": "Telegram",
         "url": "https://telegram.org"
+      },
+      {
+        "name": "Signal",
+        "url": "https://signal.org"
       }
     ],
     "training": [
@@ -2362,7 +2425,8 @@
     "last_verified": "2026-07-23",
     "free_limit": "1 event type and 1 calendar connection free forever; Standard (about £9/month) removes the event-type cap and adds reminders and integrations.",
     "paid_from": 9,
-    "scales_with": "users"
+    "scales_with": "users",
+    "byo": "A single booking form that checks a calendar and confirms a slot is a well-trodden small build, an AI coding assistant can wire one up against a calendar API in an afternoon. The trade-off is you maintain it: double-bookings, time zone bugs and calendar sync edge cases are exactly what a mature booking tool has already debugged for you."
   },
   {
     "id": 49,
@@ -2421,7 +2485,8 @@
     "last_verified": "2026-07-23",
     "free_limit": "Notion: unlimited pages but 7-day version history and a 5MB upload cap. Trello: unlimited cards but capped at 10 boards and 250 automation runs a month. Trello Standard is the cheaper upgrade route at about £5/user/month.",
     "paid_from": 5,
-    "scales_with": "usage"
+    "scales_with": "usage",
+    "byo": "A simple Kanban board, cards moving through columns like Quote, In Progress, Shipped, is a well-understood small build that an AI coding assistant can produce in an afternoon. It's rarely worth it for a small team: the free tiers of Notion or Trello already do this, with mobile apps and notifications thrown in, for nothing."
   },
   {
     "id": 50,
@@ -2475,7 +2540,8 @@
     "last_verified": "2026-07-23",
     "free_limit": "Zapier: 100 tasks a month, two-step Zaps only. Make: 1,000 operations a month, 2 active scenarios. Apple Shortcuts: free forever, no limit. Make's Core plan is the cheaper upgrade route at about £8/month.",
     "paid_from": 8,
-    "scales_with": "usage"
+    "scales_with": "usage",
+    "byo": "A single fixed workflow, such as a form submission writing a row to a spreadsheet and sending a confirmation email, is a small, well-defined script an AI coding assistant can write and schedule in an afternoon. Once you need several connected steps, error handling and a UI for someone non-technical to check on runs, that ongoing maintenance is what you're paying Zapier or Make to carry instead of you."
   },
   {
     "id": 51,
@@ -2505,6 +2571,10 @@
       {
         "name": "Dokobit",
         "url": "https://dokobit.com"
+      },
+      {
+        "name": "Documenso",
+        "url": "https://documenso.com"
       }
     ],
     "training": [
@@ -2519,7 +2589,8 @@
     ],
     "notes": [
       "Each platform has its own setup guides.",
-      "Zoho Sign has a free tier."
+      "Zoho Sign has a free tier.",
+      "Documenso is open source and can be self-hosted."
     ],
     "value": 100,
     "when": "Professional services, legal, consultants needing signed documents.",
@@ -2548,6 +2619,10 @@
       {
         "name": "QRCode Monkey",
         "url": "https://www.qrcode-monkey.com"
+      },
+      {
+        "name": "Canva QR Code Generator",
+        "url": "https://canva.com"
       }
     ],
     "training": [
@@ -2569,7 +2644,8 @@
     "last_verified": "2026-07-23",
     "free_limit": "Static QR codes are free forever and never expire; paid plans are only needed for dynamic, trackable codes with scan analytics, which most small businesses don't require.",
     "paid_from": 0,
-    "scales_with": "none"
+    "scales_with": "none",
+    "byo": "Generating a static QR code is a solved, one-line problem with free open-source libraries, not really something to buy at all. The only reason to pay anyone is if you want a dynamic code you can redirect later and see scan counts for, which none of these free tools do either without an upgrade."
   },
   {
     "id": 53,
@@ -2642,6 +2718,14 @@
       {
         "name": "Otter.ai Free",
         "url": "https://otter.ai"
+      },
+      {
+        "name": "Apple Voice Memos",
+        "url": "https://support.apple.com/guide/voice-memos/welcome/mac"
+      },
+      {
+        "name": "OpenAI Whisper",
+        "url": "https://github.com/openai/whisper"
       }
     ],
     "training": [
@@ -2657,7 +2741,8 @@
     "notes": [
       "Google Recorder offers on-device auto-transcription on Android.",
       "Microsoft Teams includes meeting transcription if on M365.",
-      "Voice Memos and Recorder apps are built into phones."
+      "Voice Memos and Recorder apps are built into phones.",
+      "OpenAI Whisper is open source and free to run yourself, but requires technical setup, so it suits a developer more than a non-technical user."
     ],
     "value": 100,
     "when": "Client wanting to capture meetings, site visits, client conversations.",
@@ -2952,6 +3037,10 @@
       {
         "name": "Sage",
         "url": "https://www.sage.com"
+      },
+      {
+        "name": "Akaunting",
+        "url": "https://akaunting.com"
       }
     ],
     "training": [
@@ -2969,7 +3058,8 @@
       }
     ],
     "notes": [
-      "Xero, QuickBooks and Sage are paid products."
+      "Xero, QuickBooks and Sage are paid products.",
+      "Akaunting is open source and self-hosted."
     ],
     "value": 200,
     "when": "Sole trader with NatWest/Mettle account or willing to switch.",
@@ -4277,6 +4367,10 @@
       {
         "name": "GitHub Pages",
         "url": "https://pages.github.com"
+      },
+      {
+        "name": "Coolify",
+        "url": "https://coolify.io"
       }
     ],
     "training": [
@@ -4585,6 +4679,10 @@
       {
         "name": "Rancher Desktop",
         "url": "https://rancherdesktop.io"
+      },
+      {
+        "name": "Colima",
+        "url": "https://github.com/abiosoft/colima"
       }
     ],
     "training": [
@@ -4737,6 +4835,7 @@
     "last_verified": "2026-07-23",
     "free_limit": "Unlimited bases with up to 1,000 records each, 1GB of attachments per base, 5 editors per workspace and 100 automation runs a month.",
     "paid_from": 16,
-    "scales_with": "usage"
+    "scales_with": "usage",
+    "byo": "A structured tracker for one specific job, customers with notes and follow-up dates, or stock with reorder levels, is a small spreadsheet-plus-script or one-page web app, the kind of thing an AI coding assistant can build in an afternoon. Airtable earns its keep once several people need to view and edit the same data with proper permissions and linked tables, which a homemade tool has to be built to handle from the start."
   }
 ]
