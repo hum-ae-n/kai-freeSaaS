@@ -485,6 +485,29 @@ button { font: inherit; }
 .tools-table .cell-links { min-width: 10rem; max-width: 14rem; }
 .tools-table .cell-links a { display: block; margin-bottom: 3px; }
 .tools-table .cell-value { white-space: nowrap; font-family: var(--font-sans); font-weight: 500; color: var(--positive); }
+/* Quiet pricing subline (Feature 1): never louder than the ~£X/yr figure
+   it annotates, so ink-3 and fs-12 rather than the positive-green above. */
+.tools-table .cell-value-sub {
+  margin-top: 2px;
+  font-weight: 400;
+  font-size: var(--fs-12);
+  color: var(--ink-3);
+}
+/* BYO marker (Feature 1): neutral outline chip, never as loud as the type
+   badge it sits beside in the same cell. */
+.byo-chip {
+  display: inline-block;
+  margin-left: var(--s-2);
+  padding: 1px 6px;
+  vertical-align: middle;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--fs-12);
+  letter-spacing: var(--tr-eyebrow);
+  color: var(--ink-3);
+  border: var(--bw-hair) solid var(--steel-3);
+  border-radius: var(--r-2);
+}
 .tools-table .cell-when { min-width: 10rem; max-width: 14rem; color: var(--ink-3); font-size: var(--fs-12); }
 .tools-table input[type="checkbox"] {
   width: 17px;
@@ -525,7 +548,7 @@ button { font: inherit; }
   text-transform: uppercase;
   color: var(--ink-3);
 }
-.cur-more-when { color: var(--ink-2); font-size: var(--fs-14); line-height: var(--lh-14); }
+.cur-more-when, .cur-more-text { color: var(--ink-2); font-size: var(--fs-14); line-height: var(--lh-14); }
 
 .cur-actions {
   display: flex;

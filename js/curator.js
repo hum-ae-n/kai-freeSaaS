@@ -275,6 +275,11 @@ export function renderCurator(root, allTools) {
       el('td', { class: 'cell-check' }, checkboxLabel),
       el('td', { class: 'cell-name' },
         tool.name,
+        // Quiet BYO marker, PRD section 4 optional `byo` field: neutral, not
+        // a badge, so it never competes with the type badge for attention.
+        tool.byo ? el('span', {
+          class: 'byo-chip', title: 'Build-your-own option noted for clients',
+        }, 'BYO') : null,
         el('div', { class: 'tool-urls' },
           tool.urls.map((u) => el('a', {
             href: `https://${u.domain}`, target: '_blank', rel: 'noopener noreferrer',
@@ -286,7 +291,7 @@ export function renderCurator(root, allTools) {
       el('td', { class: 'cell-desc' }, tool.description),
       el('td', { class: 'cell-links' }, tool.alternatives.map((a) => extLink(a.url, a.name, false))),
       el('td', { class: 'cell-links' }, tool.training.map((t) => extLink(t.url, t.name, false))),
-      el('td', { class: 'cell-value' }, `~${money(tool.value)}/yr`),
+      el('td', { class: 'cell-value' }, `~${money(tool.value)}/yr`, pricingSubline(tool)),
       el('td', { class: 'cell-when' }, tool.when),
       // Mobile-only column: same alternatives/training/when data, grouped
       // into a native <details> "More" disclosure. Desktop hides this cell
@@ -480,6 +485,14 @@ export function renderCurator(root, allTools) {
 function option(value, label) {
   return el('option', { value }, label);
 }
+/** Quiet second line under the ~£X/yr figure (Feature 1, PRD section 4
+    optional `paid_from`). Number.isInteger, not truthiness: 0 is a genuine
+    "free forever" value and must render, not be treated as absent. */
+function pricingSubline(tool) {
+  if (!Number.isInteger(tool.paid_from)) return null;
+  const text = tool.paid_from === 0 ? 'free forever' : `from £${tool.paid_from}/mo`;
+  return el('div', { class: 'cell-value-sub' }, text);
+}
 function buildMoreDetails(tool) {
   const sections = [];
   if (tool.alternatives.length) {
@@ -492,6 +505,18 @@ function buildMoreDetails(tool) {
     sections.push(el('div', { class: 'cur-more-section' },
       el('span', { class: 'cur-more-label' }, 'Training'),
       el('div', { class: 'cell-links' }, tool.training.map((t) => extLink(t.url, t.name, false))),
+    ));
+  }
+  if (tool.free_limit) {
+    sections.push(el('div', { class: 'cur-more-section' },
+      el('span', { class: 'cur-more-label' }, 'Free tier'),
+      el('p', { class: 'cur-more-text' }, tool.free_limit),
+    ));
+  }
+  if (tool.byo) {
+    sections.push(el('div', { class: 'cur-more-section' },
+      el('span', { class: 'cur-more-label' }, 'Build your own'),
+      el('p', { class: 'cur-more-text' }, tool.byo),
     ));
   }
   if (tool.when) {
