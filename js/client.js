@@ -309,27 +309,32 @@ function buildCanonicalShareUrl(selection, clientName, noteText, plainMode) {
 /** mailto: draft for the "Share progress with Kaipability" button (Batch H,
     Feature 2). Fixed recipient, per Rocky's mid-build correction: no "who
     to send this to" line is needed once the To: field is already filled
-    in. Capped at 1800 characters of body text, trimming the tool list with
-    an "...and N more" line if a very long selection would otherwise
-    overflow it, same technique as curator.js's buildMailto. */
+    in. The 1800 budget is checked against the FINAL mailto: URI, not the
+    raw body: encodeURIComponent triples the size of every space, colon,
+    slash and newline, and the encoded subject and recipient count too, so
+    measuring the raw string before encoding let a full-catalogue selection
+    sail hundreds of characters past the 1900 spec ceiling even after
+    truncation. Drops one tool line at a time and rebuilds the whole URI
+    until it fits, or until only the "...and N more" line is left. */
 function buildShareProgressMailto(checklistable, doneIds, pageUrl) {
   const subject = 'Progress on my free software stack';
-  const buildBody = (list, omitted) => {
+  const buildUri = (list, omitted) => {
     const lines = [];
     for (const t of list) lines.push(`${doneIds.has(t.id) ? 'Set up' : 'Not yet'}: ${t.name}`);
     if (omitted > 0) lines.push(`...and ${omitted} more`);
     lines.push('', pageUrl);
-    return lines.join('\n');
+    const body = lines.join('\n');
+    return `mailto:info@kaipability.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
   let list = checklistable;
   let omitted = 0;
-  let body = buildBody(list, omitted);
-  while (body.length > 1800 && list.length > 0) {
+  let uri = buildUri(list, omitted);
+  while (uri.length > 1800 && list.length > 0) {
     list = list.slice(0, -1);
     omitted = checklistable.length - list.length;
-    body = buildBody(list, omitted);
+    uri = buildUri(list, omitted);
   }
-  return `mailto:info@kaipability.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  return uri;
 }
 
 /** Print-only QR bridge (Batch H, Feature 3): a self generated SVG QR code
@@ -344,7 +349,9 @@ function buildPrintQrBlock(selection, clientName, noteText, plainMode) {
   try {
     svg = qrSvg(url, { size: 120, quietZone: 4, className: 'cli-print-qr-svg' });
   } catch (err) {
-    console.error('QR encode failed for the print block:', err);
+    // Expected for very large selections: the URL outgrows QR version 10.
+    // The page simply prints without a QR, so this is a warn, not an error.
+    console.warn('QR omitted from the print block:', err.message);
     return null;
   }
   return el('div', { class: 'print-only cli-print-qr' },

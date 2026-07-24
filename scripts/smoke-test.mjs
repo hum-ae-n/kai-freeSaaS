@@ -220,6 +220,39 @@ check('client: single-tool permalink renders one card, no summary, id 0 safe',
   && await page.locator('.cli-summary').count() === 0
   && await page.locator('.card-toggle').count() === 0);
 
+/* --- batch H surface: plain mode, share-back mailto, print QR -------------- */
+await page.goto(`${base}/?t=0,2`);
+await page.waitForSelector('.tool-card');
+await page.click('.plain-toggle');
+check('client: plain mode relabels and swaps text',
+  await page.locator('text=Other options like this').count() >= 1
+  && await page.locator('.plain-toggle[aria-pressed="true"]').count() === 1);
+await page.click('.plain-toggle');
+check('client: plain mode toggles back off', await page.locator('.card-section-label', { hasText: 'Alternatives' }).count() >= 1);
+await page.evaluate(() => { try { localStorage.removeItem('freestack:v1:plainmode'); } catch {} });
+
+const allIds = active.map((t) => t.id).join(',');
+await page.goto(`${base}/?t=${allIds}&client=${'X'.repeat(80)}`);
+await page.waitForSelector('.tool-card');
+const mailtoPromise = new Promise((resolve) => {
+  const grab = (u) => { if (u.startsWith('mailto:')) resolve(u); };
+  page.on('framenavigated', (f) => grab(f.url()));
+  page.on('requestfailed', (r) => grab(r.url()));
+  setTimeout(() => resolve(''), 4000);
+});
+await page.click('text=Share progress with Kaipability');
+const mailto = await mailtoPromise;
+check('client: share-progress mailto correct and under 1900 chars at full catalogue',
+  mailto.startsWith('mailto:info@kaipability.com') && mailto.includes('Not%20yet') && mailto.length > 0 && mailto.length < 1900,
+  `len=${mailto.length}`);
+await page.goto(`${base}/?t=0,2&client=Acme`).catch(() => {});
+await page.waitForSelector('.tool-card');
+const qrScreen = await page.locator('.cli-print-qr').evaluate((n) => getComputedStyle(n).display).catch(() => 'missing');
+await page.emulateMedia({ media: 'print' });
+const qrPrint = await page.locator('.cli-print-qr').evaluate((n) => getComputedStyle(n).display).catch(() => 'missing');
+await page.emulateMedia({ media: 'screen' });
+check('client: QR block print-only', qrScreen === 'none' && qrPrint !== 'none' && qrPrint !== 'missing', `screen=${qrScreen} print=${qrPrint}`);
+
 /* --- dark mode and exports (batch E surface) ------------------------------- */
 await page.goto(`${base}/`);
 await page.waitForSelector('.tools-table');

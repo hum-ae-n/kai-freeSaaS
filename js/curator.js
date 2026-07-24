@@ -619,35 +619,41 @@ function buildCsv(picked) {
 }
 
 /** mailto: draft for the current selection. Capped at 30 tools and 1800
-    characters of body text: if either limit is hit the tool list is
-    trimmed and an "...and N more" line takes its place, rather than
-    producing a mailto: link so long some mail clients refuse to open it. */
+    characters, budgeted against the FINAL mailto: URI rather than the raw
+    body: encodeURIComponent triples the size of every space, colon, slash
+    and newline, and the encoded subject counts too, so measuring the raw
+    body before encoding let a large selection sail past the 1900 spec
+    ceiling even after truncation (flagged alongside the same bug in
+    client.js's buildShareProgressMailto). Trims the tool list, oldest-first
+    from the end, rebuilding the whole URI each time, until it fits or only
+    the "...and N more" line is left. */
 function buildMailto(picked, url, clientName) {
   const subject = 'Your free software stack from Kaipability';
   const intro = clientName
     ? `Hi ${clientName}, here is your free software stack from Kaipability:`
     : 'Here is your free software stack from Kaipability:';
 
-  const buildBody = (list, omitted) => {
+  const buildUri = (list, omitted) => {
     const lines = [intro, '', url, ''];
     for (const t of list) lines.push(`- ${t.name}: ${t.urls[0]?.domain ?? ''}`);
     if (omitted > 0) lines.push(`...and ${omitted} more`);
-    return lines.join('\n');
+    const body = lines.join('\n');
+    return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   let list = picked.slice(0, 30);
   let omitted = picked.length - list.length;
-  let body = buildBody(list, omitted);
-  // Trim further, oldest-first from the end of the list, until the body
+  let uri = buildUri(list, omitted);
+  // Trim further, oldest-first from the end of the list, until the URI
   // fits under the character cap even for a very long client name or a
   // full 30-tool selection with long tool names.
-  while (body.length > 1800 && list.length > 0) {
+  while (uri.length > 1800 && list.length > 0) {
     list = list.slice(0, -1);
     omitted = picked.length - list.length;
-    body = buildBody(list, omitted);
+    uri = buildUri(list, omitted);
   }
 
-  return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  return uri;
 }
 
 /* --- standalone HTML snapshot ----------------------------------------------
