@@ -18,7 +18,7 @@ Open items as of 23 July 2026. Build state: Phases 0-4 done and verified, Phase 
 
 ## Decisions only Rocky can make
 
-- [ ] **Public curator mode.** The bare URL serves the full curator interface, including the internal `when` column (consulting guidance) and value calibrations. Decide before sharing any client link: acceptable public, hide the column, or add the token auth deferred in PRD §13. Blocks Phase 6 sign-off.
+- [x] **Public curator mode.** Resolved 24 Jul: the root URL becomes a public read-only directory; the curator moves to the hidden, noindexed path `/x` (BUILD-PLAN 10.12). Not cryptographic security, the data stays public by nature of a static site, but the staff interface stops being the front door. Progress share-back address: info@kaipability.com.
 - [ ] **Value figure spot-check (Phase 1.5).** The validator can't judge honesty (PRD §10). Review the `value` field across `data/tools.json`; flag anything indefensible.
 - [ ] **Favicon self-hosting (Phase 5.6).** Client pages currently hit DuckDuckGo/Google proxies per link. Decide whether to inline/self-host icons for the 15 core tools (privacy + reliability) or accept the proxies.
 - [x] **Analytics provider.** Decided 23 Jul: not needed. No analytics on the site. If that ever changes, the research notes favoured Plausible ($9/month, strips query strings so client names stay out of the data).
