@@ -708,6 +708,15 @@ button { font: inherit; }
   margin: 0;
   padding: 0;
 }
+/* A 1fr grid track's minimum size defaults to auto (the widest min-content
+   contribution among its items), not 0, so a single card with an unusually
+   wide row of inline content (e.g. several short "Get started" links laid
+   end to end with a wide favicon gap) can grow the whole column past the
+   viewport at narrow widths, same trap already fixed on the curator table's
+   .cell-name in the RESPONSIVE block. Surfaced by the public directory
+   (Batch I), which is the first view to render every card in the catalogue
+   at once rather than a hand-picked selection. */
+.card-grid > li { min-width: 0; }
 
 /* Cards: square, hairline border, no lift, border darkens on hover */
 .tool-card {
@@ -775,6 +784,13 @@ button { font: inherit; }
   flex-wrap: wrap;
   gap: var(--s-1) var(--s-4);
 }
+/* A domain label can be a full path (e.g. blackmagicdesign.com/products/
+   davinciresolve) with no space for the browser's default wrap points to
+   land on: without this, that single unbroken string forces the card wider
+   than the viewport at narrow widths, the same trap the curator table's
+   .cell-name already guards against. min-width: 0 lets the flex item shrink
+   below its text's natural width so overflow-wrap has room to act. */
+.tool-card .card-domains a { min-width: 0; overflow-wrap: anywhere; }
 .tool-card .card-desc { margin-top: var(--s-4); color: var(--ink-2); font-size: var(--fs-16); line-height: var(--lh-16); }
 .tool-card .card-section-label {
   margin-top: var(--s-6);
@@ -1033,18 +1049,105 @@ button { font: inherit; }
 }
 .cli-print-qr-svg { color: var(--ink); }
 
+/* === PUBLIC ================================================================= */
+/* Public/staff split (BUILD-PLAN 10.12, Batch I): the read-only, indexable
+   directory at root. Shares .cli-category/.card-grid/.tool-card from the
+   CLIENT block above (the same card renderer, checklist toggle suppressed)
+   rather than a parallel set of card styles; this block covers only the
+   page-level chrome that is unique to the public view. */
+
+#public-root {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--s-8) var(--s-6) var(--s-24);
+}
+
+.pub-header {
+  padding: var(--s-10) var(--s-10) var(--s-8);
+  margin-bottom: var(--s-6);
+  border-top: var(--bw-heavy) solid var(--oxblood);
+}
+.pub-header .logo { height: 40px; width: auto; margin-bottom: var(--s-8); }
+.pub-header h1 {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(34px, 5.5vw, 58px);
+  line-height: 1.02;
+  letter-spacing: var(--tr-tight);
+}
+.pub-header .subtitle { margin-top: var(--s-4); color: var(--ink-2); font-size: var(--fs-16); max-width: none; }
+.pub-header .trust-line { margin-top: var(--s-2); color: var(--ink-3); font-size: var(--fs-14); max-width: none; }
+
+.pub-toolbar {
+  display: flex;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: var(--s-8);
+}
+/* Grows to fill the row on desktop; the mobile block below resets this to
+   flex: 0 0 auto, the same trap documented there for .cur-toolbar/.linkgen. */
+.pub-search { flex: 1 1 20rem; min-width: 0; }
+
+/* Recently updated strip (Feature 3, Batch I): quiet, editorial, hairline
+   rules between entries. Archived entries get no extra treatment at all:
+   retirements are a trust signal here, not something to visually apologise
+   for, so .is-archived intentionally carries no rule of its own. */
+.pub-changelog {
+  margin-bottom: var(--s-10);
+  padding: var(--s-5) var(--s-6);
+}
+.pub-changelog-list {
+  margin-top: var(--s-3);
+  list-style: none;
+  padding: 0;
+}
+.pub-changelog-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1) var(--s-3);
+  padding: var(--s-2) 0;
+  border-top: var(--bw-hair) solid var(--paper-edge);
+  font-size: var(--fs-14);
+}
+.pub-changelog-item:first-child { border-top: none; }
+.pub-changelog-date { flex: none; color: var(--ink-3); font-family: var(--font-sans); font-size: var(--fs-12); }
+.pub-changelog-detail { color: var(--ink-2); }
+
+.pub-empty { color: var(--ink-2); padding: var(--s-10) 0; }
+
+.pub-footer { align-items: flex-start; }
+.pub-cta { margin-top: var(--s-1); }
+
+/* Embed mode (Feature 2, Batch I / BUILD-PLAN 10.11): chrome-free, sized to
+   sit inside an iframe rather than assume a full browser viewport. */
+#embed-root {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: var(--s-6) var(--s-5) var(--s-8);
+}
+.embed-footer {
+  margin-top: var(--s-8);
+  padding-top: var(--s-4);
+  border-top: var(--border);
+  font-size: var(--fs-12);
+  color: var(--ink-3);
+  text-align: center;
+}
+.embed-footer a { color: inherit; }
+
 /* === RESPONSIVE ============================================================ */
 
 @media (min-width: 1200px) {
   .card-grid { grid-template-columns: 1fr 1fr; }
-  #client-root { max-width: 1240px; }
+  #client-root, #public-root { max-width: 1240px; }
   /* A category with exactly one card would otherwise leave a half-page of
      empty cream beside it. Read as a deliberate wide card instead. */
   .card-solo { grid-column: 1 / -1; }
 }
 
 @media (max-width: 767px) {
-  #curator-root, #client-root { padding: var(--s-5) var(--s-4) var(--s-16); }
+  #curator-root, #client-root, #public-root { padding: var(--s-5) var(--s-4) var(--s-16); }
   .cur-header .tool-count { margin-left: 0; width: 100%; }
   .cur-toolbar { flex-direction: column; align-items: stretch; }
   .cur-toolbar .select, .cur-toolbar .input { width: 100%; }
@@ -1054,6 +1157,11 @@ button { font: inherit; }
   .linkgen-controls { flex-direction: column; align-items: stretch; }
   /* In a column, the desktop flex-basis 16rem would become height. */
   .linkgen-controls .input { flex: 0 0 auto; }
+  .pub-header { padding: var(--s-6) var(--s-5); }
+  .pub-toolbar { flex-direction: column; align-items: stretch; }
+  /* Same trap as .cur-toolbar/.linkgen-controls above: in a column, the
+     desktop flex-basis 20rem would become height, not width. */
+  .pub-search { width: 100%; flex: 0 0 auto; }
   .cli-header { padding: var(--s-6) var(--s-5); }
   .cli-summary { gap: var(--s-6); padding: var(--s-5); }
   .tool-card { padding: var(--s-6); }

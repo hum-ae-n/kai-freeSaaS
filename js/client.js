@@ -4,7 +4,7 @@
  * Client name and note come from the URL: they are ALWAYS inserted via
  * textContent (el()), never innerHTML, since both are attacker controlled.
  */
-import { el, favicon, extLink, getDomain, money, shareUrl, themeToggleButton, writePlainMode } from './data-loader.js';
+import { el, favicon, extLink, getDomain, money, shareUrl, themeToggleButton, writePlainMode, isStaffDevice } from './data-loader.js';
 import { qrSvg } from './qr.js';
 
 const MAX_STAGGER = 8; // entrance stagger caps at 8 cards, per item 6a
@@ -90,13 +90,17 @@ export function renderClient(root, tools, selection, clientName, noteText, print
   const printBtn = el('button', { class: 'btn btn-secondary btn-lg', type: 'button' }, 'Print or save as PDF');
   printBtn.addEventListener('click', () => window.print());
 
-  // Open in curator (Feature 2): reopens this exact stack, pre-ticked, so a
-  // consultant can adjust and re-share rather than rebuilding it by hand.
-  // Only the params that actually exist are added, values already sanitised
-  // by data-loader before reaching this function.
-  const editBtn = el('a', {
+  // Open in curator (Feature 2, gated per Batch I's public/staff split):
+  // reopens this exact stack, pre-ticked, so a consultant can adjust and
+  // re-share rather than rebuilding it by hand. Renders only on a device
+  // that has visited /x before (isStaffDevice()): a client who only ever
+  // opens a shared stack link must never see, or be tempted to click, a
+  // path back into the hidden staff page. Only the params that actually
+  // exist are added, values already sanitised by data-loader before
+  // reaching this function.
+  const editBtn = isStaffDevice() ? el('a', {
     class: 'btn btn-ghost btn-lg no-print', href: buildEditUrl(selection, clientName, noteText),
-  }, 'Open in curator');
+  }, 'Open in curator') : null;
 
   // Plain English toggle (Batch H, Feature 1): flips the local plainMode
   // binding, persists the choice, and redraws the plain-mode-dependent
@@ -161,13 +165,6 @@ export function renderClient(root, tools, selection, clientName, noteText, print
     saveProgress(progressKey, doneIds);
   }
 
-  /* --- cards grouped by category (data order preserved) ------------------ */
-  const groups = new Map();
-  for (const tool of picked) {
-    if (!groups.has(tool.category)) groups.set(tool.category, []);
-    groups.get(tool.category).push(tool);
-  }
-
   /* --- footer ------------------------------------------------------------ */
   const footer = el('footer', { class: 'cli-footer' },
     el('img', { class: 'logo', src: 'design-system/assets/kaipability-logo-lockup.png', alt: '' }),
@@ -186,14 +183,7 @@ export function renderClient(root, tools, selection, clientName, noteText, print
     doneIds = loadProgress(progressKey, checklistable.map((t) => t.id));
     progressCount.textContent = progressText(doneIds.size, checklistable.length);
 
-    let cardIndex = 0;
-    const sections = [];
-    for (const [category, groupTools] of groups) {
-      sections.push(el('h2', { class: 'cli-category' }, categoryIcon(category), category));
-      const items = groupTools.map((tool) => el('li', {}, card(tool, cardIndex++, doneIds, handleToggle, { plainMode })));
-      if (items.length === 1) items[0].classList.add('card-solo');
-      sections.push(el('ul', { class: 'card-grid' }, items));
-    }
+    const sections = buildCardSections(picked, { plainMode, doneIds, onToggle: handleToggle });
     if (hasPricingData) sections.push(costGrowthSection(checklistable, plainMode));
 
     const printBlock = buildPrintQrBlock(selection, clientName, noteText, plainMode);
@@ -253,6 +243,51 @@ function renderSingleTool(root, tool, printMode, plainMode = false) {
   if (printMode) setTimeout(() => window.print(), 400);
 }
 
+/** Category-grouped card sections (an h2 plus a ul.card-grid per category,
+    data order preserved), shared by the full client render above, the
+    public directory (Feature 1, Batch I) and embed mode (Feature 2, Batch
+    I): the grouping and single-card-spans-full-row treatment live in one
+    place rather than three. onToggle/doneIds only matter when showToggle is
+    true; callers that suppress the toggle (public, embed) can omit both. */
+export function buildCardSections(pickedTools, opts = {}) {
+  const { plainMode = false, showToggle = true, doneIds = new Set(), onToggle = null } = opts;
+  const groups = new Map();
+  for (const tool of pickedTools) {
+    if (!groups.has(tool.category)) groups.set(tool.category, []);
+    groups.get(tool.category).push(tool);
+  }
+  let cardIndex = 0;
+  const sections = [];
+  for (const [category, groupTools] of groups) {
+    sections.push(el('h2', { class: 'cli-category' }, categoryIcon(category), category));
+    const items = groupTools.map((tool) => el('li', {}, card(tool, cardIndex++, doneIds, onToggle, { showToggle, plainMode })));
+    if (items.length === 1) items[0].classList.add('card-solo');
+    sections.push(el('ul', { class: 'card-grid' }, items));
+  }
+  return sections;
+}
+
+/** Embed mode (Feature 2, Batch I): bare category headings and cards (or,
+    for a ?tool= permalink, one bare card with no heading, matching
+    renderSingleTool's chrome-free treatment above) and nothing else. No
+    checklist toggle: an embedded snippet has no per-device progress to
+    track. embed.html's thin entry is the only caller. */
+export function renderEmbed(root, tools, selection, singleMode, plainMode = false) {
+  const byId = new Map(tools.map((t) => [t.id, t]));
+  const picked = selection.map((id) => byId.get(id)).filter((t) => t !== undefined);
+
+  if (!picked.length) {
+    root.replaceChildren(el('div', { class: 'app-message' }, 'This link contains no tools.'));
+    return;
+  }
+
+  const sections = singleMode
+    ? [el('ul', { class: 'card-grid' }, el('li', { class: 'card-solo' }, card(picked[0], 0, new Set(), null, { showToggle: false, plainMode })))]
+    : buildCardSections(picked, { plainMode, showToggle: false });
+
+  root.replaceChildren(...sections);
+}
+
 /** rAF count-up on the summary value, triggered once on scroll into view.
     Instant when the reader has asked for reduced motion, since CSS media
     queries don't govern requestAnimationFrame. */
@@ -282,13 +317,15 @@ function countUp(target, endValue, format) {
     sanitised clientName/noteText this module received rather than reading
     location.search again, so the values sent stay identical to whatever is
     already showing on the page. Commas kept readable in the id list, same
-    convention as the curator's own buildUrl. */
+    convention as the curator's own buildUrl. Points at /x (Batch I): the
+    button that generates this link only ever renders for a staff device in
+    the first place, so sending it anywhere else would be pointless. */
 function buildEditUrl(selection, clientName, noteText) {
   const params = new URLSearchParams();
   params.set('edit', selection.join(','));
   if (clientName) params.set('client', clientName);
   if (noteText) params.set('note', noteText);
-  return `${location.origin}${location.pathname}?${params.toString().replace(/%2C/g, ',')}`;
+  return `${location.origin}/x?${params.toString().replace(/%2C/g, ',')}`;
 }
 
 /** Canonical share URL for this exact stack (Batch H, Feature 3: the print
@@ -367,7 +404,9 @@ function formatVerified(dateStr) {
   return parsed.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 }
 
-function card(tool, i, doneIds, onToggle, opts = {}) {
+/** Exported (Batch I) so public.js and embed mode can render the same card
+    markup without duplicating it; both pass showToggle: false. */
+export function card(tool, i, doneIds, onToggle, opts = {}) {
   const { showToggle = true, plainMode = false } = opts;
   const style = `--i: ${Math.min(i, MAX_STAGGER)}`;
   if (tool.archived) return archivedCard(tool, style, plainMode);
@@ -867,7 +906,8 @@ const DEFAULT_ICON = [
   ['circle', { cx: '7.5', cy: '7.5', r: '.5', fill: 'currentColor' }],
 ];
 
-function categoryIcon(category) {
+/** Exported (Batch I) alongside card() for the same reuse reason. */
+export function categoryIcon(category) {
   const shapes = CATEGORY_ICONS[category] ?? DEFAULT_ICON;
   const svg = svgNode('svg', {
     viewBox: '0 0 24 24', width: '18', height: '18', fill: 'none',

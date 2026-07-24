@@ -86,7 +86,11 @@ export function renderCurator(root, allTools, opts = {}) {
     if (plainCheckbox.checked) params.set('plain', '1');
     for (const [key, value] of Object.entries(extra)) params.set(key, value);
     // keep commas readable per PRD section 5 (%2C decodes identically)
-    return `${location.origin}${location.pathname}?${params.toString().replace(/%2C/g, ',')}`;
+    // Root path, never wherever curator itself is currently running (Batch
+    // I: curator can be reached at /x or via ?edit= on any path, but every
+    // link it generates for a client must land on the public root, not the
+    // hidden staff page).
+    return `${location.origin}/?${params.toString().replace(/%2C/g, ',')}`;
   };
 
   const generateBtn = el('button', { class: 'btn btn-primary', type: 'button' }, 'Generate link');

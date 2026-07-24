@@ -7,6 +7,8 @@
  *   #client-root    client mode mount point, [hidden] until routed
  *   #loading        initial loading message, removed once routed
  *   #toast          shared toast element (use showToast(), not direct access)
+ *   #public-root    public mode mount point, [hidden] until routed (Batch I,
+ *                    additive: public.js is the only module that touches it)
  * CSS class names: components in styles.css COMPONENTS block (.btn, .badge,
  * .panel, .favicon, .toast, .input, .select) are shared API. Curator-only
  * classes are prefixed .cur- / table classes; client-only classes .cli- /
@@ -33,6 +35,21 @@
  * default (freestack:v1:plainmode); its absence falls back to that stored
  * default, off unless the reader has toggled it before. readPlainMode() /
  * writePlainMode() here are the only things that touch that storage key.
+ *
+ * PUBLIC/STAFF SPLIT (Batch I, Rocky's 24 Jul decision, revises routing):
+ * the root path is now a public, indexable directory. Curator hides at the
+ * unlisted /x path. Precedence in boot(), highest first: ?t= (client mode,
+ * any path) > ?tool= (single-tool permalink, any path) > pathname is /x or
+ * /x/, OR ?edit= is present on any path (both reach curator mode) > public
+ * directory (js/public.js). Visiting /x also sets the device's staff flag
+ * (freestack:v1:staff = '1'); isStaffDevice() here is the only reader of
+ * that key, consulted by client.js to decide whether "Open in curator"
+ * renders at all, so the /x path itself never has to appear on a client's
+ * device to leak. Curator mode always gets the noindex meta now, regardless
+ * of which of the two paths reached it, since it is the hidden staff page
+ * either way. buildUrl()-style link generators must target the origin root
+ * (never /x), so a curator-generated client link keeps working for a reader
+ * with no staff flag of their own.
  * ==========================================================================
  */
 
@@ -233,9 +250,24 @@ export function writePlainMode(on) {
   try { localStorage.setItem(PLAIN_KEY, on ? '1' : '0'); } catch { /* private mode etc: no-op */ }
 }
 
+/* --- staff device flag (Batch I, public/staff split) -----------------------
+   Set only by visiting /x (see boot() below), never by ?edit= elsewhere: the
+   flag exists purely so client.js can decide whether to show "Open in
+   curator" at all, which is how the /x path stays unadvertised to a client
+   who only ever opens a shared stack link. */
+const STAFF_KEY = 'freestack:v1:staff';
+export function isStaffDevice() {
+  try { return localStorage.getItem(STAFF_KEY) === '1'; } catch { return false; }
+}
+function markStaffDevice() {
+  try { localStorage.setItem(STAFF_KEY, '1'); } catch { /* private mode etc: no-op */ }
+}
+
 /** Parse ?t= into valid, deduplicated tool ids. Invalid entries are skipped
-    silently (PRD section 5). Number.isInteger keeps id 0, do not filter(Boolean). */
-function parseSelection(raw, tools) {
+    silently (PRD section 5). Number.isInteger keeps id 0, do not filter(Boolean).
+    Exported (Batch I) so embed.html's thin entry shares this parsing rather
+    than reimplementing it. */
+export function parseSelection(raw, tools) {
   if (raw == null) return null; // no t param at all → curator mode
   const known = new Set(tools.map((t) => t.id));
   const ids = [];
@@ -256,8 +288,9 @@ function parseSelection(raw, tools) {
     id in through a param this feature promises is single-valued. An absent
     or unknown id resolves to an empty selection, which client.js already
     renders as its standard "no tools" empty state. Number.isInteger plus an
-    explicit Set#has check, never a truthiness test, so id 0 is valid. */
-function parseSingleTool(raw, tools) {
+    explicit Set#has check, never a truthiness test, so id 0 is valid.
+    Exported (Batch I) for the same reason as parseSelection above. */
+export function parseSingleTool(raw, tools) {
   const trimmed = raw.trim();
   const id = Number.parseInt(trimmed, 10);
   const known = new Set(tools.map((t) => t.id));
@@ -265,8 +298,11 @@ function parseSingleTool(raw, tools) {
 }
 
 // JS-added noindex only, per item 2: Google honours it, and a static tag in
-// the shared <head> would deindex curator mode too. Shared by both client
-// routes below (the normal ?t= share link and the ?tool= permalink).
+// the shared <head> would deindex the public directory too. Shared by the
+// two client routes (the normal ?t= share link and the ?tool= permalink)
+// and, since Batch I, by curator mode as well: curator is the hidden staff
+// page now, reachable either at /x or via ?edit= elsewhere, and both paths
+// get noindex regardless of which one was used.
 function injectNoindex() {
   const robots = document.createElement('meta');
   robots.name = 'robots';
@@ -330,18 +366,42 @@ async function boot() {
     return;
   }
 
-  // ?edit= reopens a previously generated stack in the curator instead of
-  // client mode (Feature 2): parsed exactly like ?t=, id 0 safe. No noindex
-  // here, curator mode is not a client deliverable.
-  const editSelection = parseSelection(params.get('edit'), tools);
-  const { renderCurator } = await import('./curator.js');
-  const root = document.getElementById('curator-root');
+  // Curator mode (Batch I): reached at the hidden /x path, or via ?edit= on
+  // any other path (Feature 2's original mechanism, kept so old edit links
+  // still work). /x also marks this device as staff, the only thing that
+  // makes client.js's "Open in curator" button ever appear. Neither route
+  // merges with the other: editSelection parses exactly like ?t=, id 0 safe,
+  // and is simply absent (null) when /x was visited with no ?edit= of its
+  // own, in which case the curator's normal core-selection default applies.
+  const editParam = params.get('edit');
+  const path = location.pathname;
+  const isStaffPath = path === '/x' || path === '/x/';
+  if (isStaffPath || editParam !== null) {
+    if (isStaffPath) markStaffDevice();
+    injectNoindex();
+    const editSelection = parseSelection(editParam, tools);
+    const { renderCurator } = await import('./curator.js');
+    const root = document.getElementById('curator-root');
+    root.hidden = false;
+    renderCurator(root, tools, {
+      initialSelection: editSelection,
+      initialName: sanitizeParam(params.get('client')),
+      initialNote: sanitizeParam(params.get('note'), 280),
+    });
+    return;
+  }
+
+  // Otherwise: the public directory (Feature 1, Batch I). Indexable, so no
+  // noindex call here, unlike every other branch above.
+  const { renderPublic } = await import('./public.js');
+  const root = document.getElementById('public-root');
   root.hidden = false;
-  renderCurator(root, tools, {
-    initialSelection: editSelection,
-    initialName: sanitizeParam(params.get('client')),
-    initialNote: sanitizeParam(params.get('note'), 280),
-  });
+  renderPublic(root, tools);
 }
 
-boot();
+// Guarded, not unconditional: embed.html (Batch I) imports this module for
+// its exported helpers (el, parseSelection, parseSingleTool) without using
+// its DOM shell, and ES module top-level code runs on import regardless of
+// what is actually used. Without this guard, that import would crash on
+// #loading, which only index.html's page has.
+if (document.getElementById('loading')) boot();
