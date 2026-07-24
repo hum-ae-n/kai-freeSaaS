@@ -50,6 +50,7 @@ function* strings(tool) {
   for (const n of tool.notes ?? []) yield ['notes', n];
   if (tool.byo !== undefined) yield ['byo', tool.byo];
   if (tool.free_limit !== undefined) yield ['free_limit', tool.free_limit];
+  if (tool.plain !== undefined) yield ['plain', tool.plain];
 }
 
 const isLive = (u) => typeof u === 'string' && /^https?:\/\/.+/.test(u.trim());
@@ -131,6 +132,10 @@ for (const [index, tool] of tools.entries()) {
 
   if (tool.byo !== undefined && (typeof tool.byo !== 'string' || !tool.byo.trim())) {
     err(id, 'byo-type', 'optional "byo" must be a non-empty string');
+  }
+
+  if (tool.plain !== undefined && (typeof tool.plain !== 'string' || !tool.plain.trim())) {
+    err(id, 'plain-type', 'optional "plain" must be a non-empty string');
   }
 
   // Pricing trio (PRD section 4): each optional, validated when present.

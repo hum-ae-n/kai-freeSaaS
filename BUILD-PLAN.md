@@ -214,6 +214,30 @@ Flagged for the Phase 1.5 value review: 27 Looker Studio possibly undervalued, 4
 
 ---
 
+## Phase 10: Programme, engine, plain English `[~]`
+
+Rocky's 24 Jul direction: all eight level-up ideas approved, plus Plain English mode ("easier for Ralph Wiggum") and surfacing pricing/BYO in the curator, which are client-mode-only today. Wave structure below respects file ownership; verifier per wave; PR preview then Rocky merges.
+
+Wave 1:
+- [~] 10.1 Schema: optional `plain` field, a one-line plainest-words description per tool (PRD section 4, validator, house-style sweep)
+- [~] 10.2 Data: steward writes `plain` for all active tools, same honesty bar, 12 words or fewer where possible
+- [~] 10.3 Curator surfacing: pricing pill and a BYO marker visible in the table (value cell subline, mobile More details gain Free tier and Build your own)
+- [~] 10.4 Edit an existing stack: "Open in curator" from client mode via ?edit= param, preselects and prefills name and note
+- [~] 10.5 Single-tool permalink: ?tool=ID renders one card with minimal chrome
+
+Wave 2:
+- [ ] 10.6 Plain English mode: client toggle plus ?plain=1, swaps descriptions to `plain`, relabels sections in plain words, cost section reframed "How free can turn into paying" with a one-sentence takeaway
+- [ ] 10.7 Progress share-back: "Share progress with Kaipability" mailto carrying the set-up ticks
+- [ ] 10.8 QR bridge: self-generated QR (no third party) on the printed page linking to the live stack
+
+Wave 3:
+- [ ] 10.9 Link-rot Routine: weekly scheduled sweep of all URLs and pricing claims, opens a PR with fixes
+- [ ] 10.10 Recently-updated strip from tools.json git history (removals shown, per the trust research)
+- [ ] 10.11 Embed mode via a dedicated /embed path with a scoped frame-ancestors exception for kaipability.com
+- [ ] 10.12 Content pass, verifier sweep, screenshots, PR
+
+---
+
 ## Open spec questions
 
 Raised by the PRD review and not yet resolved. Each needs an answer before the phase that depends on it closes.
