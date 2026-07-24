@@ -9,7 +9,12 @@ import { el, favicon, extLink, getDomain, money, shareUrl, themeToggleButton } f
 const MAX_STAGGER = 8; // entrance stagger caps at 8 cards, per item 6a
 const PROGRESS_PREFIX = 'freestack:v1:progress:';
 
-export function renderClient(root, tools, selection, clientName, noteText, printMode = false) {
+/** singleMode (Feature 3): a ?tool= permalink. Selection is at most one id
+    by construction (data-loader's parseSingleTool), and renders through the
+    same "no tools" empty state below when that id was absent or invalid, so
+    an unrecognised id degrades exactly like an empty ?t= link rather than
+    a bespoke error page. */
+export function renderClient(root, tools, selection, clientName, noteText, printMode = false, singleMode = false) {
   const byId = new Map(tools.map((t) => [t.id, t]));
   const picked = selection.map((id) => byId.get(id)).filter((t) => t !== undefined);
 
@@ -21,6 +26,11 @@ export function renderClient(root, tools, selection, clientName, noteText, print
         '.',
       ),
     );
+    return;
+  }
+
+  if (singleMode) {
+    renderSingleTool(root, picked[0], printMode);
     return;
   }
 
@@ -62,7 +72,15 @@ export function renderClient(root, tools, selection, clientName, noteText, print
   const printBtn = el('button', { class: 'btn btn-secondary btn-lg', type: 'button' }, 'Print or save as PDF');
   printBtn.addEventListener('click', () => window.print());
 
-  const toolbar = el('div', { class: 'cli-toolbar no-print' }, shareBtn, printBtn, themeToggleButton('btn-ghost btn-lg'));
+  // Open in curator (Feature 2): reopens this exact stack, pre-ticked, so a
+  // consultant can adjust and re-share rather than rebuilding it by hand.
+  // Only the params that actually exist are added, values already sanitised
+  // by data-loader before reaching this function.
+  const editBtn = el('a', {
+    class: 'btn btn-ghost btn-lg no-print', href: buildEditUrl(selection, clientName, noteText),
+  }, 'Open in curator');
+
+  const toolbar = el('div', { class: 'cli-toolbar no-print' }, shareBtn, printBtn, editBtn, themeToggleButton('btn-ghost btn-lg'));
 
   /* --- summary ----------------------------------------------------------- */
   const valueFigure = el('span', { class: 'num' }, money(0));
@@ -137,6 +155,47 @@ export function renderClient(root, tools, selection, clientName, noteText, print
   if (printMode) setTimeout(() => window.print(), 400);
 }
 
+/** Minimal chrome for a single-tool permalink (Feature 3): logo, tool name
+    as the heading, the standard full-width card, the standard footer.
+    Deliberately no summary bar, no prepared-for/date/context, no cost
+    section and no checklist toggle: there is nothing to track for a single
+    reference link, and client/note are never shown here even if present on
+    the URL, since the caller already omits them from this call. Print and
+    share stay available, and the caller has already injected noindex, same
+    as any other client-mode view. */
+function renderSingleTool(root, tool, printMode) {
+  const header = el('header', { class: 'panel cli-header cli-header-single' },
+    el('img', { class: 'logo', src: 'design-system/assets/kaipability-logo-lockup.png', alt: 'Kaipability' }),
+    el('h1', {}, tool.name),
+  );
+
+  const shareBtn = el('button', { class: 'btn btn-ghost btn-lg', type: 'button' }, 'Share this page');
+  shareBtn.addEventListener('click', () => shareUrl(location.href, `${tool.name}, a free tool from Kaipability`));
+  const printBtn = el('button', { class: 'btn btn-secondary btn-lg', type: 'button' }, 'Print or save as PDF');
+  printBtn.addEventListener('click', () => window.print());
+  const toolbar = el('div', { class: 'cli-toolbar no-print' }, shareBtn, printBtn, themeToggleButton('btn-ghost btn-lg'));
+
+  // No progress to persist for a permalink (no adoption checklist), so the
+  // card is built with an empty doneIds set and its toggle suppressed
+  // entirely rather than wired to a no-op handler.
+  const cardEl = card(tool, 0, new Set(), null, { showToggle: false });
+  const list = el('ul', { class: 'card-grid' }, el('li', { class: 'card-solo' }, cardEl));
+
+  const footer = el('footer', { class: 'cli-footer' },
+    el('img', { class: 'logo', src: 'design-system/assets/kaipability-logo-lockup.png', alt: '' }),
+    el('span', {},
+      'Curated by ',
+      el('a', { href: 'https://kaipability.com', target: '_blank', rel: 'noopener noreferrer' }, 'Kaipability Ltd'),
+      '. No affiliate links, no sponsored placements.',
+    ),
+  );
+
+  root.replaceChildren(header, toolbar, list, footer);
+  document.title = `${tool.name} · Free Stack`;
+
+  if (printMode) setTimeout(() => window.print(), 400);
+}
+
 /** rAF count-up on the summary value, triggered once on scroll into view.
     Instant when the reader has asked for reduced motion, since CSS media
     queries don't govern requestAnimationFrame. */
@@ -162,6 +221,19 @@ function countUp(target, endValue, format) {
   observer.observe(target);
 }
 
+/** Builds the "Open in curator" URL (Feature 2). Reuses the already
+    sanitised clientName/noteText this module received rather than reading
+    location.search again, so the values sent stay identical to whatever is
+    already showing on the page. Commas kept readable in the id list, same
+    convention as the curator's own buildUrl. */
+function buildEditUrl(selection, clientName, noteText) {
+  const params = new URLSearchParams();
+  params.set('edit', selection.join(','));
+  if (clientName) params.set('client', clientName);
+  if (noteText) params.set('note', noteText);
+  return `${location.origin}${location.pathname}?${params.toString().replace(/%2C/g, ',')}`;
+}
+
 function formatVerified(dateStr) {
   if (!dateStr) return null;
   const parsed = new Date(`${dateStr}T00:00:00`);
@@ -169,16 +241,17 @@ function formatVerified(dateStr) {
   return parsed.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 }
 
-function card(tool, i, doneIds, onToggle) {
+function card(tool, i, doneIds, onToggle, opts = {}) {
+  const { showToggle = true } = opts;
   const style = `--i: ${Math.min(i, MAX_STAGGER)}`;
   if (tool.archived) return archivedCard(tool, style);
 
   const verified = formatVerified(tool.last_verified);
   const done = doneIds.has(tool.id);
 
-  const toggleBtn = el('button', {
+  const toggleBtn = showToggle ? el('button', {
     class: 'card-toggle no-print', type: 'button', 'aria-pressed': String(done),
-  }, done ? '✓ Set up' : 'Mark as set up');
+  }, done ? '✓ Set up' : 'Mark as set up') : null;
 
   const article = el('article', { class: `panel tool-card${done ? ' is-done' : ''}`, style },
     el('div', { class: 'card-top' },
@@ -227,7 +300,7 @@ function card(tool, i, doneIds, onToggle) {
     toggleBtn,
   );
 
-  toggleBtn.addEventListener('click', () => onToggle(tool, article, toggleBtn));
+  if (showToggle) toggleBtn.addEventListener('click', () => onToggle(tool, article, toggleBtn));
 
   return article;
 }

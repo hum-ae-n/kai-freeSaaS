@@ -20,6 +20,13 @@
  * in index.html's <head> sets it before first paint; themeToggleButton()
  * here is the only thing that ever changes it afterwards. Both modes call
  * themeToggleButton() rather than building their own switch.
+ *
+ * URL PARAMS (Batch G, additive): ?t= (curator's normal share link) always
+ * wins if present; ?tool=<id> is a single-tool permalink, client mode with
+ * no client/note even if those params are also on the URL; ?edit=<ids>
+ * reopens curator mode with that selection pre-ticked (client/note prefill
+ * the link generator fields) instead of the core defaults, only consulted
+ * when neither ?t= nor ?tool= is present. See boot() below.
  * ==========================================================================
  */
 
@@ -224,6 +231,30 @@ function parseSelection(raw, tools) {
   return ids; // possibly empty → client mode renders an explicit empty state
 }
 
+/** Parse ?tool= into a single valid id, at most one entry (Feature 3: single
+    tool permalink). Only a bare integer string counts, not a comma list or
+    anything with trailing junk, so "44,2" or "44abc" cannot smuggle a second
+    id in through a param this feature promises is single-valued. An absent
+    or unknown id resolves to an empty selection, which client.js already
+    renders as its standard "no tools" empty state. Number.isInteger plus an
+    explicit Set#has check, never a truthiness test, so id 0 is valid. */
+function parseSingleTool(raw, tools) {
+  const trimmed = raw.trim();
+  const id = Number.parseInt(trimmed, 10);
+  const known = new Set(tools.map((t) => t.id));
+  return Number.isInteger(id) && String(id) === trimmed && known.has(id) ? [id] : [];
+}
+
+// JS-added noindex only, per item 2: Google honours it, and a static tag in
+// the shared <head> would deindex curator mode too. Shared by both client
+// routes below (the normal ?t= share link and the ?tool= permalink).
+function injectNoindex() {
+  const robots = document.createElement('meta');
+  robots.name = 'robots';
+  robots.content = 'noindex';
+  document.head.appendChild(robots);
+}
+
 async function boot() {
   const loading = document.getElementById('loading');
   let tools;
@@ -242,30 +273,49 @@ async function boot() {
   const selection = parseSelection(params.get('t'), tools);
   loading.remove();
 
-  if (selection === null) {
-    const { renderCurator } = await import('./curator.js');
-    const root = document.getElementById('curator-root');
-    root.hidden = false;
-    renderCurator(root, tools);
-  } else {
-    // JS-added noindex only, per item 2: Google honours it, and a static tag
-    // in the shared <head> would deindex curator mode too.
-    const robots = document.createElement('meta');
-    robots.name = 'robots';
-    robots.content = 'noindex';
-    document.head.appendChild(robots);
+  // ?print=1 is added only by the curator's "Save as PDF" export button
+  // (Batch E), never by Generate link / Share / Copy. A plain '1' check,
+  // not a truthiness check on the param itself, since a present-but-empty
+  // ?print= should not trigger a browser print dialogue unasked.
+  const printMode = params.get('print') === '1';
 
-    // ?print=1 is added only by the curator's "Save as PDF" export button
-    // (Batch E), never by Generate link / Share / Copy. A plain '1' check,
-    // not a truthiness check on the param itself, since a present-but-empty
-    // ?print= should not trigger a browser print dialogue unasked.
-    const printMode = params.get('print') === '1';
-
+  // ?t= always wins when present, per Feature 3's stated precedence: ?tool=
+  // is ignored outright rather than merged with it.
+  if (selection !== null) {
+    injectNoindex();
     const { renderClient } = await import('./client.js');
     const root = document.getElementById('client-root');
     root.hidden = false;
     renderClient(root, tools, selection, sanitizeParam(params.get('client')), sanitizeParam(params.get('note'), 280), printMode);
+    return;
   }
+
+  const toolParam = params.get('tool');
+  if (toolParam !== null) {
+    injectNoindex();
+    const singleSelection = parseSingleTool(toolParam, tools);
+    const { renderClient } = await import('./client.js');
+    const root = document.getElementById('client-root');
+    root.hidden = false;
+    // client/note are ignored on a permalink (Feature 3): it did not come
+    // from a curator-prepared stack, so there is no name or note to show,
+    // even if those params happen to be present alongside ?tool=.
+    renderClient(root, tools, singleSelection, '', '', printMode, true);
+    return;
+  }
+
+  // ?edit= reopens a previously generated stack in the curator instead of
+  // client mode (Feature 2): parsed exactly like ?t=, id 0 safe. No noindex
+  // here, curator mode is not a client deliverable.
+  const editSelection = parseSelection(params.get('edit'), tools);
+  const { renderCurator } = await import('./curator.js');
+  const root = document.getElementById('curator-root');
+  root.hidden = false;
+  renderCurator(root, tools, {
+    initialSelection: editSelection,
+    initialName: sanitizeParam(params.get('client')),
+    initialNote: sanitizeParam(params.get('note'), 280),
+  });
 }
 
 boot();

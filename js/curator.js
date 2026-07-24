@@ -6,12 +6,22 @@ import { el, favicon, extLink, money, showToast, shareUrl, themeToggleButton } f
 
 const TYPE_LABEL = { core: 'CORE', noncore: 'NON-CORE', m365: 'M365', sector: 'SECTOR' };
 
-export function renderCurator(root, allTools) {
+/** opts.initialSelection: id array from ?edit= (Feature 2), or null when
+    absent, in which case the core defaults apply as before. Ids outside the
+    active catalogue (an archived tool, or a stale/garbled param) are
+    dropped the same way the table itself would: Set#has, never a
+    truthiness test, so id 0 survives. opts.initialName/initialNote prefill
+    the link generator fields, already sanitised by the caller. */
+export function renderCurator(root, allTools, opts = {}) {
+  const { initialSelection = null, initialName = '', initialNote = '' } = opts;
   // Archived tools are retired: hidden from the table, counts and select-all
   // actions, but never deleted from data/tools.json (§4 ID permanence). An
   // old client link to one still resolves via client.js, just not from here.
   const tools = allTools.filter((t) => !t.archived);
-  const selected = new Set(tools.filter((t) => t.type === 'core').map((t) => t.id));
+  const activeIds = new Set(tools.map((t) => t.id));
+  const selected = initialSelection !== null
+    ? new Set(initialSelection.filter((id) => activeIds.has(id)))
+    : new Set(tools.filter((t) => t.type === 'core').map((t) => t.id));
   const filters = { type: 'all', category: 'all', search: '' };
   const categories = [...new Set(tools.map((t) => t.category))].sort();
 
@@ -46,11 +56,13 @@ export function renderCurator(root, allTools) {
     placeholder: 'Client or recipient name (optional)',
     'aria-label': 'Client or recipient name',
   });
+  nameInput.value = initialName;
   const noteInput = el('input', {
     class: 'input', type: 'text', id: 'client-note', maxlength: '280',
     placeholder: 'Personal note (optional)',
     'aria-label': 'Personal note',
   });
+  noteInput.value = initialNote;
   const resultBox = el('div', { class: 'linkgen-result', hidden: true });
 
   // extra is only ever populated by the "Save as PDF" export button (Batch
