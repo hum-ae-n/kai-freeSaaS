@@ -84,7 +84,7 @@ function chooseVersion(byteLength) {
   for (let version = 1; version <= 10; version++) {
     for (const level of ['M', 'L']) {
       const ecInfo = EC_TABLE[level][version];
-      const totalDataCodewords = ecInfo.g1 * ecInfo.g1d + (ecInfo.g2 || 0) * ecInfo.g2d;
+      const totalDataCodewords = ecInfo.g1 * ecInfo.g1d + (ecInfo.g2 || 0) * (ecInfo.g2d || 0);
       const headerBits = 4 + (version <= 9 ? 8 : 16);
       if (headerBits + byteLength * 8 <= totalDataCodewords * 8) {
         return { version, level, ecInfo, totalDataCodewords };
@@ -312,8 +312,4 @@ export function qrSvg(text, { size = 120, quietZone = 4, className = '' } = {}) 
 // Internals exposed only for the scratch verification harness (never
 // imported by app code): lets the Reed-Solomon step be checked in Node,
 // with no DOM, independently of the SVG-building path above.
-export const __internals = {
-  gfMultiply, rsDivisor, rsRemainder, chooseVersion, buildBitStream, buildCodewords,
-  placeFinder, placeTiming, placeAlignment, alignmentCenters, reserveFormatAndDark,
-  writeFormatInfo, writeVersionInfo, placeData, bchEncode,
-};
+export const __internals = { gfMultiply, chooseVersion, buildBitStream, buildCodewords, bchEncode };

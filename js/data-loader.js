@@ -27,6 +27,12 @@
  * reopens curator mode with that selection pre-ticked (client/note prefill
  * the link generator fields) instead of the core defaults, only consulted
  * when neither ?t= nor ?tool= is present. See boot() below.
+ *
+ * PLAIN ENGLISH MODE (Batch H, additive): ?plain=1 forces client mode's
+ * Plain English presentation on for this load and seeds the stored device
+ * default (freestack:v1:plainmode); its absence falls back to that stored
+ * default, off unless the reader has toggled it before. readPlainMode() /
+ * writePlainMode() here are the only things that touch that storage key.
  * ==========================================================================
  */
 
@@ -214,6 +220,19 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (event) =>
   for (const listener of themeToggleListeners) listener();
 });
 
+/* --- Plain English mode (Batch H, Feature 1) -------------------------------
+   Read here (device-wide default) and in boot() below (?plain=1 seeds it
+   for this load, per the DOM CONTRACT note above). client.js owns the
+   toggle button and the re-render it triggers; both read/write through
+   these two functions so the stored value has one shape everywhere. */
+const PLAIN_KEY = 'freestack:v1:plainmode';
+export function readPlainMode() {
+  try { return localStorage.getItem(PLAIN_KEY) === '1'; } catch { return false; }
+}
+export function writePlainMode(on) {
+  try { localStorage.setItem(PLAIN_KEY, on ? '1' : '0'); } catch { /* private mode etc: no-op */ }
+}
+
 /** Parse ?t= into valid, deduplicated tool ids. Invalid entries are skipped
     silently (PRD section 5). Number.isInteger keeps id 0, do not filter(Boolean). */
 function parseSelection(raw, tools) {
@@ -279,6 +298,13 @@ async function boot() {
   // ?print= should not trigger a browser print dialogue unasked.
   const printMode = params.get('print') === '1';
 
+  // ?plain=1 forces Plain English mode on for this load and seeds the
+  // stored device default, per the PLAIN ENGLISH MODE note above. Its
+  // absence falls back to whatever the reader last chose on this device.
+  const plainParam = params.get('plain') === '1';
+  if (plainParam) writePlainMode(true);
+  const plainMode = plainParam || readPlainMode();
+
   // ?t= always wins when present, per Feature 3's stated precedence: ?tool=
   // is ignored outright rather than merged with it.
   if (selection !== null) {
@@ -286,7 +312,7 @@ async function boot() {
     const { renderClient } = await import('./client.js');
     const root = document.getElementById('client-root');
     root.hidden = false;
-    renderClient(root, tools, selection, sanitizeParam(params.get('client')), sanitizeParam(params.get('note'), 280), printMode);
+    renderClient(root, tools, selection, sanitizeParam(params.get('client')), sanitizeParam(params.get('note'), 280), printMode, false, plainMode);
     return;
   }
 
@@ -300,7 +326,7 @@ async function boot() {
     // client/note are ignored on a permalink (Feature 3): it did not come
     // from a curator-prepared stack, so there is no name or note to show,
     // even if those params happen to be present alongside ?tool=.
-    renderClient(root, tools, singleSelection, '', '', printMode, true);
+    renderClient(root, tools, singleSelection, '', '', printMode, true, plainMode);
     return;
   }
 
