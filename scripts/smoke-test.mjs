@@ -195,6 +195,31 @@ check('client: byo block renders once for the tool that has it', byoBlocks === 1
 const byoOnBitwarden = await page.locator('.tool-card', { hasText: 'Bitwarden' }).locator('.card-byo').count();
 check('client: no byo container on tools without byo', byoOnBitwarden === 0);
 
+/* --- batch G surface: curator surfacing, edit flow, permalink -------------- */
+const paidTool = active.find((t) => Number.isInteger(t.paid_from) && t.paid_from > 0);
+const freeForeverTool = active.find((t) => t.paid_from === 0);
+const byoCount = active.filter((t) => t.byo).length;
+await page.goto(`${base}/`);
+await page.waitForSelector('.tools-table');
+check('curator: paid-from sublines render from data',
+  await page.locator('.cell-value-sub', { hasText: `from £${paidTool.paid_from}/mo` }).count() >= 1
+  && (freeForeverTool ? await page.locator('.cell-value-sub', { hasText: 'free forever' }).count() >= 1 : true));
+check('curator: BYO chips match byo tool count', await page.locator('.byo-chip').count() === byoCount, `chips=${await page.locator('.byo-chip').count()} expected=${byoCount}`);
+
+await page.goto(`${base}/?edit=0,2&client=Acme&note=hello`);
+await page.waitForSelector('.tools-table');
+check('curator: edit param pre-ticks and prefills',
+  await page.locator('tbody input[type=checkbox]:checked').count() === 2
+  && await page.inputValue('#client-name') === 'Acme'
+  && await page.inputValue('#client-note') === 'hello');
+
+await page.goto(`${base}/?tool=0`);
+await page.waitForSelector('.tool-card');
+check('client: single-tool permalink renders one card, no summary, id 0 safe',
+  await page.locator('.tool-card').count() === 1
+  && await page.locator('.cli-summary').count() === 0
+  && await page.locator('.card-toggle').count() === 0);
+
 /* --- dark mode and exports (batch E surface) ------------------------------- */
 await page.goto(`${base}/`);
 await page.waitForSelector('.tools-table');
