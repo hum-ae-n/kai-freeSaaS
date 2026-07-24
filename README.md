@@ -6,10 +6,11 @@ Live at [kai-freestack.netlify.app](https://kai-freestack.netlify.app). Every pu
 
 A curated directory of free and freemium software for small business, by [Kaipability Ltd](https://kaipability.com). No affiliate links, no sponsored placements, no vendor bias. Every tool ships with alternatives and training resources.
 
-One page, two modes:
+One page, three surfaces:
 
-- **Curator mode** (`/`): the full directory. Filter, search, tick the tools relevant to a client, jump in with a "Start here" need chip or a persona starter pack, then generate a shareable link or export the selection directly.
-- **Client mode** (`/?t=0,2,5&client=Acme+Ltd`): a clean, branded, read-only page showing only the selected tools. Cards show what the free tier covers and what it costs to outgrow it. The client can print it, save it as a PDF, share it, and tick off each tool as they set it up.
+- **Public directory** (`/`): the open, indexable catalogue of every active tool. Anyone can browse or search it, and it is safe to link from anywhere, including kaipability.com. There is no admin interface here, just the tools, a "recently updated" strip, and one call to action to talk to Kaipability.
+- **Staff curator** (`/x`): the working cockpit, hidden from search engines and not linked from anywhere public. Filter, search, tick the tools relevant to a client, jump in with a "Start here" need chip or a persona starter pack, then generate a shareable client link or export the selection directly. Visiting `/x` once marks that device as staff, which is what makes "Open in curator" appear on client pages later (see "URL schema" below).
+- **Client mode** (`/?t=0,2,5&client=Acme+Ltd`): a clean, branded, read-only page showing only the selected tools. Cards show what the free tier covers and what it costs to outgrow it. The client can print it, save it as a PDF, share it, and tick off each tool as they set it up. Client links always point at the root path, `/`, never at `/x`, so a link a client already has keeps working exactly as before.
 
 Vanilla HTML/CSS/JS. No build step, no npm, no framework. Spec lives in [PRD.md](PRD.md), visual language in [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md).
 
@@ -28,15 +29,24 @@ Then open `http://localhost:8080/`.
 
 ## URL schema
 
+Two paths matter, on top of the query parameters below:
+
+- `/` with no `t` and no `tool` is the **public directory**, open to anyone and safe to index.
+- `/x` is the **staff curator**. It is deliberately not linked from the public page, not listed in any sitemap and left out of `robots.txt` on purpose (a disallow line would advertise the very path it is meant to hide). Visiting it marks the current device as staff.
+
 | Param | Effect |
 |-------|--------|
-| _none_ | Curator mode |
-| `t` | Comma-separated tool ids. Presence switches to client mode. Unknown/malformed ids are skipped; zero valid ids renders an explicit empty state. |
+| _none_, on `/` | Public directory |
+| _none_, on `/x` | Staff curator, and marks this device as staff |
+| `t` | Comma-separated tool ids. Presence switches to client mode, on any path. Unknown/malformed ids are skipped; zero valid ids renders an explicit empty state. |
+| `tool` | A single tool id (e.g. `?tool=12`). Renders one card only, with minimal chrome, as a quick answer link for one tool rather than a whole stack. Takes effect on any path, but is ignored if `t` is also present. |
+| `edit` | Comma-separated tool ids that reopen the staff curator pre-ticked with that selection, `client` and `note` prefilled from the same request. This is what the client page's "Open in curator" button links to; it only ever appears on a device that has previously visited `/x`, so a client never sees a way back into the staff interface. |
+| `plain` | Set to `1`, forces Plain English mode on for client mode: descriptions swap to the short, jargon-free `plain` field and section labels are reworded. The curator's link generator has a "Plain English version" tickbox that adds this for you. Also remembered per device, so a reader who has toggled it once keeps that preference on the next link they open even without the param. |
 | `client` | Optional URL-encoded recipient name shown in the client header (always rendered as text, never HTML). Capped at 80 characters; anything longer is trimmed, and a whitespace-only value is treated as absent. |
 | `note` | Optional URL-encoded personal message shown under the client header, for a short line from the consultant to the client (also plain text, never HTML). Capped at 280 characters; longer input is trimmed, and whitespace-only is treated as absent. Set it from the "Personal note" field next to the link generator. |
 | `print` | Internal, not something to type by hand. Set to `1`, it triggers the print dialogue once the page has settled. It only ever appears because the curator's "Save as PDF" export button added it; the ordinary link generator, "Preview client view", "Share" and "Copy" never include it, so a client's saved or shared link never opens with an unexpected print prompt. |
 
-The link generator builds `t`, `client` and `note` for you, so most people never type this table by hand. It's here for anyone editing a link manually.
+The link generator builds `t`, `client`, `note` and, if ticked, `plain` for you, so most people never type this table by hand. It's here for anyone editing a link manually. Whatever the query string says, links the curator generates always point at the root path, `/`, never at `/x`, so a stack shared with a client works for them with no staff flag of their own.
 
 ## Adding or editing a tool
 
@@ -46,8 +56,9 @@ The link generator builds `t`, `client` and `note` for you, so most people never
    - Every `urls[]` entry needs a bare `domain` (drives favicons).
    - Categories: use one of the existing categories (listed in PRD §4, tallied in §15) unless you're deliberately adding one, such as the Developer & Web category added in Phase 8. Grants & Business Support now holds only archived entries and no longer appears in either mode, so don't add live tools to it.
    - The pricing trio, all optional but expected on any tool you can find real pricing for: `free_limit` is a plain-English line on what the free tier actually includes and where it stops ("Free for 1 user and 3 social channels", "Free forever, no paid tier"); `paid_from` is the cheapest paid plan a growing business would realistically hit, in GBP per month (use `0` only if there is genuinely nothing to outgrow, and divide an annual-only price by 12); `scales_with` says what drives the cost up, one of `users` (per seat), `usage` (volume, storage, sends), `features` (capability gates) or `none` (the free tier is the whole product). These feed the client-mode pricing pill and the "How costs could grow" chart, so get them right rather than leaving them out: a chart that quietly omits a tool because nobody researched its pricing is more honest than a guessed figure, but a guessed figure is worse than either.
-   - House style: no em dashes; honest `value` figures (PRD §10). The pricing trio carries the same honesty bar: `free_limit` and `paid_from` should survive the same sceptical reader the `value` figure has to survive, not read like a marketing page.
-2. **Editing an existing tool:** name, description, category, `value`, `free_limit`, `paid_from`, `scales_with`, `byo`, `urls`, `alternatives`, `training` and `notes` are all safe to change. `byo` is an optional sentence or two on building a lightweight replacement yourself; only add it where a competent generalist could genuinely build and maintain the result, never on security, e-signing, accounting or deliverability tools (PRD §4). `id` is never safe to change: every client link is just a list of ids, so changing one silently swaps in a different tool on a page someone already has open or saved.
+   - `plain` is optional: one short sentence, ideally 12 words or fewer, in the plainest words possible with no product jargon ("Make posters and social posts that look professional"). Client mode's Plain English toggle (and `?plain=1`) shows this instead of `description`. Same honesty bar as everything else; where it's missing, Plain English mode just falls back to the normal description.
+   - House style: no em dashes; honest `value` figures (PRD §10). The pricing trio and `plain` carry the same honesty bar: they should survive the same sceptical reader the `value` figure has to survive, not read like a marketing page.
+2. **Editing an existing tool:** name, description, `plain`, category, `value`, `free_limit`, `paid_from`, `scales_with`, `byo`, `urls`, `alternatives`, `training` and `notes` are all safe to change. `byo` is an optional sentence or two on building a lightweight replacement yourself; only add it where a competent generalist could genuinely build and maintain the result, never on security, e-signing, accounting or deliverability tools (PRD §4). `id` is never safe to change: every client link is just a list of ids, so changing one silently swaps in a different tool on a page someone already has open or saved.
 3. **Retiring a tool:** if it shuts down, stops being free or you no longer want to recommend it, do not delete the entry. Set `"archived": true` instead and leave everything else in place. Old client links that included it keep resolving, now showing a plain "no longer recommended" card that points at its alternatives instead of a value claim. Archived tools drop out of curator mode and off any new link, but the record stays so nothing goes silently missing from a deliverable someone already has.
 4. **`last_verified`:** an optional `YYYY-MM-DD` date. Update it whenever you re-check a tool's links and confirm it is still free. It has no effect on validation; it is just an honesty marker, and client mode shows it as a "Verified [month, year]" line on the card.
 5. Run the gate:
@@ -96,7 +107,7 @@ This is a steer for a conversation with the client, not a quote. Treat any figur
 
 ## Mobile curator
 
-Below 768px, the curator table stops trying to be a table. Each row becomes a stacked, type-tinted card with the checkbox, name, category and type badge always visible, and a "More" disclosure that expands to the description, alternatives, training and "include when" guidance, the same data the desktop columns show, just collapsed by default so a phone screen isn't three thousand pixels of scrolling. Touch targets are 44px. Nothing above 768px changes.
+Below 768px, the curator table stops trying to be a table. Each row becomes a stacked, type-tinted card with the checkbox, name, category and type badge always visible, and a "More" disclosure that expands to the description, alternatives, training, free tier line, build-your-own note (where the tool has one) and "include when" guidance, the same data the desktop columns show, just collapsed by default so a phone screen isn't three thousand pixels of scrolling. Touch targets are 44px. Nothing above 768px changes.
 
 ## Dark mode
 
@@ -110,18 +121,20 @@ A toggle (sun/moon icon, top right of both modes) switches between the light "cr
 
 Alongside the link generator, four buttons act on the current selection (the ticked tools, plus whatever client name and note are filled in), each disabled until at least one tool is selected:
 
-- **Download CSV:** an Excel-friendly spreadsheet of the selection (name, category, type, description, value, the pricing trio, URLs, alternatives, training), one row per tool plus a header row.
+- **Download CSV:** an Excel-friendly spreadsheet of the selection (name, category, type, description, value, the pricing trio, the build-your-own note where the tool has one, URLs, alternatives, training), one row per tool plus a header row.
 - **Download HTML:** a single, self-contained HTML file with the styling inlined, no external requests of any kind, not even for favicons or fonts. It opens and reads correctly with no internet connection at all, which the ordinary shareable link (which fetches `tools.json` and favicon images) does not.
 - **Save as PDF:** opens the ordinary client view in a new tab with `?print=1` added, which triggers the browser's print dialogue automatically once the page has settled (see the URL schema table above). Same client view either way; this button just saves the reader a manual click on "Print or save as PDF".
 - **Email this stack:** opens a prefilled draft in the reader's own mail app (a `mailto:` link) addressed to nobody in particular, with the shareable link and a short tool list already in the body. Nothing is sent by the site itself: it hands off to whatever mail client is already configured on that machine, and the consultant still chooses the recipient and hits send.
 
 ## Print, share and the adoption checklist
 
-Client mode carries three small conveniences aimed at the person receiving the page, not the consultant:
+Client mode carries several small conveniences aimed at the person receiving the page, not the consultant:
 
-- **Print or save as PDF:** a button that triggers the browser's normal print dialog, with a print stylesheet that lays the page out cleanly on A4.
+- **Print or save as PDF:** a button that triggers the browser's normal print dialog, with a print stylesheet that lays the page out cleanly on A4. The printed page also carries a small, self-generated QR code (no third-party service) linking back to the live stack, so a paper copy or a saved PDF still points somewhere current. It's simply left off for an unusually large selection where the link is too long to encode; the rest of the page prints normally either way.
 - **Share this page:** uses the device's native share sheet where one exists (most phones); otherwise it copies the link to the clipboard and shows a confirmation.
 - **Mark as set up:** every tool card has a checkbox-style button so the client can tick off tools as they actually get around to setting them up. This is stored in the browser only, tied to that exact link (the same set of tools and the same client name), using `localStorage`. Be honest with clients about the limits: it does not sync between devices, it is not sent anywhere, and it will not survive private/incognito browsing or a cleared cache. It's a personal progress tracker, not a shared record.
+- **Share progress with Kaipability:** opens a prefilled email (a `mailto:` link, nothing sent by the site itself) addressed to `info@kaipability.com`, listing each tool as "Set up" or "Not yet" plus the live link, so the client can send Kaipability a one-click update on how the rollout is going.
+- **Plain English:** a toggle that swaps every description for a short, jargon-free one-liner and relabels the section headings in plain words, for a reader who finds the default wording too technical. Persists on that device, and can also be forced on with `?plain=1` on the link itself (see "URL schema" above).
 
 ## Social preview image
 
@@ -132,25 +145,65 @@ Client mode carries three small conveniences aimed at the person receiving the p
 3. Save the result over `assets/og-image.png`.
 4. Keep the file under 300KB. WhatsApp in particular drops oversized preview images silently rather than showing a broken one, so a preview that "used to work" and then stops appearing is usually a file-size problem, not a broken link.
 
+## Embed mode
+
+`embed.html` is a separate, chrome-free page (no header, filters or toolbar) built for sitting inside an iframe elsewhere, principally kaipability.com. It reuses the same card rendering as client mode, so it never duplicates markup, and understands the same `t`, `tool` and `plain` params described in "URL schema" above. Example:
+
+```html
+<iframe
+  src="https://kai-freestack.netlify.app/embed.html?t=0,2,5&plain=1"
+  width="100%"
+  height="600"
+  loading="lazy"
+  title="Free Stack tools">
+</iframe>
+```
+
+`netlify.toml` scopes a `Content-Security-Policy: frame-ancestors` rule to exactly this one page, allowing it to be framed only from `kaipability.com` and its subdomains. Every other page on the site refuses to be framed at all (`X-Frame-Options: DENY`), so don't expect the same iframe trick to work against `/`, `/index.html` or `/x`. The embed page always carries `noindex`; it has no identity of its own worth a search result.
+
+## Changelog
+
+`data/changelog.json` feeds the "recently updated" strip on the public directory: tool additions, retirements and paid-tier price changes, read straight out of the git history of `data/tools.json`. It is generated, not hand-edited. Regenerate it after any data change:
+
+```bash
+node scripts/changelog.mjs
+```
+
 ## Deploy
 
 Static hosting via Netlify, configured in `netlify.toml` (SPA redirect + security headers, no build command). Connect the GitHub repo to Netlify, set the custom domain if wanted, done.
 
 **CI:** a GitHub Actions workflow (`.github/workflows/ci.yml`) runs the data validator and a headless-browser smoke test on every push to `main` and on every pull request. It installs Playwright itself in a temporary location for the run; this does not add Playwright, or anything else, as a dependency of the site.
 
+**Smoke test:** `scripts/smoke-test.mjs` is a single headless-Chromium suite, currently 50 checks, covering both the public directory and the staff curator, client mode (including the `?tool=` permalink and Plain English mode), embed mode, exports, dark mode and the XSS/empty-state edge cases. It runs its own tiny local HTTP server rather than relying on `python3 -m http.server`, specifically so it can mirror Netlify's SPA fallback (any path that isn't a real file, `/x` above all, serves `index.html`); that behaviour isn't something the plain static server used for manual local testing reproduces. Run it locally with:
+
+```bash
+PLAYWRIGHT_DIR=/path/to/a/playwright/install node scripts/smoke-test.mjs
+```
+
+## Weekly link-rot sweep
+
+A scheduled sweep re-checks every tool's links and the fifteen stalest pricing claims, and proposes fixes as a pull request on a `maint/` branch, so drift gets caught between deliberate content passes rather than sitting unnoticed. It never pushes to `main` directly; review and merge the PR like any other. It runs entirely outside this repository, as a Claude Code Routine (Mondays 03:00 UTC, with a push notification on completion), not as a GitHub Actions workflow, so there is deliberately no workflow file for it here. Check the Routines list, not the codebase, to confirm it ran.
+
 ## Repo map
 
 ```
-index.html                shell: mount points for both modes, social preview meta
-data/tools.json           single source of truth, 98 entries (93 active, 5 archived)
+index.html                shell: mount points for the public directory, staff curator and client mode, social preview meta
+embed.html                chrome-free entry point for iframe embedding elsewhere (kaipability.com only)
+data/tools.json           single source of truth, 98 entries (89 active, 9 archived)
 data/presets.json         starter-pack chips shown above the curator filters
-css/styles.css            design tokens + components + both modes (see DESIGN-SYSTEM.md)
-js/data-loader.js         fetch, URL parsing, routing, shared helpers, favicon fallback
-js/curator.js             curator mode
-js/client.js              client mode
+data/changelog.json       generated by scripts/changelog.mjs, feeds the public "recently updated" strip
+css/styles.css            design tokens + components + all three surfaces (see DESIGN-SYSTEM.md)
+js/data-loader.js         fetch, URL parsing, routing (public / staff curator / client), shared helpers, favicon fallback
+js/curator.js             staff curator, mounted at /x
+js/client.js              client mode, plus the card rendering shared with the public directory and embed mode
+js/public.js              the public directory mounted at /
+js/qr.js                  self-generated QR code for the client-mode print block, no third-party service
 scripts/validate-data.mjs data schema gate
-scripts/smoke-test.mjs    headless-browser check of both modes
+scripts/smoke-test.mjs    headless-browser check of all three surfaces
+scripts/changelog.mjs     regenerates data/changelog.json from git history
 scripts/og-card.html      source for assets/og-image.png, screenshotted by hand
 assets/og-image.png       social preview image (Slack/WhatsApp/iMessage link previews)
+docs/how-we-choose.md     draft copy on selection criteria, pending Rocky's sign-off (see TODO.md)
 .github/workflows/ci.yml  runs the validator and smoke test on push and PR
 ```
