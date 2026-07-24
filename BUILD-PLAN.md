@@ -235,7 +235,7 @@ Wave 3:
 - [x] 10.10 Recently-updated strip from tools.json git history (removals shown, per the trust research)
 - [x] 10.11 Embed mode via a dedicated /embed path with a scoped frame-ancestors exception for kaipability.com
 - [x] 10.12 Public/staff split, Rocky's 24 Jul decision resolving the public-curator question: root becomes a public read-only directory (cards, trust strapline, How we choose, one CTA); curator moves to the hidden path /x, noindexed, absent from any sitemap, and deliberately absent from robots.txt (a disallow line would advertise the path). Existing ?t= client links unchanged. The client-page "Open in curator" button renders only on staff devices (a local flag set by visiting /x), so the path never leaks to clients. Curator-generated links always point at the root path.
-- [ ] 10.13 Content pass, verifier sweep, screenshots, PR
+- [x] 10.13 Content pass done, verifier sweep PASS, PR open for Rocky
 
 ---
 
