@@ -186,6 +186,15 @@ check('client: archived tool renders retirement card, not silence',
   && (await page.locator('.tool-card-archived').textContent()).includes('No longer recommended'));
 archiveIds = null;
 
+/* --- byo: build-your-own line (Phase 9 surface) ---------------------------- */
+await page.goto(`${base}/?t=44,62`);
+await page.waitForSelector('.tool-card');
+const byoBlocks = await page.locator('.card-byo').count();
+const byoLabel = byoBlocks ? await page.locator('.card-byo-label').first().textContent() : '';
+check('client: byo block renders once for the tool that has it', byoBlocks === 1 && byoLabel.includes('Or build your own'), `blocks=${byoBlocks}`);
+const byoOnBitwarden = await page.locator('.tool-card', { hasText: 'Bitwarden' }).locator('.card-byo').count();
+check('client: no byo container on tools without byo', byoOnBitwarden === 0);
+
 /* --- dark mode and exports (batch E surface) ------------------------------- */
 await page.goto(`${base}/`);
 await page.waitForSelector('.tools-table');
