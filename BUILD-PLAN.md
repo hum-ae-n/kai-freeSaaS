@@ -231,10 +231,10 @@ Wave 2:
 - [x] 10.8 QR bridge: self-generated QR (no third party) on the printed page linking to the live stack
 
 Wave 3:
-- [x] 10.9 Link-rot Routine: weekly scheduled sweep (Mondays 03:00 UTC) of all URLs and the 15 stalest pricing claims, pushes a maint/ branch and a one-click PR link, push notification to Rocky, can never touch main
-- [ ] 10.10 Recently-updated strip from tools.json git history (removals shown, per the trust research)
-- [ ] 10.11 Embed mode via a dedicated /embed path with a scoped frame-ancestors exception for kaipability.com
-- [ ] 10.12 Public/staff split, Rocky's 24 Jul decision resolving the public-curator question: root becomes a public read-only directory (cards, trust strapline, How we choose, one CTA); curator moves to the hidden path /x, noindexed, absent from any sitemap, and deliberately absent from robots.txt (a disallow line would advertise the path). Existing ?t= client links unchanged. The client-page "Open in curator" button renders only on staff devices (a local flag set by visiting /x), so the path never leaks to clients. Curator-generated links always point at the root path.
+- [x] 10.9 Link-rot Routine: weekly sweep of all URLs and the 15 stalest pricing claims, proposes fixes on a maint/ branch, never touches main. NOTE: this lives OUTSIDE the repo, as a Claude Code Routine (trigger trig_01WxNYBCqWQGJx6Wq6Dsv5Ub, Mondays 03:00 UTC, push notification to Rocky on completion); the repo intentionally carries no workflow file for it. Verify via the Routines list, not the codebase.
+- [x] 10.10 Recently-updated strip from tools.json git history (removals shown, per the trust research)
+- [x] 10.11 Embed mode via a dedicated /embed path with a scoped frame-ancestors exception for kaipability.com
+- [x] 10.12 Public/staff split, Rocky's 24 Jul decision resolving the public-curator question: root becomes a public read-only directory (cards, trust strapline, How we choose, one CTA); curator moves to the hidden path /x, noindexed, absent from any sitemap, and deliberately absent from robots.txt (a disallow line would advertise the path). Existing ?t= client links unchanged. The client-page "Open in curator" button renders only on staff devices (a local flag set by visiting /x), so the path never leaks to clients. Curator-generated links always point at the root path.
 - [ ] 10.13 Content pass, verifier sweep, screenshots, PR
 
 ---
