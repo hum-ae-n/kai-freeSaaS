@@ -226,9 +226,9 @@ Wave 1:
 - [~] 10.5 Single-tool permalink: ?tool=ID renders one card with minimal chrome
 
 Wave 2:
-- [ ] 10.6 Plain English mode: client toggle plus ?plain=1, swaps descriptions to `plain`, relabels sections in plain words, cost section reframed "How free can turn into paying" with a one-sentence takeaway
-- [ ] 10.7 Progress share-back: "Share progress with Kaipability" mailto carrying the set-up ticks
-- [ ] 10.8 QR bridge: self-generated QR (no third party) on the printed page linking to the live stack
+- [x] 10.6 Plain English mode: client toggle plus ?plain=1, swaps descriptions to `plain`, relabels sections in plain words, cost section reframed "How free can turn into paying" with a one-sentence takeaway
+- [x] 10.7 Progress share-back: "Share progress with Kaipability" mailto carrying the set-up ticks
+- [x] 10.8 QR bridge: self-generated QR (no third party) on the printed page linking to the live stack
 
 Wave 3:
 - [x] 10.9 Link-rot Routine: weekly scheduled sweep (Mondays 03:00 UTC) of all URLs and the 15 stalest pricing claims, pushes a maint/ branch and a one-click PR link, push notification to Rocky, can never touch main
