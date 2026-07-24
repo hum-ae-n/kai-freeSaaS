@@ -291,6 +291,68 @@ function buildEditUrl(selection, clientName, noteText) {
   return `${location.origin}${location.pathname}?${params.toString().replace(/%2C/g, ',')}`;
 }
 
+/** Canonical share URL for this exact stack (Batch H, Feature 3: the print
+    QR points at this, never at the current location.href, so print=1 never
+    leaks into a scanned link even when this render came from the "Save as
+    PDF" flow). plain=1 is included only when the reader currently has Plain
+    English on, since that is a deliberate register choice worth carrying
+    into whatever they scan next. */
+function buildCanonicalShareUrl(selection, clientName, noteText, plainMode) {
+  const params = new URLSearchParams();
+  params.set('t', selection.join(','));
+  if (clientName) params.set('client', clientName);
+  if (noteText) params.set('note', noteText);
+  if (plainMode) params.set('plain', '1');
+  return `${location.origin}${location.pathname}?${params.toString().replace(/%2C/g, ',')}`;
+}
+
+/** mailto: draft for the "Share progress with Kaipability" button (Batch H,
+    Feature 2). Fixed recipient, per Rocky's mid-build correction: no "who
+    to send this to" line is needed once the To: field is already filled
+    in. Capped at 1800 characters of body text, trimming the tool list with
+    an "...and N more" line if a very long selection would otherwise
+    overflow it, same technique as curator.js's buildMailto. */
+function buildShareProgressMailto(checklistable, doneIds, pageUrl) {
+  const subject = 'Progress on my free software stack';
+  const buildBody = (list, omitted) => {
+    const lines = [];
+    for (const t of list) lines.push(`${doneIds.has(t.id) ? 'Set up' : 'Not yet'}: ${t.name}`);
+    if (omitted > 0) lines.push(`...and ${omitted} more`);
+    lines.push('', pageUrl);
+    return lines.join('\n');
+  };
+  let list = checklistable;
+  let omitted = 0;
+  let body = buildBody(list, omitted);
+  while (body.length > 1800 && list.length > 0) {
+    list = list.slice(0, -1);
+    omitted = checklistable.length - list.length;
+    body = buildBody(list, omitted);
+  }
+  return `mailto:info@kaipability.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+/** Print-only QR bridge (Batch H, Feature 3): a self generated SVG QR code
+    of the canonical share URL, wired up so a printed or PDF'd page still
+    carries a live link back to this stack. Encoding can throw for an
+    unusually long selection plus a long name and note (qr.js supports
+    versions 1-10, roughly 270 characters at its most tolerant level): the
+    block is simply omitted rather than breaking the rest of the page. */
+function buildPrintQrBlock(selection, clientName, noteText, plainMode) {
+  const url = buildCanonicalShareUrl(selection, clientName, noteText, plainMode);
+  let svg;
+  try {
+    svg = qrSvg(url, { size: 120, quietZone: 4, className: 'cli-print-qr-svg' });
+  } catch (err) {
+    console.error('QR encode failed for the print block:', err);
+    return null;
+  }
+  return el('div', { class: 'print-only cli-print-qr' },
+    el('p', { class: 'cli-print-qr-label' }, 'Scan to open this stack live'),
+    svg,
+  );
+}
+
 function formatVerified(dateStr) {
   if (!dateStr) return null;
   const parsed = new Date(`${dateStr}T00:00:00`);
@@ -615,7 +677,7 @@ function wirePrintExpand(details) {
   });
 }
 
-function costGrowthSection(tools) {
+function costGrowthSection(tools, plainMode = false) {
   const stages = computeCostStages(tools);
   const { svg, bars } = buildCostChart(stages);
   const tooltip = buildTooltip();
@@ -628,12 +690,21 @@ function costGrowthSection(tools) {
   );
   wirePrintExpand(details);
 
+  // Plain English takeaway (Batch H, Feature 1): one sentence above the
+  // chart, reusing the same stage totals the chart itself draws from.
+  // COST_STAGES[1] is "Team of 5", the stage this sentence names.
+  const takeaway = plainMode
+    ? el('p', { class: 'cli-cost-takeaway' },
+        `Free while it is just you. Around ${money(stages[1].total)} a month if five people used everything.`)
+    : null;
+
   return el('section', { class: 'cli-cost-growth', 'aria-labelledby': 'cli-cost-heading' },
-    el('h2', { class: 'cli-cost-heading', id: 'cli-cost-heading' }, 'How costs could grow'),
+    el('h2', { class: 'cli-cost-heading', id: 'cli-cost-heading' }, pickLabel('costHeading', plainMode)),
     el('p', { class: 'cli-cost-caption' },
       'Indicative monthly cost if you outgrew every free tier at once. Most businesses never do; many of these free tiers hold for years.'),
     el('p', { class: 'cli-cost-caption-note' },
       'Per-user tools are costed at their per-seat price times your team size. Tools that gate on usage or features are costed at their flat starting price, whatever your headcount.'),
+    takeaway,
     wrap,
     details,
   );

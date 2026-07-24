@@ -65,6 +65,13 @@ export function renderCurator(root, allTools, opts = {}) {
   noteInput.value = initialNote;
   const resultBox = el('div', { class: 'linkgen-result', hidden: true });
 
+  // Plain English version (Batch H, Feature 1): unticked by default, never
+  // reads the reader's own stored preference, since this checkbox decides
+  // what a generated link forces on someone else's device, not what this
+  // curator session prefers for itself.
+  const plainCheckbox = el('input', { type: 'checkbox', id: 'plain-mode-check' });
+  const plainCheckboxLabel = el('label', { class: 'linkgen-checkbox' }, plainCheckbox, ' Plain English version');
+
   // extra is only ever populated by the "Save as PDF" export button (Batch
   // E), which adds print=1. Generate link / Preview / Share / Copy all call
   // this with no argument, so print=1 never leaks into a link a client sees.
@@ -76,6 +83,7 @@ export function renderCurator(root, allTools, opts = {}) {
     if (name) params.set('client', name);
     const note = noteInput.value.trim().slice(0, 280);
     if (note) params.set('note', note);
+    if (plainCheckbox.checked) params.set('plain', '1');
     for (const [key, value] of Object.entries(extra)) params.set(key, value);
     // keep commas readable per PRD section 5 (%2C decodes identically)
     return `${location.origin}${location.pathname}?${params.toString().replace(/%2C/g, ',')}`;
@@ -150,7 +158,7 @@ export function renderCurator(root, allTools, opts = {}) {
   const linkgen = el('section', { class: 'panel linkgen', 'aria-label': 'Link generator' },
     el('span', { class: 'eyebrow' }, 'Link generator'),
     el('h2', {}, 'Share a stack'),
-    el('div', { class: 'linkgen-controls' }, nameInput, noteInput, generateBtn, previewBtn),
+    el('div', { class: 'linkgen-controls' }, nameInput, noteInput, generateBtn, previewBtn, plainCheckboxLabel),
     resultBox,
     exportRow,
   );

@@ -299,6 +299,17 @@ button { font: inherit; }
   align-items: center;
 }
 .linkgen-controls .input { flex: 1 1 16rem; }
+/* Plain English checkbox (Batch H, Feature 1): sits with the other link
+   generator controls, never resized down to a bare checkbox since the
+   label text is what tells a curator what it does. */
+.linkgen-checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--fs-14);
+  color: var(--ink-2);
+  cursor: pointer;
+}
 .linkgen-result {
   margin-top: var(--s-4);
   display: flex;
@@ -608,6 +619,14 @@ button { font: inherit; }
   flex-wrap: wrap;
   margin-bottom: var(--s-6);
 }
+/* Plain English toggle (Batch H, Feature 1): pressed state reuses the same
+   sage treatment as the adoption checklist's card-toggle, so "on" always
+   reads the same way across the page regardless of which control it is. */
+.plain-toggle[aria-pressed="true"] {
+  background: var(--positive-tint);
+  border-color: var(--positive);
+  color: var(--core-fg);
+}
 
 .cli-summary {
   display: flex;
@@ -677,6 +696,9 @@ button { font: inherit; }
   color: var(--ink-3);
   max-width: none;
 }
+/* Share-back button (Batch H, Feature 2): its own line under the progress
+   note, only present at all when the checklist itself renders. */
+.cli-progress .btn { margin-top: var(--s-4); }
 
 .card-grid {
   display: grid;
@@ -725,8 +747,9 @@ button { font: inherit; }
 }
 .tool-card .card-top {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: var(--s-4);
+  gap: var(--s-2) var(--s-4);
 }
 .tool-card h3 {
   font-family: var(--font-sans);
@@ -734,12 +757,16 @@ button { font: inherit; }
   font-size: var(--fs-21);
   line-height: var(--lh-21);
   flex: 1;
+  min-width: 60%;
 }
+/* Plain English mode's value text ("worth about £X a year") is far longer
+   than the normal "~£X/yr" chip: no nowrap, so it wraps onto its own line
+   instead of forcing the card wider than the viewport at 375px. */
 .tool-card .card-value {
   font-family: var(--font-sans);
   font-weight: 500;
   color: var(--positive);
-  white-space: nowrap;
+  text-align: right;
 }
 .tool-card .card-domains {
   margin-top: var(--s-2);
@@ -804,6 +831,11 @@ button { font: inherit; }
   background: var(--paper-2);
   color: var(--ink-2);
   border: var(--bw-hair) solid var(--steel-3);
+  /* Plain English mode's pricing text ("Costs from £X a month if you
+     outgrow the free version") is a full sentence, not a short pill label
+     like the type badges: override the shared .badge nowrap so it wraps
+     instead of forcing the card wider than the viewport. */
+  white-space: normal;
 }
 
 /* Build-your-own aside (optional `byo` field, PRD section 4): kin to
@@ -891,6 +923,17 @@ button { font: inherit; }
   font-size: var(--fs-14);
   max-width: none;
 }
+/* Plain English takeaway (Batch H, Feature 1): sits above the chart, so it
+   reads before the reader has to interpret the bars at all. */
+.cli-cost-takeaway {
+  margin-top: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  background: var(--paper-2);
+  border-left: var(--bw-rule) solid var(--oxblood);
+  color: var(--ink);
+  font-weight: 500;
+  max-width: none;
+}
 
 .cli-cost-chart-wrap {
   position: relative;
@@ -972,6 +1015,23 @@ button { font: inherit; }
 }
 .cli-cost-table th:nth-child(2), .cli-cost-table th:nth-child(3),
 .cli-cost-table td:nth-child(2), .cli-cost-table td:nth-child(3) { text-align: right; }
+
+/* Print-only QR bridge (Batch H, Feature 3): invisible on screen, shown and
+   sized in @media print below. Self generated SVG, no third party image
+   request either way. */
+.print-only { display: none; }
+.cli-print-qr {
+  margin-top: var(--s-12);
+  padding-top: var(--s-6);
+  border-top: var(--border);
+  text-align: center;
+}
+.cli-print-qr-label {
+  margin-bottom: var(--s-3);
+  color: var(--ink-2);
+  font-size: var(--fs-14);
+}
+.cli-print-qr-svg { color: var(--ink); }
 
 /* === RESPONSIVE ============================================================ */
 
@@ -1131,4 +1191,10 @@ button { font: inherit; }
   }
   .favicon { display: none; }
   #curator-root { display: none; }
+
+  /* Print-only QR bridge (Batch H, Feature 3): invisible on screen, shown
+     here at a scannable physical size regardless of the page's zoom. */
+  .print-only { display: block; }
+  .cli-print-qr { break-inside: avoid; }
+  .cli-print-qr-svg { width: 26mm; height: 26mm; }
 }
