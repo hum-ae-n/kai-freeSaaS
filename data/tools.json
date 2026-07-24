@@ -19,6 +19,7 @@
     "category": "AI Assistants",
     "type": "core",
     "description": "AI writing, research, content drafting, business planning. Free tiers sufficient for most SME needs. Using more than one gives a second opinion on important drafts.",
+    "plain": "Free AI helpers that write, plan and answer questions for you.",
     "alternatives": [
       {
         "name": "Claude",
@@ -74,6 +75,7 @@
     "category": "AI Assistants",
     "type": "m365",
     "description": "Free AI chat via Bing/Edge. If M365 subscriber, in-app Copilot keeps data in tenant but is a separate paid add-on (~£15-18/user/month), not counted as free value.",
+    "plain": "A free AI chat built into Microsoft's search engine and browser.",
     "alternatives": [
       {
         "name": "Claude Free",
@@ -132,6 +134,7 @@
     "category": "Design & Images",
     "type": "core",
     "description": "Professional design for social graphics, presentations, flyers, branded documents. Templates make it accessible. Substantial free capability.",
+    "plain": "Make posters, flyers and social posts that look professional.",
     "alternatives": [
       {
         "name": "Adobe Express Free",
@@ -183,6 +186,7 @@
     "category": "Design & Images",
     "type": "noncore",
     "description": "Comparable to Canva. Slightly more polished output for professional documents. Worth comparing both. Free tier generous.",
+    "plain": "Another free way to make polished posters and marketing graphics.",
     "alternatives": [
       {
         "name": "Canva Free",
@@ -230,6 +234,7 @@
     "category": "Design & Images",
     "type": "noncore",
     "description": "Open-source image editor. Professional-grade alternative to Adobe Photoshop. Layers, masks, filters. Steeper learning curve than Canva but unlimited capability.",
+    "plain": "Free, powerful photo editing software, like Photoshop without the price tag.",
     "alternatives": [
       {
         "name": "Photopea",
@@ -284,6 +289,7 @@
     "category": "Design & Images",
     "type": "sector",
     "description": "Free browser-based Photoshop alternative. Opens PSD files, layers, masks. No install needed. Lower learning curve than GIMP if already familiar with Photoshop/Affinity.",
+    "plain": "Edit photos properly, straight in your web browser, for free.",
     "alternatives": [
       {
         "name": "GIMP",
@@ -342,6 +348,7 @@
     "category": "Design & Images",
     "type": "core",
     "description": "Free stock photography and video. High quality, no attribution required (check individual licences). Essential for website, social media, marketing materials.",
+    "plain": "Free, high quality photos and videos for your website and social posts.",
     "alternatives": [
       {
         "name": "Unsplash",
@@ -393,6 +400,7 @@
     "category": "Design & Images",
     "type": "noncore",
     "description": "YouTube Audio Library, Uppbeat (uppbeat.io), Pixabay Music for royalty-free tracks. Google Fonts for web typography. Essential components of professional content at zero cost.",
+    "plain": "Free background music and lettering styles for videos and websites.",
     "alternatives": [
       {
         "name": "YouTube Audio Library",
@@ -448,6 +456,7 @@
     "category": "Design & Images",
     "type": "noncore",
     "description": "Instant AI background removal (Remove.bg) and object removal from photos (Cleanup.Pictures). One-click fixes for common image problems. Free tiers limited but functional.",
+    "plain": "Remove backgrounds or unwanted objects from photos in one click.",
     "alternatives": [
       {
         "name": "Remove.bg",
@@ -501,6 +510,7 @@
     "category": "Design & Images",
     "type": "noncore",
     "description": "Compress images for website without visible quality loss. Faster site = better Google ranking. Also reduces email attachment sizes. Squoosh is Google's own tool.",
+    "plain": "Shrinks image file sizes so your website loads faster.",
     "alternatives": [
       {
         "name": "TinyPNG",
@@ -552,6 +562,7 @@
     "category": "Design & Images",
     "type": "sector",
     "description": "Vectorizer: convert low-res logos to scalable vectors for printing. Coolors: extract exact hex/RGB from customer logos for brand matching. Niche but solves real problems.",
+    "plain": "Sharpen blurry logos for printing and pick out their exact colours.",
     "alternatives": [
       {
         "name": "Vectorizer.ai",
@@ -603,6 +614,7 @@
     "category": "Design & Images",
     "type": "sector",
     "description": "Show customers how designs look on actual garments/products before printing. T-shirt mockups, hoodies, caps. Essential for website product images. Some free, premium £7.95/download.",
+    "plain": "See how your design looks on a t-shirt or mug before printing it.",
     "alternatives": [
       {
         "name": "Smartmockups",
@@ -646,6 +658,7 @@
     "category": "Video & Audio",
     "type": "noncore",
     "description": "Free video hosting, distribution, analytics. No hosting cost. SEO benefits from Google ownership. Tutorials, testimonials, product demos, CPD.",
+    "plain": "Host your videos for free and see who's watching them.",
     "alternatives": [
       {
         "name": "Vimeo Basic",
@@ -696,6 +709,7 @@
     "category": "Video & Audio",
     "type": "noncore",
     "description": "Mobile and desktop video editing with trending templates. Quick Reels, TikToks, social clips. Auto-captions, music, highlights. Low learning curve.",
+    "plain": "Edit short videos for social media on your phone or computer.",
     "alternatives": [
       {
         "name": "InShot Free",
@@ -739,6 +753,7 @@
     "category": "Video & Audio",
     "type": "noncore",
     "description": "Professional-grade video editing, completely free. Industry-standard colour grading. Rivals Premiere Pro. Steeper learning curve but unlimited capability.",
+    "plain": "Free, professional-level video editing software used by film studios.",
     "alternatives": [
       {
         "name": "Shotcut",
@@ -790,6 +805,7 @@
     "category": "Video & Audio",
     "type": "noncore",
     "description": "Open-source streaming and screen recording. Professional quality. Live streaming to YouTube/Facebook. Screen recording for tutorials and onboarding videos.",
+    "plain": "Record your screen or livestream to the internet, completely free.",
     "alternatives": [
       {
         "name": "Loom Free",
@@ -836,6 +852,7 @@
     "category": "Video & Audio",
     "type": "noncore",
     "description": "Screen recording with face overlay. Record client onboarding, tutorials, walkthroughs. Simpler than OBS. Free tier: 25 videos, 5 min each.",
+    "plain": "Record yourself explaining something on screen and send the video link.",
     "alternatives": [
       {
         "name": "OBS Studio",
@@ -883,6 +900,7 @@
     "category": "Video & Audio",
     "type": "noncore",
     "description": "Turn one long video/podcast into multiple social clips. AI finds highlight moments. Directly serves podcast-to-social workflows.",
+    "plain": "Turns one long video into several short clips for social media.",
     "alternatives": [
       {
         "name": "Opus Clip",
@@ -929,6 +947,7 @@
     "category": "Video & Audio",
     "type": "noncore",
     "description": "Open-source audio editor. Podcast editing, voiceover cleanup, noise removal, audio file conversion. Professional results at zero cost.",
+    "plain": "Free software for editing and cleaning up sound recordings.",
     "alternatives": [
       {
         "name": "Ocenaudio",
@@ -968,6 +987,7 @@
     "category": "Video & Audio",
     "type": "sector",
     "description": "Basic GoPro footage organisation and highlight reel generation. Auto-edits for social clips from action footage.",
+    "plain": "Automatically turns your action camera footage into a highlight video.",
     "alternatives": [
       {
         "name": "CapCut",
@@ -1010,6 +1030,7 @@
     "category": "Video & Audio",
     "type": "m365",
     "description": "Simple video editing included in M365. Social clips, basic cuts, transitions. Already owned if M365 subscriber.",
+    "plain": "Simple video editing that comes free with Microsoft 365.",
     "alternatives": [
       {
         "name": "CapCut",
@@ -1064,6 +1085,7 @@
     "category": "SEO & Analytics",
     "type": "core",
     "description": "Website analytics. Visitor behaviour, traffic sources, conversions. Free and should be on every business website. Takes 10 minutes to set up.",
+    "plain": "See how many people visit your website and what they do there.",
     "alternatives": [
       {
         "name": "Matomo",
@@ -1114,6 +1136,7 @@
     "category": "SEO & Analytics",
     "type": "noncore",
     "description": "Free session recordings and heatmaps. See what visitors actually do. Complements GA4. Unlimited traffic, no cap. Equivalent paid: Hotjar ~£32/month.",
+    "plain": "See exactly how visitors move around and use your website, for free.",
     "alternatives": [
       {
         "name": "Hotjar Free",
@@ -1164,6 +1187,7 @@
     "category": "SEO & Analytics",
     "type": "core",
     "description": "SEO monitoring. Which search queries bring visitors, indexing status, technical issues. Essential for understanding how Google sees the site.",
+    "plain": "Shows what people typed into Google to find your website.",
     "alternatives": [
       {
         "name": "Bing Webmaster Tools",
@@ -1211,6 +1235,7 @@
     "category": "SEO & Analytics",
     "type": "noncore",
     "description": "Bing/Copilot search visibility. ~15-20% UK search share. Often overlooked. Can import from Search Console. Also feeds Microsoft Copilot answers.",
+    "plain": "Helps your business show up when people search using Bing instead of Google.",
     "alternatives": [
       {
         "name": "Google Search Console",
@@ -1253,6 +1278,7 @@
     "category": "SEO & Analytics",
     "type": "noncore",
     "description": "Free website speed and performance testing. Core Web Vitals. Lighthouse (built into Chrome DevTools) for deeper audits. SEO ranking factor.",
+    "plain": "Checks how fast your website loads and how to speed it up.",
     "alternatives": [
       {
         "name": "GTmetrix",
@@ -1303,6 +1329,7 @@
     "category": "SEO & Analytics",
     "type": "noncore",
     "description": "Streamlines tracking setup. Add GA4, Clarity, Facebook Pixel without touching website code. Reduces developer dependency for marketing tracking.",
+    "plain": "Add tracking tools to your website without needing a developer.",
     "alternatives": [
       {
         "name": "Segment Free",
@@ -1349,6 +1376,7 @@
     "category": "SEO & Analytics",
     "type": "noncore",
     "description": "Free dashboarding. Pull GA4, Search Console, Sheets data into visual reports. Auto-updating. Professional client reporting at no cost.",
+    "plain": "Turn your business numbers into clear, shareable charts and reports.",
     "alternatives": [
       {
         "name": "Metabase",
@@ -1404,6 +1432,7 @@
     "category": "SEO & Analytics",
     "type": "noncore",
     "description": "Structured data markup for rich search results (star ratings, FAQs, events). Free industry standard. Equivalent paid: Schema App ~£100/month.",
+    "plain": "Helps your website show star ratings and extra details in Google search.",
     "alternatives": [
       {
         "name": "Schema.org reference",
@@ -1454,6 +1483,7 @@
     "category": "SEO & Analytics",
     "type": "noncore",
     "description": "Heatmaps and basic session recordings. More limited than Clarity (capped sessions) but well-established. Useful if client prefers Hotjar's interface.",
+    "plain": "Watch recordings of visitors using your website to see what confuses them.",
     "alternatives": [
       {
         "name": "Microsoft Clarity",
@@ -1497,6 +1527,7 @@
     "category": "Market Research",
     "type": "noncore",
     "description": "Seasonal demand patterns, keyword trends, market intelligence. Free. Content planning, understanding when to push which services.",
+    "plain": "Shows when people are searching for things like your products.",
     "alternatives": [
       {
         "name": "Ubersuggest",
@@ -1536,6 +1567,7 @@
     "category": "Market Research",
     "type": "noncore",
     "description": "Free keyword research even without running ads. Search volume, competition, content ideas. Requires Google Ads account (free to create, no spend needed).",
+    "plain": "Shows what words people type into Google to find businesses like yours.",
     "alternatives": [
       {
         "name": "Ubersuggest",
@@ -1586,6 +1618,7 @@
     "category": "Market Research",
     "type": "noncore",
     "description": "Keyword visualisation. Shows questions people ask about topics. Content ideation. 3 searches/day on free tier. Good for blog/FAQ planning.",
+    "plain": "Shows the questions people actually ask about your kind of business.",
     "alternatives": [
       {
         "name": "Google Trends",
@@ -1633,6 +1666,7 @@
     "category": "Market Research",
     "type": "noncore",
     "description": "Free SEO tool. Keyword research, competitor analysis. Limited daily queries but useful for initial research before committing to SEMrush/Ahrefs.",
+    "plain": "Free help finding the right words to use on your website.",
     "alternatives": [
       {
         "name": "Google Keyword Planner",
@@ -1680,6 +1714,7 @@
     "category": "Market Research",
     "type": "noncore",
     "description": "Free monitoring. Track competitor mentions, industry news, client company updates. Email alerts for any search term. Basic media monitoring at zero cost.",
+    "plain": "Emails you whenever your business or competitors are mentioned online.",
     "alternatives": [
       {
         "name": "Talkwalker Alerts",
@@ -1730,6 +1765,7 @@
     "category": "Market Research",
     "type": "sector",
     "description": "Free academic search (Scholar) and networking/publishing (ResearchGate). Essential for academic writing, CPD research, evidence-based practice.",
+    "plain": "Free search for academic research papers and studies.",
     "alternatives": [
       {
         "name": "Google Scholar",
@@ -1777,6 +1813,7 @@
     "category": "SEO & Analytics",
     "type": "core",
     "description": "Free listing in Google Search and Maps. Reviews, hours, photos, posts. Highest-impact free tool for any business with a local or physical presence.",
+    "plain": "Get your business showing up on Google Search and Maps.",
     "alternatives": [
       {
         "name": "Bing Places",
@@ -1820,6 +1857,7 @@
     "category": "SEO & Analytics",
     "type": "noncore",
     "description": "Free Bing search listing. ~15-20% UK search share. Can import from Google Business Profile. Often overlooked, worth 5 minutes.",
+    "plain": "Get your business showing up in Bing search results too.",
     "alternatives": [
       {
         "name": "Apple Business Connect",
@@ -1862,6 +1900,7 @@
     "category": "Marketing & CRM",
     "type": "core",
     "description": "Free management for Facebook and Instagram. Schedule posts, analytics, messages, automated replies, appointment booking integration. Essential for social-active businesses.",
+    "plain": "Manage your Facebook and Instagram posts and messages in one place.",
     "alternatives": [
       {
         "name": "Buffer Free",
@@ -1909,6 +1948,7 @@
     "category": "Marketing & CRM",
     "type": "core",
     "description": "Professional networking, credibility, B2B visibility. Free profile sufficient for most. Regular posting more valuable than Premium for most SMEs.",
+    "plain": "A free professional profile that builds trust with other businesses.",
     "alternatives": [
       {
         "name": "Bark",
@@ -1955,6 +1995,7 @@
     "category": "Marketing & CRM",
     "type": "noncore",
     "description": "Schedule posts across 3 channels, 10 posts queued. Free tier below paid Metricool/Hootsuite. Good trial before committing.",
+    "plain": "Schedule your social media posts in advance instead of posting live.",
     "alternatives": [
       {
         "name": "Meta Business Suite",
@@ -1998,6 +2039,7 @@
     "category": "Marketing & CRM",
     "type": "noncore",
     "description": "AI-native discoverability. Genuine, non-marketing contributions answering questions seed AEO pickup by Claude, ChatGPT, Perplexity. Not a broadcast channel; a credibility channel.",
+    "plain": "Answering real questions online helps AI tools recommend your business.",
     "alternatives": [
       {
         "name": "Quora",
@@ -2049,6 +2091,7 @@
     "category": "Marketing & CRM",
     "type": "noncore",
     "description": "Single link page for Instagram/TikTok bio. Multiple links to website, booking, shop, socials. Free tiers on all major platforms.",
+    "plain": "One link in your Instagram or TikTok bio that leads to everything else.",
     "alternatives": [
       {
         "name": "Linktree",
@@ -2110,6 +2153,7 @@
     "category": "Marketing & CRM",
     "type": "noncore",
     "description": "Email newsletters and automation. Free tiers: MailerLite (1,000 subscribers), Mailchimp (500 contacts), Brevo (300 emails/day). Landing pages, forms, basic automation.",
+    "plain": "Send email newsletters to customers for free, up to a limit.",
     "alternatives": [
       {
         "name": "MailerLite",
@@ -2168,6 +2212,7 @@
     "category": "Marketing & CRM",
     "type": "noncore",
     "description": "Free CRM, unlimited contacts. Pipeline, email integration, customer tracking. Generous free tier. Scalable.",
+    "plain": "Keep track of your customers and follow-ups in one place.",
     "alternatives": [
       {
         "name": "Capsule CRM Free",
@@ -2227,6 +2272,7 @@
     "category": "Marketing & CRM",
     "type": "noncore",
     "description": "Independent ecosystem: CRM (3 users), Bookings, Mail, Invoice, Writer, Meeting, Forms, all at zero cost. Genuine alternative to Google/Microsoft stacks, not just a CRM.",
+    "plain": "A free set of business tools: customer tracking, email, invoicing and more.",
     "alternatives": [
       {
         "name": "HubSpot Free",
@@ -2290,6 +2336,7 @@
     "category": "Marketing & CRM",
     "type": "noncore",
     "description": "Free newsletter/article publishing. Build subscriber list, share expertise. Substack: newsletter focus. Medium: existing readership. No cost until monetisation.",
+    "plain": "Publish articles and build a following, free of charge.",
     "alternatives": [
       {
         "name": "Substack",
@@ -2341,6 +2388,7 @@
     "category": "Business Operations",
     "type": "core",
     "description": "Upgrade from personal WhatsApp. Quick replies for FAQs, product catalogue, away messages, business profile. Customers contact you the same way. Free.",
+    "plain": "A business version of WhatsApp with quick replies and a catalogue.",
     "alternatives": [
       {
         "name": "WhatsApp Business",
@@ -2388,6 +2436,7 @@
     "category": "Business Operations",
     "type": "noncore",
     "description": "Online appointment scheduling. One event type on free tier. Eliminates email back-and-forth for booking.",
+    "plain": "Let people book a slot in your diary without emailing back and forth.",
     "alternatives": [
       {
         "name": "Calendly",
@@ -2444,6 +2493,7 @@
     "category": "Business Operations",
     "type": "noncore",
     "description": "Project management and organisation. Notion: notes, wikis, databases. Trello: visual Kanban boards (Quote → Printing → Shipped). Both generous free tiers.",
+    "plain": "Organise your notes and to-do lists on free digital boards.",
     "alternatives": [
       {
         "name": "Notion",
@@ -2504,6 +2554,7 @@
     "category": "Business Operations",
     "type": "noncore",
     "description": "Automation glue. Connect apps: new form submission → add to spreadsheet → send email. Zapier free: 100 tasks/month. Make free: 1,000 ops/month. Apple Shortcuts for phone workflows.",
+    "plain": "Makes your different apps automatically talk to each other and save you time.",
     "alternatives": [
       {
         "name": "Zapier Free",
@@ -2559,6 +2610,7 @@
     "category": "Business Operations",
     "type": "noncore",
     "description": "Digital signatures for contracts, engagement letters, consent forms. SignWell, Dokobit, Adobe Fill & Sign. Enough volume for a sole practitioner.",
+    "plain": "Get contracts signed online instead of printing, signing and scanning them.",
     "alternatives": [
       {
         "name": "SignWell Free",
@@ -2611,6 +2663,7 @@
     "category": "Business Operations",
     "type": "noncore",
     "description": "Unlimited free QR codes. Link to booking pages, menus, feedback forms, product provenance pages. SVG export for print/CNC. Takes 30 seconds.",
+    "plain": "Make free scannable codes linking to your menu, forms or website.",
     "alternatives": [
       {
         "name": "QR Code Generator",
@@ -2659,6 +2712,7 @@
     "category": "Business Operations",
     "type": "noncore",
     "description": "Free writing clarity tool. Improves readability. Highlights complex sentences, passive voice, adverbs. Simpler alternative to Grammarly. Web-based, no install.",
+    "plain": "Checks your writing and flags sentences that are hard to read.",
     "alternatives": [
       {
         "name": "Hemingway",
@@ -2710,6 +2764,7 @@
     "category": "Business Operations",
     "type": "noncore",
     "description": "Apple Voice Memos, Google Recorder. Record meetings, site visits, client briefs. On-device transcription on newer phones. Pair with AI for notes/summaries.",
+    "plain": "Record a meeting on your phone and get a written copy of it.",
     "alternatives": [
       {
         "name": "Google Recorder",
@@ -2763,6 +2818,7 @@
     "category": "Business Operations",
     "type": "noncore",
     "description": "Already available. Templates, scheduling, smart compose, filters, labels. Often underused. Can significantly improve email efficiency without any new tools.",
+    "plain": "Free email tools you probably already have but aren't using fully.",
     "alternatives": [
       {
         "name": "Outlook",
@@ -2809,6 +2865,7 @@
     "category": "Communication",
     "type": "noncore",
     "description": "Free video conferencing. Zoom: 40-min group cap, unlimited 1:1. Google Meet: 60-min limit, no account needed for guests. Both screen share and record.",
+    "plain": "Free video calls with colleagues, suppliers or clients.",
     "alternatives": [
       {
         "name": "Zoom",
@@ -2863,6 +2920,7 @@
     "category": "Communication",
     "type": "sector",
     "description": "Staff/volunteer coordination and group comms. Popular with sports clubs, community groups, HAF providers. Event management, attendance tracking, subgroups.",
+    "plain": "Organise staff or volunteer rotas, messages and events in one app.",
     "alternatives": [
       {
         "name": "Spond",
@@ -2909,6 +2967,7 @@
     "category": "Communication",
     "type": "m365",
     "description": "Already available with M365. Meeting transcription, screen sharing, chat, channels. Could replace some WhatsApp usage for structured internal comms.",
+    "plain": "Chat, video call and share files with your team, free with Microsoft 365.",
     "alternatives": [
       {
         "name": "Slack Free",
@@ -2955,6 +3014,7 @@
     "category": "Finance",
     "type": "noncore",
     "description": "Free invoicing, accounting, receipt scanning. Bank connections, financial reports. Suitable for sole traders and micro-businesses.",
+    "plain": "Free invoicing and bookkeeping software for very small businesses.",
     "alternatives": [
       {
         "name": "Akaunting",
@@ -3021,6 +3081,7 @@
     "category": "Finance",
     "type": "noncore",
     "description": "Bank-linked accounting at no cost. FreeAgent free with Mettle or NatWest business accounts. Tide offers free invoicing and expense management. Replaces manual Excel returns.",
+    "plain": "Free bookkeeping software when you bank with certain providers.",
     "alternatives": [
       {
         "name": "FreeAgent via Mettle",
@@ -3138,6 +3199,7 @@
     "category": "Security & Compliance",
     "type": "core",
     "description": "Free, open-source password manager. Unlimited passwords, sync across devices. Eliminates weak/reused passwords. Implement immediately.",
+    "plain": "One safe place that remembers all your passwords for you.",
     "alternatives": [
       {
         "name": "KeePassXC",
@@ -3188,6 +3250,7 @@
     "category": "Security & Compliance",
     "type": "core",
     "description": "Free data breach monitoring. Check business email addresses against known breaches. Check now, then periodically. Takes 30 seconds.",
+    "plain": "Checks if your business email has ever been leaked online.",
     "alternatives": [
       {
         "name": "Mozilla Monitor",
@@ -3234,6 +3297,7 @@
     "category": "Security & Compliance",
     "type": "noncore",
     "description": "Checks saved passwords against known breach databases. Quick 5-minute security audit. Built into Chrome. Complements HIBP.",
+    "plain": "Warns you if any of your saved passwords have been leaked online.",
     "alternatives": [
       {
         "name": "Have I Been Pwned",
@@ -3364,6 +3428,7 @@
     "category": "Cloud & Docs",
     "type": "core",
     "description": "15GB free. Docs, Sheets, Slides, Forms. Shareable, collaborative. Available with any Google account. Includes Google Slides for presentations.",
+    "plain": "Free online storage and documents that you can share with others.",
     "alternatives": [
       {
         "name": "OneDrive",
@@ -3423,6 +3488,7 @@
     "category": "Cloud & Docs",
     "type": "m365",
     "description": "1TB cloud storage included with M365. Auto-backup, file sharing, versioning. Already paid for if M365 subscriber. Needs enabling and configuring.",
+    "plain": "Free cloud storage for your files, already included with Microsoft 365.",
     "alternatives": [
       {
         "name": "Google Drive",
@@ -3473,6 +3539,7 @@
     "category": "Cloud & Docs",
     "type": "m365",
     "description": "Task management and databases included in M365. Lists replaces spreadsheet-as-database. Planner for Kanban boards. Syncs with Teams.",
+    "plain": "Track tasks and simple to-do lists, included free with Microsoft 365.",
     "alternatives": [
       {
         "name": "Trello",
@@ -3531,6 +3598,7 @@
     "category": "Cloud & Docs",
     "type": "m365",
     "description": "Online booking included in M365. Clients self-book. Syncs Outlook. Already paid for if subscriber.",
+    "plain": "Lets clients book appointments with you online, free with Microsoft 365.",
     "alternatives": [
       {
         "name": "Calendly",
@@ -3585,6 +3653,7 @@
     "category": "Cloud & Docs",
     "type": "m365",
     "description": "Surveys, feedback, consent capture. Data in M365 tenant. QR codes for physical-to-digital touchpoints.",
+    "plain": "Make free surveys and feedback forms, included with Microsoft 365.",
     "alternatives": [
       {
         "name": "Google Forms",
@@ -3729,6 +3798,7 @@
     "category": "Learning",
     "type": "noncore",
     "description": "Structured free upskilling. HubSpot Academy (CRM, marketing), Meta Blueprint (social), Google Skillshop & Digital Garage (analytics, ads, digital), Xero U (accounting), SEMrush Academy (SEO).",
+    "plain": "Free courses that teach you marketing, sales and analytics skills.",
     "alternatives": [
       {
         "name": "HubSpot Academy",
@@ -3799,6 +3869,7 @@
     "category": "Learning",
     "type": "noncore",
     "description": "Audit versions of professional courses available without certification cost. Khan Academy fully free. Business, economics, marketing, data, coding.",
+    "plain": "Watch university-level courses for free, without paying for a certificate.",
     "alternatives": [
       {
         "name": "Coursera",
@@ -3983,6 +4054,7 @@
     "category": "E-commerce",
     "type": "sector",
     "description": "Free premium theme + comprehensive e-commerce education covering setup, photography, marketing, fulfilment. Dawn is fast, accessible, customisable.",
+    "plain": "A free professional look for your online shop, plus free lessons on running it.",
     "alternatives": [
       {
         "name": "WooCommerce",
@@ -4033,6 +4105,7 @@
     "category": "E-commerce",
     "type": "sector",
     "description": "Secondary marketplace for digital guides, branded merch. Higher margins than Printful for some products. No seller account cost until listing.",
+    "plain": "Sell your products on Amazon alongside your own website.",
     "alternatives": [
       {
         "name": "Etsy",
@@ -4072,6 +4145,7 @@
     "category": "E-commerce",
     "type": "sector",
     "description": "Low-risk print-on-demand merchandise. No inventory. Integrates with Shopify, Etsy, WooCommerce. Test brand appetite before committing to stock.",
+    "plain": "Sell branded mugs, t-shirts and merchandise without holding any stock.",
     "alternatives": [
       {
         "name": "Printify",
@@ -4111,6 +4185,7 @@
     "category": "Sector Specific",
     "type": "sector",
     "description": "Entry-level 3D CAD for visualisations. Garden designs, room layouts, construction planning. Free web version, Go for iPad.",
+    "plain": "Free software for drawing rooms, gardens or buildings in 3D.",
     "alternatives": [
       {
         "name": "Tinkercad",
@@ -4212,6 +4287,7 @@
     "category": "Sector Specific",
     "type": "sector",
     "description": "Product analytics, session replay, feature flags, A/B testing. Open source. Generous free tier. For tech businesses building software products.",
+    "plain": "Shows how people actually use the software product you've built.",
     "alternatives": [
       {
         "name": "Mixpanel",
@@ -4258,6 +4334,7 @@
     "category": "Developer & Web",
     "type": "noncore",
     "description": "Cloud hosting for source code with unlimited public and private repositories, pull requests, issue tracking, and 2,000 minutes a month of GitHub Actions for automated testing and deployment. The default home for a codebase at almost every software business, from a solo developer to a small team.",
+    "plain": "Stores your code safely online and keeps a history of every change.",
     "alternatives": [
       {
         "name": "GitLab",
@@ -4305,6 +4382,7 @@
     "category": "Developer & Web",
     "type": "noncore",
     "description": "Free hosting for websites and web apps built with modern frameworks such as Next.js, with automatic deployment straight from a GitHub repository. Vercel's terms restrict the free Hobby tier to personal, non-commercial projects, so a paying client's live site needs the paid Pro plan.",
+    "plain": "Puts a personal website online for free, but not a paying client's site.",
     "alternatives": [
       {
         "name": "Netlify",
@@ -4355,6 +4433,7 @@
     "category": "Developer & Web",
     "type": "noncore",
     "description": "Free hosting and deployment for static sites and web apps, with commercial use explicitly permitted, unlike some rival platforms. Automatic builds from GitHub, serverless functions and a global CDN, all covered by a monthly credit allowance.",
+    "plain": "Puts a simple website online for free, and it's fine for client sites too.",
     "alternatives": [
       {
         "name": "Vercel",
@@ -4402,6 +4481,7 @@
     "category": "Developer & Web",
     "type": "noncore",
     "description": "A free content delivery network, DNS host and basic web application firewall that sits in front of a website to speed it up and absorb attacks. Includes Cloudflare Pages for static site hosting. Used by a large share of the web, from personal blogs to enterprise sites.",
+    "plain": "Makes a website load faster and helps stop it being knocked offline.",
     "alternatives": [
       {
         "name": "Fastly",
@@ -4449,6 +4529,7 @@
     "category": "Developer & Web",
     "type": "noncore",
     "description": "The largest public library of open-source AI models and datasets, plus free hosting for small AI demos called Spaces. Useful for a business experimenting with AI features before committing to a paid API.",
+    "plain": "A free library of ready-made AI models to try out and build with.",
     "alternatives": [
       {
         "name": "Ollama",
@@ -4492,6 +4573,7 @@
     "category": "Developer & Web",
     "type": "noncore",
     "description": "An open-source backend for apps: a hosted Postgres database, user authentication, file storage and instant APIs generated automatically from the database schema. The open-source alternative to Google Firebase, with no lock-in since the underlying database is standard Postgres.",
+    "plain": "A free, ready-made system that stores an app's data and user logins.",
     "alternatives": [
       {
         "name": "Firebase",
@@ -4539,6 +4621,7 @@
     "category": "Developer & Web",
     "type": "noncore",
     "description": "The most widely used code editor, free with a huge extension marketplace covering every programming language. VSCodium is the same editor rebuilt from the open-source code without Microsoft's telemetry and branding, for anyone who wants a fully open-source build.",
+    "plain": "Free software people use to write and edit computer code.",
     "alternatives": [
       {
         "name": "JetBrains IDEs",
@@ -4582,6 +4665,7 @@
     "category": "Developer & Web",
     "type": "noncore",
     "description": "Free Jupyter notebooks in the browser with access to a shared GPU, for running Python data science and machine learning code without installing anything locally. Handy for testing an AI or data idea before investing in dedicated infrastructure.",
+    "plain": "Test data and AI ideas in your browser without installing anything, for free.",
     "alternatives": [
       {
         "name": "Kaggle Notebooks",
@@ -4625,6 +4709,7 @@
     "category": "Developer & Web",
     "type": "noncore",
     "description": "Free hosting for backend web services, static sites, cron jobs and small databases, deployed straight from a GitHub repository. Free web services sleep after 15 minutes without traffic and take about a minute to wake, so it suits demos and internal tools better than a client-facing production site.",
+    "plain": "Puts small tools and demos online for free, straight from your code.",
     "alternatives": [
       {
         "name": "Fly.io",
@@ -4671,6 +4756,7 @@
     "category": "Developer & Web",
     "type": "noncore",
     "description": "Packages an application and everything it needs to run into a portable container, so it behaves the same on a developer's laptop, a test server and in production. Docker Desktop Personal is free for individuals and for small businesses with under 250 employees and under $10 million in annual revenue, which covers the overwhelming majority of Free Stack clients.",
+    "plain": "Makes sure your software runs the same everywhere, free for small businesses.",
     "alternatives": [
       {
         "name": "Podman",
@@ -4717,6 +4803,7 @@
     "category": "Developer & Web",
     "type": "noncore",
     "description": "A graphical tool for building, testing and documenting API calls, widely used when integrating two systems together. Since March 2026 the free plan has been limited to a single user, so it now suits a solo developer better than a team.",
+    "plain": "A free tool for checking that two computer systems talk to each other properly.",
     "alternatives": [
       {
         "name": "Bruno",
@@ -4763,6 +4850,7 @@
     "category": "Communication",
     "type": "noncore",
     "description": "Team messaging with channels, direct messages and app integrations, replacing scattered email threads for day-to-day internal chat. The free plan keeps the last 90 days of messages and files searchable.",
+    "plain": "Team chat that replaces messy email threads, free for the basics.",
     "alternatives": [
       {
         "name": "Microsoft Teams",
@@ -4806,6 +4894,7 @@
     "category": "Business Operations",
     "type": "noncore",
     "description": "A spreadsheet that behaves like a database, with custom views, linked records and simple automations. Good for tracking customers, inventory or projects without building a bespoke system.",
+    "plain": "A flexible spreadsheet for tracking customers, stock or projects.",
     "alternatives": [
       {
         "name": "Google Sheets",
