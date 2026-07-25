@@ -97,6 +97,107 @@
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
 
+# Working documents are not part of the product. The publish directory is the
+# repo root, so without these rules every planning and spec file is served to
+# anyone who guesses the path (confirmed live 25 Jul: /PRD.md returned 200).
+# force = true is required precisely because the files DO exist; a non-forced
+# rule would never fire. Netlify redirect patterns have no suffix wildcard
+# (no "/*.md"), so root documents are enumerated one by one. Add a rule here
+# whenever a new working document lands in the repo root. What stays public
+# from design-system/ is only what the site loads: colors_and_type.css,
+# fonts/ and assets/. Runtime surfaces (css/, js/, data/, assets/) are the
+# product and stay served.
+[[redirects]]
+  from = "/BUILD-LOOP.md"
+  to = "/404.html"
+  status = 404
+  force = true
+[[redirects]]
+  from = "/BUILD-PLAN.md"
+  to = "/404.html"
+  status = 404
+  force = true
+[[redirects]]
+  from = "/CLAUDE.md"
+  to = "/404.html"
+  status = 404
+  force = true
+[[redirects]]
+  from = "/DESIGN-SYSTEM.md"
+  to = "/404.html"
+  status = 404
+  force = true
+[[redirects]]
+  from = "/HOW-TO.md"
+  to = "/404.html"
+  status = 404
+  force = true
+[[redirects]]
+  from = "/PRD-REGISTER.md"
+  to = "/404.html"
+  status = 404
+  force = true
+[[redirects]]
+  from = "/PRD.md"
+  to = "/404.html"
+  status = 404
+  force = true
+[[redirects]]
+  from = "/README.md"
+  to = "/404.html"
+  status = 404
+  force = true
+[[redirects]]
+  from = "/TODO.md"
+  to = "/404.html"
+  status = 404
+  force = true
+[[redirects]]
+  from = "/docs/*"
+  to = "/404.html"
+  status = 404
+  force = true
+[[redirects]]
+  from = "/scripts/*"
+  to = "/404.html"
+  status = 404
+  force = true
+[[redirects]]
+  from = "/design-system/BRAND_BRIEF.md"
+  to = "/404.html"
+  status = 404
+  force = true
+[[redirects]]
+  from = "/design-system/README.md"
+  to = "/404.html"
+  status = 404
+  force = true
+[[redirects]]
+  from = "/design-system/SKILL.md"
+  to = "/404.html"
+  status = 404
+  force = true
+[[redirects]]
+  from = "/design-system/TEMPLATE_SCHEMA.md"
+  to = "/404.html"
+  status = 404
+  force = true
+[[redirects]]
+  from = "/design-system/template-schema.json"
+  to = "/404.html"
+  status = 404
+  force = true
+[[redirects]]
+  from = "/design-system/template-structure-validator.js"
+  to = "/404.html"
+  status = 404
+  force = true
+[[redirects]]
+  from = "/design-system/components.css"
+  to = "/404.html"
+  status = 404
+  force = true
+
 # SPA fallback. Netlify serves real files first and only applies this rule for
 # paths that do not exist, so /data/tools.json and /css/* still resolve normally.
 # Do not add force = true here or it will shadow the data file and break the app.
