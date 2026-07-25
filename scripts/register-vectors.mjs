@@ -65,7 +65,7 @@ const VECTORS = [
 
 let failures = 0;
 function check(name, ok, detail = '') {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`);
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? `: ${detail}` : ""}`);
   if (!ok) failures++;
 }
 async function throws(fn) {

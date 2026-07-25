@@ -71,7 +71,7 @@ const base = `http://localhost:${server.address().port}`;
 
 const failures = [];
 const check = (name, ok, detail = '') => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`);
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? `: ${detail}` : ''}`);
   if (!ok) failures.push(name);
 };
 
