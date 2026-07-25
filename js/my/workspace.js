@@ -36,15 +36,15 @@ import { SOVEREIGN_TEMPLATES, templateToRow } from './templates.js';
 // BUILD-PLAN 11.3 report): reused here for My tools cards without dragging
 // in any of client.js's page chrome, exactly as section 9.3 asks for.
 import { categoryIcon } from '../client.js';
+// Wave D: the two verbatim house-voice strings now live in copy.js, the one
+// source why-register.js's awareness page and this module both quote from.
+import { POSITIONING_SENTENCE, PRIVACY_NOTICE } from './copy.js';
 
 /* --- house-voice constants, verbatim per PRD-REGISTER ---------------------- */
-const POSITIONING_SENTENCE = 'Your password manager holds the keys; the register is the keyring label: which doors exist, who holds which key, and which keys to collect when someone leaves.';
 const CONSEQUENCE_SENTENCE = 'If you forget this passphrase, nobody can recover this register. Not you, not us. There is no reset.';
 // Approved storage phrasing (section 3): never "safe", never "stored securely".
 const STORAGE_PHRASE = 'saved in this browser, on this device';
 const MIN_PASSPHRASE = 8; // not specified by the PRD to the character; a defensible floor, noted in the build report
-// Verbatim, section 11: Backup screen and (Wave D) the awareness page.
-const PRIVACY_NOTICE = 'Your My Stack register is stored only in your own browser: nothing you type is ever sent to us, and if you set a passphrase it is encrypted on your device with a key we never see, so we could not read your register even if we wanted to. Because we cannot see it, we also cannot recover it: if you lose your passphrase, your encrypted register cannot be unlocked, so keep a safe copy of your export. Our hosting provider, Netlify, briefly keeps standard access logs (including IP addresses, held for around 30 days) to run the site; we run no analytics and set no tracking cookies.';
 
 const SIDEBAR = [
   ['overview', 'Overview'],
@@ -494,7 +494,9 @@ export async function renderWorkspace(root) {
         ),
       ),
       el('p', { class: 't-meta my-firstrun-privacy' },
-        'Your register is ', STORAGE_PHRASE, '. Nothing you type is ever sent to Kaipability.'),
+        'Your register is ', STORAGE_PHRASE, '. Nothing you type is ever sent to Kaipability. ',
+        el('a', { href: '/why-register.html', target: '_blank', rel: 'noopener noreferrer' }, 'Why we built this'),
+        '.'),
     );
   }
 
@@ -1968,6 +1970,9 @@ export async function renderWorkspace(root) {
         el('div', { class: 'my-backup-section' },
           el('h3', {}, 'Your privacy'),
           el('p', { class: 't-body' }, PRIVACY_NOTICE),
+          el('p', { class: 't-meta' },
+            el('a', { href: '/why-register.html', target: '_blank', rel: 'noopener noreferrer' }, 'Why we built this'),
+            ', including the evidence behind it and what a passphrase does and does not protect.'),
         ),
         state.example ? null : renderWipeSection(),
       );

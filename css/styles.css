@@ -1599,6 +1599,69 @@ button { font: inherit; }
   .my-sidebar { transition: none; }
 }
 
+/* Quiet entry-point links to the awareness page (Wave D, section 12), shared
+   by js/client.js and js/public.js: a footnote line, never a button, so it
+   never competes with the workspace CTA or the "Talk to Kaipability" line
+   next to it. */
+.my-awareness-link-line { margin-top: var(--s-2); }
+
+/* --- Awareness page ("Why we built this", section 12): a standalone static
+   page outside the app shell, reusing .panel/.eyebrow/.t-*/.my-quote rather
+   than inventing a parallel type system. Narrower measure than the public
+   directory: this is read top to bottom, not scanned like a card grid. */
+#awareness-root {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: var(--s-8) var(--s-6) var(--s-24);
+}
+.my-awareness-back { font-size: var(--fs-14); display: inline-block; margin-bottom: var(--s-6); }
+.my-awareness-header {
+  padding: var(--s-8);
+  margin-bottom: var(--s-8);
+  border-top: var(--bw-heavy) solid var(--oxblood);
+}
+.my-awareness-header .logo { height: 32px; width: auto; margin-bottom: var(--s-6); }
+.my-awareness-section { margin-bottom: var(--s-10); }
+.my-awareness-section h2 { font-size: var(--fs-34); line-height: var(--lh-34); margin-bottom: var(--s-4); }
+.my-awareness-section p + p,
+.my-awareness-section p + ul,
+.my-awareness-section ul + p { margin-top: var(--s-3); }
+
+.my-awareness-evidence { margin: 0; padding-left: var(--s-5); display: flex; flex-direction: column; gap: var(--s-3); }
+.my-awareness-evidence li { max-width: var(--measure); }
+
+/* Honest threat table (PRD-REGISTER section 10): two lists, not a table, so
+   narrow viewports stack them with no horizontal scroll risk, the same
+   auto-fit trick as .my-firstrun-choices rather than a bespoke breakpoint. */
+.my-awareness-threat {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--s-6);
+  margin-top: var(--s-4);
+}
+.my-awareness-threat > div { padding: var(--s-4); border-top: var(--bw-heavy) solid var(--ink-3); }
+.my-awareness-threat > div.is-protects { border-top-color: var(--positive); }
+.my-awareness-threat > div.is-not { border-top-color: var(--oxblood); }
+.my-awareness-threat h3 { font-size: var(--fs-21); line-height: var(--lh-21); margin-bottom: var(--s-3); }
+.my-awareness-threat ul { margin: 0; padding-left: var(--s-5); display: flex; flex-direction: column; gap: var(--s-2); }
+
+.my-awareness-footer {
+  margin-top: var(--s-12);
+  padding-top: var(--s-6);
+  border-top: var(--border);
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  color: var(--ink-2);
+  font-size: var(--fs-14);
+}
+.my-awareness-footer .logo { height: 26px; width: auto; }
+
+@media (max-width: 767px) {
+  #awareness-root { padding: var(--s-5) var(--s-4) var(--s-16); }
+  .my-awareness-header { padding: var(--s-6) var(--s-5); }
+}
+
 /* === PRINT ================================================================= */
 
 @media print {

@@ -1,0 +1,6 @@
+# Free Stack / My Stack, Kaipability Ltd
+# Security disclosures only. General enquiries: https://kaipability.com
+Contact: mailto:info@kaipability.com
+Expires: 2027-07-25T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://kai-freestack.netlify.app/.well-known/security.txt

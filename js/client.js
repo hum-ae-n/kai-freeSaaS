@@ -133,6 +133,15 @@ export function renderClient(root, tools, selection, clientName, noteText, print
   const toolbar = el('div', { class: 'cli-toolbar no-print' },
     shareBtn, printBtn, editBtn, workspaceBtn, plainBtn, themeToggleButton('btn-ghost btn-lg'));
 
+  // Awareness page link (Phase 11 Wave D, PRD-REGISTER section 12: "linked
+  // from ... the client page near the workspace CTA"). A quiet text line,
+  // not a button, so it reads as a footnote to workspaceBtn rather than
+  // competing with it for attention.
+  const workspaceAwarenessNote = el('p', { class: 't-meta my-awareness-link-line no-print' },
+    'Curious why the workspace exists? ',
+    el('a', { href: '/why-register.html', target: '_blank', rel: 'noopener noreferrer' }, 'Why we built this'),
+    '.');
+
   /* --- summary ----------------------------------------------------------- */
   const valueFigure = el('span', { class: 'num' }, money(0));
   const summary = el('section', { class: 'cli-summary', 'aria-label': 'Summary' },
@@ -202,7 +211,7 @@ export function renderClient(root, tools, selection, clientName, noteText, print
 
     const printBlock = buildPrintQrBlock(selection, clientName, noteText, plainMode);
 
-    root.replaceChildren(header, toolbar, summary, progress, ...sections, footer, ...(printBlock ? [printBlock] : []));
+    root.replaceChildren(header, toolbar, workspaceAwarenessNote, summary, progress, ...sections, footer, ...(printBlock ? [printBlock] : []));
   }
 
   draw();

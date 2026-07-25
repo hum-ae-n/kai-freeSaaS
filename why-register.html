@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Why we built this · My Stack · Kaipability</title>
+  <meta name="description" content="Why Kaipability built My Stack: the evidence behind SaaS account sprawl, what a passphrase genuinely protects, and why this register never leaves your device.">
+  <!-- Static and unconditional, like embed.html's: this page holds no
+       reader's business data, but it is a workspace-adjacent utility page
+       with nothing worth indexing, per PRD-REGISTER section 12. -->
+  <meta name="robots" content="noindex">
+  <link rel="icon" type="image/png" href="design-system/assets/kaipability-mark.png">
+
+  <!-- No-flash-of-wrong-theme boot script, byte-identical to index.html's:
+       kept identical on purpose so the CSP script-src hash already
+       allow-listed for index.html's boot script covers this page too,
+       without a second hash entry in netlify.toml. If this ever needs to
+       diverge from index.html's copy, it must get its own hash there. -->
+  <script>
+    try {
+      var t = localStorage.getItem('freestack:v1:theme');
+      if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <noscript>
+    <div class="app-message">This page needs JavaScript to render. Please enable it and reload.</div>
+  </noscript>
+
+  <main id="awareness-root"></main>
+
+  <script type="module" src="js/my/why-register.js"></script>
+</body>
+</html>

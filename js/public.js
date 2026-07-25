@@ -87,6 +87,16 @@ export function renderPublic(root, tools) {
         el('a', { href: 'https://kaipability.com', target: '_blank', rel: 'noopener noreferrer' }, 'Talk to Kaipability'),
         '.',
       ),
+      // Workspace entry point (PRD-REGISTER section 2, "a quiet link on the
+      // public directory") plus the Wave D awareness page link (section 12,
+      // "linked from the public directory footer"): both quiet text, same
+      // treatment as the two paragraphs above.
+      el('p', { class: 't-meta my-awareness-link-line' },
+        'Also free: ', el('a', { href: '/my' }, 'My Stack'),
+        ', a register for tracking who holds which account. ',
+        el('a', { href: '/why-register.html', target: '_blank', rel: 'noopener noreferrer' }, 'Why we built this'),
+        '.',
+      ),
     ),
   );
 

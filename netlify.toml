@@ -33,17 +33,64 @@
   [headers.values]
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
+    # Strict CSP (PRD-REGISTER section 10). No 'unsafe-inline' for scripts:
+    # the two inline boot scripts on the whole site (index.html's and
+    # embed.html's theme-boot/entry scripts; why-register.html reuses
+    # index.html's script byte for byte, so it needs no third hash) are
+    # allow-listed by sha256 instead. Recompute with:
+    #   node -e "const c=require('crypto');const fs=require('fs');const h=fs.readFileSync('index.html','utf8').match(/<script>([\s\S]*?)<\/script>/)[1];console.log(c.createHash('sha256').update(h).digest('base64'))"
+    # (swap the file/tag match for embed.html's inline module script) and
+    # replace the hash below if either boot script ever changes; a stale
+    # hash blocks the script entirely rather than degrading gracefully.
+    # img-src allows https: for the DuckDuckGo/Google favicon proxies
+    # (PRD section 8) plus data: for any inline-encoded images; connect-src
+    # is 'self' only, since the app only ever fetches its own data/*.json.
+    # frame-ancestors is deliberately absent here (it does not fall back to
+    # default-src, unlike the other omitted directives), so it stays solely
+    # on the /embed.html rule below and this header cannot re-narrow it.
+    Content-Security-Policy = "default-src 'none'; script-src 'self' 'sha256-lsQEYtPvOLF/0p5/Ha7LBjWH8MEuawpuwGZTYqleMkA=' 'sha256-tXEPFiTeuQ78cXDjzf3LUP2Kr7tiig87hhXnuzQg008='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'"
+
+# My Stack (PRD-REGISTER section 10): "Referrer-Policy: no-referrer for /my
+# specifically... the site-wide policy stays as is". The wide "/*" rule
+# above still sends strict-origin-when-cross-origin on every response,
+# including this one; this block adds a second Referrer-Policy value on top
+# of it for exactly this path. Per the Referrer Policy spec, when a
+# response carries more than one policy value the user agent keeps the
+# last valid one, so placing this block after the wide "/*" block (Netlify
+# preserves file order when it concatenates matching rules) is what makes
+# no-referrer win here without touching the site-wide default anywhere
+# else. Unlike X-Frame-Options, Referrer-Policy has no "wider rule always
+# wins" trap: it explicitly is a multi-value, last-one-wins header.
+[[headers]]
+  for = "/my"
+  [headers.values]
+    Referrer-Policy = "no-referrer"
 
 # Embed mode (BUILD-PLAN 10.11): frame-ancestors is the modern, allow-listed
 # replacement for X-Frame-Options, so this is the one page on the whole site
 # that may sit inside an iframe, and only an iframe served from Kaipability's
 # own site. Header behaviour cannot be exercised by `python3 -m http.server`
 # locally: confirm this (and the DENY split above) on the Netlify deploy
-# preview, not in local testing.
+# preview, not in local testing. The general "/*" CSP rule above also
+# applies here (Netlify sends both Content-Security-Policy header
+# instances; a browser enforces the intersection), but since it never sets
+# frame-ancestors, the allow-list below is the only frame-ancestors value in
+# effect and is unaffected by it.
 [[headers]]
   for = "/embed.html"
   [headers.values]
     Content-Security-Policy = "frame-ancestors https://kaipability.com https://*.kaipability.com"
+
+# security.txt (RFC 9116, PRD-REGISTER section 10): a real file under
+# publish = ".", so the SPA fallback redirect below never reaches it (it
+# only ever fires for paths with no matching file, per the note on that
+# redirect). This header rule is not load-bearing for that reason, it just
+# states the content type explicitly rather than relying on Netlify's
+# default guess for an unfamiliar extension.
+[[headers]]
+  for = "/.well-known/security.txt"
+  [headers.values]
+    Content-Type = "text/plain; charset=utf-8"
 
 # Keep tools.json uncached-ish so a data-only push shows up without a hard refresh.
 [[headers]]
