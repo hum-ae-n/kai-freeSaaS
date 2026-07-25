@@ -1526,17 +1526,34 @@ export async function renderWorkspace(root) {
       );
       select.addEventListener('change', () => { ui.person = select.value; ui.customPerson = ''; draw(); });
 
+      // Free text overrides the dropdown the instant a reader starts typing
+      // (the same "custom beats picked" rule the click handler below reads
+      // live too), so this field redraws on every keystroke rather than the
+      // usual UI-state-only update: this screen's Generate/Regenerate label,
+      // its disabled state and its own click target all depend on knowing
+      // NOW who is chosen, not who was chosen when this render last ran.
+      // draw() already preserves focus and cursor position by data-focus-key
+      // (module comment, top of file) for exactly this kind of exception,
+      // the same pattern the accounts search field already uses.
       const customInput = el('input', {
         class: 'input', type: 'text', placeholder: 'Or type a name not listed above…',
         value: ui.customPerson, dataset: { focusKey: 'leaver-custom-person' },
       });
-      customInput.addEventListener('input', () => { ui.customPerson = customInput.value; });
+      customInput.addEventListener('input', () => { ui.customPerson = customInput.value; draw(); });
 
       const chosenPerson = (ui.customPerson || '').trim() || ui.person;
       const existingEntry = chosenPerson ? findLeaverEntry(doc, chosenPerson) : null;
       const genBtn = el('button', { class: 'btn btn-primary', type: 'button', disabled: !chosenPerson },
         existingEntry ? 'Regenerate checklist' : 'Generate checklist');
-      genBtn.addEventListener('click', () => generateLeaverChecklist(chosenPerson));
+      // Belt and braces on top of the redraw above: read the live state
+      // directly rather than trusting the `chosenPerson` this particular
+      // render closed over, so a click can never fire for a stale person
+      // even if some future code path changes ui.person/ui.customPerson
+      // without going through draw() first.
+      genBtn.addEventListener('click', () => {
+        const livePerson = (ui.customPerson || '').trim() || ui.person;
+        generateLeaverChecklist(livePerson);
+      });
 
       const picker = el('div', { class: 'panel my-leaver-picker no-print' },
         el('div', { class: 'my-field' }, el('span', { class: 't-small' }, 'Person leaving'), select),
@@ -1594,32 +1611,30 @@ export async function renderWorkspace(root) {
     /** Verified export (section 8): always records lastExportAt via
         store.exportBlob() itself, then confirms the round trip. A plaintext
         register gets the same full silent re-import-and-compare setup
-        already uses; an encrypted one gets an honest, lighter structural
-        check instead (magic header, envelope shape), since the derived key
-        held in store.js's memory is never exposed for us to decrypt with
-        again here, and re-prompting for a passphrase on every single
-        subsequent download (rather than only at setup, where section 7
-        requires it once) would be poor form for something this frequent. */
+        already uses. An encrypted one now gets a genuine decrypt round
+        trip too (Wave C fix): store.exportBlob() itself decrypts the bytes
+        it just serialised with whatever key it is already holding in
+        memory and reports the real result, no re-prompt needed, and no
+        structural-only check that a tampered ciphertext byte could slip
+        past (AES-GCM's authentication tag cannot). */
     async function runVerifiedExport() {
-      const { blob } = await store.exportBlob();
+      const { blob, verified: storeVerified, verifyError } = await store.exportBlob();
       const text = await blob.text();
-      let verified = false;
+      let verified = storeVerified;
       let verifyNote;
-      try {
-        if (currentStatus.encrypted) {
-          const parsed = JSON.parse(text);
-          verified = parsed.magic === 'freestack-register' && typeof parsed.v === 'number' && typeof parsed.ct === 'string';
-          verifyNote = verified
-            ? 'saved; its encrypted structure checked out'
-            : 'saved, but its structure could not be confirmed';
-        } else {
+      if (currentStatus.encrypted) {
+        verifyNote = verified
+          ? 'saved; its contents were test-decrypted and checked out'
+          : (verifyError || 'saved, but could not be verified');
+      } else {
+        try {
           const imported = await store.importBlob(text);
           verified = imported.document.business === doc.business && imported.document.accounts.length === doc.accounts.length;
           verifyNote = verified ? 'saved, exported and read back successfully: the round trip checks out' : 'saved, but the verification re-import did not match';
+        } catch (err) {
+          verified = false;
+          verifyNote = err.message || 'saved, but verification failed';
         }
-      } catch (err) {
-        verified = false;
-        verifyNote = err.message || 'saved, but verification failed';
       }
       return { blob, verified, verifyNote };
     }
@@ -1709,7 +1724,9 @@ export async function renderWorkspace(root) {
       const ui = state.backupUi;
       const fileInput = el('input', { type: 'file', accept: '.json,application/json', class: 'my-import-file-input', 'aria-hidden': 'true' });
       fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleImportFile(fileInput.files[0]); });
-      const pickBtn = el('button', { class: 'btn btn-primary', type: 'button' }, 'Choose a file to import');
+      // A primary workspace action (section 14): 44px minimum, same btn-lg
+      // used for the equivalent primary actions in first-run and setup.
+      const pickBtn = el('button', { class: 'btn btn-primary btn-lg', type: 'button' }, 'Choose a file to import');
       pickBtn.addEventListener('click', () => fileInput.click());
 
       const dropZone = el('div', {

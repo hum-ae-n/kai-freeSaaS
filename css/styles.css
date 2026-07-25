@@ -1585,6 +1585,12 @@ button { font: inherit; }
   /* Reassign control drops below the label instead of indenting under it,
      so there is no horizontal reach needed to find it one-handed. */
   .my-leaver-reassign { margin-left: 0; }
+  /* Verifier finding #4: btn-sm alone measured under the 44px floor
+     (section 14, primary workspace actions); flooring it here rather than
+     on .btn-sm globally keeps every OTHER small button (delete, close
+     details, filter chips) at their existing, deliberately compact size on
+     the screens where reach is not the concern this control has. */
+  .my-leaver-reassign .btn { min-height: 44px; }
   .my-leaver-picker { max-width: none; }
   .my-import-drop { align-items: stretch; text-align: center; }
   .my-import-drop .btn { width: 100%; }

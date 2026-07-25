@@ -289,7 +289,22 @@ export async function save(data, expectedRevision, opts = {}) {
     source of truth, per the compare-and-swap design) into the section 8
     export format: a magic header plus either the plain document or the
     envelope, never a bare custom shape mail clients or Files would choke
-    on. Records lastExportAt for the backup-age indicator. */
+    on. Records lastExportAt for the backup-age indicator.
+
+    Wave C fix: for an encrypted register this also does a genuine
+    round-trip verify, decrypting the exact bytes just serialised with
+    whichever key is currently held in memory (the same key that sealed
+    `raw` at the last save, or moments ago if a save just happened) and
+    confirming the result still parses. No re-prompt, since the key is
+    already here; a structural check alone (magic header, envelope shape)
+    cannot catch a tampered ciphertext byte, but AES-GCM's own
+    authentication tag does, and `openEnvelopeWithKey` throws on exactly
+    that. `verified` and `verifyError` are returned alongside the blob so
+    the caller never has to reimplement this check, or re-derive a key,
+    itself. A plaintext register has nothing to decrypt, so it is reported
+    verified here unconditionally: the caller (Backup screen) still does
+    its own full re-import comparison for that case, which is the
+    stronger check available with no key involved at all. */
 export async function exportBlob() {
   const raw = await readRaw();
   if (raw === null) throw new Error('Nothing to export yet.');
@@ -299,7 +314,24 @@ export async function exportBlob() {
   const json = JSON.stringify(payload, null, 2);
   const at = new Date().toISOString();
   lsSet(LS_META_KEY, { ...(lsGet(LS_META_KEY) || {}), lastExportAt: at, savesSinceExport: 0 });
-  return { blob: new Blob([json], { type: 'application/json' }), exportedAt: at };
+
+  let verified = true;
+  let verifyError = null;
+  if (isEnvelope(raw)) {
+    if (!cryptoKey) {
+      verified = false;
+      verifyError = 'This register is locked, so the exported file could not be test-decrypted.';
+    } else {
+      try {
+        const bytes = await openEnvelopeWithKey(raw, cryptoKey);
+        JSON.parse(bytesToText(bytes)); // confirms well-formed JSON, not only an authenticated tag
+      } catch {
+        verified = false;
+        verifyError = 'The exported file did not decrypt correctly: it may be corrupted.';
+      }
+    }
+  }
+  return { blob: new Blob([json], { type: 'application/json' }), exportedAt: at, verified, verifyError };
 }
 
 /** importBlob(): parse and, if needed, decrypt a .fsr.json file's bytes.
