@@ -1251,9 +1251,13 @@ button { font: inherit; }
 
 .my-firstrun { max-width: 900px; margin: 0 auto; padding: var(--s-6) var(--s-4); }
 .my-firstrun-header { padding: var(--s-8); border-top: var(--bw-heavy) solid var(--oxblood); margin-bottom: var(--s-6); }
-.my-firstrun-choices { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-6); padding: var(--s-6); }
+/* auto-fit, not a fixed 2 columns: Wave B adds a third "start from your
+   stack" choice when ?from= is present, so this needs to flex between two
+   and three cards without a separate rule for each count. */
+.my-firstrun-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--s-6); padding: var(--s-6); }
 .my-firstrun-choice { display: flex; flex-direction: column; gap: var(--s-3); align-items: start; }
 .my-firstrun-privacy { text-align: center; margin-top: var(--s-4); }
+.my-review-block { margin: var(--s-3) 0; }
 
 .my-setup { display: flex; justify-content: center; padding: var(--s-6) var(--s-4); }
 .my-setup-panel { max-width: 560px; width: 100%; padding: var(--s-8); border-top: var(--bw-heavy) solid var(--oxblood); }
@@ -1343,6 +1347,54 @@ button { font: inherit; }
 .my-tile-amber { border-top-color: var(--caution); }
 .my-tile-red { border-top-color: var(--oxblood); }
 
+/* Overview pull-quote (section 9.1, "broadsheet pull-quote styling"): the
+   positioning sentence, set off from the tiles rather than buried in body
+   copy. */
+.my-quote {
+  border-left: var(--bw-heavy) solid var(--oxblood);
+  padding-left: var(--s-4);
+  margin-bottom: var(--s-6);
+  max-width: 640px;
+}
+
+/* Unassigned-owner attention bucket (section 9.1) */
+.my-attention { padding: var(--s-4); border-top: var(--bw-heavy) solid var(--caution); margin-bottom: var(--s-4); max-width: 640px; }
+.my-attention h3 { font-size: var(--fs-18); margin-bottom: var(--s-2); }
+.my-attention-list { list-style: none; margin: var(--s-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-2); }
+
+/* Banners: example / reload-offer already existed (Wave A); merge preview
+   and delete-undo (Wave B) reuse the same flat, left-accented shape. */
+.my-banner-merge { background: var(--info-tint); border-bottom: var(--bw-hair) solid var(--info); flex-wrap: wrap; }
+.my-banner-merge-open { flex-direction: column; align-items: flex-start; padding: var(--s-4); }
+.my-banner-undo { background: var(--paper-2); border-bottom: var(--bw-hair) solid var(--ink-3); }
+
+/* Risk filter chips (section 9.2): toggle buttons, not decoration, so they
+   are real <button>s with aria-pressed rather than styled checkboxes. */
+.my-filter-bar { display: flex; gap: var(--s-2); flex-wrap: wrap; margin: var(--s-3) 0; }
+.my-chip-filter {
+  padding: 6px 14px;
+  border: var(--bw-hair) solid var(--ink-3);
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  color: var(--ink-2);
+  font-family: var(--font-sans);
+  font-size: var(--fs-12);
+  cursor: pointer;
+}
+.my-chip-filter:hover { border-color: var(--ink); color: var(--ink); }
+.my-chip-filter.is-active { background: var(--caution-tint); border-color: var(--caution); color: var(--noncore-fg); }
+
+/* Per-row risk chip (amber, "text label always, colour never alone") */
+.my-chip { display: inline-block; margin-left: var(--s-2); padding: 1px 8px; border-radius: var(--r-pill); font-size: var(--fs-12); white-space: nowrap; }
+.my-chip-risk { background: var(--caution-tint); color: var(--noncore-fg); border: var(--bw-hair) solid var(--caution); }
+
+.my-accounts-actions { display: flex; gap: var(--s-2); margin: var(--s-3) 0; flex-wrap: wrap; }
+.my-bulk-bar { display: flex; align-items: center; gap: var(--s-2); margin: var(--s-3) 0; padding: var(--s-2) var(--s-3); background: var(--paper-2); flex-wrap: wrap; }
+.my-bulk-bar .input { max-width: 220px; }
+
+.my-templates-panel { padding: var(--s-4); margin: var(--s-3) 0; max-width: 420px; }
+.my-template-row { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-1) 0; font-size: var(--fs-14); cursor: pointer; }
+
 .my-table-wrap { overflow-x: auto; }
 .my-accounts-table { width: 100%; border-collapse: collapse; }
 .my-accounts-table th, .my-accounts-table td {
@@ -1350,8 +1402,20 @@ button { font: inherit; }
   padding: var(--s-2) var(--s-3);
   border-bottom: var(--border);
   font-size: var(--fs-14);
+  vertical-align: top;
 }
 .my-accounts-table th { color: var(--ink-2); font-weight: 500; }
+.my-acc-input { width: 100%; min-width: 8rem; }
+.my-acc-readonly { display: inline-block; padding: 9px 0; }
+.my-acc-details-btn { margin-top: var(--s-1); }
+.my-acc-drawer-row td { background: var(--paper-2); }
+.my-acc-drawer { padding: var(--s-2) 0; }
+.my-acc-drawer-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--s-3); margin: var(--s-3) 0; }
+.my-field-wide { grid-column: 1 / -1; }
+.my-field-wide textarea.input { width: 100%; min-height: 4rem; font-family: var(--font-text); }
+
+.my-completeness-bar { display: block; width: 100%; max-width: 120px; height: 4px; background: var(--paper-edge); margin-top: var(--s-1); }
+.my-completeness-fill { display: block; height: 100%; background: var(--oxblood); }
 
 .my-status-list { display: grid; grid-template-columns: max-content 1fr; gap: var(--s-1) var(--s-4); max-width: 560px; margin: var(--s-4) 0; }
 .my-status-list dt { color: var(--ink-2); font-size: var(--fs-14); }
@@ -1370,8 +1434,47 @@ button { font: inherit; }
   .my-sidebar.is-open { transform: translateX(0); }
   .my-menu-toggle { display: inline-flex; }
   .my-firstrun-choices { grid-template-columns: 1fr; }
-  .my-topbar-search { display: none; }
+  /* Search stays reachable on a phone (section 9.2 composes it with the risk
+     chips): it drops onto its own full-width line instead of vanishing, as
+     Wave A's rule did before Wave B wired the input up. */
+  .my-topbar { flex-wrap: wrap; }
+  .my-topbar-search { flex: 1 1 100%; max-width: none; order: 3; }
   .my-topbar-name { font-size: var(--fs-18); }
+
+  /* Accounts table becomes a stacked card per row, the same pattern the
+     curator table already uses at this width (RESPONSIVE block, .cell-*
+     grid-template-areas): thead hidden, each <tr> a small grid. */
+  .my-acc-table thead { display: none; }
+  .my-acc-table tbody { display: block; }
+  .my-acc-table tr.my-acc-row {
+    display: grid;
+    width: 100%;
+    grid-template-columns: auto 1fr 1fr;
+    grid-template-areas:
+      "check   service  service"
+      "identity identity identity"
+      "owner   owner    owner"
+      "mfa     mfa      renewal"
+      "completeness completeness completeness"
+      "actions actions  actions";
+    column-gap: var(--s-3);
+    row-gap: var(--s-2);
+    padding: var(--s-3);
+    margin-bottom: var(--s-3);
+    background: var(--paper);
+    border: var(--bw-hair) solid var(--paper-edge);
+  }
+  .my-acc-table td { display: block; padding: 0; border: none; }
+  .my-acc-table .my-acc-check { grid-area: check; }
+  .my-acc-table .my-acc-service { grid-area: service; }
+  .my-acc-table .my-acc-identity { grid-area: identity; }
+  .my-acc-table .my-acc-owner { grid-area: owner; }
+  .my-acc-table .my-acc-mfa { grid-area: mfa; }
+  .my-acc-table .my-acc-renewal { grid-area: renewal; }
+  .my-acc-table .my-acc-completeness { grid-area: completeness; }
+  .my-acc-table .my-acc-actions { grid-area: actions; }
+  .my-acc-table tr.my-acc-drawer-row { display: block; padding: 0 var(--s-3) var(--s-3); margin-top: calc(-1 * var(--s-3)); margin-bottom: var(--s-3); border: var(--bw-hair) solid var(--paper-edge); border-top: none; }
+  .my-acc-table tr.my-acc-drawer-row td { display: block; }
 }
 @media (prefers-reduced-motion: reduce) {
   .my-sidebar { transition: none; }

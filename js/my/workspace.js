@@ -1,10 +1,13 @@
 /**
- * workspace.js: the /my surface (PRD-REGISTER, Wave A per BUILD-PLAN 11.1).
- * Mounted at #my-root by js/data-loader.js's boot(). Owns everything under
- * that mount point: first-run gates, setup, lock screen and the app shell.
- * The only module besides js/my/store.js allowed to know the shape of a
- * workspace document; every mutation still flows through store.js's six
- * methods, this module never touches storage directly.
+ * workspace.js: the /my surface (PRD-REGISTER, Wave A per BUILD-PLAN 11.1;
+ * Accounts CRUD, risk engine wiring, Overview tiles, stack import/merge and
+ * sovereign templates added Wave B per BUILD-PLAN 11.2). Mounted at #my-root
+ * by js/data-loader.js's boot(). Owns everything under that mount point:
+ * first-run gates, setup, lock screen and the app shell. The only module
+ * besides js/my/store.js allowed to know the shape of a workspace document;
+ * every mutation still flows through store.js's six methods, this module
+ * never touches storage directly. js/my/risks.js and js/my/templates.js are
+ * pure-data helpers this module calls but never a storage seam of their own.
  *
  * Redraw discipline: each screen is built once by its view function and
  * only rebuilt wholesale on a genuine step/mode transition (a button
@@ -12,10 +15,23 @@
  * state via their own 'input' listener with no redraw, so typing never
  * loses focus. This mirrors curator.js's targeted-update discipline for
  * the same reason, by a different mechanism suited to a multi-step wizard.
+ *
+ * ONE deliberate exception (Wave B): the accounts free-text search filters
+ * the table live, as the reader types, which needs a redraw per keystroke
+ * to show/hide rows. draw() below preserves whatever element currently has
+ * focus (by a data-focus-key attribute) and its cursor position across that
+ * redraw, so the exception never costs the reader their place. Every input
+ * that should survive a redraw (search, inline table edits, the drawer's
+ * fields) carries a stable data-focus-key for this to key off.
  */
-import { el, themeToggleButton, readPlainMode, writePlainMode, showToast } from '../data-loader.js';
+import { el, themeToggleButton, readPlainMode, writePlainMode, showToast, parseSelection } from '../data-loader.js';
 import * as store from './store.js';
 import { sampleDocument, sampleStatus } from './sample.js';
+import {
+  isPersonalEmail, mfaRiskLabel, hasNoOwner, isRenewalSoon, completeness,
+  RISK_FILTERS, matchesSearch,
+} from './risks.js';
+import { SOVEREIGN_TEMPLATES, templateToRow } from './templates.js';
 
 /* --- house-voice constants, verbatim per PRD-REGISTER ---------------------- */
 const POSITIONING_SENTENCE = 'Your password manager holds the keys; the register is the keyring label: which doors exist, who holds which key, and which keys to collect when someone leaves.';
@@ -66,6 +82,8 @@ function backupAgeInfo(lastExportAt) {
   return { text: `Last exported ${age}, export again soon`, level: 'red' };
 }
 const MFA_LABEL = { app: 'Authenticator app', sms: 'SMS code', hardware: 'Hardware key', none: 'None', unknown: 'Not recorded' };
+const ADMIN_LABEL = { owner: 'Owner', admin: 'Admin', member: 'Member', unknown: 'Not recorded' };
+const STATUS_LABEL = { active: 'Active', 'to-close': 'To close', closed: 'Closed' };
 
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
@@ -96,6 +114,34 @@ function buildRecoverySheetHtml(business, date) {
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>My Stack recovery sheet</title></head><body>${body.innerHTML}</body></html>`;
 }
 
+/** ULID-style is the PRD's own word for this (section 4.2): not a literal
+    ULID implementation, but a client-generated, roughly time-sortable,
+    collision-safe-enough-for-one-device id. Timestamp prefix plus a random
+    suffix is a defensible, dependency-free reading of that, noted here. */
+function newId() {
+  return `a${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+}
+function blankAccount(overrides = {}) {
+  return {
+    id: newId(), service: '', url: '', toolId: null, identity: '', owner: '',
+    admin: 'unknown', mfa: 'unknown', plan: '', renewal: null, monthlyCost: null,
+    status: 'active', notes: '', ...overrides,
+  };
+}
+/** One register row per stack tool (section 2, section 9.7, section 15.2):
+    service and address filled in from the catalogue, identity and owner
+    deliberately left blank since nobody but the reader knows who opened the
+    account or with what address. `tool.urls[0].domain` is a bare hostname
+    (CLAUDE.md's own note on that field), so the https:// prefix is added
+    here to satisfy the register schema's "https URL" for `url`. */
+function buildRowFromTool(tool) {
+  const domain = tool.urls && tool.urls[0] && tool.urls[0].domain;
+  return blankAccount({ service: tool.name, url: domain ? `https://${domain}` : '', toolId: tool.id });
+}
+function cloneDoc(doc) {
+  return typeof structuredClone === 'function' ? structuredClone(doc) : JSON.parse(JSON.stringify(doc));
+}
+
 /* ============================================================================
    Entry point
    ========================================================================= */
@@ -111,7 +157,46 @@ export async function renderWorkspace(root) {
     mobileOpen: false,
     setup: null,
     lockUi: null,
+    accountsUi: {
+      search: '',
+      filters: new Set(),   // active risk-filter keys, section 9.2
+      selected: new Set(),  // account ids ticked for bulk owner edit
+      openDrawerId: null,
+      bulkOwnerValue: '',
+      templatesOpen: false,
+      templatesTicked: new Set(),
+    },
+    undo: null,        // { row, index, timer }: the last delete, undoable
+    mergePreview: null, // { ids, ticked, open }: ?from= against an EXISTING register
   };
+
+  // ?from= (section 2, 9.7, 15.2): parsed exactly like data-loader's own
+  // parseSelection (imported, not reimplemented), so id 0 is exactly as
+  // valid here as anywhere else on the site. Resolving it needs the tool
+  // catalogue, which this module fetches for itself (an absolute path, so
+  // it resolves the same whether the visited path is /my or /my/, unlike a
+  // relative fetch would). null = no ?from= param at all; [] = the param
+  // was present but named no tool ids this catalogue recognises.
+  const fromRaw = new URLSearchParams(location.search).get('from');
+  let fromIds = null;
+  let toolsCache = null;
+  async function ensureTools() {
+    if (!toolsCache) {
+      const res = await fetch('/data/tools.json');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      toolsCache = await res.json();
+    }
+    return toolsCache;
+  }
+  async function resolveFromIds() {
+    if (fromRaw == null) return;
+    try {
+      const tools = await ensureTools();
+      fromIds = parseSelection(fromRaw, tools);
+    } catch {
+      fromIds = []; // catalogue unreachable: degrade to "nothing to import", never block the workspace
+    }
+  }
 
   // Last known store.status() snapshot, since status() is async and the app
   // shell renders synchronously; refreshStatusNow() updates it deliberately
@@ -133,7 +218,27 @@ export async function renderWorkspace(root) {
     };
   }
 
-  function draw() { root.replaceChildren(view()); }
+  /** Focus-preserving redraw (see the module comment above): captures
+      whichever element currently has focus by its data-focus-key, and its
+      text-selection range where that concept applies, then restores both
+      after the wholesale rebuild. A no-op for the vast majority of clicks
+      (nothing focused carries the attribute), which is why this is safe to
+      make the ONE draw() every code path in this module already calls. */
+  function draw() {
+    const active = document.activeElement;
+    const focusKey = active && active.dataset ? active.dataset.focusKey : null;
+    const selStart = active && 'selectionStart' in active ? active.selectionStart : null;
+    const selEnd = active && 'selectionEnd' in active ? active.selectionEnd : null;
+    root.replaceChildren(view());
+    if (!focusKey) return;
+    let next = null;
+    try { next = root.querySelector(`[data-focus-key="${focusKey}"]`); } catch { next = null; }
+    if (!next) return;
+    next.focus({ preventScroll: true });
+    if (selStart != null && typeof next.setSelectionRange === 'function') {
+      try { next.setSelectionRange(selStart, selEnd); } catch { /* date/number inputs do not support this */ }
+    }
+  }
 
   function view() {
     switch (state.mode) {
@@ -166,6 +271,7 @@ export async function renderWorkspace(root) {
       draw();
       return;
     }
+    await resolveFromIds();
     await enterFromStorage();
   }
 
@@ -180,6 +286,7 @@ export async function renderWorkspace(root) {
         await refreshStatusNow(); // avoids a one-frame flash where the Lock button is briefly absent
         state.mode = 'app';
         state.screen = 'overview';
+        await computeMergePreview();
       }
     } catch (err) {
       if (err instanceof store.LockedError) {
@@ -191,6 +298,25 @@ export async function renderWorkspace(root) {
       }
     }
     draw();
+  }
+
+  /** Merge preview (section 2, 9.7, 15.2): a returning visitor arriving with
+      ?from= on a register that already exists. Only tools not already
+      present by toolId are offered, so re-visiting the same shared link
+      twice can never duplicate a row. Computed once on entry, not on every
+      redraw, so dismissing it (or applying it) does not get recomputed back
+      into existence a frame later. */
+  async function computeMergePreview() {
+    if (!fromIds || !fromIds.length || state.example) { state.mergePreview = null; return; }
+    try {
+      const tools = await ensureTools();
+      const byId = new Map(tools.map((t) => [t.id, t]));
+      const existingToolIds = new Set(state.doc.accounts.map((a) => a.toolId).filter((v) => v !== null && v !== undefined));
+      const newIds = fromIds.filter((id) => !existingToolIds.has(id) && byId.has(id));
+      state.mergePreview = newIds.length ? { ids: newIds, ticked: new Set(newIds), open: false } : null;
+    } catch {
+      state.mergePreview = null;
+    }
   }
 
   /* --------------------------------------------------------------------------
@@ -235,15 +361,40 @@ export async function renderWorkspace(root) {
   /* --------------------------------------------------------------------------
      First run
      ----------------------------------------------------------------------- */
+  function defaultSetupState(fromStack) {
+    return {
+      step: 'name', business: '', wantsEncryption: null, passphrase1: '', passphrase2: '',
+      error: null, recoveryDone: false, verifyOk: false, exportDone: false, blob: null, filename: '',
+      stackAccounts: [], templatesTicked: new Set(), fromStack: !!fromStack,
+    };
+  }
+
   function viewFirstRun() {
     const startBtn = el('button', { class: 'btn btn-primary btn-lg', type: 'button' }, 'Start your own register');
     startBtn.addEventListener('click', () => {
       state.mode = 'setup';
-      state.setup = { step: 'name', business: '', wantsEncryption: null, passphrase1: '', passphrase2: '', error: null, recoveryDone: false, verifyOk: false, exportDone: false, blob: null, filename: '' };
+      state.setup = defaultSetupState(false);
       draw();
     });
     const exampleBtn = el('button', { class: 'btn btn-ghost btn-lg', type: 'button' }, 'Explore an example register');
     exampleBtn.addEventListener('click', enterExample);
+
+    let stackChoice = null;
+    if (fromIds && fromIds.length) {
+      const stackBtn = el('button', { class: 'btn btn-primary btn-lg', type: 'button' },
+        `Start from your stack (${fromIds.length} tool${fromIds.length === 1 ? '' : 's'})`);
+      stackBtn.addEventListener('click', () => {
+        state.mode = 'setup';
+        state.setup = defaultSetupState(true);
+        draw();
+      });
+      stackChoice = el('div', { class: 'my-firstrun-choice' },
+        el('h3', {}, 'Start from your shared stack'),
+        el('p', { class: 't-body' }, 'Pre-fill one account row per tool from the link you followed here: service name and address filled in, identity and owner left for you to complete.'),
+        stackBtn,
+      );
+    }
+
     return el('div', { class: 'my-firstrun' },
       el('header', { class: 'panel my-firstrun-header' },
         el('p', { class: 'eyebrow' }, 'My Stack'),
@@ -251,6 +402,7 @@ export async function renderWorkspace(root) {
         el('p', { class: 't-lede' }, POSITIONING_SENTENCE),
       ),
       el('div', { class: 'panel my-firstrun-choices' },
+        stackChoice,
         el('div', { class: 'my-firstrun-choice' },
           el('h3', {}, 'Start your own'),
           el('p', { class: 't-body' }, 'A few minutes: your business name, an optional passphrase, and a backup you keep.'),
@@ -271,6 +423,7 @@ export async function renderWorkspace(root) {
     state.example = true;
     state.doc = sampleDocument();
     state.expectedRevision = state.doc.revision;
+    state.mergePreview = null;
     state.mode = 'app';
     state.screen = 'overview';
     draw();
@@ -289,6 +442,7 @@ export async function renderWorkspace(root) {
     const s = state.setup;
     switch (s.step) {
       case 'name': return setupName(s);
+      case 'review': return setupReview(s);
       case 'encrypt-choice': return setupEncryptChoice(s);
       case 'consequence': return setupConsequence(s);
       case 'passphrase': return setupPassphrase(s);
@@ -316,10 +470,50 @@ export async function renderWorkspace(root) {
       if (!s.business || s.business.trim().length < 2) { s.error = 'Enter your business name to continue.'; draw(); return; }
       s.business = s.business.trim();
       s.error = null;
-      s.step = 'encrypt-choice';
+      if (s.fromStack && fromIds && fromIds.length) {
+        const tools = toolsCache || [];
+        const byId = new Map(tools.map((t) => [t.id, t]));
+        s.stackAccounts = fromIds.map((id) => byId.get(id)).filter((t) => t !== undefined).map(buildRowFromTool);
+      } else {
+        s.stackAccounts = [];
+      }
+      s.step = 'review';
       draw();
     });
     return setupWrap('Your business', el('h1', {}, 'What is this register for?'), nameField, err, next);
+  }
+
+  /** Section 9.7's "sovereign row suggestions", plus (Wave B) a preview of
+      any stack-import rows already decided on the previous step: "shows
+      what will be added before applying" in spirit, even though at setup
+      there is nothing yet to conflict with. Ticking here never invents
+      identity or owner facts (section 4.3: sovereign rows are suggestions,
+      never auto-created), only adds a named, mostly-blank row. */
+  function setupReview(s) {
+    const back = el('button', { class: 'btn btn-ghost', type: 'button' }, 'Back');
+    back.addEventListener('click', () => { s.step = 'name'; draw(); });
+    const cont = el('button', { class: 'btn btn-primary', type: 'button' }, 'Continue');
+    cont.addEventListener('click', () => { s.step = 'encrypt-choice'; draw(); });
+
+    const stackList = s.stackAccounts.length ? el('div', { class: 'my-review-block' },
+      el('p', { class: 't-small' }, `From your shared stack, ${s.stackAccounts.length} account${s.stackAccounts.length === 1 ? '' : 's'} will be added:`),
+      el('ul', { class: 'my-attention-list' }, ...s.stackAccounts.map((r) => el('li', {}, r.service))),
+    ) : null;
+
+    const templateRows = SOVEREIGN_TEMPLATES.map((tpl) => {
+      const id = `setup-tpl-${tpl.key}`;
+      const cb = el('input', { type: 'checkbox', id, checked: s.templatesTicked.has(tpl.key) });
+      cb.addEventListener('change', () => { if (cb.checked) s.templatesTicked.add(tpl.key); else s.templatesTicked.delete(tpl.key); });
+      return el('label', { class: 'my-template-row', for: id }, cb, el('span', {}, tpl.service));
+    });
+
+    return setupWrap('Accounts to start with',
+      el('h1', {}, 'A few accounts every business has'),
+      stackList,
+      el('p', { class: 't-body' }, 'Tick any of these that apply. You can add, edit or remove any account later.'),
+      ...templateRows,
+      el('div', { class: 'my-setup-actions' }, back, cont),
+    );
   }
 
   function setupEncryptChoice(s) {
@@ -404,7 +598,10 @@ export async function renderWorkspace(root) {
   /** Writes the initial document (encrypted if passphrase is not null),
       then silently exports and re-imports it to verify the round trip
       before anything is declared done, per section 8 (and, for the
-      encrypted path, section 7's required test-decrypt). */
+      encrypted path, section 7's required test-decrypt). The initial
+      account list (Wave B) is whatever stack-import rows and ticked
+      sovereign templates the reader chose at the review step; an empty
+      array when neither applies, exactly as before. */
   async function commitInitialSave(s, passphrase) {
     state.mode = 'setup';
     s.step = 'verify-pending';
@@ -412,7 +609,11 @@ export async function renderWorkspace(root) {
     draw();
     try {
       if (passphrase) await store.unlock(passphrase); // chooses the passphrase: see store.js's unlock() doc comment
-      const doc = { business: s.business, people: [], accounts: [] };
+      const accounts = [
+        ...(s.stackAccounts || []),
+        ...SOVEREIGN_TEMPLATES.filter((tpl) => s.templatesTicked.has(tpl.key)).map((tpl) => templateToRow(tpl, newId)),
+      ];
+      const doc = { business: s.business, people: [], accounts };
       const saved = await store.save(doc, 0);
       state.doc = saved;
       state.expectedRevision = saved.revision;
@@ -420,7 +621,7 @@ export async function renderWorkspace(root) {
       const { blob } = await store.exportBlob();
       const text = await blob.text();
       const imported = await store.importBlob(text, passphrase || undefined);
-      const roundTripOk = imported.document.business === s.business && imported.document.accounts.length === 0;
+      const roundTripOk = imported.document.business === s.business && imported.document.accounts.length === accounts.length;
       if (!roundTripOk) throw new Error('The verification re-import did not match what was saved.');
 
       s.verifyOk = true;
@@ -498,6 +699,120 @@ export async function renderWorkspace(root) {
   }
 
   /* --------------------------------------------------------------------------
+     Account mutations: every one flows load (state.doc, already in memory)
+     -> mutate a clone -> store.save(clone, expectedRevision), per section 6.
+     A rejected save (ConflictError, section 6/9) shows the same reload
+     offer the BroadcastChannel path already shows: this module never tries
+     to merge two edits itself. mutateDoc() resolves to null rather than
+     rejecting on a handled failure (already shown as a banner or toast),
+     specifically so none of its many call sites below need their own
+     try/catch just to avoid an unhandled rejection; each one only checks
+     the truthy/null result when it has actual follow-up work to skip (for
+     example, not opening a drawer for a row that never actually saved).
+     The example register never reaches here in practice (its CRUD
+     affordances are not rendered), but the guard is kept as a second line
+     of defence rather than trusting that alone.
+     ----------------------------------------------------------------------- */
+  async function mutateDoc(mutator) {
+    if (state.example) {
+      state.doc = mutator(cloneDoc(state.doc));
+      draw();
+      return state.doc;
+    }
+    const next = mutator(cloneDoc(state.doc));
+    try {
+      const saved = await store.save(next, state.expectedRevision);
+      state.doc = saved;
+      state.expectedRevision = saved.revision;
+      draw();
+      return saved;
+    } catch (err) {
+      if (err instanceof store.ConflictError) {
+        state.banner = { kind: 'external-write' };
+        draw();
+      } else {
+        showToast(err.message || 'Could not save that change.', 'error');
+      }
+      return null;
+    }
+  }
+
+  async function addAccount(overrides) {
+    const row = blankAccount(overrides);
+    const saved = await mutateDoc((doc) => { doc.accounts.push(row); return doc; });
+    if (saved) { state.accountsUi.openDrawerId = row.id; draw(); } // straight into editing: an empty row alone is not useful
+    return row;
+  }
+  async function updateAccountField(id, field, value) {
+    await mutateDoc((doc) => {
+      const row = doc.accounts.find((a) => a.id === id);
+      if (row) row[field] = value;
+      return doc;
+    });
+  }
+  async function bulkSetOwner(ids, owner) {
+    const saved = await mutateDoc((doc) => {
+      for (const a of doc.accounts) if (ids.has(a.id)) a.owner = owner;
+      return doc;
+    });
+    if (saved) { state.accountsUi.selected.clear(); state.accountsUi.bulkOwnerValue = ''; }
+  }
+  async function addTemplates(keys) {
+    await mutateDoc((doc) => {
+      for (const tpl of SOVEREIGN_TEMPLATES) if (keys.has(tpl.key)) doc.accounts.push(templateToRow(tpl, newId));
+      return doc;
+    });
+  }
+  async function applyMerge(ids) {
+    const tools = toolsCache || [];
+    const byId = new Map(tools.map((t) => [t.id, t]));
+    state.mergePreview = null; // clears the instant the matching rows land, not a frame later
+    const saved = await mutateDoc((doc) => {
+      const existingToolIds = new Set(doc.accounts.map((a) => a.toolId).filter((v) => v !== null && v !== undefined));
+      for (const id of ids) {
+        if (existingToolIds.has(id)) continue; // never duplicates, per section 15.2
+        const tool = byId.get(id);
+        if (!tool) continue;
+        doc.accounts.push(buildRowFromTool(tool));
+        existingToolIds.add(id);
+      }
+      return doc;
+    });
+    if (saved) showToast('Accounts added from your shared stack.');
+  }
+  /** Delete with undo (no confirm modal, per the brief): the row is removed
+      and saved immediately (the store law: mutations persist, they do not
+      wait in limbo), and "Undo" is a second, equally real mutation that
+      re-inserts the exact row rather than a client-side pretend-undo. */
+  function showUndo(row, index) {
+    if (state.undo?.timer) clearTimeout(state.undo.timer);
+    const timer = setTimeout(() => { state.undo = null; draw(); }, 8000);
+    state.undo = { row, index, timer };
+    draw();
+  }
+  async function deleteAccount(id) {
+    const row = state.doc.accounts.find((a) => a.id === id);
+    if (!row) return;
+    const index = state.doc.accounts.indexOf(row);
+    const saved = await mutateDoc((doc) => { doc.accounts = doc.accounts.filter((a) => a.id !== id); return doc; });
+    if (!saved) return; // the delete never actually persisted: nothing to offer undo for
+    state.accountsUi.selected.delete(id);
+    if (state.accountsUi.openDrawerId === id) state.accountsUi.openDrawerId = null;
+    showUndo(row, index);
+  }
+  async function undoDelete() {
+    if (!state.undo) return;
+    const { row, index } = state.undo;
+    clearTimeout(state.undo.timer);
+    state.undo = null;
+    await mutateDoc((doc) => {
+      const at = Math.min(index, doc.accounts.length);
+      doc.accounts.splice(at, 0, row);
+      return doc;
+    });
+  }
+
+  /* --------------------------------------------------------------------------
      App shell
      ----------------------------------------------------------------------- */
   function label(key) {
@@ -514,6 +829,10 @@ export async function renderWorkspace(root) {
     state.screen = screen;
     state.mobileOpen = false;
     draw();
+  }
+  function goAccounts(filterKey) {
+    state.accountsUi.filters = filterKey ? new Set([filterKey]) : new Set();
+    navigate('accounts');
   }
 
   function viewShell() {
@@ -570,10 +889,23 @@ export async function renderWorkspace(root) {
       (() => { const b = el('button', { class: 'btn btn-sm btn-secondary', type: 'button' }, 'Reload'); b.addEventListener('click', () => location.reload()); return b; })(),
     ) : null;
 
+    const mergeBanner = (!state.example && state.mergePreview) ? renderMergeBanner() : null;
+
+    const undoBanner = state.undo ? el('div', { class: 'my-banner my-banner-undo', role: 'status' },
+      `Deleted ${state.undo.row.service || 'that account'}. `,
+      (() => { const b = el('button', { class: 'btn btn-sm btn-secondary', type: 'button' }, 'Undo'); b.addEventListener('click', () => undoDelete()); return b; })(),
+    ) : null;
+
+    const searchInput = el('input', {
+      class: 'input my-topbar-search', type: 'search', placeholder: 'Search accounts…', 'aria-label': 'Search accounts (service, identity, owner, notes)',
+      value: state.accountsUi.search, dataset: { focusKey: 'accounts-search' },
+    });
+    searchInput.addEventListener('input', () => { state.accountsUi.search = searchInput.value; draw(); });
+
     const topbar = el('div', { class: 'my-topbar' },
       menuBtn,
       el('h1', { class: 'my-topbar-name' }, doc.business || 'Untitled register'),
-      el('input', { class: 'input my-topbar-search', type: 'search', placeholder: 'Search accounts…', 'aria-label': 'Search accounts', disabled: true }),
+      searchInput,
     );
 
     const main = el('main', { class: 'my-main' }, screenView());
@@ -594,49 +926,314 @@ export async function renderWorkspace(root) {
       return el('section', { class: 'my-screen' }, el('h2', {}, title), el('p', { class: 't-body' }, body));
     }
 
+    /* --- Overview: risk and status tiles (section 9.1) -------------------- */
     function screenOverview() {
       const st = currentStatus;
       const age = backupAgeInfo(st.lastExportAt);
-      const recordedTile = el('button', { class: 'panel my-tile', type: 'button' },
-        el('span', { class: 'my-tile-value' }, String(doc.accounts.length)),
-        el('span', { class: 'my-tile-label' }, label('recorded')));
-      recordedTile.addEventListener('click', () => navigate('accounts'));
-      const backupTile = el('button', { class: `panel my-tile my-tile-${age.level}`, type: 'button' },
-        el('span', { class: 'my-tile-value' }, age.text),
-        el('span', { class: 'my-tile-label' }, label('backupAge')));
-      backupTile.addEventListener('click', () => navigate('backup'));
+      const accounts = doc.accounts;
+      const counts = {
+        'personal-email': accounts.filter((a) => isPersonalEmail(a.identity)).length,
+        'no-mfa': accounts.filter((a) => mfaRiskLabel(a.mfa) !== null).length,
+        'no-owner': accounts.filter((a) => hasNoOwner(a.owner)).length,
+        'renewing-soon': accounts.filter((a) => isRenewalSoon(a.renewal)).length,
+      };
+      function tile(value, labelText, level, onClick) {
+        const btn = el('button', { class: `panel my-tile${level ? ` my-tile-${level}` : ''}`, type: 'button' },
+          el('span', { class: 'my-tile-value' }, String(value)),
+          el('span', { class: 'my-tile-label' }, labelText));
+        btn.addEventListener('click', onClick);
+        return btn;
+      }
+      const tiles = [
+        tile(accounts.length, label('recorded'), null, () => goAccounts(null)),
+        tile(counts['personal-email'], 'On personal email', counts['personal-email'] ? 'amber' : 'ok', () => goAccounts('personal-email')),
+        tile(counts['no-mfa'], 'No 2FA recorded', counts['no-mfa'] ? 'amber' : 'ok', () => goAccounts('no-mfa')),
+        tile(counts['no-owner'], 'No owner', counts['no-owner'] ? 'amber' : 'ok', () => goAccounts('no-owner')),
+        tile(counts['renewing-soon'], 'Renewing in 60 days', counts['renewing-soon'] ? 'amber' : 'ok', () => goAccounts('renewing-soon')),
+        tile(age.text, label('backupAge'), age.level, () => navigate('backup')),
+      ];
+
+      // "Unassigned attention bucket" (section 9.1): rows with no owner
+      // surface here rather than rotting quietly in the table, each with a
+      // one-tap jump straight to that row's drawer.
+      const noOwnerRows = accounts.filter((a) => hasNoOwner(a.owner));
+      const attention = noOwnerRows.length ? el('div', { class: 'panel my-attention' },
+        el('h3', {}, 'Needs an owner'),
+        el('p', { class: 't-body' }, 'Nobody is down as the owner for these accounts yet.'),
+        el('ul', { class: 'my-attention-list' }, ...noOwnerRows.map((a) => {
+          const btn = el('button', { class: 'btn btn-ghost btn-sm', type: 'button' }, `Assign owner: ${a.service || 'Untitled account'}`);
+          btn.addEventListener('click', () => {
+            state.accountsUi.filters = new Set(['no-owner']);
+            state.accountsUi.openDrawerId = a.id;
+            navigate('accounts');
+          });
+          return el('li', {}, btn);
+        })),
+      ) : null;
+
       return el('section', { class: 'my-screen' },
         el('h2', {}, 'Overview'),
-        el('div', { class: 'my-tiles' }, recordedTile, backupTile),
-        el('p', { class: 't-meta' }, 'Risk tiles (personal email, no 2FA, no owner, renewals due soon) arrive with full account entry in the next update.'),
+        el('p', { class: 't-lede my-quote' }, POSITIONING_SENTENCE),
+        el('div', { class: 'my-tiles' }, ...tiles),
+        attention,
       );
     }
 
+    /* --- Accounts: the register (section 9.2) ------------------------------ */
     function screenAccounts() {
-      if (!doc.accounts.length) {
-        return el('section', { class: 'my-screen' },
-          el('h2', {}, 'Accounts'),
-          el('p', { class: 't-body' }, 'No accounts recorded yet. Adding accounts by hand, from templates or from a stack arrives in the next update.'),
-        );
+      const ui = state.accountsUi;
+      const readOnly = state.example;
+      const accounts = doc.accounts;
+
+      const chipButtons = Object.entries(RISK_FILTERS).map(([key, def]) => {
+        const active = ui.filters.has(key);
+        const btn = el('button', { class: `my-chip-filter${active ? ' is-active' : ''}`, type: 'button', 'aria-pressed': String(active) }, def.label);
+        btn.addEventListener('click', () => {
+          if (ui.filters.has(key)) ui.filters.delete(key); else ui.filters.add(key);
+          draw();
+        });
+        return btn;
+      });
+      const filterBar = el('div', { class: 'my-filter-bar', role: 'group', 'aria-label': 'Filter accounts by risk' }, ...chipButtons);
+
+      const filtered = accounts.filter((a) => {
+        for (const key of ui.filters) if (!RISK_FILTERS[key].test(a)) return false;
+        return matchesSearch(a, ui.search);
+      });
+
+      let bulkBar = null;
+      if (!readOnly && ui.selected.size) {
+        const input = el('input', { class: 'input', type: 'text', placeholder: 'Owner for selected accounts…', value: ui.bulkOwnerValue, dataset: { focusKey: 'bulk-owner' } });
+        input.addEventListener('input', () => { ui.bulkOwnerValue = input.value; });
+        const apply = el('button', { class: 'btn btn-secondary btn-sm', type: 'button' }, `Set owner for ${ui.selected.size}`);
+        apply.addEventListener('click', async () => {
+          const owner = ui.bulkOwnerValue.trim();
+          if (!owner) { showToast('Enter a name first.', 'error'); return; }
+          await bulkSetOwner(new Set(ui.selected), owner);
+        });
+        const clear = el('button', { class: 'btn btn-ghost btn-sm', type: 'button' }, 'Clear selection');
+        clear.addEventListener('click', () => { ui.selected.clear(); draw(); });
+        bulkBar = el('div', { class: 'my-bulk-bar' }, el('span', { class: 't-small' }, `${ui.selected.size} selected`), input, apply, clear);
       }
-      const rows = doc.accounts.map((a) => el('tr', {},
-        el('td', {}, a.service),
-        el('td', {}, a.identity),
-        el('td', {}, a.owner || 'Not recorded'),
-        el('td', {}, MFA_LABEL[a.mfa] || a.mfa || 'Not recorded'),
-        el('td', {}, formatDate(a.renewal) || 'None'),
-      ));
+
+      const addBtn = el('button', { class: 'btn btn-primary btn-sm', type: 'button' }, 'Add account');
+      addBtn.addEventListener('click', () => addAccount());
+      const templatesBtn = el('button', { class: 'btn btn-ghost btn-sm', type: 'button' }, 'Add from templates');
+      templatesBtn.addEventListener('click', () => { ui.templatesOpen = !ui.templatesOpen; draw(); });
+      const headerActions = readOnly ? null : el('div', { class: 'my-accounts-actions' }, addBtn, templatesBtn);
+      const templatesPanel = (!readOnly && ui.templatesOpen) ? renderTemplatesPicker() : null;
+
+      const table = accounts.length ? renderAccountsTable(filtered, readOnly) : null;
+      const emptyMsg = !accounts.length
+        ? el('p', { class: 't-body' }, 'No accounts recorded yet. Add one by hand, from a template, or from a shared stack link.')
+        : (filtered.length ? null : el('p', { class: 't-body' }, 'No accounts match this search or these filters.'));
+
       return el('section', { class: 'my-screen' },
         el('h2', {}, 'Accounts'),
-        el('p', { class: 't-meta' }, 'Read only for now: editing arrives with the full register table.'),
-        el('div', { class: 'my-table-wrap' },
-          el('table', { class: 'my-accounts-table' },
-            el('thead', {}, el('tr', {},
-              el('th', {}, 'Service'), el('th', {}, 'Identity'), el('th', {}, 'Owner'), el('th', {}, '2FA'), el('th', {}, 'Renewal'),
-            )),
-            el('tbody', {}, rows),
-          ),
+        readOnly ? el('p', { class: 't-meta' }, 'This is an example register: editing is switched off. Start your own register to add and edit real accounts.') : null,
+        headerActions,
+        templatesPanel,
+        filterBar,
+        bulkBar,
+        emptyMsg,
+        table,
+      );
+    }
+
+    function renderTemplatesPicker() {
+      const ui = state.accountsUi;
+      const rows = SOVEREIGN_TEMPLATES.map((tpl) => {
+        const id = `acc-tpl-${tpl.key}`;
+        const cb = el('input', { type: 'checkbox', id, checked: ui.templatesTicked.has(tpl.key) });
+        cb.addEventListener('change', () => { if (cb.checked) ui.templatesTicked.add(tpl.key); else ui.templatesTicked.delete(tpl.key); });
+        return el('label', { class: 'my-template-row', for: id }, cb, el('span', {}, tpl.service));
+      });
+      const add = el('button', { class: 'btn btn-primary btn-sm', type: 'button' }, 'Add ticked');
+      add.addEventListener('click', async () => {
+        const keys = new Set(ui.templatesTicked);
+        ui.templatesTicked.clear();
+        ui.templatesOpen = false;
+        if (!keys.size) { draw(); return; }
+        await addTemplates(keys);
+      });
+      const cancel = el('button', { class: 'btn btn-ghost btn-sm', type: 'button' }, 'Cancel');
+      cancel.addEventListener('click', () => { ui.templatesOpen = false; ui.templatesTicked.clear(); draw(); });
+      return el('div', { class: 'panel my-templates-panel' },
+        el('p', { class: 't-small' }, 'Common accounts every business has. Tick to add:'),
+        ...rows,
+        el('div', { class: 'my-setup-actions' }, add, cancel));
+    }
+
+    function renderMergeBanner() {
+      const mp = state.mergePreview;
+      if (!mp.open) {
+        const review = el('button', { class: 'btn btn-sm btn-primary', type: 'button' }, 'Review');
+        review.addEventListener('click', () => { mp.open = true; draw(); });
+        const dismiss = el('button', { class: 'btn btn-sm btn-ghost', type: 'button' }, 'Dismiss');
+        dismiss.addEventListener('click', () => { state.mergePreview = null; draw(); });
+        return el('div', { class: 'my-banner my-banner-merge', role: 'status' },
+          `Your stack link includes ${mp.ids.length} tool${mp.ids.length === 1 ? '' : 's'} not yet in this register. `,
+          review, dismiss);
+      }
+      const tools = toolsCache || [];
+      const byId = new Map(tools.map((t) => [t.id, t]));
+      const rows = mp.ids.map((id) => {
+        const tool = byId.get(id);
+        const cbId = `merge-${id}`;
+        const cb = el('input', { type: 'checkbox', id: cbId, checked: mp.ticked.has(id) });
+        cb.addEventListener('change', () => { if (cb.checked) mp.ticked.add(id); else mp.ticked.delete(id); });
+        return el('label', { class: 'my-template-row', for: cbId }, cb, el('span', {}, tool ? tool.name : `Tool ${id}`));
+      });
+      const apply = el('button', { class: 'btn btn-primary btn-sm', type: 'button' }, 'Add ticked');
+      apply.addEventListener('click', async () => { await applyMerge(new Set(mp.ticked)); });
+      const cancel = el('button', { class: 'btn btn-ghost btn-sm', type: 'button' }, 'Cancel');
+      cancel.addEventListener('click', () => { state.mergePreview = null; draw(); });
+      return el('div', { class: 'my-banner my-banner-merge my-banner-merge-open', role: 'status' },
+        el('p', { class: 't-small' }, 'Adding these will never duplicate a tool already in this register:'),
+        ...rows,
+        el('div', { class: 'my-setup-actions' }, apply, cancel));
+    }
+
+    function renderAccountsTable(rows, readOnly) {
+      const ui = state.accountsUi;
+      const selectAllChecked = rows.length > 0 && rows.every((a) => ui.selected.has(a.id));
+      const selectAll = el('input', { type: 'checkbox', 'aria-label': 'Select all filtered accounts', checked: selectAllChecked });
+      selectAll.addEventListener('change', () => {
+        if (selectAll.checked) rows.forEach((a) => ui.selected.add(a.id));
+        else rows.forEach((a) => ui.selected.delete(a.id));
+        draw();
+      });
+      const theadRow = el('tr', {},
+        readOnly ? null : el('th', {}, selectAll),
+        el('th', {}, 'Service'), el('th', {}, 'Identity'), el('th', {}, 'Owner'), el('th', {}, '2FA'), el('th', {}, 'Renewal'), el('th', {}, 'Recorded'),
+        readOnly ? null : el('th', {}, 'Actions'),
+      );
+      const trs = rows.flatMap((a) => renderAccountRow(a, readOnly));
+      return el('div', { class: 'my-table-wrap' },
+        el('table', { class: 'my-accounts-table my-acc-table' }, el('thead', {}, theadRow), el('tbody', {}, trs)));
+    }
+
+    function fieldInput(a, field, type, readOnly, placeholder) {
+      const raw = a[field];
+      if (readOnly) {
+        let display = raw != null && raw !== '' ? String(raw) : (placeholder || 'Not recorded');
+        if (field === 'renewal') display = raw ? formatDate(raw) : 'None';
+        return el('span', { class: 'my-acc-readonly' }, display);
+      }
+      const input = el('input', {
+        class: 'input my-acc-input', type, value: raw ?? '', placeholder,
+        dataset: { focusKey: `field-${a.id}-${field}` },
+      });
+      input.addEventListener('change', () => { updateAccountField(a.id, field, field === 'renewal' ? (input.value || null) : input.value); });
+      return input;
+    }
+
+    function mfaSelect(a, readOnly) {
+      if (readOnly) return el('span', { class: 'my-acc-readonly' }, MFA_LABEL[a.mfa] || a.mfa || 'Not recorded');
+      const select = el('select', { class: 'select my-acc-input', dataset: { focusKey: `field-${a.id}-mfa` } },
+        ...['app', 'sms', 'hardware', 'none', 'unknown'].map((v) => el('option', { value: v, selected: a.mfa === v }, MFA_LABEL[v])));
+      select.addEventListener('change', () => { updateAccountField(a.id, 'mfa', select.value); });
+      return select;
+    }
+
+    function renderAccountRow(a, readOnly) {
+      const ui = state.accountsUi;
+      const { count, total } = completeness(a);
+      const checkCell = readOnly ? null : el('td', { class: 'my-acc-check' },
+        (() => {
+          const cb = el('input', { type: 'checkbox', 'aria-label': `Select ${a.service || 'this account'}`, checked: ui.selected.has(a.id) });
+          cb.addEventListener('change', () => { if (cb.checked) ui.selected.add(a.id); else ui.selected.delete(a.id); draw(); });
+          return cb;
+        })());
+
+      const detailsOpen = ui.openDrawerId === a.id;
+      const detailsBtn = el('button', { class: 'btn btn-ghost btn-sm my-acc-details-btn', type: 'button', 'aria-expanded': String(detailsOpen) }, detailsOpen ? 'Close details' : 'Details');
+      detailsBtn.addEventListener('click', () => { ui.openDrawerId = detailsOpen ? null : a.id; draw(); });
+      const serviceCell = el('td', { class: 'my-acc-service' }, fieldInput(a, 'service', 'text', readOnly, 'Service name'), detailsBtn);
+
+      const identityCell = el('td', { class: 'my-acc-identity' },
+        fieldInput(a, 'identity', 'text', readOnly, 'name@business.co.uk'),
+        isPersonalEmail(a.identity) ? el('span', { class: 'my-chip my-chip-risk' }, 'Personal email') : null);
+
+      const ownerCell = el('td', { class: 'my-acc-owner' },
+        fieldInput(a, 'owner', 'text', readOnly, 'Not recorded'),
+        hasNoOwner(a.owner) ? el('span', { class: 'my-chip my-chip-risk' }, 'No owner') : null);
+
+      const mfaLbl = mfaRiskLabel(a.mfa);
+      const mfaCell = el('td', { class: 'my-acc-mfa' }, mfaSelect(a, readOnly), mfaLbl ? el('span', { class: 'my-chip my-chip-risk' }, mfaLbl) : null);
+
+      const renewalCell = el('td', { class: 'my-acc-renewal' },
+        fieldInput(a, 'renewal', 'date', readOnly, ''),
+        isRenewalSoon(a.renewal) ? el('span', { class: 'my-chip my-chip-risk' }, 'Renewing soon') : null);
+
+      const completenessCell = el('td', { class: 'my-acc-completeness' },
+        el('span', {}, `${count} of ${total} recorded`),
+        el('span', { class: 'my-completeness-bar' }, el('span', { class: 'my-completeness-fill', style: `width:${Math.round((count / total) * 100)}%` })));
+
+      let actionsCell = null;
+      if (!readOnly) {
+        const deleteBtn = el('button', { class: 'btn btn-ghost btn-sm', type: 'button' }, 'Delete');
+        deleteBtn.addEventListener('click', () => deleteAccount(a.id));
+        actionsCell = el('td', { class: 'my-acc-actions' }, deleteBtn);
+      }
+
+      const dataRow = el('tr', { class: 'my-acc-row' }, checkCell, serviceCell, identityCell, ownerCell, mfaCell, renewalCell, completenessCell, actionsCell);
+      const rowsOut = [dataRow];
+      if (detailsOpen) {
+        rowsOut.push(el('tr', { class: 'my-acc-drawer-row' },
+          el('td', { colspan: readOnly ? 7 : 8 }, renderDrawer(a, readOnly))));
+      }
+      return rowsOut;
+    }
+
+    function drawerField(labelText, a, field, type, readOnly) {
+      const raw = a[field];
+      const value = raw === null || raw === undefined ? '' : raw;
+      if (readOnly) return el('div', { class: 'my-field' }, el('span', { class: 't-small' }, labelText), el('p', {}, value !== '' ? String(value) : 'Not recorded'));
+      const input = el('input', { class: 'input', type, value, dataset: { focusKey: `drawer-${a.id}-${field}` } });
+      input.addEventListener('change', () => {
+        let v = input.value;
+        if (type === 'number') v = v === '' ? null : Number(v);
+        updateAccountField(a.id, field, v);
+      });
+      return el('label', { class: 'my-field' }, el('span', { class: 't-small' }, labelText), input);
+    }
+    function drawerSelect(labelText, a, field, options, labels, readOnly) {
+      if (readOnly) return el('div', { class: 'my-field' }, el('span', { class: 't-small' }, labelText), el('p', {}, labels[a[field]] || a[field]));
+      const select = el('select', { class: 'select', dataset: { focusKey: `drawer-${a.id}-${field}` } },
+        ...options.map((v) => el('option', { value: v, selected: a[field] === v }, labels[v])));
+      select.addEventListener('change', () => { updateAccountField(a.id, field, select.value); });
+      return el('label', { class: 'my-field' }, el('span', { class: 't-small' }, labelText), select);
+    }
+    function drawerTextarea(labelText, a, field, readOnly) {
+      const value = a[field] || '';
+      if (readOnly) return el('div', { class: 'my-field my-field-wide' }, el('span', { class: 't-small' }, labelText), el('p', {}, value || 'Not recorded'));
+      const textarea = el('textarea', { class: 'input', rows: '3', dataset: { focusKey: `drawer-${a.id}-${field}` } }, value);
+      textarea.addEventListener('change', () => { updateAccountField(a.id, field, textarea.value); });
+      return el('label', { class: 'my-field my-field-wide' }, el('span', { class: 't-small' }, labelText), textarea);
+    }
+
+    /** Everything not in the five visible columns (section 9.2, section
+        4.2): url, toolId (read-only: it comes from an import, not typed),
+        admin, plan, monthlyCost, status, notes. */
+    function renderDrawer(a, readOnly) {
+      const toolLine = (a.toolId !== null && a.toolId !== undefined) ? (() => {
+        const tool = (toolsCache || []).find((t) => t.id === a.toolId);
+        return el('p', { class: 't-meta' }, tool ? `Linked to your stack: ${tool.name}` : `Linked to your stack (tool id ${a.toolId})`);
+      })() : null;
+      const closeBtn = el('button', { class: 'btn btn-ghost btn-sm', type: 'button' }, 'Close details');
+      closeBtn.addEventListener('click', () => { state.accountsUi.openDrawerId = null; draw(); });
+      return el('div', { class: 'my-acc-drawer' },
+        toolLine,
+        el('div', { class: 'my-acc-drawer-grid' },
+          drawerField('Website', a, 'url', 'url', readOnly),
+          drawerSelect('Access level', a, 'admin', ['owner', 'admin', 'member', 'unknown'], ADMIN_LABEL, readOnly),
+          drawerField('Plan', a, 'plan', 'text', readOnly),
+          drawerField('Monthly cost (GBP)', a, 'monthlyCost', 'number', readOnly),
+          drawerSelect('Status', a, 'status', ['active', 'to-close', 'closed'], STATUS_LABEL, readOnly),
+          drawerTextarea('Notes', a, 'notes', readOnly),
         ),
+        closeBtn,
       );
     }
 
@@ -670,7 +1267,7 @@ export async function renderWorkspace(root) {
       );
     }
 
-    const container = el('div', { class: 'my-shell' }, sidebar, el('div', { class: 'my-content' }, exampleBanner, reloadBanner, topbar, main));
+    const container = el('div', { class: 'my-shell' }, sidebar, el('div', { class: 'my-content' }, exampleBanner, reloadBanner, mergeBanner, undoBanner, topbar, main));
     // A lazy top-up on top of the deliberate refreshes at mode transitions:
     // status() is async, so if it changed since the snapshot this render
     // used, quietly redraw once. The equality check is what stops this from
