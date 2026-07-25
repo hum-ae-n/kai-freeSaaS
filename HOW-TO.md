@@ -4,11 +4,12 @@ The operator's guide. How to curate a stack, send it to a client, and keep the d
 
 Live site: https://kai-freestack.netlify.app
 
-## Three surfaces, not two
+## Four surfaces, not three
 
 - **The public directory** is the bare URL, `/`. It's the full catalogue, open and indexable, safe to share or link from anywhere, including kaipability.com. It has no admin controls: no selection, no link generator, just browsing and search.
 - **The staff curator** lives at `/x`. **Bookmark it,** since it isn't linked from the public page on purpose. This is your cockpit: the full directory, filters, selection, link generation, exports. Visiting `/x` once quietly marks that device as staff, which is the only thing that makes an "Open in curator" button appear later on client pages you view from it, so a client on their own device never sees a way back in.
 - **Client mode** is what a generated link opens: a read-only, branded page showing only the tools you chose. That page is the deliverable. It always lives at the root URL with a `t=` parameter, never at `/x`, so a link you've already sent keeps working exactly as it always did.
+- **My Stack** lives at `/my`, linked from client pages and the public directory. It's the client's own free workspace, not yours: a register of the accounts they hold for whichever tools they've adopted, who owns each one, and what to close down when someone leaves. There is no password field anywhere in it, on purpose. It is local-first, so it's worth telling clients that the file it makes them export at setup, not the browser copy, is what actually lasts. Full spec in PRD-REGISTER.md.
 
 ## Curating a stack
 

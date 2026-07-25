@@ -29,7 +29,7 @@ export function sampleDocument() {
         status: 'active', notes: 'Bookkeeping, reconciled monthly by Priya.', shared: true,
       },
       {
-        id: 'ex-02', service: 'Canva', url: 'https://canva.com', toolId: 7,
+        id: 'ex-02', service: 'Canva', url: 'https://canva.com', toolId: 2,
         identity: 'jess.okafor@gmail.com', owner: 'Jess Okafor', admin: 'member',
         mfa: 'none', plan: 'Free', renewal: null, monthlyCost: 0,
         status: 'active', notes: 'Opened on a personal Gmail before Jess joined full time.',
@@ -41,7 +41,7 @@ export function sampleDocument() {
         status: 'active', notes: '',
       },
       {
-        id: 'ex-04', service: 'Meta Business Suite', url: 'https://business.facebook.com', toolId: null,
+        id: 'ex-04', service: 'Meta Business Suite', url: 'https://business.facebook.com', toolId: 38,
         identity: 'tom.ellery@gmail.com', owner: 'Tom Ellery', admin: 'admin',
         mfa: 'sms', plan: 'Free', renewal: null, monthlyCost: 0,
         status: 'active', notes: 'The shop Facebook page lives under Tom’s personal account.',
@@ -53,7 +53,7 @@ export function sampleDocument() {
         status: 'active', notes: 'Domain and DNS.',
       },
       {
-        id: 'ex-06', service: 'Slack', url: 'https://slack.com', toolId: 61,
+        id: 'ex-06', service: 'Slack', url: 'https://slack.com', toolId: 96,
         identity: 'accounts@harbourvine.example', owner: '', admin: 'unknown',
         mfa: 'unknown', plan: 'Free', renewal: null, monthlyCost: 0,
         status: 'active', notes: 'Nobody has claimed ownership of this one yet.',
