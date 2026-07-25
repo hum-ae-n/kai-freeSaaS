@@ -14,6 +14,8 @@ import { readFile } from 'node:fs/promises';
 import { extname, join, normalize, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
+import { createHash } from 'node:crypto';
+import { PRIVACY_NOTICE } from '../js/my/copy.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -343,6 +345,254 @@ await page.evaluate(() => { try { localStorage.removeItem('freestack:v1:theme');
 await page.goto(`${base}/?t=0,2`);
 await page.waitForSelector('.tool-card');
 check('client: theme toggle present in no-print toolbar', await page.locator('.no-print .theme-toggle, .cli-toolbar .theme-toggle').count() >= 1);
+
+/* --- Phase 11.5, batch A: CSP hash drift gate (pure Node, no browser) ------
+   The two inline boot scripts on the whole site (index.html's, reused byte
+   for byte by why-register.html, and embed.html's own) are allow-listed in
+   netlify.toml by sha256 hash instead of 'unsafe-inline' (PRD-REGISTER
+   section 10). A future edit to either script that forgets to recompute the
+   hash does not fail loudly in a browser, it just silently blocks the
+   script; this is the check that catches that before it ships. */
+function extractInlineScripts(html) {
+  const scripts = [];
+  const re = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
+  let m;
+  while ((m = re.exec(html))) {
+    if (/\bsrc\s*=/i.test(m[1])) continue; // external scripts carry no inline body to hash
+    scripts.push(m[2]);
+  }
+  return scripts;
+}
+function sha256Base64(text) {
+  return createHash('sha256').update(text, 'utf8').digest('base64');
+}
+const embedHtml = (await readFile(join(ROOT, 'embed.html'))).toString('utf8');
+const whyRegisterHtml = (await readFile(join(ROOT, 'why-register.html'))).toString('utf8');
+const netlifyToml = (await readFile(join(ROOT, 'netlify.toml'))).toString('utf8');
+
+const indexInline = extractInlineScripts(rawHtml);
+const embedInline = extractInlineScripts(embedHtml);
+const whyInline = extractInlineScripts(whyRegisterHtml);
+const currentHashes = new Set([...indexInline, ...embedInline, ...whyInline].map(sha256Base64));
+
+const cspScriptSrcLine = netlifyToml.split('\n').find((l) => l.includes('Content-Security-Policy') && l.includes('script-src'));
+const cspHashes = new Set([...(cspScriptSrcLine || '').matchAll(/'sha256-([A-Za-z0-9+/]+=*)'/g)].map((m) => m[1]));
+
+const missingFromCsp = [...currentHashes].filter((h) => !cspHashes.has(h));
+const staleInCsp = [...cspHashes].filter((h) => !currentHashes.has(h));
+check('csp: every inline boot script hash is allow-listed in netlify.toml', missingFromCsp.length === 0, `missing=${missingFromCsp.join(',')}`);
+check('csp: no stale hash in netlify.toml matching no current script', staleInCsp.length === 0, `stale=${staleInCsp.join(',')}`);
+check('csp: why-register.html boot script is byte identical to index.html',
+  indexInline.length === 1 && whyInline.length === 1 && sha256Base64(indexInline[0]) === sha256Base64(whyInline[0]));
+
+/* --- security.txt, served through this suite's own local server (which
+   mirrors the SPA fallback), as the real file per RFC 9116 (PRD-REGISTER
+   section 10) ----------------------------------------------------------- */
+const secTxtRes = await fetch(`${base}/.well-known/security.txt`);
+const secTxtBody = await secTxtRes.text();
+const expiresMatch = secTxtBody.match(/Expires:\s*(\S+)/);
+const expiresDate = expiresMatch ? new Date(expiresMatch[1]) : null;
+check('security.txt: real file served with Contact and a future Expires',
+  secTxtRes.status === 200
+  && !secTxtBody.includes('<!DOCTYPE html>') // proves the real file was served, not the SPA fallback
+  && secTxtBody.includes('Contact:')
+  && !!expiresDate && !Number.isNaN(expiresDate.getTime()) && expiresDate.getTime() > Date.now(),
+  `status=${secTxtRes.status}`);
+
+/* --- why-register.html: the awareness page (PRD-REGISTER section 12) ------ */
+await page.goto(`${base}/why-register.html`);
+await page.waitForSelector('#awareness-root');
+check('why-register: noindex robots meta present', await page.locator('meta[name=robots][content=noindex]').count() === 1);
+const awarenessText = await page.textContent('#awareness-root');
+check('why-register: privacy notice renders verbatim', awarenessText.includes(PRIVACY_NOTICE.slice(0, 60)));
+const whyMobile = await browser.newPage({ viewport: { width: 375, height: 812 } });
+await whyMobile.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await whyMobile.goto(`${base}/why-register.html`);
+await whyMobile.waitForSelector('#awareness-root');
+const whyScrollW = await whyMobile.evaluate(() => document.documentElement.scrollWidth);
+check('why-register: no horizontal scroll at 375px', whyScrollW <= 375, `scrollWidth=${whyScrollW}`);
+await whyMobile.close();
+
+/* --- Phase 11.5, batch D: /my DoD mechanics (PRD-REGISTER section 15) -----
+   Plaintext path only throughout: encryption is deliberately never enabled
+   here (PBKDF2 at 600,000 iterations is too slow for a smoke suite, and
+   scripts/register-vectors.mjs already gates the crypto envelope itself).
+   Runs in its own browser context so tab B below genuinely shares storage
+   with tab A rather than starting from a fresh, isolated one, the way a
+   plain browser.newPage() call would (see the batch I "staff device" note
+   above for the same distinction in reverse). */
+const myCtx = await browser.newContext();
+await myCtx.route(/^(?!.*localhost).*$/, (route) => route.abort());
+const myFlow = await myCtx.newPage();
+
+async function waitForAccountsScreen(pg) { await pg.waitForSelector('.my-accounts-actions'); }
+async function waitForCompleteness(pg, text) {
+  await pg.waitForFunction((t) => {
+    const el = document.querySelector('.my-acc-completeness');
+    return el && el.textContent.includes(t);
+  }, text);
+}
+function daysAgoIso(n) { return new Date(Date.now() - n * 86400000).toISOString(); }
+async function setBackupMeta(pg, meta) {
+  await pg.evaluate((m) => localStorage.setItem('freestack:v1:my:meta', JSON.stringify(m)), meta);
+}
+/* store.js is the single write choke-point (CLAUDE.md); reading its result
+   through the module itself, rather than parsing localStorage by hand, is
+   the seam the task instructions call out as an acceptable non-UI check. */
+async function diskDoc(pg) {
+  return pg.evaluate(async () => { const s = await import('/js/my/store.js'); return s.load(); });
+}
+async function completeHeadlessSetup(pg, business) {
+  await pg.locator('button', { hasText: 'Start your own register' }).first().click();
+  await pg.waitForSelector('.my-setup-panel');
+  await pg.locator('.my-setup-panel input[type=text]').first().fill(business);
+  await pg.locator('button', { hasText: 'Continue' }).first().click();
+  await pg.waitForSelector('.my-setup-panel');
+  await pg.locator('button', { hasText: 'Continue' }).first().click(); // review step: no templates ticked
+  await pg.waitForSelector('.my-setup-panel');
+  await pg.locator('button', { hasText: 'Not now' }).first().click(); // no encryption on the plaintext path
+  await pg.waitForSelector('button:has-text("Download your register file")', { timeout: 15000 });
+  await Promise.all([
+    pg.waitForEvent('download', { timeout: 5000 }).catch(() => null),
+    pg.locator('button', { hasText: 'Download your register file' }).click(),
+  ]);
+  await pg.locator('button', { hasText: 'Finish setup' }).click();
+  await pg.waitForSelector('.my-nav-item');
+}
+
+/* 15.1: full first-run setup completes headlessly and lands on Overview. */
+await myFlow.goto(`${base}/my`);
+await myFlow.waitForSelector('#my-root:not([hidden])');
+await completeHeadlessSetup(myFlow, 'Acme Test Ltd');
+check('my: first-run setup completes headlessly and lands on Overview',
+  (await myFlow.locator('.my-topbar-name').textContent()).includes('Acme Test Ltd')
+  && (await myFlow.locator('.my-screen h2').first().textContent()).trim() === 'Overview');
+const setupDoc = await diskDoc(myFlow);
+check('my: verified export leaves a real plaintext register on disk', !!setupDoc && setupDoc.business === 'Acme Test Ltd');
+
+/* 15.9 (part 1): account CRUD round trip, each mutation checked across a
+   real reload so it is IndexedDB doing the remembering, not in-memory state. */
+await myFlow.locator('.my-nav-item', { hasText: 'Accounts' }).click();
+await waitForAccountsScreen(myFlow);
+const countBeforeAdd = await myFlow.locator('.my-acc-row').count();
+await myFlow.locator('button', { hasText: 'Add account' }).first().click();
+await myFlow.waitForSelector('.my-acc-drawer');
+check('my: add account creates a row', await myFlow.locator('.my-acc-row').count() === countBeforeAdd + 1);
+
+const serviceInput = myFlow.locator('.my-acc-service .my-acc-input').first();
+await serviceInput.fill('Google Workspace');
+await serviceInput.dispatchEvent('change');
+await waitForCompleteness(myFlow, '1 of 8');
+const ownerInput = myFlow.locator('.my-acc-owner .my-acc-input').first();
+await ownerInput.fill('Priya Patel');
+await ownerInput.dispatchEvent('change');
+await waitForCompleteness(myFlow, '2 of 8');
+
+await myFlow.reload();
+await myFlow.waitForSelector('.my-nav-item');
+await myFlow.locator('.my-nav-item', { hasText: 'Accounts' }).click();
+await waitForAccountsScreen(myFlow);
+const serviceValAfterReload = await myFlow.locator('.my-acc-service .my-acc-input').first().inputValue();
+const ownerValAfterReload = await myFlow.locator('.my-acc-owner .my-acc-input').first().inputValue();
+check('my: account edit survives reload (IndexedDB persistence)',
+  serviceValAfterReload === 'Google Workspace' && ownerValAfterReload === 'Priya Patel',
+  `service=${serviceValAfterReload} owner=${ownerValAfterReload}`);
+
+await myFlow.locator('.my-acc-actions button', { hasText: 'Delete' }).first().click();
+await myFlow.waitForFunction((n) => document.querySelectorAll('.my-acc-row').length === n, countBeforeAdd);
+await myFlow.reload();
+await myFlow.waitForSelector('.my-nav-item');
+await myFlow.locator('.my-nav-item', { hasText: 'Accounts' }).click();
+await waitForAccountsScreen(myFlow);
+check('my: deleted account stays gone after reload', await myFlow.locator('.my-acc-row').count() === countBeforeAdd);
+
+/* 15.9 (part 2): two-tab conflict refusal. Tab B loads while it still
+   agrees with tab A's revision, tab A then saves (bumping the on-disk
+   revision), and tab B's own attempted save is refused: store.js's
+   ConflictError surfaces in the UI as the reload banner, per the module
+   comment on mutateDoc(), and the stale write never reaches disk. */
+const tabB = await myCtx.newPage();
+await tabB.goto(`${base}/my`);
+await tabB.waitForSelector('.my-nav-item');
+await tabB.locator('.my-nav-item', { hasText: 'Accounts' }).click();
+await waitForAccountsScreen(tabB);
+
+await myFlow.locator('button', { hasText: 'Add account' }).first().click();
+await myFlow.waitForSelector('.my-acc-drawer');
+
+await tabB.locator('button', { hasText: 'Add account' }).first().click();
+await tabB.waitForSelector('.my-banner-reload', { timeout: 5000 });
+const bannerTxt = await tabB.locator('.my-banner-reload').textContent();
+check('my: two-tab conflict shows the reload banner in the stale tab', bannerTxt.includes('changed in another tab'), bannerTxt);
+const diskAfterConflict = await diskDoc(myFlow);
+check('my: two-tab conflict refusal never persists the stale write', diskAfterConflict.accounts.length === countBeforeAdd + 1, `len=${diskAfterConflict.accounts.length}`);
+await tabB.close();
+
+/* 15.8: export then re-import round trip. Captured through store.js
+   directly (module comment above), since a real anchor download plus a
+   fresh setup's own download is already exercised twice by
+   completeHeadlessSetup() above without needing a third. Wipe via the
+   Backup screen's typed-confirmation flow, set up a disposable throwaway
+   register so Backup is reachable again, then import the original bytes
+   back through the real file-picker input and confirm the data returns. */
+const exportedText = await myFlow.evaluate(async () => {
+  const s = await import('/js/my/store.js');
+  const { blob } = await s.exportBlob();
+  return blob.text();
+});
+const originalAccountCount = countBeforeAdd + 1;
+
+await myFlow.locator('.my-nav-item', { hasText: 'Backup' }).click();
+await myFlow.waitForSelector('.my-backup-wipe');
+await myFlow.locator('.my-backup-wipe input[type=text]').fill('Acme Test Ltd');
+await myFlow.locator('.my-backup-wipe button', { hasText: 'Wipe this workspace' }).click();
+await myFlow.waitForSelector('.my-firstrun');
+
+await completeHeadlessSetup(myFlow, 'Temp Wipe Test');
+await myFlow.locator('.my-nav-item', { hasText: 'Backup' }).click();
+await myFlow.waitForSelector('.my-import-file-input');
+await myFlow.locator('.my-import-file-input').setInputFiles({
+  name: 'mystack-register-acme-test-ltd.fsr.json',
+  mimeType: 'application/json',
+  buffer: Buffer.from(exportedText, 'utf8'),
+});
+await myFlow.waitForSelector('.my-import-preview');
+const previewText = await myFlow.locator('.my-import-preview').textContent();
+check('my: import preview shows the original business and account count',
+  previewText.includes('Acme Test Ltd') && previewText.includes(String(originalAccountCount)), previewText);
+await myFlow.locator('.my-import-preview button', { hasText: 'Replace this register' }).click();
+await myFlow.waitForFunction(() => document.querySelector('.my-topbar-name')?.textContent.includes('Acme Test Ltd'));
+await myFlow.locator('.my-nav-item', { hasText: 'Accounts' }).click();
+await waitForAccountsScreen(myFlow);
+check('my: export then re-import round trip restores the original data', await myFlow.locator('.my-acc-row').count() === originalAccountCount);
+
+/* 15.8: backup-age escalation. backupAgeInfo() in workspace.js is not
+   exported (unlike risks.js's pure helpers), so per the task's own fallback
+   this is driven through the UI: writing the meta record store.js itself
+   reads status() from, then reloading and reading the sidebar's age chip,
+   the same one screenOverview()'s tile and screenBackup()'s row both quote. */
+await setBackupMeta(myFlow, { lastExportAt: daysAgoIso(5), savesSinceExport: 0 });
+await myFlow.reload();
+await myFlow.waitForSelector('.my-age-chip');
+check('my: backup-age quiet under 30 days', await myFlow.locator('.my-age-chip.my-age-chip-ok').count() === 1);
+
+await setBackupMeta(myFlow, { lastExportAt: daysAgoIso(31), savesSinceExport: 0 });
+await myFlow.reload();
+await myFlow.waitForSelector('.my-age-chip');
+check('my: backup-age amber past 30 days', await myFlow.locator('.my-age-chip.my-age-chip-amber').count() === 1);
+
+await setBackupMeta(myFlow, { lastExportAt: daysAgoIso(61), savesSinceExport: 0 });
+await myFlow.reload();
+await myFlow.waitForSelector('.my-age-chip');
+check('my: backup-age red past 60 days', await myFlow.locator('.my-age-chip.my-age-chip-red').count() === 1);
+
+await setBackupMeta(myFlow, { lastExportAt: daysAgoIso(5), savesSinceExport: 10 });
+await myFlow.reload();
+await myFlow.waitForSelector('.my-age-chip');
+check('my: backup-age red after 10 or more saves since export', await myFlow.locator('.my-age-chip.my-age-chip-red').count() === 1);
+
+await myFlow.close();
+await myCtx.close();
 
 check('no page errors across all loads', pageErrors.length === 0, pageErrors.join(' | ').slice(0, 300));
 
