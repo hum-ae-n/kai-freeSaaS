@@ -4,12 +4,22 @@ Guidance for Claude Code working in this repository.
 
 ## What this is
 
-`free-stack`: a curated directory of free and freemium SaaS tools for small businesses, built for Kaipability Ltd. One page, two modes:
+`free-stack`: a curated directory of free and freemium SaaS tools for small businesses, built for Kaipability Ltd. One codebase, four surfaces:
 
-- **Curator mode** (`/`): full directory, filters, search, checkboxes. The consultant picks tools for a client.
+- **Public directory** (`/`): open, indexable catalogue with search. No admin controls.
+- **Staff curator** (`/x`): filters, selection, link generation, exports. Unlisted, noindexed; visiting marks the device as staff.
 - **Client mode** (`/?t=0,2,5&client=Acme+Ltd`): read-only branded card page showing only the selected tools. This is the deliverable the client opens.
+- **My Stack workspace** (`/my`): the client's local-first account register. Specified by `PRD-REGISTER.md`, which is authoritative for that surface.
 
-`PRD.md` is the specification and it is authoritative. It is section numbered. When implementing, cite the section you are working from (for example "per section 6, filters bar"). If the PRD and this file ever disagree, the PRD wins and this file should be corrected.
+`PRD.md` is the core specification and it is authoritative; `PRD-REGISTER.md` extends it for the workspace. Both are section numbered. When implementing, cite the section you are working from (for example "per section 6, filters bar"). If a PRD and this file ever disagree, the PRD wins and this file should be corrected.
+
+## Register laws (the /my surface)
+
+- **No password field exists anywhere and none may be added.** The register stores account metadata; the `mfa` field is a method, never a secret. This is architectural, not policy.
+- **The export file is the primary home of register data; browser storage is a working copy** (Safari deletes site storage after 7 days without a visit, by design). Never write copy claiming browser storage is safe.
+- All workspace persistence flows through `js/my/store.js`, the single write choke-point and future sync seam.
+- Crypto per PRD-REGISTER section 7 only; `scripts/register-vectors.mjs` is a CI gate.
+- Cyber Essentials wording: "helps you prepare for" is allowed; "makes you compliant" and the CE badge are banned.
 
 ## Hard architecture constraints
 

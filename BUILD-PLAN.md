@@ -239,6 +239,19 @@ Wave 3:
 
 ---
 
+## Phase 11: My Stack account register workspace `[~]`
+
+Specified by `PRD-REGISTER.md` (authoritative). Owner: **workspace-builder** (new agent) for js/my/* and the WORKSPACE css block; content-editor for prose; verifier gates every wave. Informed by three research passes: storage-durability landmines (the file-is-primary doctrine), frontend/product inspiration (Watchtower tiles, consequence sentences, recessive sidebar, ledger costs), backend and security posture (store-adapter seam, PBKDF2 600k, strict CSP, privacy copy). Branch until Rocky's PR review, as ever.
+
+- [x] 11.0 Spec: PRD-REGISTER.md authored; CLAUDE.md gains the fourth surface and register laws; workspace-builder agent created
+- [~] 11.1 Wave A: app shell and routing (/my, noindex), store adapter (single choke-point, versioned whole-document blob, IndexedDB + localStorage mirror), Web Locks + revision refusal + BroadcastChannel, crypto core with CI test vectors (scripts/register-vectors.mjs wired into ci.yml), first-run gates (webview refusal, private-mode sentinel), example register, setup flow ending in a verified export, lock/unlock
+- [ ] 11.2 Wave B: register table (five columns, drawer, completeness meters, risk chips, bulk owner edit), stack import via ?from=, sovereign templates, Overview tiles with click-through filters and the no-owner bucket
+- [ ] 11.3 Wave C: Leavers checklist generator (five-phase preservation-to-destruction order, printable, persistent ticks), Costs ledger (renewals lists, monthly/annual toggle, existing chart), My tools screen, backup-age indicator and nags, iOS share-file export path
+- [ ] 11.4 Wave D: awareness page ("Why we built this", evidence-led, one commercial sentence maximum), privacy notice verbatim, strict CSP with hashed boot scripts, Referrer-Policy no-referrer on /my, security.txt, client-page and public-directory entry points
+- [ ] 11.5 Content pass, smoke extension across the DoD mechanics, final verifier sweep against PRD-REGISTER section 15, PR for Rocky
+
+---
+
 ## Open spec questions
 
 Raised by the PRD review and not yet resolved. Each needs an answer before the phase that depends on it closes.
