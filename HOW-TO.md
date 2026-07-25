@@ -2,7 +2,7 @@
 
 The operator's guide. How to curate a stack, send it to a client, and keep the directory honest. Technical detail (schema, validation, deploy) lives in [README.md](README.md); the product spec is [PRD.md](PRD.md).
 
-Live site: https://kai-freestack.netlify.app
+Live site: https://tools.airl.io
 
 ## Four surfaces, not three
 
@@ -58,4 +58,4 @@ Their page shows, per tool: what it does, what the free tier honestly includes a
 
 ## Open decisions (kept in TODO.md)
 
-Two value figures under review (Hotjar, Sketchup), the Vercel non-commercial terms question, favicon self-hosting, sign-off on the "How we choose" page copy, and pointing tools.airl.io at the site (with the social-preview and canonical URLs to update once it does). The public-curator question is resolved: the root is public, the curator lives at `/x`.
+Two value figures under review (Hotjar, Sketchup), the Vercel non-commercial terms question, favicon self-hosting, and sign-off on the "How we choose" page copy. The domain question is resolved: tools.airl.io is live with the canonical and social-preview URLs updated. The public-curator question is resolved: the root is public, the curator lives at `/x`.
