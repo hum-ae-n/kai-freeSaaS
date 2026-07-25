@@ -106,3 +106,71 @@ export function matchesSearch(account, query) {
   return [account.service, account.identity, account.owner, account.notes]
     .some((field) => (field || '').toLowerCase().includes(q));
 }
+
+/* ============================================================================
+   Leavers (PRD-REGISTER section 9.5). Pure over an account row and a
+   person's name: no DOM, no store, so the ordering rules below are testable
+   on their own and reusable exactly as the risk filters above already are.
+   ========================================================================= */
+
+/** True when the row's `identity` field reads as belonging personally to the
+    departing person, distinct from `owner` (which is how the row was
+    selected for this checklist in the first place): either it is a known
+    personal consumer mailbox (isPersonalEmail above, since a personal
+    Gmail/Outlook/iCloud address dies with the person, not the business), or
+    the identity text itself contains a recognisable piece of their name (a
+    business alias like "tom@business.co.uk" or an SSO label naming them).
+    Either way, whoever opened the account is the one who chose or knows
+    its login, which is exactly what phase 3 (section 9.5) needs to flag:
+    "rotate what they knew". Name fragments under 3 characters are ignored
+    so a stray initial cannot false-positive against unrelated text. */
+export function identityBelongsToPerson(identity, person) {
+  if (isPersonalEmail(identity)) return true;
+  const idLower = (identity || '').toLowerCase();
+  if (!idLower) return false;
+  const parts = (person || '').toLowerCase().split(/\s+/).filter((p) => p.length > 2);
+  return parts.some((part) => idLower.includes(part));
+}
+
+/** True when accepting a monthly cost, or a plan string that does not read
+    as free, means real money keeps moving until someone acts (section 9.5
+    phase 4, "licences and money"). A blank plan with no monthlyCost is not
+    flagged: there is nothing here to reclaim or stop paying for. */
+export function hasLicenceCost(account) {
+  if (typeof account.monthlyCost === 'number' && account.monthlyCost > 0) return true;
+  const plan = (account.plan || '').trim();
+  return plan !== '' && !/^free\b/i.test(plan);
+}
+
+/** Build the five-phase offboarding checklist (section 9.5) for one person,
+    from whichever of their rows are still current in `accounts`. Phase 1
+    and phase 5 are fixed, person-scoped items with no underlying row (the
+    identity-provider account itself is not necessarily its own register
+    row); phases 2 to 4 are derived, in order, from the rows this person
+    currently owns, so reassigning a row's owner elsewhere and recomputing
+    this function is the entire mechanism by which that row leaves phase 2
+    (and therefore 3 and 4 too, since both are subsets of phase 2's rows):
+    there is no separate "reassigned" flag to fall out of sync with reality. */
+export function leaverChecklist(accounts, person) {
+  const trimmed = (person || '').trim();
+  const norm = trimmed.toLowerCase();
+  const owned = (accounts || []).filter((a) => (a.owner || '').trim().toLowerCase() === norm);
+  const rotate = owned.filter((a) => a.shared === true || identityBelongsToPerson(a.identity, trimmed));
+  const licensed = owned.filter(hasLicenceCost);
+  return {
+    person: trimmed,
+    phase1: [{
+      key: 'identity-disable',
+      text: `Disable ${trimmed ? `${trimmed}’s` : 'their'} sign-in at your identity provider (Google Workspace, Microsoft 365, Okta or similar).`,
+      caveat: 'Do NOT suspend their mailbox yet: phase 5 closes it, last, once everything else here is done.',
+    }],
+    phase2: owned.map((a) => ({ key: `transfer-${a.id}`, row: a })),
+    phase3: rotate.map((a) => ({ key: `rotate-${a.id}`, row: a })),
+    phase4: licensed.map((a) => ({ key: `licence-${a.id}`, row: a })),
+    phase5: [{
+      key: 'identity-close',
+      text: `Close ${trimmed ? `${trimmed}’s` : 'their'} mailbox and identity provider account fully.`,
+      caveat: 'Do this last, only after phases 1 to 4 above are complete.',
+    }],
+  };
+}

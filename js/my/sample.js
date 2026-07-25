@@ -26,7 +26,7 @@ export function sampleDocument() {
         id: 'ex-01', service: 'Xero', url: 'https://xero.com', toolId: null,
         identity: 'accounts@harbourvine.example', owner: 'Priya Shah', admin: 'owner',
         mfa: 'app', plan: 'Starter £15/mo', renewal: daysFromNow(21), monthlyCost: 15,
-        status: 'active', notes: 'Bookkeeping, reconciled monthly by Priya.',
+        status: 'active', notes: 'Bookkeeping, reconciled monthly by Priya.', shared: true,
       },
       {
         id: 'ex-02', service: 'Canva', url: 'https://canva.com', toolId: 7,
@@ -77,6 +77,7 @@ export function sampleDocument() {
         status: 'active', notes: '',
       },
     ],
+    leavers: [],
     createdAt: daysFromNow(-40),
     updatedAt: daysFromNow(-2),
     revision: 7,
@@ -88,5 +89,8 @@ export function sampleDocument() {
     not a real persisted state, per the persistent "This is an example"
     banner requirement. */
 export function sampleStatus() {
-  return { persisted: true, storageOk: true, locked: false, encrypted: false, revision: 7, lastExportAt: daysFromNow(-2) };
+  return {
+    persisted: true, storageOk: true, locked: false, encrypted: false, revision: 7,
+    lastExportAt: daysFromNow(-2), savesSinceExport: 0,
+  };
 }

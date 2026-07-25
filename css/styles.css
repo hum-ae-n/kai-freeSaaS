@@ -1423,6 +1423,105 @@ button { font: inherit; }
 .my-status-list dt { color: var(--ink-2); font-size: var(--fs-14); }
 .my-status-list dd { margin: 0; font-size: var(--fs-14); }
 
+/* Adoption / positive chip variant (Wave C: My tools, "in use"), sitting
+   alongside the existing amber .my-chip-risk on the same base .my-chip. */
+.my-chip-ok { background: var(--positive-tint); color: var(--positive); border: var(--bw-hair) solid var(--positive); }
+
+/* Backup-age chip (section 8), sidebar footer and Backup screen alike: a
+   real button (a one-tap jump to Backup), never colour-only (the text
+   already states the age in words). */
+.my-age-chip {
+  text-align: left;
+  padding: var(--s-1) var(--s-2);
+  border: var(--bw-hair) solid var(--ink-3);
+  background: var(--paper);
+  color: var(--ink-2);
+  font-family: var(--font-sans);
+  font-size: var(--fs-12);
+  cursor: pointer;
+}
+.my-age-chip-amber { border-color: var(--caution); color: var(--noncore-fg); background: var(--caution-tint); }
+.my-age-chip-red { border-color: var(--oxblood); color: var(--oxblood); background: var(--oxblood-tint); }
+.my-banner-nag { background: var(--oxblood-tint); border-bottom: var(--bw-hair) solid var(--oxblood); }
+
+/* Wave C screens (My tools, Costs, Leavers) and the full Backup screen all
+   reuse .panel, .btn, .input, .my-field, .my-attention-list, .my-chip and
+   the rest of the vocabulary already established above rather than
+   inventing a second set: only the shapes that are genuinely new to these
+   three screens get their own rules from here down. */
+
+/* --- My tools (section 9.3) ------------------------------------------------ */
+.my-tool-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--s-4); margin: var(--s-4) 0 var(--s-6); }
+.my-tool-card { display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-4); border-top: var(--bw-heavy) solid var(--ink-3); }
+.my-tool-card-head { display: flex; align-items: center; gap: var(--s-2); }
+.my-tool-card-head h3 { flex: 1; font-size: var(--fs-16); margin: 0; }
+.my-tool-card-desc { flex: 1; }
+.my-tool-card-actions { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+
+/* --- Costs (section 9.4): flex rows throughout, deliberately never a
+   <table>, so a long service name or amount wraps onto its own line
+   instead of forcing horizontal scroll at narrow widths. ------------------- */
+.my-renewal-block { margin-bottom: var(--s-4); max-width: 640px; }
+.my-renewal-block h3 { font-size: var(--fs-18); margin-bottom: var(--s-2); }
+.my-renewal-list { display: flex; flex-direction: column; gap: var(--s-1); }
+.my-renewal-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-4);
+  padding: var(--s-2) 0;
+  border-bottom: var(--bw-hair) solid var(--paper-edge);
+  font-size: var(--fs-14);
+}
+.my-renewal-date { color: var(--ink-2); min-width: 7rem; }
+.my-renewal-service { flex: 1 1 160px; }
+.my-renewal-amount { font-family: var(--font-sans); }
+.my-costs-total { max-width: 420px; margin-bottom: var(--s-4); }
+.my-costs-toggle { display: flex; gap: var(--s-2); margin-bottom: var(--s-2); }
+.my-costs-figure { font-family: var(--font-sans); font-size: var(--fs-34); font-weight: 500; color: var(--oxblood); margin: 0; }
+.my-costs-uncosted { max-width: 480px; margin-bottom: var(--s-4); }
+.my-costs-chart-note { max-width: 480px; }
+
+/* --- Leavers (section 9.5) ------------------------------------------------- */
+.my-leaver-picker { max-width: 480px; display: flex; flex-direction: column; gap: var(--s-3); align-items: start; }
+/* A column flex container with align-items:start sizes its children to
+   their own content width, not the container's, which otherwise starves
+   .my-field's own "width:100%" rule of anything to be 100% OF: the select
+   and the free-text input both need the full picker width, only the
+   generate/regenerate button below them should stay shrink-to-fit. */
+.my-leaver-picker .my-field { width: 100%; }
+.my-leaver-checklist { max-width: 720px; }
+.my-leaver-heading { font-size: var(--fs-26); margin-bottom: var(--s-1); }
+.my-leaver-phase { margin: var(--s-5) 0; padding-top: var(--s-3); border-top: var(--bw-heavy) solid var(--ink-3); }
+.my-leaver-phase h3 { font-size: var(--fs-18); margin-bottom: var(--s-2); }
+.my-leaver-item-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-2); }
+.my-leaver-item { padding: var(--s-1) 0; }
+/* 44px tick targets throughout (accessibility brief and the mobile
+   correction alike): the label itself is the tap target, not just the tiny
+   checkbox glyph inside it, so a thumb only has to land anywhere on the
+   sentence, not thread a needle. */
+.my-leaver-tick-label { display: flex; align-items: flex-start; gap: var(--s-3); min-height: 44px; cursor: pointer; }
+.my-leaver-tick { width: 22px; height: 22px; flex: none; margin-top: 2px; accent-color: var(--oxblood); cursor: pointer; }
+.my-leaver-caveat { display: block; color: var(--oxblood); }
+.my-leaver-reassign { display: flex; flex-wrap: wrap; gap: var(--s-2); margin: var(--s-2) 0 0 calc(22px + var(--s-3)); }
+.my-leaver-reassign-input { max-width: 220px; }
+
+/* --- Backup (section 9.6) -------------------------------------------------- */
+.my-backup-section { max-width: 640px; margin: var(--s-6) 0; padding-top: var(--s-4); border-top: var(--border); }
+.my-backup-section h3 { font-size: var(--fs-18); margin-bottom: var(--s-2); }
+.my-backup-wipe h3 { color: var(--oxblood); }
+.my-import-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  padding: var(--s-5) var(--s-4);
+  border: var(--bw-hair) dashed var(--ink-3);
+  margin: var(--s-3) 0;
+}
+.my-import-drop.is-dragover { border-color: var(--oxblood); background: var(--paper-2); }
+.my-import-file-input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.my-import-preview { max-width: 480px; margin-top: var(--s-3); }
+
 @media (max-width: 768px) {
   .my-shell { flex-direction: column; }
   .my-sidebar {
@@ -1477,6 +1576,18 @@ button { font: inherit; }
   .my-acc-table .my-acc-actions { grid-area: actions; }
   .my-acc-table tr.my-acc-drawer-row { display: block; padding: 0 var(--s-3) var(--s-3); margin-top: calc(-1 * var(--s-3)); margin-bottom: var(--s-3); border: var(--bw-hair) solid var(--paper-edge); border-top: none; }
   .my-acc-table tr.my-acc-drawer-row td { display: block; }
+
+  /* Rocky's mobile correction: My tools, Costs and Leavers are first-class
+     at 375-390px, not a squeezed-down desktop layout. */
+  .my-tool-cards { grid-template-columns: 1fr; }
+  .my-status-list { grid-template-columns: 1fr; }
+  .my-status-list dd { margin-bottom: var(--s-2); }
+  /* Reassign control drops below the label instead of indenting under it,
+     so there is no horizontal reach needed to find it one-handed. */
+  .my-leaver-reassign { margin-left: 0; }
+  .my-leaver-picker { max-width: none; }
+  .my-import-drop { align-items: stretch; text-align: center; }
+  .my-import-drop .btn { width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) {
   .my-sidebar { transition: none; }
@@ -1565,4 +1676,25 @@ button { font: inherit; }
   .print-only { display: block; }
   .cli-print-qr { break-inside: avoid; }
   .cli-print-qr-svg { width: 26mm; height: 26mm; }
+
+  /* Leaver checklist (PRD-REGISTER section 9.5, BUILD-PLAN 11.3): plain,
+     numbered A4. The .no-print rule above already strips the app shell
+     (sidebar, topbar, every banner) on any /my screen, so what is left here
+     is just the checklist itself.
+
+     Deliberately does NOT reuse the client-mode print-only QR bridge
+     (.cli-print-qr / .print-only above): that pattern exists to hand a
+     reader a live link back into a shared, read-only stack page. A leaver
+     checklist is the opposite kind of document, something to hand to the
+     person leaving, or file away once they are gone, so it must never
+     carry a live link back into this business's own register. No QR code
+     is built for this screen at all, on screen or in print. */
+  .my-leaver-checklist { max-width: none; }
+  .my-leaver-phase { break-inside: avoid; }
+  .my-leaver-item { break-inside: avoid; }
+  .my-leaver-caveat { color: #000; text-decoration: underline; }
+  /* Real checkboxes print as boxes with a native tick when checked in every
+     evergreen engine this site already targets; sized up here so an
+     unticked box still reads clearly as a box on paper, not a stray dot. */
+  .my-leaver-tick { width: 12pt; height: 12pt; accent-color: #000; }
 }

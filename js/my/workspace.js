@@ -24,14 +24,18 @@
  * that should survive a redraw (search, inline table edits, the drawer's
  * fields) carries a stable data-focus-key for this to key off.
  */
-import { el, themeToggleButton, readPlainMode, writePlainMode, showToast, parseSelection } from '../data-loader.js';
+import { el, themeToggleButton, readPlainMode, writePlainMode, showToast, parseSelection, money } from '../data-loader.js';
 import * as store from './store.js';
 import { sampleDocument, sampleStatus } from './sample.js';
 import {
   isPersonalEmail, mfaRiskLabel, hasNoOwner, isRenewalSoon, completeness,
-  RISK_FILTERS, matchesSearch,
+  RISK_FILTERS, matchesSearch, leaverChecklist,
 } from './risks.js';
 import { SOVEREIGN_TEMPLATES, templateToRow } from './templates.js';
+// categoryIcon is a standalone, side-effect-free export (module comment,
+// BUILD-PLAN 11.3 report): reused here for My tools cards without dragging
+// in any of client.js's page chrome, exactly as section 9.3 asks for.
+import { categoryIcon } from '../client.js';
 
 /* --- house-voice constants, verbatim per PRD-REGISTER ---------------------- */
 const POSITIONING_SENTENCE = 'Your password manager holds the keys; the register is the keyring label: which doors exist, who holds which key, and which keys to collect when someone leaves.';
@@ -39,6 +43,8 @@ const CONSEQUENCE_SENTENCE = 'If you forget this passphrase, nobody can recover 
 // Approved storage phrasing (section 3): never "safe", never "stored securely".
 const STORAGE_PHRASE = 'saved in this browser, on this device';
 const MIN_PASSPHRASE = 8; // not specified by the PRD to the character; a defensible floor, noted in the build report
+// Verbatim, section 11: Backup screen and (Wave D) the awareness page.
+const PRIVACY_NOTICE = 'Your My Stack register is stored only in your own browser: nothing you type is ever sent to us, and if you set a passphrase it is encrypted on your device with a key we never see, so we could not read your register even if we wanted to. Because we cannot see it, we also cannot recover it: if you lose your passphrase, your encrypted register cannot be unlocked, so keep a safe copy of your export. Our hosting provider, Netlify, briefly keeps standard access logs (including IP addresses, held for around 30 days) to run the site; we run no analytics and set no tracking cookies.';
 
 const SIDEBAR = [
   ['overview', 'Overview'],
@@ -58,6 +64,28 @@ export function isInAppWebview(ua) {
   return WEBVIEW_PATTERNS.some((re) => re.test(ua || ''));
 }
 
+/** iOS Safari, specifically (section 3's "Add to Home Screen" guidance and
+    section 8's share path both name this browser, not iOS generally): other
+    iOS browsers (Chrome, Firefox, Edge on iOS all use Apple's WebKit but
+    carry their own UA token) are excluded, since they cannot be added to
+    the home screen as their own storage-bearing app the way Safari can. */
+export function isIosSafari(ua) {
+  const s = ua || '';
+  const isIOS = /iP(hone|od|ad)/.test(s);
+  const isSafari = /Safari/.test(s) && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(s);
+  return isIOS && isSafari;
+}
+
+/** Feature-detect the Web Share API's file-sharing extension (section 8):
+    plain navigator.share existing is not enough, since most desktop
+    browsers implement it without file support. */
+function canShareFiles() {
+  try {
+    return !!(navigator.canShare && navigator.share
+      && navigator.canShare({ files: [new File(['x'], 'x.json', { type: 'application/json' })] }));
+  } catch { return false; }
+}
+
 /* --- small formatting helpers ---------------------------------------------- */
 function slugify(str) {
   return (str || 'workspace').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'workspace';
@@ -73,17 +101,28 @@ function formatDate(iso) {
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
-function backupAgeInfo(lastExportAt) {
+/** Backup-age escalation (PRD-REGISTER section 8): quiet under 30 days,
+    amber past 30, red past 60 OR after 10+ saves since the last export,
+    whichever comes first. The saves-based trigger exists because a register
+    that changes heavily between exports is riskier to lose than its raw
+    age alone would suggest. */
+function backupAgeInfo(lastExportAt, savesSinceExport = 0) {
   if (!lastExportAt) return { text: 'No backup exported yet', level: 'red' };
   const days = Math.floor((Date.now() - new Date(lastExportAt).getTime()) / 86400000);
   const age = days <= 0 ? 'today' : `${days} day${days === 1 ? '' : 's'} ago`;
-  if (days <= 30) return { text: `Last exported ${age}`, level: 'ok' };
-  if (days <= 60) return { text: `Last exported ${age}, due a fresh export soon`, level: 'amber' };
-  return { text: `Last exported ${age}, export again soon`, level: 'red' };
+  const heavilyChanged = savesSinceExport >= 10;
+  if (days > 60 || heavilyChanged) {
+    const why = days > 60 ? age : `${savesSinceExport} changes since then`;
+    return { text: `Last exported ${age} (${why}): export again soon`, level: 'red' };
+  }
+  if (days > 30) return { text: `Last exported ${age}, due a fresh export soon`, level: 'amber' };
+  return { text: `Last exported ${age}`, level: 'ok' };
 }
 const MFA_LABEL = { app: 'Authenticator app', sms: 'SMS code', hardware: 'Hardware key', none: 'None', unknown: 'Not recorded' };
 const ADMIN_LABEL = { owner: 'Owner', admin: 'Admin', member: 'Member', unknown: 'Not recorded' };
 const STATUS_LABEL = { active: 'Active', 'to-close': 'To close', closed: 'Closed' };
+// My tools (section 9.3): the same statuses, worded as an adoption echo.
+const ADOPTION_LABEL = { active: 'In use', 'to-close': 'To close', closed: 'Closed' };
 
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
@@ -125,7 +164,7 @@ function blankAccount(overrides = {}) {
   return {
     id: newId(), service: '', url: '', toolId: null, identity: '', owner: '',
     admin: 'unknown', mfa: 'unknown', plan: '', renewal: null, monthlyCost: null,
-    status: 'active', notes: '', ...overrides,
+    status: 'active', notes: '', shared: false, ...overrides,
   };
 }
 /** One register row per stack tool (section 2, section 9.7, section 15.2):
@@ -168,6 +207,25 @@ export async function renderWorkspace(root) {
     },
     undo: null,        // { row, index, timer }: the last delete, undoable
     mergePreview: null, // { ids, ticked, open }: ?from= against an EXISTING register
+    leaversUi: {
+      person: '',            // selected from the distinct-owner dropdown
+      customPerson: '',       // free text, for someone not in that list
+      reassignDrafts: {},    // rowId -> in-progress reassign text, per section 9.5
+    },
+    costsUi: { mode: 'monthly' }, // section 9.4's one monthly/annual toggle
+    backupUi: {
+      dragOver: false,
+      importFile: null,       // File currently picked/dropped, awaiting a decision
+      importText: null,       // its text, read once and kept for a retry-with-passphrase
+      importPreview: null,    // { document, encrypted, meta } | { needsPassphrase: true } | null
+      importPassphrase: '',
+      importError: null,
+      importing: false,
+      encFlow: null,          // null | 'consequence' | 'passphrase' | 'recovery' | 'verifying' | 'disable-consequence'
+      encPassphrase1: '', encPassphrase2: '', encRecoveryDone: false, encError: null,
+      wipeText: '',
+      wipeError: null,
+    },
   };
 
   // ?from= (section 2, 9.7, 15.2): parsed exactly like data-loader's own
@@ -198,11 +256,23 @@ export async function renderWorkspace(root) {
     }
   }
 
+  /** My tools (section 9.3) and Costs (section 9.4) both want the tool
+      catalogue for names/descriptions/icons, but neither can await a fetch
+      mid-render (view() is synchronous). Fire the fetch at most once, then
+      redraw when it lands; a no-op once toolsCache is warm, which resolveFromIds()
+      above may already have done for a ?from= visit. */
+  let toolsFetchStarted = false;
+  function ensureToolsThenRedraw() {
+    if (toolsCache || toolsFetchStarted) return;
+    toolsFetchStarted = true;
+    ensureTools().then(() => { if (state.mode === 'app') draw(); }).catch(() => { toolsFetchStarted = false; });
+  }
+
   // Last known store.status() snapshot, since status() is async and the app
   // shell renders synchronously; refreshStatusNow() updates it deliberately
   // at mode transitions (so the Lock button etc. do not flash in a frame
   // late), and viewShell() below also refreshes it lazily on every redraw.
-  let lastKnownStatus = { persisted: false, storageOk: true, locked: false, encrypted: false, revision: 0, lastExportAt: null };
+  let lastKnownStatus = { persisted: false, storageOk: true, locked: false, encrypted: false, revision: 0, lastExportAt: null, savesSinceExport: 0 };
   async function refreshStatusNow() {
     try { lastKnownStatus = await store.status(); } catch { /* keep the last known values */ }
   }
@@ -210,6 +280,15 @@ export async function renderWorkspace(root) {
   if (typeof BroadcastChannel !== 'undefined') {
     const bc = new BroadcastChannel('freestack-my');
     bc.onmessage = (event) => {
+      if (event?.data?.type === 'wipe') {
+        // Another tab wiped the workspace: there is nothing left here worth
+        // preserving state for, so a full reload is the honest response
+        // rather than pretending this tab's in-memory copy still means
+        // anything (mirrors how the example banner's "Start your own" exit
+        // resets by re-entering first-run, just via a real reload here).
+        location.reload();
+        return;
+      }
       if (event?.data?.type !== 'write') return;
       if (state.mode === 'app' && !state.example && event.data.revision !== state.expectedRevision) {
         state.banner = { kind: 'external-write' };
@@ -868,33 +947,54 @@ export async function renderWorkspace(root) {
       });
     }
 
-    const sidebarFoot = el('div', { class: 'my-sidebar-foot' }, plainBtn, themeToggleButton('btn-ghost btn-sm'), lockBtn);
+    // Backup-age indicator, sidebar footer (section 8, also repeated on the
+    // Backup screen itself below): a real button, not decoration alone, so
+    // it doubles as a one-tap jump straight to Backup from anywhere.
+    const ageInfo = backupAgeInfo(currentStatus.lastExportAt, currentStatus.savesSinceExport);
+    const ageChip = el('button', { class: `my-age-chip my-age-chip-${ageInfo.level}`, type: 'button' }, ageInfo.text);
+    ageChip.addEventListener('click', () => navigate('backup'));
+
+    const sidebarFoot = el('div', { class: 'my-sidebar-foot' }, ageChip, plainBtn, themeToggleButton('btn-ghost btn-sm'), lockBtn);
 
     const menuBtn = el('button', { class: 'btn btn-ghost my-menu-toggle', type: 'button', 'aria-expanded': String(state.mobileOpen), 'aria-label': 'Menu' }, 'Menu');
     menuBtn.addEventListener('click', () => { state.mobileOpen = !state.mobileOpen; draw(); });
 
-    const sidebar = el('div', { class: `my-sidebar${state.mobileOpen ? ' is-open' : ''}` },
+    // no-print (section 9.5/print stylesheet): when a screen is printed
+    // (the Leavers checklist is the case this actually matters for), the
+    // shell chrome around it has no business on the page, so it reuses the
+    // site-wide .no-print rule rather than a bespoke workspace-only one.
+    const sidebar = el('div', { class: `my-sidebar no-print${state.mobileOpen ? ' is-open' : ''}` },
       el('div', { class: 'my-sidebar-brand' }, el('p', { class: 'eyebrow' }, 'My Stack')),
       nav,
       sidebarFoot,
     );
 
-    const exampleBanner = state.example ? el('div', { class: 'my-banner my-banner-example', role: 'status' },
+    const exampleBanner = state.example ? el('div', { class: 'my-banner my-banner-example no-print', role: 'status' },
       'This is an example register. Nothing here is saved. ',
       (() => { const b = el('button', { class: 'btn btn-sm btn-primary', type: 'button' }, 'Start your own'); b.addEventListener('click', () => { state.example = false; state.doc = null; state.mode = 'first-run'; draw(); }); return b; })(),
     ) : null;
 
-    const reloadBanner = state.banner?.kind === 'external-write' ? el('div', { class: 'my-banner my-banner-reload', role: 'alert' },
+    const reloadBanner = state.banner?.kind === 'external-write' ? el('div', { class: 'my-banner my-banner-reload no-print', role: 'alert' },
       'This register changed in another tab. ',
       (() => { const b = el('button', { class: 'btn btn-sm btn-secondary', type: 'button' }, 'Reload'); b.addEventListener('click', () => location.reload()); return b; })(),
     ) : null;
 
     const mergeBanner = (!state.example && state.mergePreview) ? renderMergeBanner() : null;
 
-    const undoBanner = state.undo ? el('div', { class: 'my-banner my-banner-undo', role: 'status' },
+    const undoBanner = state.undo ? el('div', { class: 'my-banner my-banner-undo no-print', role: 'status' },
       `Deleted ${state.undo.row.service || 'that account'}. `,
       (() => { const b = el('button', { class: 'btn btn-sm btn-secondary', type: 'button' }, 'Undo'); b.addEventListener('click', () => undoDelete()); return b; })(),
     ) : null;
+
+    // Nag banner (section 8): non-modal, persistent while the age indicator
+    // reads red, distinct from the sidebar chip so it cannot be missed on
+    // whichever screen the reader currently has open; hidden on the Backup
+    // screen itself since its own age indicator already says the same thing.
+    const nagBanner = (!state.example && ageInfo.level === 'red' && state.screen !== 'backup')
+      ? el('div', { class: 'my-banner my-banner-nag no-print', role: 'status' },
+        `${ageInfo.text}. `,
+        (() => { const b = el('button', { class: 'btn btn-sm btn-secondary', type: 'button' }, 'Go to Backup'); b.addEventListener('click', () => navigate('backup')); return b; })(),
+      ) : null;
 
     const searchInput = el('input', {
       class: 'input my-topbar-search', type: 'search', placeholder: 'Search accounts…', 'aria-label': 'Search accounts (service, identity, owner, notes)',
@@ -902,7 +1002,7 @@ export async function renderWorkspace(root) {
     });
     searchInput.addEventListener('input', () => { state.accountsUi.search = searchInput.value; draw(); });
 
-    const topbar = el('div', { class: 'my-topbar' },
+    const topbar = el('div', { class: 'my-topbar no-print' },
       menuBtn,
       el('h1', { class: 'my-topbar-name' }, doc.business || 'Untitled register'),
       searchInput,
@@ -914,9 +1014,9 @@ export async function renderWorkspace(root) {
       switch (state.screen) {
         case 'overview': return screenOverview();
         case 'accounts': return screenAccounts();
-        case 'my-tools': return placeholderScreen('My tools', 'Your imported stack will show here as cards once stack import ships in the next update.');
-        case 'costs': return placeholderScreen('Costs', 'A renewals ledger and running cost total will show here once accounts carry pricing.');
-        case 'leavers': return placeholderScreen('Leavers', 'Pick a person and get a printable offboarding checklist here, arriving in a future update.');
+        case 'my-tools': return screenMyTools();
+        case 'costs': return screenCosts();
+        case 'leavers': return screenLeavers();
         case 'backup': return screenBackup();
         default: return placeholderScreen(state.screen, '');
       }
@@ -929,7 +1029,7 @@ export async function renderWorkspace(root) {
     /* --- Overview: risk and status tiles (section 9.1) -------------------- */
     function screenOverview() {
       const st = currentStatus;
-      const age = backupAgeInfo(st.lastExportAt);
+      const age = backupAgeInfo(st.lastExportAt, st.savesSinceExport);
       const accounts = doc.accounts;
       const counts = {
         'personal-email': accounts.filter((a) => isPersonalEmail(a.identity)).length,
@@ -1212,6 +1312,18 @@ export async function renderWorkspace(root) {
       textarea.addEventListener('change', () => { updateAccountField(a.id, field, textarea.value); });
       return el('label', { class: 'my-field my-field-wide' }, el('span', { class: 't-small' }, labelText), textarea);
     }
+    /** Shared-login flag (section 9.5's own words, "rows flagged shared"):
+        marks a credential more than one person knows, so the Leavers
+        screen's phase 3 ("rotate what they knew") catches it even when the
+        identity field itself reads as a plain business address rather than
+        a personal one. */
+    function drawerCheckbox(labelText, a, field, readOnly) {
+      if (readOnly) return el('div', { class: 'my-field' }, el('span', { class: 't-small' }, labelText), el('p', {}, a[field] ? 'Yes' : 'No'));
+      const id = `drawer-${a.id}-${field}`;
+      const cb = el('input', { type: 'checkbox', id, checked: !!a[field], dataset: { focusKey: id } });
+      cb.addEventListener('change', () => { updateAccountField(a.id, field, cb.checked); });
+      return el('label', { class: 'my-field my-template-row', for: id }, cb, el('span', { class: 't-small' }, labelText));
+    }
 
     /** Everything not in the five visible columns (section 9.2, section
         4.2): url, toolId (read-only: it comes from an import, not typed),
@@ -1231,43 +1343,620 @@ export async function renderWorkspace(root) {
           drawerField('Plan', a, 'plan', 'text', readOnly),
           drawerField('Monthly cost (GBP)', a, 'monthlyCost', 'number', readOnly),
           drawerSelect('Status', a, 'status', ['active', 'to-close', 'closed'], STATUS_LABEL, readOnly),
+          drawerCheckbox('Shared login (more than one person knows it)', a, 'shared', readOnly),
           drawerTextarea('Notes', a, 'notes', readOnly),
         ),
         closeBtn,
       );
     }
 
+    /* --- My tools: the imported stack as cards (section 9.3) -------------- */
+    function openAccountDrawer(rowId) {
+      state.accountsUi.openDrawerId = rowId;
+      navigate('accounts');
+    }
+    function toolCard(row, tool) {
+      const icon = tool ? categoryIcon(tool.category) : null;
+      const adoptionLevel = row.status === 'active' ? 'ok' : row.status === 'to-close' ? 'amber' : null;
+      const adoption = el('span', { class: `my-chip${adoptionLevel ? ` my-chip-${adoptionLevel}` : ''}` }, ADOPTION_LABEL[row.status] || row.status);
+      const linkUrl = row.url || (tool && tool.urls && tool.urls[0] ? `https://${tool.urls[0].domain}` : '');
+      const visitLink = linkUrl ? el('a', { href: linkUrl, target: '_blank', rel: 'noopener noreferrer', class: 'btn btn-ghost btn-sm' }, 'Visit site') : null;
+      const openBtn = el('button', { class: 'btn btn-ghost btn-sm', type: 'button' }, 'View in register');
+      openBtn.addEventListener('click', () => openAccountDrawer(row.id));
+      return el('div', { class: 'panel my-tool-card' },
+        el('div', { class: 'my-tool-card-head' }, icon, el('h3', {}, row.service || (tool ? tool.name : 'Untitled account')), adoption),
+        tool ? el('p', { class: 't-body my-tool-card-desc' }, tool.description) : el('p', { class: 't-meta' }, 'Not matched to a catalogue tool.'),
+        el('div', { class: 'my-tool-card-actions' }, visitLink, openBtn),
+      );
+    }
+    function screenMyTools() {
+      ensureToolsThenRedraw();
+      const accounts = doc.accounts;
+      const withTool = accounts.filter((a) => a.toolId !== null && a.toolId !== undefined);
+      const withoutTool = accounts.filter((a) => a.toolId === null || a.toolId === undefined);
+      const tools = toolsCache || [];
+      const byId = new Map(tools.map((t) => [t.id, t]));
+      const cards = withTool.map((row) => toolCard(row, byId.get(row.toolId)));
+      const cardGrid = cards.length ? el('div', { class: 'my-tool-cards' }, ...cards)
+        : el('p', { class: 't-body' }, 'No accounts are linked to a catalogue tool yet. Follow a shared stack link, or set a tool link from an account’s details in Accounts.');
+      const otherList = withoutTool.length ? el('ul', { class: 'my-attention-list' }, ...withoutTool.map((row) => {
+        const btn = el('button', { class: 'btn btn-ghost btn-sm', type: 'button' }, row.service || 'Untitled account');
+        btn.addEventListener('click', () => openAccountDrawer(row.id));
+        const adoptionLevel = row.status === 'active' ? 'ok' : row.status === 'to-close' ? 'amber' : null;
+        return el('li', {}, btn, ' ', el('span', { class: `my-chip${adoptionLevel ? ` my-chip-${adoptionLevel}` : ''}` }, ADOPTION_LABEL[row.status] || row.status));
+      })) : el('p', { class: 't-body' }, 'Nothing else recorded yet.');
+      return el('section', { class: 'my-screen' },
+        el('h2', {}, 'My tools'),
+        el('p', { class: 't-body' }, 'Your imported stack, one card per tool, each linking back to its full entry in Accounts.'),
+        cardGrid,
+        el('h3', {}, 'Everything else you told us about'),
+        otherList,
+      );
+    }
+
+    /* --- Costs: a ledger, not a dashboard (section 9.4) -------------------- */
+    function renewalRow(a) {
+      return el('div', { class: 'my-renewal-row' },
+        el('span', { class: 'my-renewal-date' }, formatDate(a.renewal)),
+        el('span', { class: 'my-renewal-service' }, a.service || 'Untitled account'),
+        el('span', { class: 'my-renewal-amount' }, a.monthlyCost != null ? money(a.monthlyCost) : 'No cost recorded'),
+      );
+    }
+    function renewalList(accounts, days, titleText) {
+      const rows = accounts
+        .filter((a) => a.status !== 'closed' && isRenewalSoon(a.renewal, days) && new Date(a.renewal) >= new Date(new Date().toDateString()))
+        .sort((x, y) => new Date(x.renewal) - new Date(y.renewal));
+      return el('div', { class: 'panel my-renewal-block' },
+        el('h3', {}, titleText),
+        rows.length ? el('div', { class: 'my-renewal-list' }, ...rows.map(renewalRow)) : el('p', { class: 't-body' }, 'Nothing renewing in this window.'),
+      );
+    }
+    function buildStackLink(document_) {
+      const ids = [...new Set(document_.accounts
+        .filter((a) => a.toolId !== null && a.toolId !== undefined)
+        .map((a) => a.toolId))].sort((x, y) => x - y);
+      if (!ids.length) return null;
+      const params = new URLSearchParams();
+      params.set('t', ids.join(','));
+      if (document_.business) params.set('client', document_.business);
+      return `/?${params.toString()}`;
+    }
+    function screenCosts() {
+      const accounts = doc.accounts.filter((a) => a.status !== 'closed');
+      const costed = accounts.filter((a) => typeof a.monthlyCost === 'number');
+      const uncosted = accounts.filter((a) => typeof a.monthlyCost !== 'number');
+      const monthlyTotal = costed.reduce((sum, a) => sum + a.monthlyCost, 0);
+      const ui = state.costsUi;
+      const totalFigure = ui.mode === 'annual' ? monthlyTotal * 12 : monthlyTotal;
+
+      const monthlyBtn = el('button', { class: `btn btn-sm ${ui.mode === 'monthly' ? 'btn-primary' : 'btn-ghost'}`, type: 'button', 'aria-pressed': String(ui.mode === 'monthly') }, 'Monthly');
+      monthlyBtn.addEventListener('click', () => { ui.mode = 'monthly'; draw(); });
+      const annualBtn = el('button', { class: `btn btn-sm ${ui.mode === 'annual' ? 'btn-primary' : 'btn-ghost'}`, type: 'button', 'aria-pressed': String(ui.mode === 'annual') }, 'Annual');
+      annualBtn.addEventListener('click', () => { ui.mode = 'annual'; draw(); });
+
+      const totalPanel = el('div', { class: 'panel my-costs-total' },
+        el('div', { class: 'my-costs-toggle', role: 'group', 'aria-label': 'Monthly or annual total' }, monthlyBtn, annualBtn),
+        el('p', { class: 'my-costs-figure' }, money(totalFigure)),
+        el('p', { class: 't-meta' }, `${ui.mode === 'annual' ? 'Per year' : 'Per month'}, summed from ${costed.length} account${costed.length === 1 ? '' : 's'} with a cost recorded.`),
+      );
+
+      const uncostedPanel = uncosted.length ? el('div', { class: 'panel my-costs-uncosted' },
+        el('p', { class: 't-small' }, `${uncosted.length} account${uncosted.length === 1 ? '' : 's'} with no cost recorded:`),
+        el('ul', { class: 'my-attention-list' }, ...uncosted.map((a) => {
+          const btn = el('button', { class: 'btn btn-ghost btn-sm', type: 'button' }, `${a.service || 'Untitled account'}: no cost recorded`);
+          btn.addEventListener('click', () => openAccountDrawer(a.id));
+          return el('li', {}, btn);
+        })),
+      ) : null;
+
+      const stackLink = buildStackLink(doc);
+      const chartNote = stackLink ? el('div', { class: 'panel my-costs-chart-note' },
+        el('p', { class: 't-body' }, 'For the indicative cost-growth chart (how costs could grow if your team grew into every free tier at once), see your stack’s client page:'),
+        el('a', { href: stackLink }, 'View your stack'),
+      ) : null;
+
+      return el('section', { class: 'my-screen' },
+        el('h2', {}, 'Costs'),
+        renewalList(accounts, 14, 'Renewing in the next 14 days'),
+        renewalList(accounts, 60, 'Renewing in the next 60 days'),
+        totalPanel,
+        uncostedPanel,
+        chartNote,
+      );
+    }
+
+    /* --- Leavers: the offboarding checklist (section 9.5) ------------------ */
+    function distinctOwners(document_) {
+      const set = new Set();
+      for (const a of document_.accounts) { const o = (a.owner || '').trim(); if (o) set.add(o); }
+      return [...set].sort((x, y) => x.localeCompare(y));
+    }
+    function findLeaverEntry(document_, person) {
+      const norm = (person || '').trim().toLowerCase();
+      return (document_.leavers || []).find((l) => l.person.trim().toLowerCase() === norm) || null;
+    }
+    async function generateLeaverChecklist(person) {
+      const trimmed = (person || '').trim();
+      if (!trimmed) { showToast('Choose or type a name first.', 'error'); return; }
+      await mutateDoc((d) => {
+        d.leavers = Array.isArray(d.leavers) ? d.leavers : [];
+        const existing = d.leavers.find((l) => l.person.trim().toLowerCase() === trimmed.toLowerCase());
+        if (existing) existing.generatedAt = todayIso();
+        else d.leavers.push({ person: trimmed, generatedAt: todayIso(), ticks: {} });
+        return d;
+      });
+    }
+    async function toggleLeaverTick(person, key) {
+      await mutateDoc((d) => {
+        const entry = (d.leavers || []).find((l) => l.person.trim().toLowerCase() === person.trim().toLowerCase());
+        if (entry) { entry.ticks = entry.ticks || {}; entry.ticks[key] = !entry.ticks[key]; }
+        return d;
+      });
+    }
+    async function reassignLeaverRow(rowId, newOwner) {
+      const trimmed = (newOwner || '').trim();
+      if (!trimmed) { showToast('Enter a name to reassign to.', 'error'); return; }
+      await updateAccountField(rowId, 'owner', trimmed);
+      showToast('Ownership reassigned.');
+    }
+    function leaverTickRow(entry, key, mainText, caveatText, extra) {
+      const id = `leaver-tick-${key}`;
+      const cb = el('input', { type: 'checkbox', id, class: 'my-leaver-tick', checked: !!(entry.ticks || {})[key] });
+      cb.addEventListener('change', () => toggleLeaverTick(entry.person, key));
+      return el('li', { class: 'my-leaver-item' },
+        el('label', { for: id, class: 'my-leaver-tick-label' },
+          cb,
+          el('span', {}, mainText, caveatText ? el('strong', { class: 'my-leaver-caveat' }, ` ${caveatText}`) : null),
+        ),
+        extra || null,
+      );
+    }
+    function leaverPhaseSection(number, title, itemsHtml) {
+      return el('div', { class: 'my-leaver-phase' },
+        el('h3', {}, `${number} ${title}`),
+        itemsHtml.length ? el('ul', { class: 'my-leaver-item-list' }, ...itemsHtml) : el('p', { class: 't-meta' }, 'Nothing here for this person.'),
+      );
+    }
+    function screenLeavers() {
+      const ui = state.leaversUi;
+      const owners = distinctOwners(doc);
+      const select = el('select', { class: 'select', 'aria-label': 'Choose who is leaving' },
+        el('option', { value: '' }, 'Choose a person…'),
+        ...owners.map((o) => el('option', { value: o, selected: ui.person === o && !ui.customPerson }, o)),
+      );
+      select.addEventListener('change', () => { ui.person = select.value; ui.customPerson = ''; draw(); });
+
+      const customInput = el('input', {
+        class: 'input', type: 'text', placeholder: 'Or type a name not listed above…',
+        value: ui.customPerson, dataset: { focusKey: 'leaver-custom-person' },
+      });
+      customInput.addEventListener('input', () => { ui.customPerson = customInput.value; });
+
+      const chosenPerson = (ui.customPerson || '').trim() || ui.person;
+      const existingEntry = chosenPerson ? findLeaverEntry(doc, chosenPerson) : null;
+      const genBtn = el('button', { class: 'btn btn-primary', type: 'button', disabled: !chosenPerson },
+        existingEntry ? 'Regenerate checklist' : 'Generate checklist');
+      genBtn.addEventListener('click', () => generateLeaverChecklist(chosenPerson));
+
+      const picker = el('div', { class: 'panel my-leaver-picker no-print' },
+        el('div', { class: 'my-field' }, el('span', { class: 't-small' }, 'Person leaving'), select),
+        el('div', { class: 'my-field' }, customInput),
+        genBtn,
+      );
+
+      let checklistOut = null;
+      if (existingEntry) {
+        const phases = leaverChecklist(doc.accounts, chosenPerson);
+        const printBtn = el('button', { class: 'btn btn-secondary no-print', type: 'button' }, 'Print checklist');
+        printBtn.addEventListener('click', () => window.print());
+
+        const phase1 = phases.phase1.map((item) => leaverTickRow(existingEntry, item.key, item.text, item.caveat));
+        const phase2 = phases.phase2.map((item) => {
+          const draftKey = item.row.id;
+          const draftVal = ui.reassignDrafts[draftKey] ?? '';
+          const input = el('input', {
+            class: 'input my-leaver-reassign-input', type: 'text', placeholder: 'Reassign to…',
+            value: draftVal, dataset: { focusKey: `leaver-reassign-${draftKey}` },
+          });
+          input.addEventListener('input', () => { ui.reassignDrafts[draftKey] = input.value; });
+          const btn = el('button', { class: 'btn btn-secondary btn-sm no-print', type: 'button' }, 'Reassign');
+          btn.addEventListener('click', () => reassignLeaverRow(draftKey, ui.reassignDrafts[draftKey]));
+          const extra = el('div', { class: 'my-leaver-reassign' }, input, btn);
+          return leaverTickRow(existingEntry, item.key, `Reassign ${item.row.service || 'this account'}.`, null, extra);
+        });
+        const phase3 = phases.phase3.map((item) => leaverTickRow(existingEntry, item.key,
+          `Change the login for ${item.row.service || 'this account'} in your password manager.`,
+          'This register never holds passwords: rotate it there, not here.'));
+        const phase4 = phases.phase4.map((item) => leaverTickRow(existingEntry, item.key,
+          `Reclaim the seat and stop payment for ${item.row.service || 'this account'}${item.row.monthlyCost ? ` (${money(item.row.monthlyCost)}/mo)` : ''}.`));
+        const phase5 = phases.phase5.map((item) => leaverTickRow(existingEntry, item.key, item.text, item.caveat));
+
+        checklistOut = el('div', { class: 'my-leaver-checklist' },
+          el('h2', { class: 'my-leaver-heading' }, `Offboarding checklist: ${chosenPerson}`),
+          el('p', { class: 't-meta' }, `Generated ${formatDate(existingEntry.generatedAt)}.`),
+          printBtn,
+          leaverPhaseSection(1, 'Identity first', phase1),
+          leaverPhaseSection(2, 'Transfer ownership', phase2),
+          leaverPhaseSection(3, 'Rotate what they knew', phase3),
+          leaverPhaseSection(4, 'Licences and money', phase4),
+          leaverPhaseSection(5, 'Final closure', phase5),
+        );
+      }
+
+      return el('section', { class: 'my-screen' },
+        el('h2', { class: 'no-print' }, 'Leavers'),
+        el('p', { class: 't-body no-print' }, 'Pick who is leaving to generate their offboarding checklist, in the order that keeps you in control of accounts before their sign-in disappears.'),
+        picker,
+        checklistOut,
+      );
+    }
+
+    /** Verified export (section 8): always records lastExportAt via
+        store.exportBlob() itself, then confirms the round trip. A plaintext
+        register gets the same full silent re-import-and-compare setup
+        already uses; an encrypted one gets an honest, lighter structural
+        check instead (magic header, envelope shape), since the derived key
+        held in store.js's memory is never exposed for us to decrypt with
+        again here, and re-prompting for a passphrase on every single
+        subsequent download (rather than only at setup, where section 7
+        requires it once) would be poor form for something this frequent. */
+    async function runVerifiedExport() {
+      const { blob } = await store.exportBlob();
+      const text = await blob.text();
+      let verified = false;
+      let verifyNote;
+      try {
+        if (currentStatus.encrypted) {
+          const parsed = JSON.parse(text);
+          verified = parsed.magic === 'freestack-register' && typeof parsed.v === 'number' && typeof parsed.ct === 'string';
+          verifyNote = verified
+            ? 'saved; its encrypted structure checked out'
+            : 'saved, but its structure could not be confirmed';
+        } else {
+          const imported = await store.importBlob(text);
+          verified = imported.document.business === doc.business && imported.document.accounts.length === doc.accounts.length;
+          verifyNote = verified ? 'saved, exported and read back successfully: the round trip checks out' : 'saved, but the verification re-import did not match';
+        }
+      } catch (err) {
+        verified = false;
+        verifyNote = err.message || 'saved, but verification failed';
+      }
+      return { blob, verified, verifyNote };
+    }
+
+    async function handleDownload() {
+      try {
+        const { blob, verified, verifyNote } = await runVerifiedExport();
+        downloadBlob(blob, exportFilename(doc.business));
+        await refreshStatusNow();
+        showToast(`Backup downloaded: ${verifyNote}.`, verified ? 'success' : 'error');
+        draw();
+      } catch (err) {
+        showToast(err.message || 'Export failed', 'error');
+      }
+    }
+    async function handleShareFile() {
+      try {
+        const { blob, verified, verifyNote } = await runVerifiedExport();
+        const filename = exportFilename(doc.business);
+        const file = new File([blob], filename, { type: 'application/json' });
+        await navigator.share({ files: [file], title: filename });
+        await refreshStatusNow();
+        showToast(`Backup shared: ${verifyNote}.`, verified ? 'success' : 'error');
+        draw();
+      } catch (err) {
+        if (err && err.name === 'AbortError') return; // reader dismissed the share sheet: not an error
+        showToast('Could not open the share sheet; use Download instead.', 'error');
+      }
+    }
+
+    /* --- Import (section 8): drag-drop or file picker, passphrase on an
+       envelope, a preview before anything is replaced. The file picker is
+       the PRIMARY path (a visible button, not a hidden drop target alone):
+       drag-and-drop has no equivalent on a touch device, so it can only
+       ever be a bonus for a mouse, never the only way in. ------------------ */
+    async function tryImportText(text, passphrase) {
+      const ui = state.backupUi;
+      ui.importError = null;
+      try {
+        const result = await store.importBlob(text, passphrase);
+        ui.importPreview = result;
+      } catch (err) {
+        if (/passphrase is needed/.test(err.message || '')) {
+          ui.importPreview = { needsPassphrase: true };
+        } else {
+          ui.importPreview = null;
+          ui.importError = err.message || 'Could not read that file.';
+        }
+      }
+      draw();
+    }
+    async function handleImportFile(file) {
+      const ui = state.backupUi;
+      ui.importFile = file;
+      ui.importPassphrase = '';
+      const text = await file.text();
+      ui.importText = text;
+      await tryImportText(text, undefined);
+    }
+    function cancelImport() {
+      const ui = state.backupUi;
+      ui.importFile = null; ui.importText = null; ui.importPreview = null;
+      ui.importPassphrase = ''; ui.importError = null;
+      draw();
+    }
+    async function commitImportReplace() {
+      const ui = state.backupUi;
+      const preview = ui.importPreview;
+      if (!preview || !preview.document) return;
+      try {
+        if (preview.encrypted && ui.importPassphrase) await store.unlock(ui.importPassphrase);
+        const saved = await store.save(preview.document, state.expectedRevision);
+        state.doc = saved;
+        state.expectedRevision = saved.revision;
+        cancelImport();
+        await refreshStatusNow();
+        showToast('Register replaced from the imported file.');
+        draw();
+      } catch (err) {
+        if (err instanceof store.ConflictError) { state.banner = { kind: 'external-write' }; }
+        else showToast(err.message || 'Could not import that file.', 'error');
+        draw();
+      }
+    }
+
+    function renderImportSection() {
+      const ui = state.backupUi;
+      const fileInput = el('input', { type: 'file', accept: '.json,application/json', class: 'my-import-file-input', 'aria-hidden': 'true' });
+      fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleImportFile(fileInput.files[0]); });
+      const pickBtn = el('button', { class: 'btn btn-primary', type: 'button' }, 'Choose a file to import');
+      pickBtn.addEventListener('click', () => fileInput.click());
+
+      const dropZone = el('div', {
+        class: `my-import-drop${ui.dragOver ? ' is-dragover' : ''}`,
+      }, pickBtn, el('p', { class: 't-meta' }, 'Or drag a .fsr.json file here.'), fileInput);
+      dropZone.addEventListener('dragover', (e) => { e.preventDefault(); ui.dragOver = true; draw(); });
+      dropZone.addEventListener('dragleave', () => { ui.dragOver = false; draw(); });
+      dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        ui.dragOver = false;
+        const file = e.dataTransfer?.files?.[0];
+        if (file) handleImportFile(file);
+        else draw();
+      });
+
+      const errorMsg = ui.importError ? el('p', { class: 'my-error', role: 'alert' }, ui.importError) : null;
+
+      let previewPanel = null;
+      if (ui.importPreview?.needsPassphrase) {
+        const pInput = el('input', { class: 'input', type: 'password', placeholder: 'Passphrase', autocomplete: 'current-password' });
+        pInput.addEventListener('input', () => { ui.importPassphrase = pInput.value; });
+        const unlockBtn = el('button', { class: 'btn btn-secondary', type: 'button' }, 'Unlock and preview');
+        unlockBtn.addEventListener('click', () => tryImportText(ui.importText, ui.importPassphrase));
+        const cancelBtn = el('button', { class: 'btn btn-ghost', type: 'button' }, 'Cancel');
+        cancelBtn.addEventListener('click', cancelImport);
+        previewPanel = el('div', { class: 'panel my-import-preview' },
+          el('p', { class: 't-body' }, 'This register file is encrypted: enter its passphrase to preview it.'),
+          pInput,
+          el('div', { class: 'my-setup-actions' }, unlockBtn, cancelBtn),
+        );
+      } else if (ui.importPreview?.document) {
+        const meta = ui.importPreview.meta;
+        const conflictNote = (meta.updatedAt && doc.updatedAt && new Date(doc.updatedAt) > new Date(meta.updatedAt))
+          ? el('p', { class: 'my-error', role: 'alert' },
+            `This register here was last changed ${formatDate(doc.updatedAt)}, which is newer than this file (${formatDate(meta.updatedAt)}). Replacing will lose anything changed here since the file was made.`)
+          : null;
+        const replaceBtn = el('button', { class: 'btn btn-primary', type: 'button' }, 'Replace this register');
+        replaceBtn.addEventListener('click', commitImportReplace);
+        const cancelBtn = el('button', { class: 'btn btn-ghost', type: 'button' }, 'Cancel');
+        cancelBtn.addEventListener('click', cancelImport);
+        previewPanel = el('div', { class: 'panel my-import-preview' },
+          el('h3', {}, 'Before replacing this register'),
+          el('dl', { class: 'my-status-list' },
+            el('dt', {}, 'Business'), el('dd', {}, meta.business || 'Untitled'),
+            el('dt', {}, 'Accounts'), el('dd', {}, String(meta.accountCount)),
+            el('dt', {}, 'Last updated'), el('dd', {}, meta.updatedAt ? formatDate(meta.updatedAt) : 'Unknown'),
+          ),
+          conflictNote,
+          el('div', { class: 'my-setup-actions' }, replaceBtn, cancelBtn),
+        );
+      }
+
+      return el('div', { class: 'my-backup-section' },
+        el('h3', {}, 'Import a register file'),
+        dropZone,
+        errorMsg,
+        previewPanel,
+      );
+    }
+
+    /* --- Encryption enable/disable (section 7): same consequence flow as
+       setup, reached from here instead. -------------------------------------- */
+    function startEnableEncryption() {
+      const ui = state.backupUi;
+      ui.encFlow = 'consequence'; ui.encPassphrase1 = ''; ui.encPassphrase2 = ''; ui.encRecoveryDone = false; ui.encError = null;
+      draw();
+    }
+    function cancelEncFlow() { state.backupUi.encFlow = null; draw(); }
+    async function commitEnableEncryption() {
+      const ui = state.backupUi;
+      ui.encFlow = 'verifying';
+      draw();
+      try {
+        await store.unlock(ui.encPassphrase1);
+        const saved = await store.save(state.doc, state.expectedRevision);
+        state.doc = saved;
+        state.expectedRevision = saved.revision;
+        const { blob } = await store.exportBlob();
+        const text = await blob.text();
+        const imported = await store.importBlob(text, ui.encPassphrase1);
+        const ok = imported.document.business === saved.business && imported.document.accounts.length === saved.accounts.length;
+        if (!ok) throw new Error('The verification re-import did not match what was saved.');
+        await refreshStatusNow();
+        ui.encFlow = null;
+        showToast('Encryption switched on and verified.');
+      } catch (err) {
+        ui.encFlow = 'passphrase';
+        ui.encError = err.message || 'Something went wrong turning encryption on.';
+      }
+      draw();
+    }
+    function startDisableEncryption() { state.backupUi.encFlow = 'disable-consequence'; draw(); }
+    async function commitDisableEncryption() {
+      try {
+        const saved = await store.save(state.doc, state.expectedRevision, { forcePlain: true });
+        state.doc = saved;
+        state.expectedRevision = saved.revision;
+        await refreshStatusNow();
+        state.backupUi.encFlow = null;
+        showToast('Encryption turned off. This register is now stored as plain text on this device.');
+      } catch (err) {
+        showToast(err.message || 'Could not turn off encryption.', 'error');
+      }
+      draw();
+    }
+
+    function renderEncryptionSection() {
+      const ui = state.backupUi;
+      const st = currentStatus;
+      if (ui.encFlow === 'consequence') {
+        const back = el('button', { class: 'btn btn-ghost', type: 'button' }, 'Cancel');
+        back.addEventListener('click', cancelEncFlow);
+        const cont = el('button', { class: 'btn btn-primary', type: 'button' }, 'I understand, continue');
+        cont.addEventListener('click', () => { ui.encFlow = 'passphrase'; draw(); });
+        return el('div', { class: 'my-backup-section' }, el('h3', {}, 'Before you set a passphrase'),
+          el('p', { class: 'my-consequence' }, CONSEQUENCE_SENTENCE),
+          el('div', { class: 'my-setup-actions' }, back, cont));
+      }
+      if (ui.encFlow === 'passphrase') {
+        const p1 = el('input', { class: 'input', type: 'password', autocomplete: 'new-password', value: ui.encPassphrase1 });
+        p1.addEventListener('input', () => { ui.encPassphrase1 = p1.value; });
+        const p2 = el('input', { class: 'input', type: 'password', autocomplete: 'new-password', value: ui.encPassphrase2 });
+        p2.addEventListener('input', () => { ui.encPassphrase2 = p2.value; });
+        const err = ui.encError ? el('p', { class: 'my-error', role: 'alert' }, ui.encError) : null;
+        const back = el('button', { class: 'btn btn-ghost', type: 'button' }, 'Cancel');
+        back.addEventListener('click', cancelEncFlow);
+        const cont = el('button', { class: 'btn btn-primary', type: 'button' }, 'Continue');
+        cont.addEventListener('click', () => {
+          if (ui.encPassphrase1.length < MIN_PASSPHRASE) { ui.encError = `Use at least ${MIN_PASSPHRASE} characters.`; draw(); return; }
+          if (ui.encPassphrase1 !== ui.encPassphrase2) { ui.encError = 'Those two do not match.'; draw(); return; }
+          ui.encError = null;
+          ui.encFlow = 'recovery';
+          draw();
+        });
+        return el('div', { class: 'my-backup-section' }, el('h3', {}, 'Choose a passphrase'),
+          el('label', { class: 'my-field' }, el('span', { class: 't-small' }, 'Passphrase'), p1),
+          el('label', { class: 'my-field' }, el('span', { class: 't-small' }, 'Enter it again'), p2),
+          err, el('div', { class: 'my-setup-actions' }, back, cont));
+      }
+      if (ui.encFlow === 'recovery') {
+        const html = buildRecoverySheetHtml(doc.business, todayIso());
+        const dl = el('button', { class: 'btn btn-secondary', type: 'button' }, 'Download recovery sheet');
+        dl.addEventListener('click', () => { downloadBlob(new Blob([html], { type: 'text/html' }), `mystack-recovery-sheet-${slugify(doc.business)}.html`); ui.encRecoveryDone = true; draw(); });
+        const cont = el('button', { class: 'btn btn-primary', type: 'button', disabled: !ui.encRecoveryDone }, "I've saved my recovery sheet");
+        cont.addEventListener('click', commitEnableEncryption);
+        return el('div', { class: 'my-backup-section' }, el('h3', {}, 'Save a recovery sheet'),
+          el('p', { class: 't-body' }, 'My Stack never stores your passphrase, so this sheet is the only backstop if you forget it.'),
+          dl, ui.encRecoveryDone ? el('p', { class: 'my-ok' }, 'Recovery sheet saved.') : null, cont);
+      }
+      if (ui.encFlow === 'verifying') {
+        return el('div', { class: 'my-backup-section' }, el('h3', {}, 'Turning encryption on…'), el('p', { class: 't-body' }, 'Saving, exporting and test-decrypting your register. This takes a moment.'));
+      }
+      if (ui.encFlow === 'disable-consequence') {
+        const back = el('button', { class: 'btn btn-ghost', type: 'button' }, 'Cancel');
+        back.addEventListener('click', cancelEncFlow);
+        const confirm = el('button', { class: 'btn btn-primary', type: 'button' }, 'Turn off encryption');
+        confirm.addEventListener('click', commitDisableEncryption);
+        return el('div', { class: 'my-backup-section' }, el('h3', {}, 'Turn off encryption?'),
+          el('p', { class: 'my-consequence' }, 'Turning this off decrypts your register: the file on disk becomes readable by anyone who has it.'),
+          el('div', { class: 'my-setup-actions' }, back, confirm));
+      }
+      // Idle: offer the relevant action for the current state.
+      if (st.encrypted) {
+        const btn = el('button', { class: 'btn btn-secondary', type: 'button' }, 'Turn off encryption');
+        btn.addEventListener('click', startDisableEncryption);
+        return el('div', { class: 'my-backup-section' }, el('h3', {}, 'Encryption'),
+          el('p', { class: 't-body' }, 'This register is encrypted with a passphrase on this device.'), btn);
+      }
+      const btn = el('button', { class: 'btn btn-secondary', type: 'button' }, 'Set a passphrase');
+      btn.addEventListener('click', startEnableEncryption);
+      return el('div', { class: 'my-backup-section' }, el('h3', {}, 'Encryption'),
+        el('p', { class: 't-body' }, 'Off by default. A passphrase encrypts this register on this device, on top of it being ', STORAGE_PHRASE, '.'), btn);
+    }
+
+    /* --- Wipe workspace (section 9.6): typed confirmation -------------------- */
+    async function commitWipe() {
+      const ui = state.backupUi;
+      if (ui.wipeText.trim() !== (doc.business || '').trim()) {
+        ui.wipeError = 'Type the business name exactly to confirm.';
+        draw();
+        return;
+      }
+      await store.wipe();
+      location.reload();
+    }
+    function renderWipeSection() {
+      const ui = state.backupUi;
+      const input = el('input', { class: 'input', type: 'text', placeholder: doc.business, value: ui.wipeText, dataset: { focusKey: 'wipe-confirm' } });
+      input.addEventListener('input', () => { ui.wipeText = input.value; });
+      const err = ui.wipeError ? el('p', { class: 'my-error', role: 'alert' }, ui.wipeError) : null;
+      const btn = el('button', { class: 'btn btn-secondary', type: 'button' }, 'Wipe this workspace');
+      btn.addEventListener('click', commitWipe);
+      return el('div', { class: 'my-backup-section my-backup-wipe' },
+        el('h3', {}, 'Wipe this workspace'),
+        el('p', { class: 't-body' }, 'Deletes this register from this browser, on this device, for good. Your exported files are unaffected. Type the business name below to confirm.'),
+        el('label', { class: 'my-field' }, el('span', { class: 't-small' }, `Type "${doc.business}" to confirm`), input),
+        err, btn,
+      );
+    }
+
     function screenBackup() {
       const st = currentStatus;
+      const age = backupAgeInfo(st.lastExportAt, st.savesSinceExport);
       const rows = [
         ['Saved in this browser', st.storageOk ? 'Yes, on this device' : 'No, this browser is not remembering data'],
         ['Persistent storage granted', st.persisted ? 'Yes' : 'Not granted; the browser may still evict this if the device runs low on space'],
         ['Encrypted with a passphrase', st.encrypted ? 'Yes' : 'No, off by default'],
-        ['Last verified export', st.lastExportAt ? formatDate(st.lastExportAt) : 'Never'],
+        ['Last export', st.lastExportAt ? formatDate(st.lastExportAt) : 'Never'],
+        ['Backup age', age.text],
+        ['Changes since last export', String(st.savesSinceExport || 0)],
       ];
       const list = el('dl', { class: 'my-status-list' },
         ...rows.flatMap(([k, v]) => [el('dt', {}, k), el('dd', {}, v)]));
-      const exportBtn = el('button', { class: 'btn btn-primary', type: 'button', disabled: state.example }, 'Download a backup now');
-      exportBtn.addEventListener('click', async () => {
-        try {
-          const { blob } = await store.exportBlob();
-          downloadBlob(blob, exportFilename(doc.business));
-          showToast('Backup downloaded');
-          draw();
-        } catch (err) {
-          showToast(err.message || 'Export failed', 'error');
-        }
-      });
+
+      const downloadBtn = el('button', { class: 'btn btn-primary', type: 'button', disabled: state.example }, 'Download a backup now');
+      downloadBtn.addEventListener('click', handleDownload);
+      const shareBtn = (!state.example && canShareFiles()) ? (() => {
+        const b = el('button', { class: 'btn btn-secondary', type: 'button' }, 'Send your backup somewhere safe');
+        b.addEventListener('click', handleShareFile);
+        return b;
+      })() : null;
+
+      const homeScreenNote = (isIosSafari(navigator.userAgent) && !navigator.standalone) ? el('div', { class: 'my-backup-section' },
+        el('h3', {}, 'Add to your Home Screen'),
+        el('p', { class: 't-body' }, 'On an iPhone, adding this page to your Home Screen (Share, then "Add to Home Screen") gives it its own storage counter, separate from the rest of Safari, which honestly means a little more room before anything here is at risk of eviction. It does not change anything about ', STORAGE_PHRASE, '.'),
+      ) : null;
+
       return el('section', { class: 'my-screen' },
         el('h2', {}, 'Backup'),
         el('p', { class: 't-body' }, 'The export file you download is the copy that truly lasts. Everything ', STORAGE_PHRASE, ' can be lost if you clear browsing data or switch devices.'),
         list,
-        state.example ? el('p', { class: 't-meta' }, 'Exports are disabled while exploring the example register.') : exportBtn,
-        el('p', { class: 't-meta' }, 'Import, changing your passphrase later and the iOS share sheet arrive in a future update.'),
+        el('div', { class: 'my-backup-section' },
+          el('h3', {}, 'Export'),
+          state.example ? el('p', { class: 't-meta' }, 'Exports are disabled while exploring the example register.') : el('div', { class: 'my-setup-actions' }, downloadBtn, shareBtn),
+        ),
+        state.example ? null : renderImportSection(),
+        state.example ? null : renderEncryptionSection(),
+        homeScreenNote,
+        el('div', { class: 'my-backup-section' },
+          el('h3', {}, 'Your privacy'),
+          el('p', { class: 't-body' }, PRIVACY_NOTICE),
+        ),
+        state.example ? null : renderWipeSection(),
       );
     }
 
-    const container = el('div', { class: 'my-shell' }, sidebar, el('div', { class: 'my-content' }, exampleBanner, reloadBanner, mergeBanner, undoBanner, topbar, main));
+    const container = el('div', { class: 'my-shell' }, sidebar, el('div', { class: 'my-content' }, exampleBanner, reloadBanner, mergeBanner, undoBanner, nagBanner, topbar, main));
     // A lazy top-up on top of the deliberate refreshes at mode transitions:
     // status() is async, so if it changed since the snapshot this render
     // used, quietly redraw once. The equality check is what stops this from

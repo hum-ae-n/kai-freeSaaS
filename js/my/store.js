@@ -1,11 +1,12 @@
 /**
  * store.js: the only module in the workspace allowed to touch persistence
- * (PRD-REGISTER section 6). Interface exactly: load(), save(data,
- * expectedRevision), exportBlob(), importBlob(fileOrBytes, passphrase?),
- * lock(), unlock(passphrase), status(). No other module may call
- * localStorage, indexedDB or any storage API; this is the seam a future
- * sync backend drops into (section 13), so nothing here leaks the storage
- * mechanics through the return shapes.
+ * (PRD-REGISTER section 6). Sync-seam interface exactly: load(), save(data,
+ * expectedRevision, opts?), exportBlob(), importBlob(fileOrBytes,
+ * passphrase?), lock(), unlock(passphrase), status(). No other module may
+ * call localStorage, indexedDB or any storage API; this is the seam a
+ * future sync backend drops into (section 13), so nothing here leaks the
+ * storage mechanics through the return shapes. wipe() (Wave C, see below)
+ * sits alongside this list as a deliberately separate, local-only export.
  *
  * Whole-document persistence: IndexedDB database 'freestack-my' is primary,
  * a localStorage mirror at 'freestack:v1:my' protects against a single
@@ -17,13 +18,42 @@
  * silently overwriting another tab's work.
  *
  * Encryption (section 7) is opt-in. unlock(passphrase) is overloaded by
- * design, since the interface may not grow a seventh method: called against
+ * design, since the interface may not grow a further method: called against
  * an existing encrypted register it authenticates and holds the derived
  * key in memory; called when the register is not yet encrypted it derives
  * a brand new key from the passphrase and holds THAT, so the very next
  * save() seals the document instead of writing plaintext. lock() discards
  * whatever key is held, whether that key was ever actually written to disk
  * yet or not, which doubles as "cancel an in-progress opt-in".
+ *
+ * Wave C additions (BUILD-PLAN 11.3), kept to the same discipline:
+ * - The document (section 4.3) gains one more pass-through field, `leavers`
+ *   (an array), so the Leavers screen's tick state (section 9.5, "checklist
+ *   state saves to the workspace") survives a save exactly like `accounts`
+ *   does. It is validated the same shallow way `accounts` already is
+ *   (must be an array, else it falls back), never inspected field by field:
+ *   this module still does not know or care what a leaver row looks like,
+ *   only that it is data the caller owns.
+ * - save() takes an optional third argument, `opts.forcePlain`, used only by
+ *   the Backup screen's "disable encryption" action (section 7: "disabling
+ *   decrypts and states plainly the file on disk becomes readable"). This is
+ *   a new parameter on an EXISTING method, not a new method: with the key
+ *   already held in memory only for the duration of one save() call, there
+ *   is no other safe moment to both decrypt the current document AND commit
+ *   to writing it back out as plaintext, since the two must happen inside
+ *   the same lock-held, same-key-reference operation or a lock/unlock race
+ *   could write a half-sealed result.
+ * - status() reports `savesSinceExport`, a plain counter (meta-only, not
+ *   part of the user's document) that save() increments and exportBlob()
+ *   resets, feeding the section 8 backup-age escalation rule ("red past 60
+ *   days or after 10+ saves since last export").
+ * - wipe(): a local-only reset (clear IndexedDB, clear both localStorage
+ *   keys, discard any held key). This has no place in the section 13 sync
+ *   seam (a remote wipe is a different operation, "delete my blob", not a
+ *   compare-and-swap), but section 9.6's typed-confirmation wipe still has
+ *   to go through this module, since nothing else may touch storage: kept
+ *   as a clearly separate, clearly local-only export rather than folded
+ *   into the seven seam methods above.
  */
 import {
   deriveKey, deriveEnvelopeKey, openEnvelopeWithKey, sealWithKey, randomBytes,
@@ -212,8 +242,12 @@ export async function load() {
 /** save(): compare-and-swap against the on-disk revision, encrypt if a key
     is currently held (whether that is an established passphrase or one
     just chosen via unlock(), see the module comment above), mirror to both
-    stores, and tell other tabs a write happened. */
-export async function save(data, expectedRevision) {
+    stores, and tell other tabs a write happened. `opts.forcePlain` (Wave C)
+    writes this save as plaintext and discards any held key regardless,
+    used only by the Backup screen's "disable encryption" action; every
+    other caller omits it and behaviour is unchanged from before. */
+export async function save(data, expectedRevision, opts = {}) {
+  const forcePlain = !!opts.forcePlain;
   return withLock(async () => {
     const raw = await readRaw();
     if (isEnvelope(raw) && !cryptoKey) throw new LockedError();
@@ -230,16 +264,21 @@ export async function save(data, expectedRevision) {
       business: data.business || '',
       people: Array.isArray(data.people) ? data.people : [],
       accounts: Array.isArray(data.accounts) ? data.accounts : [],
+      leavers: Array.isArray(data.leavers) ? data.leavers : (diskDoc?.leavers || []),
       createdAt: diskDoc?.createdAt || data.createdAt || now,
       updatedAt: now,
       revision: diskRevision + 1,
     };
 
+    const useKey = forcePlain ? null : cryptoKey;
     const plaintextBytes = textToBytes(JSON.stringify(nextDoc));
-    const toWrite = cryptoKey
-      ? await sealWithKey(cryptoKey, keySalt, keyIter, plaintextBytes)
+    const toWrite = useKey
+      ? await sealWithKey(useKey, keySalt, keyIter, plaintextBytes)
       : nextDoc;
     await writeRaw(toWrite);
+    if (forcePlain) { cryptoKey = null; keySalt = null; }
+    const meta = lsGet(LS_META_KEY) || {};
+    lsSet(LS_META_KEY, { ...meta, savesSinceExport: (meta.savesSinceExport || 0) + 1 });
     announceWrite(nextDoc.revision, nextDoc.updatedAt);
     resetIdleTimer();
     return nextDoc;
@@ -259,7 +298,7 @@ export async function exportBlob() {
     : { magic: MAGIC, format: 'plain', ...raw };
   const json = JSON.stringify(payload, null, 2);
   const at = new Date().toISOString();
-  lsSet(LS_META_KEY, { ...(lsGet(LS_META_KEY) || {}), lastExportAt: at });
+  lsSet(LS_META_KEY, { ...(lsGet(LS_META_KEY) || {}), lastExportAt: at, savesSinceExport: 0 });
   return { blob: new Blob([json], { type: 'application/json' }), exportedAt: at };
 }
 
@@ -373,5 +412,31 @@ export async function status() {
     encrypted: diskIsEnvelope || pendingEncryption,
     revision,
     lastExportAt: meta.lastExportAt || null,
+    savesSinceExport: meta.savesSinceExport || 0,
   };
+}
+
+/** wipe(): local-only full reset (module comment above explains why this is
+    not one of the seven sync-seam methods). Clears both stores, discards
+    any held key and cancels the idle timer, and tells other tabs so they
+    do not go on believing a register still exists there. The caller
+    (workspace.js) reloads the page afterwards rather than hand-tracking
+    every piece of in-memory UI state back to first-run itself. */
+export async function wipe() {
+  try {
+    const db = await openDb();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(DB_STORE, 'readwrite');
+      tx.objectStore(DB_STORE).delete(DB_KEY);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch { /* IDB unavailable: the localStorage mirror below still clears */ }
+  try { localStorage.removeItem(LS_KEY); } catch { /* private mode etc: nothing to clear */ }
+  try { localStorage.removeItem(LS_META_KEY); } catch { /* as above */ }
+  cryptoKey = null;
+  keySalt = null;
+  explicitlyLocked = false;
+  if (idleTimer) clearTimeout(idleTimer);
+  channel?.postMessage({ type: 'wipe' });
 }

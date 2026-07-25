@@ -62,5 +62,6 @@ export function templateToRow(template, newId) {
     monthlyCost: null,
     status: 'active',
     notes: template.notes,
+    shared: false,
   };
 }
