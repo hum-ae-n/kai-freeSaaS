@@ -22,6 +22,9 @@ jobs:
       - name: Validate tools.json against PRD section 4
         run: node scripts/validate-data.mjs
 
+      - name: My Stack register crypto test vectors (PRD-REGISTER section 7)
+        run: node scripts/register-vectors.mjs
+
       - name: Install Playwright (dev-time only, not a site dependency)
         run: |
           mkdir -p "$RUNNER_TEMP/pw"
