@@ -3,12 +3,47 @@
 [build]
   publish = "."
 
+# X-Frame-Options DENY used to sit on "/*" (every path). Batch I adds embed
+# mode (BUILD-PLAN 10.11), which needs the opposite of DENY on exactly one
+# path: framable, but only from kaipability.com. X-Frame-Options has no
+# per-origin allow-list, so it cannot express that, and Netlify header rules
+# only ever add headers for a matching path, they cannot remove one a wider
+# rule already set. So DENY is scoped explicitly to the app's own pages, all
+# of which serve index.html, the single-page app shell: "/" and "/index.html"
+# (the public directory, per BUILD-PLAN 10.12) and "/x" (curator, the hidden
+# staff entry point). "/*" and /embed.html are left off entirely; embed.html
+# gets the scoped Content-Security-Policy rule below instead.
+[[headers]]
+  for = "/"
+  [headers.values]
+    X-Frame-Options = "DENY"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    X-Frame-Options = "DENY"
+
+[[headers]]
+  for = "/x"
+  [headers.values]
+    X-Frame-Options = "DENY"
+
 [[headers]]
   for = "/*"
   [headers.values]
-    X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Embed mode (BUILD-PLAN 10.11): frame-ancestors is the modern, allow-listed
+# replacement for X-Frame-Options, so this is the one page on the whole site
+# that may sit inside an iframe, and only an iframe served from Kaipability's
+# own site. Header behaviour cannot be exercised by `python3 -m http.server`
+# locally: confirm this (and the DENY split above) on the Netlify deploy
+# preview, not in local testing.
+[[headers]]
+  for = "/embed.html"
+  [headers.values]
+    Content-Security-Policy = "frame-ancestors https://kaipability.com https://*.kaipability.com"
 
 # Keep tools.json uncached-ish so a data-only push shows up without a hard refresh.
 [[headers]]

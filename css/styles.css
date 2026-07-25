@@ -299,6 +299,17 @@ button { font: inherit; }
   align-items: center;
 }
 .linkgen-controls .input { flex: 1 1 16rem; }
+/* Plain English checkbox (Batch H, Feature 1): sits with the other link
+   generator controls, never resized down to a bare checkbox since the
+   label text is what tells a curator what it does. */
+.linkgen-checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--fs-14);
+  color: var(--ink-2);
+  cursor: pointer;
+}
 .linkgen-result {
   margin-top: var(--s-4);
   display: flex;
@@ -485,6 +496,29 @@ button { font: inherit; }
 .tools-table .cell-links { min-width: 10rem; max-width: 14rem; }
 .tools-table .cell-links a { display: block; margin-bottom: 3px; }
 .tools-table .cell-value { white-space: nowrap; font-family: var(--font-sans); font-weight: 500; color: var(--positive); }
+/* Quiet pricing subline (Feature 1): never louder than the ~£X/yr figure
+   it annotates, so ink-3 and fs-12 rather than the positive-green above. */
+.tools-table .cell-value-sub {
+  margin-top: 2px;
+  font-weight: 400;
+  font-size: var(--fs-12);
+  color: var(--ink-3);
+}
+/* BYO marker (Feature 1): neutral outline chip, never as loud as the type
+   badge it sits beside in the same cell. */
+.byo-chip {
+  display: inline-block;
+  margin-left: var(--s-2);
+  padding: 1px 6px;
+  vertical-align: middle;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--fs-12);
+  letter-spacing: var(--tr-eyebrow);
+  color: var(--ink-3);
+  border: var(--bw-hair) solid var(--steel-3);
+  border-radius: var(--r-2);
+}
 .tools-table .cell-when { min-width: 10rem; max-width: 14rem; color: var(--ink-3); font-size: var(--fs-12); }
 .tools-table input[type="checkbox"] {
   width: 17px;
@@ -525,7 +559,7 @@ button { font: inherit; }
   text-transform: uppercase;
   color: var(--ink-3);
 }
-.cur-more-when { color: var(--ink-2); font-size: var(--fs-14); line-height: var(--lh-14); }
+.cur-more-when, .cur-more-text { color: var(--ink-2); font-size: var(--fs-14); line-height: var(--lh-14); }
 
 .cur-actions {
   display: flex;
@@ -584,6 +618,14 @@ button { font: inherit; }
   gap: var(--s-3);
   flex-wrap: wrap;
   margin-bottom: var(--s-6);
+}
+/* Plain English toggle (Batch H, Feature 1): pressed state reuses the same
+   sage treatment as the adoption checklist's card-toggle, so "on" always
+   reads the same way across the page regardless of which control it is. */
+.plain-toggle[aria-pressed="true"] {
+  background: var(--positive-tint);
+  border-color: var(--positive);
+  color: var(--core-fg);
 }
 
 .cli-summary {
@@ -654,6 +696,9 @@ button { font: inherit; }
   color: var(--ink-3);
   max-width: none;
 }
+/* Share-back button (Batch H, Feature 2): its own line under the progress
+   note, only present at all when the checklist itself renders. */
+.cli-progress .btn { margin-top: var(--s-4); }
 
 .card-grid {
   display: grid;
@@ -663,6 +708,15 @@ button { font: inherit; }
   margin: 0;
   padding: 0;
 }
+/* A 1fr grid track's minimum size defaults to auto (the widest min-content
+   contribution among its items), not 0, so a single card with an unusually
+   wide row of inline content (e.g. several short "Get started" links laid
+   end to end with a wide favicon gap) can grow the whole column past the
+   viewport at narrow widths, same trap already fixed on the curator table's
+   .cell-name in the RESPONSIVE block. Surfaced by the public directory
+   (Batch I), which is the first view to render every card in the catalogue
+   at once rather than a hand-picked selection. */
+.card-grid > li { min-width: 0; }
 
 /* Cards: square, hairline border, no lift, border darkens on hover */
 .tool-card {
@@ -702,8 +756,9 @@ button { font: inherit; }
 }
 .tool-card .card-top {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: var(--s-4);
+  gap: var(--s-2) var(--s-4);
 }
 .tool-card h3 {
   font-family: var(--font-sans);
@@ -711,12 +766,16 @@ button { font: inherit; }
   font-size: var(--fs-21);
   line-height: var(--lh-21);
   flex: 1;
+  min-width: 60%;
 }
+/* Plain English mode's value text ("worth about £X a year") is far longer
+   than the normal "~£X/yr" chip: no nowrap, so it wraps onto its own line
+   instead of forcing the card wider than the viewport at 375px. */
 .tool-card .card-value {
   font-family: var(--font-sans);
   font-weight: 500;
   color: var(--positive);
-  white-space: nowrap;
+  text-align: right;
 }
 .tool-card .card-domains {
   margin-top: var(--s-2);
@@ -725,6 +784,13 @@ button { font: inherit; }
   flex-wrap: wrap;
   gap: var(--s-1) var(--s-4);
 }
+/* A domain label can be a full path (e.g. blackmagicdesign.com/products/
+   davinciresolve) with no space for the browser's default wrap points to
+   land on: without this, that single unbroken string forces the card wider
+   than the viewport at narrow widths, the same trap the curator table's
+   .cell-name already guards against. min-width: 0 lets the flex item shrink
+   below its text's natural width so overflow-wrap has room to act. */
+.tool-card .card-domains a { min-width: 0; overflow-wrap: anywhere; }
 .tool-card .card-desc { margin-top: var(--s-4); color: var(--ink-2); font-size: var(--fs-16); line-height: var(--lh-16); }
 .tool-card .card-section-label {
   margin-top: var(--s-6);
@@ -781,6 +847,11 @@ button { font: inherit; }
   background: var(--paper-2);
   color: var(--ink-2);
   border: var(--bw-hair) solid var(--steel-3);
+  /* Plain English mode's pricing text ("Costs from £X a month if you
+     outgrow the free version") is a full sentence, not a short pill label
+     like the type badges: override the shared .badge nowrap so it wraps
+     instead of forcing the card wider than the viewport. */
+  white-space: normal;
 }
 
 /* Build-your-own aside (optional `byo` field, PRD section 4): kin to
@@ -868,6 +939,17 @@ button { font: inherit; }
   font-size: var(--fs-14);
   max-width: none;
 }
+/* Plain English takeaway (Batch H, Feature 1): sits above the chart, so it
+   reads before the reader has to interpret the bars at all. */
+.cli-cost-takeaway {
+  margin-top: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  background: var(--paper-2);
+  border-left: var(--bw-rule) solid var(--oxblood);
+  color: var(--ink);
+  font-weight: 500;
+  max-width: none;
+}
 
 .cli-cost-chart-wrap {
   position: relative;
@@ -950,18 +1032,122 @@ button { font: inherit; }
 .cli-cost-table th:nth-child(2), .cli-cost-table th:nth-child(3),
 .cli-cost-table td:nth-child(2), .cli-cost-table td:nth-child(3) { text-align: right; }
 
+/* Print-only QR bridge (Batch H, Feature 3): invisible on screen, shown and
+   sized in @media print below. Self generated SVG, no third party image
+   request either way. */
+.print-only { display: none; }
+.cli-print-qr {
+  margin-top: var(--s-12);
+  padding-top: var(--s-6);
+  border-top: var(--border);
+  text-align: center;
+}
+.cli-print-qr-label {
+  margin-bottom: var(--s-3);
+  color: var(--ink-2);
+  font-size: var(--fs-14);
+}
+.cli-print-qr-svg { color: var(--ink); }
+
+/* === PUBLIC ================================================================= */
+/* Public/staff split (BUILD-PLAN 10.12, Batch I): the read-only, indexable
+   directory at root. Shares .cli-category/.card-grid/.tool-card from the
+   CLIENT block above (the same card renderer, checklist toggle suppressed)
+   rather than a parallel set of card styles; this block covers only the
+   page-level chrome that is unique to the public view. */
+
+#public-root {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--s-8) var(--s-6) var(--s-24);
+}
+
+.pub-header {
+  padding: var(--s-10) var(--s-10) var(--s-8);
+  margin-bottom: var(--s-6);
+  border-top: var(--bw-heavy) solid var(--oxblood);
+}
+.pub-header .logo { height: 40px; width: auto; margin-bottom: var(--s-8); }
+.pub-header h1 {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(34px, 5.5vw, 58px);
+  line-height: 1.02;
+  letter-spacing: var(--tr-tight);
+}
+.pub-header .subtitle { margin-top: var(--s-4); color: var(--ink-2); font-size: var(--fs-16); max-width: none; }
+.pub-header .trust-line { margin-top: var(--s-2); color: var(--ink-3); font-size: var(--fs-14); max-width: none; }
+
+.pub-toolbar {
+  display: flex;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: var(--s-8);
+}
+/* Grows to fill the row on desktop; the mobile block below resets this to
+   flex: 0 0 auto, the same trap documented there for .cur-toolbar/.linkgen. */
+.pub-search { flex: 1 1 20rem; min-width: 0; }
+
+/* Recently updated strip (Feature 3, Batch I): quiet, editorial, hairline
+   rules between entries. Archived entries get no extra treatment at all:
+   retirements are a trust signal here, not something to visually apologise
+   for, so .is-archived intentionally carries no rule of its own. */
+.pub-changelog {
+  margin-bottom: var(--s-10);
+  padding: var(--s-5) var(--s-6);
+}
+.pub-changelog-list {
+  margin-top: var(--s-3);
+  list-style: none;
+  padding: 0;
+}
+.pub-changelog-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1) var(--s-3);
+  padding: var(--s-2) 0;
+  border-top: var(--bw-hair) solid var(--paper-edge);
+  font-size: var(--fs-14);
+}
+.pub-changelog-item:first-child { border-top: none; }
+.pub-changelog-date { flex: none; color: var(--ink-3); font-family: var(--font-sans); font-size: var(--fs-12); }
+.pub-changelog-detail { color: var(--ink-2); }
+
+.pub-empty { color: var(--ink-2); padding: var(--s-10) 0; }
+
+.pub-footer { align-items: flex-start; }
+.pub-cta { margin-top: var(--s-1); }
+
+/* Embed mode (Feature 2, Batch I / BUILD-PLAN 10.11): chrome-free, sized to
+   sit inside an iframe rather than assume a full browser viewport. */
+#embed-root {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: var(--s-6) var(--s-5) var(--s-8);
+}
+.embed-footer {
+  margin-top: var(--s-8);
+  padding-top: var(--s-4);
+  border-top: var(--border);
+  font-size: var(--fs-12);
+  color: var(--ink-3);
+  text-align: center;
+}
+.embed-footer a { color: inherit; }
+
 /* === RESPONSIVE ============================================================ */
 
 @media (min-width: 1200px) {
   .card-grid { grid-template-columns: 1fr 1fr; }
-  #client-root { max-width: 1240px; }
+  #client-root, #public-root { max-width: 1240px; }
   /* A category with exactly one card would otherwise leave a half-page of
      empty cream beside it. Read as a deliberate wide card instead. */
   .card-solo { grid-column: 1 / -1; }
 }
 
 @media (max-width: 767px) {
-  #curator-root, #client-root { padding: var(--s-5) var(--s-4) var(--s-16); }
+  #curator-root, #client-root, #public-root { padding: var(--s-5) var(--s-4) var(--s-16); }
   .cur-header .tool-count { margin-left: 0; width: 100%; }
   .cur-toolbar { flex-direction: column; align-items: stretch; }
   .cur-toolbar .select, .cur-toolbar .input { width: 100%; }
@@ -971,6 +1157,11 @@ button { font: inherit; }
   .linkgen-controls { flex-direction: column; align-items: stretch; }
   /* In a column, the desktop flex-basis 16rem would become height. */
   .linkgen-controls .input { flex: 0 0 auto; }
+  .pub-header { padding: var(--s-6) var(--s-5); }
+  .pub-toolbar { flex-direction: column; align-items: stretch; }
+  /* Same trap as .cur-toolbar/.linkgen-controls above: in a column, the
+     desktop flex-basis 20rem would become height, not width. */
+  .pub-search { width: 100%; flex: 0 0 auto; }
   .cli-header { padding: var(--s-6) var(--s-5); }
   .cli-summary { gap: var(--s-6); padding: var(--s-5); }
   .tool-card { padding: var(--s-6); }
@@ -1108,4 +1299,10 @@ button { font: inherit; }
   }
   .favicon { display: none; }
   #curator-root { display: none; }
+
+  /* Print-only QR bridge (Batch H, Feature 3): invisible on screen, shown
+     here at a scannable physical size regardless of the page's zoom. */
+  .print-only { display: block; }
+  .cli-print-qr { break-inside: avoid; }
+  .cli-print-qr-svg { width: 26mm; height: 26mm; }
 }

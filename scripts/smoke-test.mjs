@@ -55,7 +55,15 @@ const server = createServer(async (req, res) => {
     res.writeHead(200, { 'content-type': MIME[extname(file)] ?? 'application/octet-stream' });
     res.end(body);
   } catch {
-    res.writeHead(404); res.end('not found');
+    // SPA fallback, mirroring the netlify.toml redirect: unknown paths
+    // (/x above all) serve index.html, real files always win first.
+    try {
+      const index = await readFile(join(ROOT, 'index.html'));
+      res.writeHead(200, { 'content-type': 'text/html' });
+      res.end(index);
+    } catch {
+      res.writeHead(404); res.end('not found');
+    }
   }
 });
 await new Promise((r) => server.listen(0, r));
@@ -81,9 +89,24 @@ page.on('pageerror', (e) => pageErrors.push(String(e)));
 page.on('console', (m) => { if (m.type() === 'error' && !/net::|Failed to load resource/.test(m.text())) pageErrors.push(m.text()); });
 await page.route(/^(?!.*localhost).*$/, (route) => route.abort());
 
-/* --- curator mode -------------------------------------------------------- */
+/* --- public directory at the root (batch I) -------------------------------- */
 await page.goto(`${base}/`);
+await page.waitForSelector('#public-root .tool-card');
+check(`public: all ${active.length} active tools as cards`, await page.locator('#public-root .tool-card').count() === active.length);
+check('public: indexable, no robots meta', await page.locator('meta[name=robots]').count() === 0);
+check('public: trust line and CTA present',
+  (await page.textContent('#public-root')).includes('No affiliates')
+  && (await page.textContent('#public-root')).includes('Talk to Kaipability'));
+await page.fill('#public-root input[type=search]', 'canva');
+await page.waitForTimeout(200);
+const publicFiltered = await page.locator('#public-root .tool-card:visible').count();
+check('public: search filters cards', publicFiltered > 0 && publicFiltered < active.length, `visible=${publicFiltered}`);
+check('public: recently-updated strip renders', await page.locator('.pub-changelog, [class*=changelog]').count() >= 1);
+
+/* --- curator mode (staff path /x, batch I) --------------------------------- */
+await page.goto(`${base}/x`);
 await page.waitForSelector('.tools-table');
+check('curator: noindexed at /x', await page.locator('meta[name=robots][content=noindex]').count() === 1);
 check(`curator: ${active.length} active rows`, await page.locator('.tools-table tbody tr').count() === active.length);
 check(`curator: ${activeCore} core pre-checked`, await page.locator('tbody input[type=checkbox]:checked').count() === activeCore);
 check(`curator: category dropdown has ${activeCategories} + All`, await page.locator('select >> nth=1 >> option').count() === activeCategories + 1);
@@ -142,10 +165,9 @@ check('meta: og tags present and before the stylesheet', ogAt > -1 && cssAt > -1
 check('meta: twitter card + canonical, no static robots',
   rawHtml.includes('summary_large_image') && rawHtml.includes('rel="canonical"') && !/name="robots"/.test(rawHtml));
 
-await page.goto(`${base}/`);
+await page.goto(`${base}/x`);
 await page.waitForSelector('.tools-table');
-check('curator: no robots meta injected', await page.locator('meta[name=robots]').count() === 0);
-check('curator: trust line present', (await page.locator('.trust-line').textContent()).includes('No affiliates'));
+check('curator: trust line present', (await page.locator('.trust-line').first().textContent()).includes('No affiliates'));
 
 await page.goto(`${base}/?t=0,2&client=${'a'.repeat(100)}`);
 await page.waitForSelector('.tool-card');
@@ -176,7 +198,7 @@ await hostile.close();
 
 /* --- archived rendering (served from a mutated copy, repo data untouched) -- */
 archiveIds = new Set([2]);
-await page.goto(`${base}/`);
+await page.goto(`${base}/x`);
 await page.waitForSelector('.tools-table');
 check('curator: archived tool excluded from table', await page.locator('.tools-table tbody tr').count() === active.length - 1);
 await page.goto(`${base}/?t=0,2`);
@@ -195,8 +217,85 @@ check('client: byo block renders once for the tool that has it', byoBlocks === 1
 const byoOnBitwarden = await page.locator('.tool-card', { hasText: 'Bitwarden' }).locator('.card-byo').count();
 check('client: no byo container on tools without byo', byoOnBitwarden === 0);
 
+/* --- batch G surface: curator surfacing, edit flow, permalink -------------- */
+const paidTool = active.find((t) => Number.isInteger(t.paid_from) && t.paid_from > 0);
+const freeForeverTool = active.find((t) => t.paid_from === 0);
+const byoCount = active.filter((t) => t.byo).length;
+await page.goto(`${base}/x`);
+await page.waitForSelector('.tools-table');
+check('curator: paid-from sublines render from data',
+  await page.locator('.cell-value-sub', { hasText: `from £${paidTool.paid_from}/mo` }).count() >= 1
+  && (freeForeverTool ? await page.locator('.cell-value-sub', { hasText: 'free forever' }).count() >= 1 : true));
+check('curator: BYO chips match byo tool count', await page.locator('.byo-chip').count() === byoCount, `chips=${await page.locator('.byo-chip').count()} expected=${byoCount}`);
+
+await page.goto(`${base}/?edit=0,2&client=Acme&note=hello`);
+await page.waitForSelector('.tools-table');
+check('curator: edit param pre-ticks and prefills',
+  await page.locator('tbody input[type=checkbox]:checked').count() === 2
+  && await page.inputValue('#client-name') === 'Acme'
+  && await page.inputValue('#client-note') === 'hello');
+
+await page.goto(`${base}/?tool=0`);
+await page.waitForSelector('.tool-card');
+check('client: single-tool permalink renders one card, no summary, id 0 safe',
+  await page.locator('.tool-card').count() === 1
+  && await page.locator('.cli-summary').count() === 0
+  && await page.locator('.card-toggle').count() === 0);
+
+/* --- batch H surface: plain mode, share-back mailto, print QR -------------- */
+await page.goto(`${base}/?t=0,2`);
+await page.waitForSelector('.tool-card');
+await page.click('.plain-toggle');
+check('client: plain mode relabels and swaps text',
+  await page.locator('text=Other options like this').count() >= 1
+  && await page.locator('.plain-toggle[aria-pressed="true"]').count() === 1);
+await page.click('.plain-toggle');
+check('client: plain mode toggles back off', await page.locator('.card-section-label', { hasText: 'Alternatives' }).count() >= 1);
+await page.evaluate(() => { try { localStorage.removeItem('freestack:v1:plainmode'); } catch {} });
+
+const allIds = active.map((t) => t.id).join(',');
+await page.goto(`${base}/?t=${allIds}&client=${'X'.repeat(80)}`);
+await page.waitForSelector('.tool-card');
+const mailtoPromise = new Promise((resolve) => {
+  const grab = (u) => { if (u.startsWith('mailto:')) resolve(u); };
+  page.on('framenavigated', (f) => grab(f.url()));
+  page.on('requestfailed', (r) => grab(r.url()));
+  setTimeout(() => resolve(''), 4000);
+});
+await page.click('text=Share progress with Kaipability');
+const mailto = await mailtoPromise;
+check('client: share-progress mailto correct and under 1900 chars at full catalogue',
+  mailto.startsWith('mailto:info@kaipability.com') && mailto.includes('Not%20yet') && mailto.length > 0 && mailto.length < 1900,
+  `len=${mailto.length}`);
+await page.goto(`${base}/?t=0,2&client=Acme`).catch(() => {});
+await page.waitForSelector('.tool-card');
+const qrScreen = await page.locator('.cli-print-qr').evaluate((n) => getComputedStyle(n).display).catch(() => 'missing');
+await page.emulateMedia({ media: 'print' });
+const qrPrint = await page.locator('.cli-print-qr').evaluate((n) => getComputedStyle(n).display).catch(() => 'missing');
+await page.emulateMedia({ media: 'screen' });
+check('client: QR block print-only', qrScreen === 'none' && qrPrint !== 'none' && qrPrint !== 'missing', `screen=${qrScreen} print=${qrPrint}`);
+
+/* --- batch I: staff gating and embed --------------------------------------- */
+const freshVisitor = await browser.newPage();
+await freshVisitor.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await freshVisitor.goto(`${base}/?t=0,2`);
+await freshVisitor.waitForSelector('.tool-card');
+check('client: no Open in curator for non-staff visitors', await freshVisitor.locator('text=Open in curator').count() === 0);
+await freshVisitor.close();
+await page.goto(`${base}/?t=0,2`); // this context visited /x earlier, staff flag set
+await page.waitForSelector('.tool-card');
+const editHref = await page.locator('text=Open in curator').getAttribute('href').catch(() => null);
+check('client: staff device sees Open in curator pointing at /x', editHref !== null && editHref.includes('/x?edit=0,2'));
+await page.goto(`${base}/embed.html?t=0,2`);
+await page.waitForSelector('.tool-card');
+check('embed: bare cards, noindex, no app chrome',
+  await page.locator('.tool-card').count() === 2
+  && await page.locator('meta[name=robots][content=noindex]').count() === 1
+  && await page.locator('.cli-header, .cli-toolbar, .cli-summary').count() === 0
+  && (await page.textContent('body')).includes('From Free Stack'));
+
 /* --- dark mode and exports (batch E surface) ------------------------------- */
-await page.goto(`${base}/`);
+await page.goto(`${base}/x`);
 await page.waitForSelector('.tools-table');
 await page.click('text=Deselect all');
 const exportButtons = page.locator('.cur-exports button, [class*=export] button');

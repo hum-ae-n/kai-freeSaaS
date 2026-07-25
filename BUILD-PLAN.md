@@ -214,6 +214,31 @@ Flagged for the Phase 1.5 value review: 27 Looker Studio possibly undervalued, 4
 
 ---
 
+## Phase 10: Programme, engine, plain English `[~]`
+
+Rocky's 24 Jul direction: all eight level-up ideas approved, plus Plain English mode ("easier for Ralph Wiggum") and surfacing pricing/BYO in the curator, which are client-mode-only today. Wave structure below respects file ownership; verifier per wave; PR preview then Rocky merges.
+
+Wave 1:
+- [~] 10.1 Schema: optional `plain` field, a one-line plainest-words description per tool (PRD section 4, validator, house-style sweep)
+- [~] 10.2 Data: steward writes `plain` for all active tools, same honesty bar, 12 words or fewer where possible
+- [~] 10.3 Curator surfacing: pricing pill and a BYO marker visible in the table (value cell subline, mobile More details gain Free tier and Build your own)
+- [~] 10.4 Edit an existing stack: "Open in curator" from client mode via ?edit= param, preselects and prefills name and note
+- [~] 10.5 Single-tool permalink: ?tool=ID renders one card with minimal chrome
+
+Wave 2:
+- [x] 10.6 Plain English mode: client toggle plus ?plain=1, swaps descriptions to `plain`, relabels sections in plain words, cost section reframed "How free can turn into paying" with a one-sentence takeaway
+- [x] 10.7 Progress share-back: "Share progress with Kaipability" mailto carrying the set-up ticks
+- [x] 10.8 QR bridge: self-generated QR (no third party) on the printed page linking to the live stack
+
+Wave 3:
+- [x] 10.9 Link-rot Routine: weekly sweep of all URLs and the 15 stalest pricing claims, proposes fixes on a maint/ branch, never touches main. NOTE: this lives OUTSIDE the repo, as a Claude Code Routine (trigger trig_01WxNYBCqWQGJx6Wq6Dsv5Ub, Mondays 03:00 UTC, push notification to Rocky on completion); the repo intentionally carries no workflow file for it. Verify via the Routines list, not the codebase.
+- [x] 10.10 Recently-updated strip from tools.json git history (removals shown, per the trust research)
+- [x] 10.11 Embed mode via a dedicated /embed path with a scoped frame-ancestors exception for kaipability.com
+- [x] 10.12 Public/staff split, Rocky's 24 Jul decision resolving the public-curator question: root becomes a public read-only directory (cards, trust strapline, How we choose, one CTA); curator moves to the hidden path /x, noindexed, absent from any sitemap, and deliberately absent from robots.txt (a disallow line would advertise the path). Existing ?t= client links unchanged. The client-page "Open in curator" button renders only on staff devices (a local flag set by visiting /x), so the path never leaks to clients. Curator-generated links always point at the root path.
+- [x] 10.13 Content pass done, verifier sweep PASS, PR open for Rocky
+
+---
+
 ## Open spec questions
 
 Raised by the PRD review and not yet resolved. Each needs an answer before the phase that depends on it closes.
@@ -245,3 +270,9 @@ Record deliberate deviations from the PRD here so the spec and the build stay re
 | 2026-07-23 | Added the Developer & Web category, 13 tools including GitHub, Vercel, Netlify, Cloudflare, Hugging Face and Supabase | Rocky's Phase 8 direction identified developer and web infrastructure as a gap in the catalogue |
 | 2026-07-23 | Archived the five Grants & Business Support entries (72, 73, 76, 77, 78) via the section 4 `archived` flag; the category now holds only archived entries and no longer appears in either mode | Grant and support-body listings drift out of date faster than software free tiers and were judged out of scope for a software directory; archiving rather than deleting keeps any client link that already included one resolving |
 | 2026-07-23 | PRD section 15 rewritten to state the current 98-entry, 93-active dataset and its type/category breakdown, superseding the "85 tools, 15 core/50 noncore/7 m365/13 sector" figures from Phase 1 | The Phase 8 additions and archiving changed every number in the old section 15 summary; left uncorrected it would read as a false description of the shipped data |
+| 2026-07-23 | PRD section 4 amended: optional `byo` string added to the schema (Phase 9.1) | Rocky's Phase 9 direction asked for a build-your-own steer where a lightweight replacement is genuinely realistic; the schema had nowhere to hold that advice separately from the `alternatives` list, so it needed its own field with its own house-style and category exclusions (never security, e-signing, accounting or deliverability) |
+| 2026-07-24 | PRD section 4 amended: optional `plain` string added to the schema (Phase 10.1) | Client mode's Plain English toggle needs a genuinely plain-words version of each description to swap to, not a shortened version of the normal one; a separate field keeps the honesty bar on `description` intact while giving plain mode its own honest text to show |
+| 2026-07-24 | Public/staff URL split (Phase 10.12), superseding PRD section 5: the root path `/` is no longer curator mode, it is a public, indexable directory of every active tool; the staff curator moved to the unlisted path `/x`, noindexed and deliberately absent from `robots.txt`. Existing `?t=` client links are unaffected, since client mode was never path-dependent | Rocky's 24 Jul decision resolving the open "curator mode is public" question (BUILD-PLAN "Open spec questions" item 1): the bare domain showed the internal `when` guidance to anyone who found it; hiding the staff interface behind an unlisted path removes that exposure without adding authentication, which PRD section 13 defers to post v1 |
+| 2026-07-24 | Added `embed.html` and `js/public.js` beyond the PRD section 3 file list (plus `js/qr.js`, `scripts/changelog.mjs` and the generated `data/changelog.json`) | `embed.html` is the chrome-free entry point for iframing the directory on kaipability.com (Phase 10.11); `js/public.js` renders the new public directory at `/` (Phase 10.12); `js/qr.js` generates the print-only QR bridge (Phase 10.8) without a third-party service; `scripts/changelog.mjs` derives the "recently updated" strip from git history rather than a hand-maintained file (Phase 10.10) |
+| 2026-07-24 | `netlify.toml` header rules restructured: `X-Frame-Options: DENY` scoped explicitly to `/`, `/index.html` and `/x` rather than sitting on `/*`, with a new `Content-Security-Policy: frame-ancestors` rule scoped to `/embed.html` only | Embed mode (Phase 10.11) needs exactly one page on the site to be framable, and only from kaipability.com; `X-Frame-Options` has no per-origin allow-list and a wider Netlify header rule cannot be overridden by a narrower one, so the blanket DENY had to be split apart rather than exempting embed.html from it |
+| 2026-07-24 | Smoke suite reworked for the public/staff split and extended to 50 checks; the suite's local test server now mirrors Netlify's SPA fallback (unknown paths, `/x` above all, serve `index.html`) | The old suite assumed the bare URL was always curator mode, which the Phase 10.12 split broke; a plain static file server also can't exercise `/x` without the SPA-fallback behaviour production actually relies on |

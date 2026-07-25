@@ -6,12 +6,22 @@ import { el, favicon, extLink, money, showToast, shareUrl, themeToggleButton } f
 
 const TYPE_LABEL = { core: 'CORE', noncore: 'NON-CORE', m365: 'M365', sector: 'SECTOR' };
 
-export function renderCurator(root, allTools) {
+/** opts.initialSelection: id array from ?edit= (Feature 2), or null when
+    absent, in which case the core defaults apply as before. Ids outside the
+    active catalogue (an archived tool, or a stale/garbled param) are
+    dropped the same way the table itself would: Set#has, never a
+    truthiness test, so id 0 survives. opts.initialName/initialNote prefill
+    the link generator fields, already sanitised by the caller. */
+export function renderCurator(root, allTools, opts = {}) {
+  const { initialSelection = null, initialName = '', initialNote = '' } = opts;
   // Archived tools are retired: hidden from the table, counts and select-all
   // actions, but never deleted from data/tools.json (§4 ID permanence). An
   // old client link to one still resolves via client.js, just not from here.
   const tools = allTools.filter((t) => !t.archived);
-  const selected = new Set(tools.filter((t) => t.type === 'core').map((t) => t.id));
+  const activeIds = new Set(tools.map((t) => t.id));
+  const selected = initialSelection !== null
+    ? new Set(initialSelection.filter((id) => activeIds.has(id)))
+    : new Set(tools.filter((t) => t.type === 'core').map((t) => t.id));
   const filters = { type: 'all', category: 'all', search: '' };
   const categories = [...new Set(tools.map((t) => t.category))].sort();
 
@@ -46,12 +56,21 @@ export function renderCurator(root, allTools) {
     placeholder: 'Client or recipient name (optional)',
     'aria-label': 'Client or recipient name',
   });
+  nameInput.value = initialName;
   const noteInput = el('input', {
     class: 'input', type: 'text', id: 'client-note', maxlength: '280',
     placeholder: 'Personal note (optional)',
     'aria-label': 'Personal note',
   });
+  noteInput.value = initialNote;
   const resultBox = el('div', { class: 'linkgen-result', hidden: true });
+
+  // Plain English version (Batch H, Feature 1): unticked by default, never
+  // reads the reader's own stored preference, since this checkbox decides
+  // what a generated link forces on someone else's device, not what this
+  // curator session prefers for itself.
+  const plainCheckbox = el('input', { type: 'checkbox', id: 'plain-mode-check' });
+  const plainCheckboxLabel = el('label', { class: 'linkgen-checkbox' }, plainCheckbox, ' Plain English version');
 
   // extra is only ever populated by the "Save as PDF" export button (Batch
   // E), which adds print=1. Generate link / Preview / Share / Copy all call
@@ -64,9 +83,14 @@ export function renderCurator(root, allTools) {
     if (name) params.set('client', name);
     const note = noteInput.value.trim().slice(0, 280);
     if (note) params.set('note', note);
+    if (plainCheckbox.checked) params.set('plain', '1');
     for (const [key, value] of Object.entries(extra)) params.set(key, value);
     // keep commas readable per PRD section 5 (%2C decodes identically)
-    return `${location.origin}${location.pathname}?${params.toString().replace(/%2C/g, ',')}`;
+    // Root path, never wherever curator itself is currently running (Batch
+    // I: curator can be reached at /x or via ?edit= on any path, but every
+    // link it generates for a client must land on the public root, not the
+    // hidden staff page).
+    return `${location.origin}/?${params.toString().replace(/%2C/g, ',')}`;
   };
 
   const generateBtn = el('button', { class: 'btn btn-primary', type: 'button' }, 'Generate link');
@@ -138,7 +162,7 @@ export function renderCurator(root, allTools) {
   const linkgen = el('section', { class: 'panel linkgen', 'aria-label': 'Link generator' },
     el('span', { class: 'eyebrow' }, 'Link generator'),
     el('h2', {}, 'Share a stack'),
-    el('div', { class: 'linkgen-controls' }, nameInput, noteInput, generateBtn, previewBtn),
+    el('div', { class: 'linkgen-controls' }, nameInput, noteInput, generateBtn, previewBtn, plainCheckboxLabel),
     resultBox,
     exportRow,
   );
@@ -275,6 +299,11 @@ export function renderCurator(root, allTools) {
       el('td', { class: 'cell-check' }, checkboxLabel),
       el('td', { class: 'cell-name' },
         tool.name,
+        // Quiet BYO marker, PRD section 4 optional `byo` field: neutral, not
+        // a badge, so it never competes with the type badge for attention.
+        tool.byo ? el('span', {
+          class: 'byo-chip', title: 'Build-your-own option noted for clients',
+        }, 'BYO') : null,
         el('div', { class: 'tool-urls' },
           tool.urls.map((u) => el('a', {
             href: `https://${u.domain}`, target: '_blank', rel: 'noopener noreferrer',
@@ -286,7 +315,7 @@ export function renderCurator(root, allTools) {
       el('td', { class: 'cell-desc' }, tool.description),
       el('td', { class: 'cell-links' }, tool.alternatives.map((a) => extLink(a.url, a.name, false))),
       el('td', { class: 'cell-links' }, tool.training.map((t) => extLink(t.url, t.name, false))),
-      el('td', { class: 'cell-value' }, `~${money(tool.value)}/yr`),
+      el('td', { class: 'cell-value' }, `~${money(tool.value)}/yr`, pricingSubline(tool)),
       el('td', { class: 'cell-when' }, tool.when),
       // Mobile-only column: same alternatives/training/when data, grouped
       // into a native <details> "More" disclosure. Desktop hides this cell
@@ -480,6 +509,14 @@ export function renderCurator(root, allTools) {
 function option(value, label) {
   return el('option', { value }, label);
 }
+/** Quiet second line under the ~£X/yr figure (Feature 1, PRD section 4
+    optional `paid_from`). Number.isInteger, not truthiness: 0 is a genuine
+    "free forever" value and must render, not be treated as absent. */
+function pricingSubline(tool) {
+  if (!Number.isInteger(tool.paid_from)) return null;
+  const text = tool.paid_from === 0 ? 'free forever' : `from £${tool.paid_from}/mo`;
+  return el('div', { class: 'cell-value-sub' }, text);
+}
 function buildMoreDetails(tool) {
   const sections = [];
   if (tool.alternatives.length) {
@@ -492,6 +529,18 @@ function buildMoreDetails(tool) {
     sections.push(el('div', { class: 'cur-more-section' },
       el('span', { class: 'cur-more-label' }, 'Training'),
       el('div', { class: 'cell-links' }, tool.training.map((t) => extLink(t.url, t.name, false))),
+    ));
+  }
+  if (tool.free_limit) {
+    sections.push(el('div', { class: 'cur-more-section' },
+      el('span', { class: 'cur-more-label' }, 'Free tier'),
+      el('p', { class: 'cur-more-text' }, tool.free_limit),
+    ));
+  }
+  if (tool.byo) {
+    sections.push(el('div', { class: 'cur-more-section' },
+      el('span', { class: 'cur-more-label' }, 'Build your own'),
+      el('p', { class: 'cur-more-text' }, tool.byo),
     ));
   }
   if (tool.when) {
@@ -574,35 +623,41 @@ function buildCsv(picked) {
 }
 
 /** mailto: draft for the current selection. Capped at 30 tools and 1800
-    characters of body text: if either limit is hit the tool list is
-    trimmed and an "...and N more" line takes its place, rather than
-    producing a mailto: link so long some mail clients refuse to open it. */
+    characters, budgeted against the FINAL mailto: URI rather than the raw
+    body: encodeURIComponent triples the size of every space, colon, slash
+    and newline, and the encoded subject counts too, so measuring the raw
+    body before encoding let a large selection sail past the 1900 spec
+    ceiling even after truncation (flagged alongside the same bug in
+    client.js's buildShareProgressMailto). Trims the tool list, oldest-first
+    from the end, rebuilding the whole URI each time, until it fits or only
+    the "...and N more" line is left. */
 function buildMailto(picked, url, clientName) {
   const subject = 'Your free software stack from Kaipability';
   const intro = clientName
     ? `Hi ${clientName}, here is your free software stack from Kaipability:`
     : 'Here is your free software stack from Kaipability:';
 
-  const buildBody = (list, omitted) => {
+  const buildUri = (list, omitted) => {
     const lines = [intro, '', url, ''];
     for (const t of list) lines.push(`- ${t.name}: ${t.urls[0]?.domain ?? ''}`);
     if (omitted > 0) lines.push(`...and ${omitted} more`);
-    return lines.join('\n');
+    const body = lines.join('\n');
+    return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   let list = picked.slice(0, 30);
   let omitted = picked.length - list.length;
-  let body = buildBody(list, omitted);
-  // Trim further, oldest-first from the end of the list, until the body
+  let uri = buildUri(list, omitted);
+  // Trim further, oldest-first from the end of the list, until the URI
   // fits under the character cap even for a very long client name or a
   // full 30-tool selection with long tool names.
-  while (body.length > 1800 && list.length > 0) {
+  while (uri.length > 1800 && list.length > 0) {
     list = list.slice(0, -1);
     omitted = picked.length - list.length;
-    body = buildBody(list, omitted);
+    uri = buildUri(list, omitted);
   }
 
-  return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  return uri;
 }
 
 /* --- standalone HTML snapshot ----------------------------------------------

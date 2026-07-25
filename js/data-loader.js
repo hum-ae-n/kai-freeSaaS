@@ -7,6 +7,8 @@
  *   #client-root    client mode mount point, [hidden] until routed
  *   #loading        initial loading message, removed once routed
  *   #toast          shared toast element (use showToast(), not direct access)
+ *   #public-root    public mode mount point, [hidden] until routed (Batch I,
+ *                    additive: public.js is the only module that touches it)
  * CSS class names: components in styles.css COMPONENTS block (.btn, .badge,
  * .panel, .favicon, .toast, .input, .select) are shared API. Curator-only
  * classes are prefixed .cur- / table classes; client-only classes .cli- /
@@ -20,6 +22,34 @@
  * in index.html's <head> sets it before first paint; themeToggleButton()
  * here is the only thing that ever changes it afterwards. Both modes call
  * themeToggleButton() rather than building their own switch.
+ *
+ * URL PARAMS (Batch G, additive): ?t= (curator's normal share link) always
+ * wins if present; ?tool=<id> is a single-tool permalink, client mode with
+ * no client/note even if those params are also on the URL; ?edit=<ids>
+ * reopens curator mode with that selection pre-ticked (client/note prefill
+ * the link generator fields) instead of the core defaults, only consulted
+ * when neither ?t= nor ?tool= is present. See boot() below.
+ *
+ * PLAIN ENGLISH MODE (Batch H, additive): ?plain=1 forces client mode's
+ * Plain English presentation on for this load and seeds the stored device
+ * default (freestack:v1:plainmode); its absence falls back to that stored
+ * default, off unless the reader has toggled it before. readPlainMode() /
+ * writePlainMode() here are the only things that touch that storage key.
+ *
+ * PUBLIC/STAFF SPLIT (Batch I, Rocky's 24 Jul decision, revises routing):
+ * the root path is now a public, indexable directory. Curator hides at the
+ * unlisted /x path. Precedence in boot(), highest first: ?t= (client mode,
+ * any path) > ?tool= (single-tool permalink, any path) > pathname is /x or
+ * /x/, OR ?edit= is present on any path (both reach curator mode) > public
+ * directory (js/public.js). Visiting /x also sets the device's staff flag
+ * (freestack:v1:staff = '1'); isStaffDevice() here is the only reader of
+ * that key, consulted by client.js to decide whether "Open in curator"
+ * renders at all, so the /x path itself never has to appear on a client's
+ * device to leak. Curator mode always gets the noindex meta now, regardless
+ * of which of the two paths reached it, since it is the hidden staff page
+ * either way. buildUrl()-style link generators must target the origin root
+ * (never /x), so a curator-generated client link keeps working for a reader
+ * with no staff flag of their own.
  * ==========================================================================
  */
 
@@ -207,9 +237,37 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (event) =>
   for (const listener of themeToggleListeners) listener();
 });
 
+/* --- Plain English mode (Batch H, Feature 1) -------------------------------
+   Read here (device-wide default) and in boot() below (?plain=1 seeds it
+   for this load, per the DOM CONTRACT note above). client.js owns the
+   toggle button and the re-render it triggers; both read/write through
+   these two functions so the stored value has one shape everywhere. */
+const PLAIN_KEY = 'freestack:v1:plainmode';
+export function readPlainMode() {
+  try { return localStorage.getItem(PLAIN_KEY) === '1'; } catch { return false; }
+}
+export function writePlainMode(on) {
+  try { localStorage.setItem(PLAIN_KEY, on ? '1' : '0'); } catch { /* private mode etc: no-op */ }
+}
+
+/* --- staff device flag (Batch I, public/staff split) -----------------------
+   Set only by visiting /x (see boot() below), never by ?edit= elsewhere: the
+   flag exists purely so client.js can decide whether to show "Open in
+   curator" at all, which is how the /x path stays unadvertised to a client
+   who only ever opens a shared stack link. */
+const STAFF_KEY = 'freestack:v1:staff';
+export function isStaffDevice() {
+  try { return localStorage.getItem(STAFF_KEY) === '1'; } catch { return false; }
+}
+function markStaffDevice() {
+  try { localStorage.setItem(STAFF_KEY, '1'); } catch { /* private mode etc: no-op */ }
+}
+
 /** Parse ?t= into valid, deduplicated tool ids. Invalid entries are skipped
-    silently (PRD section 5). Number.isInteger keeps id 0, do not filter(Boolean). */
-function parseSelection(raw, tools) {
+    silently (PRD section 5). Number.isInteger keeps id 0, do not filter(Boolean).
+    Exported (Batch I) so embed.html's thin entry shares this parsing rather
+    than reimplementing it. */
+export function parseSelection(raw, tools) {
   if (raw == null) return null; // no t param at all → curator mode
   const known = new Set(tools.map((t) => t.id));
   const ids = [];
@@ -222,6 +280,34 @@ function parseSelection(raw, tools) {
     }
   }
   return ids; // possibly empty → client mode renders an explicit empty state
+}
+
+/** Parse ?tool= into a single valid id, at most one entry (Feature 3: single
+    tool permalink). Only a bare integer string counts, not a comma list or
+    anything with trailing junk, so "44,2" or "44abc" cannot smuggle a second
+    id in through a param this feature promises is single-valued. An absent
+    or unknown id resolves to an empty selection, which client.js already
+    renders as its standard "no tools" empty state. Number.isInteger plus an
+    explicit Set#has check, never a truthiness test, so id 0 is valid.
+    Exported (Batch I) for the same reason as parseSelection above. */
+export function parseSingleTool(raw, tools) {
+  const trimmed = raw.trim();
+  const id = Number.parseInt(trimmed, 10);
+  const known = new Set(tools.map((t) => t.id));
+  return Number.isInteger(id) && String(id) === trimmed && known.has(id) ? [id] : [];
+}
+
+// JS-added noindex only, per item 2: Google honours it, and a static tag in
+// the shared <head> would deindex the public directory too. Shared by the
+// two client routes (the normal ?t= share link and the ?tool= permalink)
+// and, since Batch I, by curator mode as well: curator is the hidden staff
+// page now, reachable either at /x or via ?edit= elsewhere, and both paths
+// get noindex regardless of which one was used.
+function injectNoindex() {
+  const robots = document.createElement('meta');
+  robots.name = 'robots';
+  robots.content = 'noindex';
+  document.head.appendChild(robots);
 }
 
 async function boot() {
@@ -242,30 +328,80 @@ async function boot() {
   const selection = parseSelection(params.get('t'), tools);
   loading.remove();
 
-  if (selection === null) {
-    const { renderCurator } = await import('./curator.js');
-    const root = document.getElementById('curator-root');
-    root.hidden = false;
-    renderCurator(root, tools);
-  } else {
-    // JS-added noindex only, per item 2: Google honours it, and a static tag
-    // in the shared <head> would deindex curator mode too.
-    const robots = document.createElement('meta');
-    robots.name = 'robots';
-    robots.content = 'noindex';
-    document.head.appendChild(robots);
+  // ?print=1 is added only by the curator's "Save as PDF" export button
+  // (Batch E), never by Generate link / Share / Copy. A plain '1' check,
+  // not a truthiness check on the param itself, since a present-but-empty
+  // ?print= should not trigger a browser print dialogue unasked.
+  const printMode = params.get('print') === '1';
 
-    // ?print=1 is added only by the curator's "Save as PDF" export button
-    // (Batch E), never by Generate link / Share / Copy. A plain '1' check,
-    // not a truthiness check on the param itself, since a present-but-empty
-    // ?print= should not trigger a browser print dialogue unasked.
-    const printMode = params.get('print') === '1';
+  // ?plain=1 forces Plain English mode on for this load and seeds the
+  // stored device default, per the PLAIN ENGLISH MODE note above. Its
+  // absence falls back to whatever the reader last chose on this device.
+  const plainParam = params.get('plain') === '1';
+  if (plainParam) writePlainMode(true);
+  const plainMode = plainParam || readPlainMode();
 
+  // ?t= always wins when present, per Feature 3's stated precedence: ?tool=
+  // is ignored outright rather than merged with it.
+  if (selection !== null) {
+    injectNoindex();
     const { renderClient } = await import('./client.js');
     const root = document.getElementById('client-root');
     root.hidden = false;
-    renderClient(root, tools, selection, sanitizeParam(params.get('client')), sanitizeParam(params.get('note'), 280), printMode);
+    renderClient(root, tools, selection, sanitizeParam(params.get('client')), sanitizeParam(params.get('note'), 280), printMode, false, plainMode);
+    return;
   }
+
+  const toolParam = params.get('tool');
+  if (toolParam !== null) {
+    injectNoindex();
+    const singleSelection = parseSingleTool(toolParam, tools);
+    const { renderClient } = await import('./client.js');
+    const root = document.getElementById('client-root');
+    root.hidden = false;
+    // client/note are ignored on a permalink (Feature 3): it did not come
+    // from a curator-prepared stack, so there is no name or note to show,
+    // even if those params happen to be present alongside ?tool=.
+    renderClient(root, tools, singleSelection, '', '', printMode, true, plainMode);
+    return;
+  }
+
+  // Curator mode (Batch I): reached at the hidden /x path, or via ?edit= on
+  // any other path (Feature 2's original mechanism, kept so old edit links
+  // still work). /x also marks this device as staff, the only thing that
+  // makes client.js's "Open in curator" button ever appear. Neither route
+  // merges with the other: editSelection parses exactly like ?t=, id 0 safe,
+  // and is simply absent (null) when /x was visited with no ?edit= of its
+  // own, in which case the curator's normal core-selection default applies.
+  const editParam = params.get('edit');
+  const path = location.pathname;
+  const isStaffPath = path === '/x' || path === '/x/';
+  if (isStaffPath || editParam !== null) {
+    if (isStaffPath) markStaffDevice();
+    injectNoindex();
+    const editSelection = parseSelection(editParam, tools);
+    const { renderCurator } = await import('./curator.js');
+    const root = document.getElementById('curator-root');
+    root.hidden = false;
+    renderCurator(root, tools, {
+      initialSelection: editSelection,
+      initialName: sanitizeParam(params.get('client')),
+      initialNote: sanitizeParam(params.get('note'), 280),
+    });
+    return;
+  }
+
+  // Otherwise: the public directory (Feature 1, Batch I). Indexable, so no
+  // noindex call here, unlike every other branch above.
+  const { renderPublic } = await import('./public.js');
+  const root = document.getElementById('public-root');
+  root.hidden = false;
+  renderPublic(root, tools);
 }
 
-boot();
+// Guarded, not unconditional: embed.html (Batch I) imports this module for
+// its exported helpers (el, parseSelection, parseSingleTool) without using
+// its DOM shell, and ES module top-level code runs on import regardless of
+// what is actually used. Without this guard, that import would crash on
+// #loading, which only index.html's page has.
+if (document.getElementById('loading')) boot();

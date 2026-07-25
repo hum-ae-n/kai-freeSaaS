@@ -4,12 +4,32 @@
  * Client name and note come from the URL: they are ALWAYS inserted via
  * textContent (el()), never innerHTML, since both are attacker controlled.
  */
-import { el, favicon, extLink, getDomain, money, shareUrl, themeToggleButton } from './data-loader.js';
+import { el, favicon, extLink, getDomain, money, shareUrl, themeToggleButton, writePlainMode, isStaffDevice } from './data-loader.js';
+import { qrSvg } from './qr.js';
 
 const MAX_STAGGER = 8; // entrance stagger caps at 8 cards, per item 6a
 const PROGRESS_PREFIX = 'freestack:v1:progress:';
 
-export function renderClient(root, tools, selection, clientName, noteText, printMode = false) {
+/** Plain English mode (Batch H, Feature 1): normal/plain string pairs for
+    every label this feature swaps, kept in one place rather than scattered
+    conditionals through the render functions below. */
+const LABELS = {
+  alternatives: ['Alternatives', 'Other options like this'],
+  getStarted: ['Get started', 'Learn how, free'],
+  buildYourOwn: ['Or build your own', 'Or have a simple one made just for you'],
+  freeTier: ['Free tier', 'What you get free'],
+  costHeading: ['How costs could grow', "How 'free' can turn into paying"],
+};
+function pickLabel(key, plainMode) {
+  return LABELS[key][plainMode ? 1 : 0];
+}
+
+/** singleMode (Feature 3): a ?tool= permalink. Selection is at most one id
+    by construction (data-loader's parseSingleTool), and renders through the
+    same "no tools" empty state below when that id was absent or invalid, so
+    an unrecognised id degrades exactly like an empty ?t= link rather than
+    a bespoke error page. */
+export function renderClient(root, tools, selection, clientName, noteText, printMode = false, singleMode = false, plainMode = false) {
   const byId = new Map(tools.map((t) => [t.id, t]));
   const picked = selection.map((id) => byId.get(id)).filter((t) => t !== undefined);
 
@@ -21,6 +41,11 @@ export function renderClient(root, tools, selection, clientName, noteText, print
         '.',
       ),
     );
+    return;
+  }
+
+  if (singleMode) {
+    renderSingleTool(root, picked[0], printMode, plainMode);
     return;
   }
 
@@ -38,7 +63,10 @@ export function renderClient(root, tools, selection, clientName, noteText, print
   // Number.isInteger, never a truthiness check.
   const hasPricingData = checklistable.some((t) => Number.isInteger(t.paid_from));
   const progressKey = progressStorageKey(selection, clientName);
-  const doneIds = loadProgress(progressKey, checklistable.map((t) => t.id));
+  // Reassigned on every draw() (Feature 1): progress lives in storage, not
+  // just in memory, so a plain-mode re-render re-reads it rather than
+  // trusting a stale reference from the first render.
+  let doneIds = loadProgress(progressKey, checklistable.map((t) => t.id));
 
   /* --- header ------------------------------------------------------------ */
   const header = el('header', { class: 'panel cli-header' },
@@ -62,7 +90,34 @@ export function renderClient(root, tools, selection, clientName, noteText, print
   const printBtn = el('button', { class: 'btn btn-secondary btn-lg', type: 'button' }, 'Print or save as PDF');
   printBtn.addEventListener('click', () => window.print());
 
-  const toolbar = el('div', { class: 'cli-toolbar no-print' }, shareBtn, printBtn, themeToggleButton('btn-ghost btn-lg'));
+  // Open in curator (Feature 2, gated per Batch I's public/staff split):
+  // reopens this exact stack, pre-ticked, so a consultant can adjust and
+  // re-share rather than rebuilding it by hand. Renders only on a device
+  // that has visited /x before (isStaffDevice()): a client who only ever
+  // opens a shared stack link must never see, or be tempted to click, a
+  // path back into the hidden staff page. Only the params that actually
+  // exist are added, values already sanitised by data-loader before
+  // reaching this function.
+  const editBtn = isStaffDevice() ? el('a', {
+    class: 'btn btn-ghost btn-lg no-print', href: buildEditUrl(selection, clientName, noteText),
+  }, 'Open in curator') : null;
+
+  // Plain English toggle (Batch H, Feature 1): flips the local plainMode
+  // binding, persists the choice, and redraws the plain-mode-dependent
+  // parts of the page in place. Text stays constant; aria-pressed plus the
+  // toggled state carry the meaning, same convention as the theme toggle.
+  const plainBtn = el('button', {
+    class: 'btn btn-ghost btn-lg plain-toggle no-print', type: 'button', 'aria-pressed': String(plainMode),
+  }, 'Plain English');
+  plainBtn.addEventListener('click', () => {
+    plainMode = !plainMode;
+    writePlainMode(plainMode);
+    plainBtn.setAttribute('aria-pressed', String(plainMode));
+    draw();
+  });
+
+  const toolbar = el('div', { class: 'cli-toolbar no-print' },
+    shareBtn, printBtn, editBtn, plainBtn, themeToggleButton('btn-ghost btn-lg'));
 
   /* --- summary ----------------------------------------------------------- */
   const valueFigure = el('span', { class: 'num' }, money(0));
@@ -80,11 +135,24 @@ export function renderClient(root, tools, selection, clientName, noteText, print
       : null,
   );
 
-  /* --- adoption checklist progress line ----------------------------------- */
+  /* --- adoption checklist progress line, plus share-back (Feature 2) ----- */
   const progressCount = el('span', {}, progressText(doneIds.size, checklistable.length));
+  // Only rendered when there is a checklist to report on: a picked set
+  // that is entirely archived tools has nothing to set up or share.
+  const shareProgressBtn = checklistable.length
+    ? el('button', { class: 'btn btn-ghost btn-lg no-print', type: 'button' }, 'Share progress with Kaipability')
+    : null;
+  if (shareProgressBtn) {
+    shareProgressBtn.addEventListener('click', () => {
+      // Reads doneIds at click time, per the feature spec: whatever is
+      // ticked right now, not a snapshot from first render.
+      location.href = buildShareProgressMailto(checklistable, doneIds, location.href);
+    });
+  }
   const progress = el('div', { class: 'cli-progress no-print' },
     el('p', { 'aria-live': 'polite' }, progressCount),
     el('p', { class: 'cli-progress-note' }, 'Progress is saved on this device only.'),
+    shareProgressBtn,
   );
 
   function handleToggle(tool, article, btn) {
@@ -97,25 +165,6 @@ export function renderClient(root, tools, selection, clientName, noteText, print
     saveProgress(progressKey, doneIds);
   }
 
-  /* --- cards grouped by category (data order preserved) ------------------ */
-  const groups = new Map();
-  for (const tool of picked) {
-    if (!groups.has(tool.category)) groups.set(tool.category, []);
-    groups.get(tool.category).push(tool);
-  }
-
-  let cardIndex = 0;
-  const sections = [];
-  for (const [category, groupTools] of groups) {
-    sections.push(el('h2', { class: 'cli-category' }, categoryIcon(category), category));
-    const items = groupTools.map((tool) => el('li', {}, card(tool, cardIndex++, doneIds, handleToggle)));
-    if (items.length === 1) items[0].classList.add('card-solo');
-    sections.push(el('ul', { class: 'card-grid' }, items));
-  }
-
-  /* --- how costs could grow, after the categories, before the footer ----- */
-  if (hasPricingData) sections.push(costGrowthSection(checklistable));
-
   /* --- footer ------------------------------------------------------------ */
   const footer = el('footer', { class: 'cli-footer' },
     el('img', { class: 'logo', src: 'design-system/assets/kaipability-logo-lockup.png', alt: '' }),
@@ -126,7 +175,23 @@ export function renderClient(root, tools, selection, clientName, noteText, print
     ),
   );
 
-  root.replaceChildren(header, toolbar, summary, progress, ...sections, footer);
+  /* --- draw: everything that depends on plainMode, rebuilt on toggle -----
+     Cards, the cost-growth section and the printed QR's target URL all
+     change with plainMode; header/toolbar/summary/progress/footer do not,
+     so they are built once above and simply re-attached here. */
+  function draw() {
+    doneIds = loadProgress(progressKey, checklistable.map((t) => t.id));
+    progressCount.textContent = progressText(doneIds.size, checklistable.length);
+
+    const sections = buildCardSections(picked, { plainMode, doneIds, onToggle: handleToggle });
+    if (hasPricingData) sections.push(costGrowthSection(checklistable, plainMode));
+
+    const printBlock = buildPrintQrBlock(selection, clientName, noteText, plainMode);
+
+    root.replaceChildren(header, toolbar, summary, progress, ...sections, footer, ...(printBlock ? [printBlock] : []));
+  }
+
+  draw();
   document.title = clientName ? `Free Software Stack · ${clientName}` : 'Your Free Software Stack';
 
   countUp(valueFigure, totalValue, (n) => `~${money(n)}/yr`);
@@ -135,6 +200,92 @@ export function renderClient(root, tools, selection, clientName, noteText, print
   // with &print=1 added. Fires once, after a short settle so fonts and the
   // count-up/entrance layout are stable before the print dialogue opens.
   if (printMode) setTimeout(() => window.print(), 400);
+}
+
+/** Minimal chrome for a single-tool permalink (Feature 3): logo, tool name
+    as the heading, the standard full-width card, the standard footer.
+    Deliberately no summary bar, no prepared-for/date/context, no cost
+    section and no checklist toggle: there is nothing to track for a single
+    reference link, and client/note are never shown here even if present on
+    the URL, since the caller already omits them from this call. Print and
+    share stay available, and the caller has already injected noindex, same
+    as any other client-mode view. */
+function renderSingleTool(root, tool, printMode, plainMode = false) {
+  const header = el('header', { class: 'panel cli-header cli-header-single' },
+    el('img', { class: 'logo', src: 'design-system/assets/kaipability-logo-lockup.png', alt: 'Kaipability' }),
+    el('h1', {}, tool.name),
+  );
+
+  const shareBtn = el('button', { class: 'btn btn-ghost btn-lg', type: 'button' }, 'Share this page');
+  shareBtn.addEventListener('click', () => shareUrl(location.href, `${tool.name}, a free tool from Kaipability`));
+  const printBtn = el('button', { class: 'btn btn-secondary btn-lg', type: 'button' }, 'Print or save as PDF');
+  printBtn.addEventListener('click', () => window.print());
+  const toolbar = el('div', { class: 'cli-toolbar no-print' }, shareBtn, printBtn, themeToggleButton('btn-ghost btn-lg'));
+
+  // No progress to persist for a permalink (no adoption checklist), so the
+  // card is built with an empty doneIds set and its toggle suppressed
+  // entirely rather than wired to a no-op handler.
+  const cardEl = card(tool, 0, new Set(), null, { showToggle: false, plainMode });
+  const list = el('ul', { class: 'card-grid' }, el('li', { class: 'card-solo' }, cardEl));
+
+  const footer = el('footer', { class: 'cli-footer' },
+    el('img', { class: 'logo', src: 'design-system/assets/kaipability-logo-lockup.png', alt: '' }),
+    el('span', {},
+      'Curated by ',
+      el('a', { href: 'https://kaipability.com', target: '_blank', rel: 'noopener noreferrer' }, 'Kaipability Ltd'),
+      '. No affiliate links, no sponsored placements.',
+    ),
+  );
+
+  root.replaceChildren(header, toolbar, list, footer);
+  document.title = `${tool.name} · Free Stack`;
+
+  if (printMode) setTimeout(() => window.print(), 400);
+}
+
+/** Category-grouped card sections (an h2 plus a ul.card-grid per category,
+    data order preserved), shared by the full client render above, the
+    public directory (Feature 1, Batch I) and embed mode (Feature 2, Batch
+    I): the grouping and single-card-spans-full-row treatment live in one
+    place rather than three. onToggle/doneIds only matter when showToggle is
+    true; callers that suppress the toggle (public, embed) can omit both. */
+export function buildCardSections(pickedTools, opts = {}) {
+  const { plainMode = false, showToggle = true, doneIds = new Set(), onToggle = null } = opts;
+  const groups = new Map();
+  for (const tool of pickedTools) {
+    if (!groups.has(tool.category)) groups.set(tool.category, []);
+    groups.get(tool.category).push(tool);
+  }
+  let cardIndex = 0;
+  const sections = [];
+  for (const [category, groupTools] of groups) {
+    sections.push(el('h2', { class: 'cli-category' }, categoryIcon(category), category));
+    const items = groupTools.map((tool) => el('li', {}, card(tool, cardIndex++, doneIds, onToggle, { showToggle, plainMode })));
+    if (items.length === 1) items[0].classList.add('card-solo');
+    sections.push(el('ul', { class: 'card-grid' }, items));
+  }
+  return sections;
+}
+
+/** Embed mode (Feature 2, Batch I): bare category headings and cards (or,
+    for a ?tool= permalink, one bare card with no heading, matching
+    renderSingleTool's chrome-free treatment above) and nothing else. No
+    checklist toggle: an embedded snippet has no per-device progress to
+    track. embed.html's thin entry is the only caller. */
+export function renderEmbed(root, tools, selection, singleMode, plainMode = false) {
+  const byId = new Map(tools.map((t) => [t.id, t]));
+  const picked = selection.map((id) => byId.get(id)).filter((t) => t !== undefined);
+
+  if (!picked.length) {
+    root.replaceChildren(el('div', { class: 'app-message' }, 'This link contains no tools.'));
+    return;
+  }
+
+  const sections = singleMode
+    ? [el('ul', { class: 'card-grid' }, el('li', { class: 'card-solo' }, card(picked[0], 0, new Set(), null, { showToggle: false, plainMode })))]
+    : buildCardSections(picked, { plainMode, showToggle: false });
+
+  root.replaceChildren(...sections);
 }
 
 /** rAF count-up on the summary value, triggered once on scroll into view.
@@ -162,6 +313,90 @@ function countUp(target, endValue, format) {
   observer.observe(target);
 }
 
+/** Builds the "Open in curator" URL (Feature 2). Reuses the already
+    sanitised clientName/noteText this module received rather than reading
+    location.search again, so the values sent stay identical to whatever is
+    already showing on the page. Commas kept readable in the id list, same
+    convention as the curator's own buildUrl. Points at /x (Batch I): the
+    button that generates this link only ever renders for a staff device in
+    the first place, so sending it anywhere else would be pointless. */
+function buildEditUrl(selection, clientName, noteText) {
+  const params = new URLSearchParams();
+  params.set('edit', selection.join(','));
+  if (clientName) params.set('client', clientName);
+  if (noteText) params.set('note', noteText);
+  return `${location.origin}/x?${params.toString().replace(/%2C/g, ',')}`;
+}
+
+/** Canonical share URL for this exact stack (Batch H, Feature 3: the print
+    QR points at this, never at the current location.href, so print=1 never
+    leaks into a scanned link even when this render came from the "Save as
+    PDF" flow). plain=1 is included only when the reader currently has Plain
+    English on, since that is a deliberate register choice worth carrying
+    into whatever they scan next. */
+function buildCanonicalShareUrl(selection, clientName, noteText, plainMode) {
+  const params = new URLSearchParams();
+  params.set('t', selection.join(','));
+  if (clientName) params.set('client', clientName);
+  if (noteText) params.set('note', noteText);
+  if (plainMode) params.set('plain', '1');
+  return `${location.origin}${location.pathname}?${params.toString().replace(/%2C/g, ',')}`;
+}
+
+/** mailto: draft for the "Share progress with Kaipability" button (Batch H,
+    Feature 2). Fixed recipient, per Rocky's mid-build correction: no "who
+    to send this to" line is needed once the To: field is already filled
+    in. The 1800 budget is checked against the FINAL mailto: URI, not the
+    raw body: encodeURIComponent triples the size of every space, colon,
+    slash and newline, and the encoded subject and recipient count too, so
+    measuring the raw string before encoding let a full-catalogue selection
+    sail hundreds of characters past the 1900 spec ceiling even after
+    truncation. Drops one tool line at a time and rebuilds the whole URI
+    until it fits, or until only the "...and N more" line is left. */
+function buildShareProgressMailto(checklistable, doneIds, pageUrl) {
+  const subject = 'Progress on my free software stack';
+  const buildUri = (list, omitted) => {
+    const lines = [];
+    for (const t of list) lines.push(`${doneIds.has(t.id) ? 'Set up' : 'Not yet'}: ${t.name}`);
+    if (omitted > 0) lines.push(`...and ${omitted} more`);
+    lines.push('', pageUrl);
+    const body = lines.join('\n');
+    return `mailto:info@kaipability.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+  let list = checklistable;
+  let omitted = 0;
+  let uri = buildUri(list, omitted);
+  while (uri.length > 1800 && list.length > 0) {
+    list = list.slice(0, -1);
+    omitted = checklistable.length - list.length;
+    uri = buildUri(list, omitted);
+  }
+  return uri;
+}
+
+/** Print-only QR bridge (Batch H, Feature 3): a self generated SVG QR code
+    of the canonical share URL, wired up so a printed or PDF'd page still
+    carries a live link back to this stack. Encoding can throw for an
+    unusually long selection plus a long name and note (qr.js supports
+    versions 1-10, roughly 270 characters at its most tolerant level): the
+    block is simply omitted rather than breaking the rest of the page. */
+function buildPrintQrBlock(selection, clientName, noteText, plainMode) {
+  const url = buildCanonicalShareUrl(selection, clientName, noteText, plainMode);
+  let svg;
+  try {
+    svg = qrSvg(url, { size: 120, quietZone: 4, className: 'cli-print-qr-svg' });
+  } catch (err) {
+    // Expected for very large selections: the URL outgrows QR version 10.
+    // The page simply prints without a QR, so this is a warn, not an error.
+    console.warn('QR omitted from the print block:', err.message);
+    return null;
+  }
+  return el('div', { class: 'print-only cli-print-qr' },
+    el('p', { class: 'cli-print-qr-label' }, 'Scan to open this stack live'),
+    svg,
+  );
+}
+
 function formatVerified(dateStr) {
   if (!dateStr) return null;
   const parsed = new Date(`${dateStr}T00:00:00`);
@@ -169,51 +404,58 @@ function formatVerified(dateStr) {
   return parsed.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 }
 
-function card(tool, i, doneIds, onToggle) {
+/** Exported (Batch I) so public.js and embed mode can render the same card
+    markup without duplicating it; both pass showToggle: false. */
+export function card(tool, i, doneIds, onToggle, opts = {}) {
+  const { showToggle = true, plainMode = false } = opts;
   const style = `--i: ${Math.min(i, MAX_STAGGER)}`;
-  if (tool.archived) return archivedCard(tool, style);
+  if (tool.archived) return archivedCard(tool, style, plainMode);
 
   const verified = formatVerified(tool.last_verified);
   const done = doneIds.has(tool.id);
+  // Falls back to the normal description whenever a tool has no `plain`
+  // entry yet, even with the toggle on: never render a blank card.
+  const descriptionText = plainMode && tool.plain ? tool.plain : tool.description;
+  const valueText = plainMode ? `worth about ${money(tool.value)} a year` : `~${money(tool.value)}/yr`;
 
-  const toggleBtn = el('button', {
+  const toggleBtn = showToggle ? el('button', {
     class: 'card-toggle no-print', type: 'button', 'aria-pressed': String(done),
-  }, done ? '✓ Set up' : 'Mark as set up');
+  }, done ? '✓ Set up' : 'Mark as set up') : null;
 
   const article = el('article', { class: `panel tool-card${done ? ' is-done' : ''}`, style },
     el('div', { class: 'card-top' },
       el('h3', {}, favicon(tool.urls[0]?.domain), tool.name),
-      el('span', { class: 'card-value' }, `~${money(tool.value)}/yr`),
+      el('span', { class: 'card-value' }, valueText),
     ),
     el('div', { class: 'card-domains' },
       tool.urls.map((u) => el('a', {
         href: `https://${u.domain}`, target: '_blank', rel: 'noopener noreferrer',
       }, u.label)),
     ),
-    el('p', { class: 'card-desc' }, tool.description),
+    el('p', { class: 'card-desc' }, descriptionText),
 
     tool.free_limit
       ? el('p', { class: 'card-free-tier' },
-          el('span', { class: 'card-free-tier-label' }, 'Free tier'),
+          el('span', { class: 'card-free-tier-label' }, pickLabel('freeTier', plainMode)),
           ' ',
           tool.free_limit,
         )
       : null,
-    pricingPill(tool),
+    pricingPill(tool, plainMode),
 
-    el('p', { class: 'card-section-label' }, 'Alternatives'),
+    el('p', { class: 'card-section-label' }, pickLabel('alternatives', plainMode)),
     el('div', { class: 'card-links' },
       tool.alternatives.map((a) => extLink(a.url, a.name, true)),
     ),
 
     tool.byo
       ? el('div', { class: 'card-byo' },
-          el('p', { class: 'card-byo-label' }, 'Or build your own'),
+          el('p', { class: 'card-byo-label' }, pickLabel('buildYourOwn', plainMode)),
           el('p', { class: 'card-byo-text' }, tool.byo),
         )
       : null,
 
-    el('p', { class: 'card-section-label' }, 'Get started'),
+    el('p', { class: 'card-section-label' }, pickLabel('getStarted', plainMode)),
     el('div', { class: 'card-links' },
       tool.training.map((t) => extLink(t.url, t.name, true)),
     ),
@@ -227,7 +469,7 @@ function card(tool, i, doneIds, onToggle) {
     toggleBtn,
   );
 
-  toggleBtn.addEventListener('click', () => onToggle(tool, article, toggleBtn));
+  if (showToggle) toggleBtn.addEventListener('click', () => onToggle(tool, article, toggleBtn));
 
   return article;
 }
@@ -235,29 +477,32 @@ function card(tool, i, doneIds, onToggle) {
 /** Archived tools never silently disappear (§4 ID permanence). An old link
     still resolves, but the card is compact and points only at alternatives:
     no training block, no value claim for a product no longer recommended. */
-function archivedCard(tool, style) {
+function archivedCard(tool, style, plainMode = false) {
   return el('article', { class: 'panel tool-card tool-card-archived', style },
     el('div', { class: 'card-top' },
       el('h3', {}, tool.name),
     ),
     el('p', { class: 'card-archived-note' }, 'No longer recommended. Consider the alternatives below.'),
-    el('p', { class: 'card-section-label' }, 'Alternatives'),
+    el('p', { class: 'card-section-label' }, pickLabel('alternatives', plainMode)),
     el('div', { class: 'card-links' },
       tool.alternatives.map((a) => extLink(a.url, a.name, true)),
     ),
   );
 }
 
-/** Pricing honesty pill (Feature 1). paid_from is only rendered when it is
-    actually present: Number.isInteger, since 0 is a real "free forever"
-    value and must not be treated as absent. One neutral style either way,
-    the wording carries the meaning, never colour alone. */
-function pricingPill(tool) {
+/** Pricing honesty pill (Feature 1, plain variant added Batch H). paid_from
+    is only rendered when it is actually present: Number.isInteger, since 0
+    is a real "free forever" value and must not be treated as absent. One
+    neutral style either way, the wording carries the meaning, never colour
+    alone. */
+function pricingPill(tool, plainMode = false) {
   if (!Number.isInteger(tool.paid_from)) return null;
-  const label = tool.paid_from === 0
+  const text = tool.paid_from === 0
     ? 'Free forever'
-    : `Paid plans from ${money(tool.paid_from)}/month`;
-  return el('p', { class: 'card-pricing' }, el('span', { class: 'badge badge-pricing' }, label));
+    : plainMode
+      ? `Costs from ${money(tool.paid_from)} a month if you outgrow the free version`
+      : `Paid plans from ${money(tool.paid_from)}/month`;
+  return el('p', { class: 'card-pricing' }, el('span', { class: 'badge badge-pricing' }, text));
 }
 
 /* --- how costs could grow (Feature 2) --------------------------------------
@@ -478,7 +723,7 @@ function wirePrintExpand(details) {
   });
 }
 
-function costGrowthSection(tools) {
+function costGrowthSection(tools, plainMode = false) {
   const stages = computeCostStages(tools);
   const { svg, bars } = buildCostChart(stages);
   const tooltip = buildTooltip();
@@ -491,12 +736,21 @@ function costGrowthSection(tools) {
   );
   wirePrintExpand(details);
 
+  // Plain English takeaway (Batch H, Feature 1): one sentence above the
+  // chart, reusing the same stage totals the chart itself draws from.
+  // COST_STAGES[1] is "Team of 5", the stage this sentence names.
+  const takeaway = plainMode
+    ? el('p', { class: 'cli-cost-takeaway' },
+        `Free while it is just you. Around ${money(stages[1].total)} a month if five people used everything.`)
+    : null;
+
   return el('section', { class: 'cli-cost-growth', 'aria-labelledby': 'cli-cost-heading' },
-    el('h2', { class: 'cli-cost-heading', id: 'cli-cost-heading' }, 'How costs could grow'),
+    el('h2', { class: 'cli-cost-heading', id: 'cli-cost-heading' }, pickLabel('costHeading', plainMode)),
     el('p', { class: 'cli-cost-caption' },
       'Indicative monthly cost if you outgrew every free tier at once. Most businesses never do; many of these free tiers hold for years.'),
     el('p', { class: 'cli-cost-caption-note' },
       'Per-user tools are costed at their per-seat price times your team size. Tools that gate on usage or features are costed at their flat starting price, whatever your headcount.'),
+    takeaway,
     wrap,
     details,
   );
@@ -652,7 +906,8 @@ const DEFAULT_ICON = [
   ['circle', { cx: '7.5', cy: '7.5', r: '.5', fill: 'currentColor' }],
 ];
 
-function categoryIcon(category) {
+/** Exported (Batch I) alongside card() for the same reuse reason. */
+export function categoryIcon(category) {
   const shapes = CATEGORY_ICONS[category] ?? DEFAULT_ICON;
   const svg = svgNode('svg', {
     viewBox: '0 0 24 24', width: '18', height: '18', fill: 'none',

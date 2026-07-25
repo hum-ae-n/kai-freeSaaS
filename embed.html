@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Free Stack embed · Kaipability</title>
+  <!-- Static, unlike the app's own JS-injected noindex: an embed page is
+       chrome-free by design and has no canonical identity of its own worth
+       indexing, so this is always on, not conditional on a URL param. -->
+  <meta name="robots" content="noindex">
+  <link rel="icon" type="image/png" href="design-system/assets/kaipability-mark.png">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div id="embed-root"></div>
+
+  <!-- A thin entry point only (Feature 2, Batch I / BUILD-PLAN 10.11): all
+       rendering is imported from the app's own modules, nothing here
+       duplicates card markup or id-parsing logic. Deliberately does not
+       reuse data-loader's boot(), which assumes the #loading/#curator-root/
+       #client-root shell this page does not have. -->
+  <script type="module">
+    import { el, parseSelection, parseSingleTool } from './js/data-loader.js';
+    import { renderEmbed } from './js/client.js';
+
+    const root = document.getElementById('embed-root');
+
+    async function boot() {
+      let tools;
+      try {
+        const res = await fetch('data/tools.json');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        tools = await res.json();
+      } catch (cause) {
+        root.replaceChildren(el('div', { class: 'app-message is-error' }, 'Could not load the tool directory.'));
+        console.error('tools.json fetch failed:', cause);
+        return;
+      }
+
+      const params = new URLSearchParams(location.search);
+      const plainMode = params.get('plain') === '1';
+
+      const toolParam = params.get('tool');
+      if (toolParam !== null) {
+        renderEmbed(root, tools, parseSingleTool(toolParam, tools), true, plainMode);
+      } else {
+        renderEmbed(root, tools, parseSelection(params.get('t'), tools) ?? [], false, plainMode);
+      }
+
+      const footer = el('p', { class: 'embed-footer' },
+        el('a', { href: `${location.origin}/`, target: '_blank', rel: 'noopener noreferrer' }, 'From Free Stack by Kaipability'),
+      );
+      root.append(footer);
+    }
+
+    boot();
+  </script>
+</body>
+</html>
