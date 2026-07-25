@@ -294,6 +294,28 @@ check('embed: bare cards, noindex, no app chrome',
   && await page.locator('.cli-header, .cli-toolbar, .cli-summary').count() === 0
   && (await page.textContent('body')).includes('From Free Stack'));
 
+/* --- My Stack workspace core (Phase 11; full DoD mechanics land at 11.5) --- */
+const my = await browser.newPage();
+await my.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await my.goto(`${base}/my`);
+await my.waitForSelector('#my-root:not([hidden])');
+check('my: first-run renders with noindex', await my.locator('meta[name=robots][content=noindex]').count() === 1
+  && (await my.textContent('#my-root')).includes('example'));
+await my.locator('button', { hasText: 'Explore an example register' }).first().click();
+await my.waitForSelector('.my-nav-item');
+await my.locator('.my-nav-item', { hasText: 'Accounts' }).click();
+const exampleRows = await my.locator('#my-root table tbody tr, #my-root .my-account-row').count();
+check('my: example register renders rows read-only', exampleRows >= 8
+  && await my.evaluate(() => localStorage.getItem('freestack:v1:my') === null));
+check('my: risk chips present in example', await my.locator('.my-chip').count() >= 3);
+const myMobile = await browser.newPage({ viewport: { width: 375, height: 812 } });
+await myMobile.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await myMobile.goto(`${base}/my`);
+await myMobile.waitForSelector('#my-root:not([hidden])');
+check('my: no horizontal scroll at 375px', await myMobile.evaluate(() => document.documentElement.scrollWidth) <= 375);
+await myMobile.close();
+await my.close();
+
 /* --- dark mode and exports (batch E surface) ------------------------------- */
 await page.goto(`${base}/x`);
 await page.waitForSelector('.tools-table');

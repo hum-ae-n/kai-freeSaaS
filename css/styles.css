@@ -1382,7 +1382,9 @@ button { font: inherit; }
   cursor: pointer;
 }
 .my-chip-filter:hover { border-color: var(--ink); color: var(--ink); }
-.my-chip-filter.is-active { background: var(--caution-tint); border-color: var(--caution); color: var(--noncore-fg); }
+/* Border matches the text tone: --caution on the tint sat at 2.5:1, below
+   the 3:1 non-text minimum; --noncore-fg holds 5:1 on the same tint. */
+.my-chip-filter.is-active { background: var(--caution-tint); border-color: var(--noncore-fg); color: var(--noncore-fg); }
 
 /* Per-row risk chip (amber, "text label always, colour never alone") */
 .my-chip { display: inline-block; margin-left: var(--s-2); padding: 1px 8px; border-radius: var(--r-pill); font-size: var(--fs-12); white-space: nowrap; }
