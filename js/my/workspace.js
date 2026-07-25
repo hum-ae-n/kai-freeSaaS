@@ -250,7 +250,9 @@ export async function renderWorkspace(root) {
     if (fromRaw == null) return;
     try {
       const tools = await ensureTools();
-      fromIds = parseSelection(fromRaw, tools);
+      // PRD-REGISTER section 2 documents the "t:0,2,5" form; bare "0,2,5" is what
+      // client.js generates. Accept both by stripping the optional prefix.
+      fromIds = parseSelection(fromRaw.replace(/^t:/, ''), tools);
     } catch {
       fromIds = []; // catalogue unreachable: degrade to "nothing to import", never block the workspace
     }

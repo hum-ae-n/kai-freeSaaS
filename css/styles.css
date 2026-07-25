@@ -1567,7 +1567,7 @@ button { font: inherit; }
   }
   .my-acc-table td { display: block; padding: 0; border: none; }
   .my-acc-table .my-acc-check { grid-area: check; }
-  .my-acc-table .my-acc-service { grid-area: service; }
+  .my-acc-table .my-acc-service { grid-area: service; display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
   .my-acc-table .my-acc-identity { grid-area: identity; }
   .my-acc-table .my-acc-owner { grid-area: owner; }
   .my-acc-table .my-acc-mfa { grid-area: mfa; }
