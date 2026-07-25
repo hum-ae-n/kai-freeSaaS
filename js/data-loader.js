@@ -9,6 +9,10 @@
  *   #toast          shared toast element (use showToast(), not direct access)
  *   #public-root    public mode mount point, [hidden] until routed (Batch I,
  *                    additive: public.js is the only module that touches it)
+ *   #my-root        My Stack workspace mount point, [hidden] until routed
+ *                    (Phase 11, additive: js/my/workspace.js is the only
+ *                    module that touches it; js/my/* owns everything below
+ *                    that mount, this file only routes to it)
  * CSS class names: components in styles.css COMPONENTS block (.btn, .badge,
  * .panel, .favicon, .toast, .input, .select) are shared API. Curator-only
  * classes are prefixed .cur- / table classes; client-only classes .cli- /
@@ -36,12 +40,24 @@
  * default, off unless the reader has toggled it before. readPlainMode() /
  * writePlainMode() here are the only things that touch that storage key.
  *
+ * MY STACK (Phase 11, additive, sits alongside /x in routing): the /my (and
+ * /my/) path renders the account-register workspace via js/my/workspace.js,
+ * mounted at #my-root. It joins the existing precedence at the same rung as
+ * /x: ?t= and ?tool= still win over it if somehow present on the same URL,
+ * and it is checked after the /x-or-?edit= curator branch, before falling
+ * through to the public directory. Like curator mode, /my always gets the
+ * noindex meta regardless of entry path, since PRD-REGISTER section 2 calls
+ * it client-facing but noindexed (a person's business data has no business
+ * being searchable). Unlike curator mode, visiting /my does NOT set the
+ * staff device flag: this surface is meant for clients, not just staff.
+ *
  * PUBLIC/STAFF SPLIT (Batch I, Rocky's 24 Jul decision, revises routing):
  * the root path is now a public, indexable directory. Curator hides at the
  * unlisted /x path. Precedence in boot(), highest first: ?t= (client mode,
  * any path) > ?tool= (single-tool permalink, any path) > pathname is /x or
- * /x/, OR ?edit= is present on any path (both reach curator mode) > public
- * directory (js/public.js). Visiting /x also sets the device's staff flag
+ * /x/, OR ?edit= is present on any path (both reach curator mode) > pathname
+ * is /my or /my/ (the My Stack workspace) > public directory (js/public.js).
+ * Visiting /x also sets the device's staff flag
  * (freestack:v1:staff = '1'); isStaffDevice() here is the only reader of
  * that key, consulted by client.js to decide whether "Open in curator"
  * renders at all, so the /x path itself never has to appear on a client's
@@ -388,6 +404,19 @@ async function boot() {
       initialName: sanitizeParam(params.get('client')),
       initialNote: sanitizeParam(params.get('note'), 280),
     });
+    return;
+  }
+
+  // My Stack workspace (Phase 11): the unlisted-but-linked /my path, checked
+  // after curator's /x-or-?edit= branch and before the public directory
+  // fallback, per the MY STACK routing note above.
+  const isMyPath = path === '/my' || path === '/my/';
+  if (isMyPath) {
+    injectNoindex();
+    const { renderWorkspace } = await import('./my/workspace.js');
+    const root = document.getElementById('my-root');
+    root.hidden = false;
+    renderWorkspace(root);
     return;
   }
 

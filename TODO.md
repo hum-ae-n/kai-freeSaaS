@@ -1,6 +1,6 @@
 # TODO
 
-Open items as of 24 July 2026. Build state: Phases 0-9 done, verified and merged to `main`. Phase 10 (the `plain` field and Plain English mode, curator pricing/BYO surfacing, edit-an-existing-stack, single-tool permalinks, progress share-back, the printed QR bridge, the weekly link-rot Routine, the recently-updated strip, embed mode, and the public/staff URL split) is complete pending Rocky's PR review: verifier-passed end to end (`node scripts/validate-data.mjs` exit 0, `node scripts/smoke-test.mjs` 50/50 PASS), still on branch `claude/read-todo-bk47qb` and not yet merged. Detail in [BUILD-PLAN.md](BUILD-PLAN.md); run `node scripts/validate-data.mjs` and `node scripts/smoke-test.mjs` before any push (a push to `main` is a production release, and CI now runs both automatically on every push and PR).
+Open items as of 25 July 2026. Build state: Phases 0-10 done, verified and merged to `main` (Phase 10 merged 25 Jul as `84f1e0f`, with a same-day follow-up, `2328df9`, collapsing the recently-updated strip by default at Rocky's request). Phase 11, the My Stack account register workspace at `/my` (local-first account tracking, leaver checklists, a costs ledger, opt-in encryption, and the `why-register.html` awareness page), has waves A-D done and verifier-passed on branch `claude/read-todo-bk47qb`; close-out (11.5: the content pass, extended smoke coverage, and a final verifier sweep against PRD-REGISTER §15) is in progress, not yet merged. Detail in [BUILD-PLAN.md](BUILD-PLAN.md); run `node scripts/validate-data.mjs` and `node scripts/smoke-test.mjs` before any push (a push to `main` is a production release, and CI now runs both automatically on every push and PR).
 
 ## Deploy (Phase 6)
 
@@ -16,13 +16,10 @@ Open items as of 24 July 2026. Build state: Phases 0-9 done, verified and merged
 
 - [x] **Merge `claude/read-todo-bk47qb` into `main`.** Approved by Rocky 23 Jul ("go for it"), merged and deployed the same day.
 
-## Merging Phase 10
+## Merging Phase 10 (closed)
 
-- [ ] **Merge `claude/read-todo-bk47qb` into `main`, once Rocky has reviewed the PR.** Everything in Phase 10 (see the build-state line above) is done and verifier-passed on the branch; this is a review-and-merge step, not a build step.
-- [ ] **Header checks on the Netlify deploy preview**, once the PR has one. These depend on Netlify's own header handling, which local testing (`python3 -m http.server` or the smoke test's own local server) cannot reproduce, per the note in `netlify.toml`:
-  - `X-Frame-Options: DENY` present on `/`, `/index.html` and `/x`
-  - `Content-Security-Policy: frame-ancestors https://kaipability.com https://*.kaipability.com` present on `/embed.html`, and neither of the above header present on some unrelated path picked at random, to confirm the scoping actually held
-  - `/robots.txt` returns 404. There is deliberately no `robots.txt` file in the repo (see BUILD-PLAN 10.12), so this check exists to catch the SPA fallback rule silently turning that absence into a 200
+- [x] **Merge `claude/read-todo-bk47qb` into `main`.** Done 25 Jul as `84f1e0f`, approved by Rocky.
+- [x] **Header checks on the Netlify deploy preview.** Confirmed clean before the merge above (the merge commit records a "deploy-preview header audit clean"), covering `X-Frame-Options: DENY` on `/`, `/index.html` and `/x`, the `/embed.html`-scoped CSP, and `/robots.txt` returning 404 rather than the SPA fallback's 200.
 
 ## Decisions only Rocky can make
 

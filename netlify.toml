@@ -33,17 +33,63 @@
   [headers.values]
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
+    # Strict CSP (PRD-REGISTER section 10). No 'unsafe-inline' for scripts:
+    # the two inline boot scripts on the whole site (index.html's and
+    # embed.html's theme-boot/entry scripts; why-register.html reuses
+    # index.html's script byte for byte, so it needs no third hash) are
+    # allow-listed by sha256 instead. Recompute with:
+    #   node -e "const c=require('crypto');const fs=require('fs');const h=fs.readFileSync('index.html','utf8').match(/<script>([\s\S]*?)<\/script>/)[1];console.log(c.createHash('sha256').update(h).digest('base64'))"
+    # (swap the file/tag match for embed.html's inline module script) and
+    # replace the hash below if either boot script ever changes; a stale
+    # hash blocks the script entirely rather than degrading gracefully.
+    # img-src allows https: for the DuckDuckGo/Google favicon proxies
+    # (PRD section 8) plus data: for any inline-encoded images; connect-src
+    # is 'self' only, since the app only ever fetches its own data/*.json.
+    # frame-ancestors is deliberately absent here (it does not fall back to
+    # default-src, unlike the other omitted directives). /embed.html gets its
+    # own complete copy of this policy with frame-ancestors appended, because
+    # Netlify replaces a same-named header wholesale for the narrower path
+    # (confirmed on the PR 3 deploy preview); keep the two values in step.
+    Content-Security-Policy = "default-src 'none'; script-src 'self' 'sha256-lsQEYtPvOLF/0p5/Ha7LBjWH8MEuawpuwGZTYqleMkA=' 'sha256-tXEPFiTeuQ78cXDjzf3LUP2Kr7tiig87hhXnuzQg008='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'"
+
+# My Stack (PRD-REGISTER section 10): "Referrer-Policy: no-referrer for /my
+# specifically... the site-wide policy stays as is". Confirmed on the PR 3
+# deploy preview: for a path matched by both blocks, Netlify does not send
+# two Referrer-Policy values, this narrower block simply REPLACES the wide
+# "/*" value, so /my responds with no-referrer alone and every other path
+# keeps strict-origin-when-cross-origin. The same replace-not-concatenate
+# semantics are why the /embed.html CSP below must be a complete policy.
+[[headers]]
+  for = "/my"
+  [headers.values]
+    Referrer-Policy = "no-referrer"
 
 # Embed mode (BUILD-PLAN 10.11): frame-ancestors is the modern, allow-listed
 # replacement for X-Frame-Options, so this is the one page on the whole site
 # that may sit inside an iframe, and only an iframe served from Kaipability's
-# own site. Header behaviour cannot be exercised by `python3 -m http.server`
-# locally: confirm this (and the DENY split above) on the Netlify deploy
-# preview, not in local testing.
+# own site. Confirmed on the PR 3 deploy preview: when two [[headers]] blocks
+# set the SAME header name for a path, Netlify does not send both values, the
+# later (more specific) block REPLACES the wider one entirely. A bare
+# frame-ancestors value here therefore stripped the whole strict CSP off
+# embed.html. So this value must be the complete policy: everything the wide
+# "/*" rule sends, with frame-ancestors appended. If the "/*" CSP changes,
+# change this one to match, keeping the frame-ancestors suffix; the smoke
+# suite's hash-drift gate checks the script hashes in both.
 [[headers]]
   for = "/embed.html"
   [headers.values]
-    Content-Security-Policy = "frame-ancestors https://kaipability.com https://*.kaipability.com"
+    Content-Security-Policy = "default-src 'none'; script-src 'self' 'sha256-lsQEYtPvOLF/0p5/Ha7LBjWH8MEuawpuwGZTYqleMkA=' 'sha256-tXEPFiTeuQ78cXDjzf3LUP2Kr7tiig87hhXnuzQg008='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors https://kaipability.com https://*.kaipability.com"
+
+# security.txt (RFC 9116, PRD-REGISTER section 10): a real file under
+# publish = ".", so the SPA fallback redirect below never reaches it (it
+# only ever fires for paths with no matching file, per the note on that
+# redirect). This header rule is not load-bearing for that reason, it just
+# states the content type explicitly rather than relying on Netlify's
+# default guess for an unfamiliar extension.
+[[headers]]
+  for = "/.well-known/security.txt"
+  [headers.values]
+    Content-Type = "text/plain; charset=utf-8"
 
 # Keep tools.json uncached-ish so a data-only push shows up without a hard refresh.
 [[headers]]

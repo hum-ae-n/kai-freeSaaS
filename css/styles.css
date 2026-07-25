@@ -2,7 +2,10 @@
    Free Stack stylesheet
    The brand source of truth is design-system/colors_and_type.css (tokens,
    fonts, base type). This file consumes those tokens and adds the app layer:
-   APP TOKENS → DARK MODE → BASE → COMPONENTS → CURATOR → CLIENT → PRINT.
+   APP TOKENS → DARK MODE → BASE → COMPONENTS → CURATOR → CLIENT → WORKSPACE
+   → PRINT. The WORKSPACE block (js/my/*, the /my surface, PRD-REGISTER) is
+   owned by the workspace-builder agent and is otherwise additive: it must
+   not redefine anything above it.
    Mapping documented in DESIGN-SYSTEM.md. The vibe: a confidential memo
    printed on good paper. Flat, square, cream and oxblood.
    ========================================================================== */
@@ -1224,6 +1227,441 @@ button { font: inherit; }
   .tools-table td.cell-more { grid-area: more; display: block; }
 }
 
+/* === WORKSPACE ==============================================================
+   The /my surface (PRD-REGISTER section 5, "recessive... a few notches
+   quieter than the content, cream-on-cream, oxblood rule marks the active
+   item, no icon zoo"). Reuses .panel, .btn, .input, .badge and the type
+   scale from COMPONENTS above rather than inventing a parallel set. */
+
+.my-gate {
+  min-height: 60vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-6);
+}
+.my-gate-panel {
+  max-width: 560px;
+  padding: var(--s-8);
+  border-top: var(--bw-heavy) solid var(--oxblood);
+}
+.my-gate-panel h1 { font-size: var(--fs-34); line-height: var(--lh-34); margin: var(--s-2) 0 var(--s-4); }
+.my-gate-warn { border-top-color: var(--caution); }
+.my-gate-actions { display: flex; gap: var(--s-3); flex-wrap: wrap; margin-top: var(--s-4); }
+
+.my-firstrun { max-width: 900px; margin: 0 auto; padding: var(--s-6) var(--s-4); }
+.my-firstrun-header { padding: var(--s-8); border-top: var(--bw-heavy) solid var(--oxblood); margin-bottom: var(--s-6); }
+/* auto-fit, not a fixed 2 columns: Wave B adds a third "start from your
+   stack" choice when ?from= is present, so this needs to flex between two
+   and three cards without a separate rule for each count. */
+.my-firstrun-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--s-6); padding: var(--s-6); }
+.my-firstrun-choice { display: flex; flex-direction: column; gap: var(--s-3); align-items: start; }
+.my-firstrun-privacy { text-align: center; margin-top: var(--s-4); }
+.my-review-block { margin: var(--s-3) 0; }
+
+.my-setup { display: flex; justify-content: center; padding: var(--s-6) var(--s-4); }
+.my-setup-panel { max-width: 560px; width: 100%; padding: var(--s-8); border-top: var(--bw-heavy) solid var(--oxblood); }
+.my-setup-panel h1 { font-size: var(--fs-26); line-height: var(--lh-26); margin: var(--s-2) 0 var(--s-4); }
+.my-setup-actions { display: flex; gap: var(--s-3); margin-top: var(--s-4); flex-wrap: wrap; }
+.my-field { display: block; margin-bottom: var(--s-3); }
+.my-field .input { width: 100%; margin-top: var(--s-1); }
+.my-error { color: var(--oxblood-deep); font-size: var(--fs-14); margin: var(--s-2) 0; }
+.my-ok { color: var(--positive); font-size: var(--fs-14); margin: var(--s-2) 0; }
+.my-consequence {
+  font-family: var(--font-sans);
+  font-size: var(--fs-18);
+  line-height: 1.4;
+  padding: var(--s-4);
+  background: var(--caution-tint);
+  border-left: var(--bw-heavy) solid var(--caution);
+  margin: var(--s-4) 0;
+}
+
+/* App shell */
+.my-shell { display: flex; min-height: 100vh; align-items: stretch; }
+.my-sidebar {
+  flex: 0 0 220px;
+  background: var(--paper-2);
+  border-right: var(--border);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: var(--s-4) 0;
+}
+.my-sidebar-brand { padding: 0 var(--s-4) var(--s-4); }
+.my-nav { display: flex; flex-direction: column; gap: 2px; }
+.my-nav-item {
+  display: block;
+  padding: var(--s-2) var(--s-4);
+  color: var(--ink-2);
+  text-decoration: none;
+  border-left: var(--bw-heavy) solid transparent;
+  font-family: var(--font-sans);
+  font-size: var(--fs-14);
+}
+.my-nav-item:hover { color: var(--ink); background: var(--paper); }
+.my-nav-item[aria-current="page"] {
+  color: var(--ink);
+  border-left-color: var(--oxblood);
+  background: var(--paper);
+  font-weight: 500;
+}
+.my-sidebar-foot { display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-4); border-top: var(--border); margin-top: var(--s-4); }
+.my-menu-toggle { display: none; }
+
+.my-content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.my-topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-bottom: var(--border);
+  background: var(--paper);
+}
+.my-topbar-name { font-size: var(--fs-21); line-height: var(--lh-21); margin-right: auto; }
+.my-topbar-search { max-width: 260px; }
+
+.my-banner { padding: var(--s-2) var(--s-4); display: flex; align-items: center; gap: var(--s-3); font-size: var(--fs-14); }
+.my-banner-example { background: var(--lavender-2); border-bottom: var(--bw-hair) solid var(--sector-rule, var(--ink-3)); }
+.my-banner-reload { background: var(--caution-tint); border-bottom: var(--bw-hair) solid var(--caution); }
+
+.my-main { flex: 1; padding: var(--s-6) var(--s-4); }
+.my-screen { max-width: var(--content-max); }
+.my-screen h2 { font-size: var(--fs-26); line-height: var(--lh-26); margin-bottom: var(--s-4); }
+
+.my-tiles { display: flex; gap: var(--s-4); flex-wrap: wrap; margin-bottom: var(--s-4); }
+.my-tile {
+  flex: 1 1 200px;
+  text-align: left;
+  padding: var(--s-4);
+  border-top: var(--bw-heavy) solid var(--ink-3);
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.my-tile-value { font-family: var(--font-sans); font-size: var(--fs-34); font-weight: 500; color: var(--oxblood); }
+.my-tile-label { font-size: var(--fs-14); color: var(--ink-2); }
+.my-tile-ok { border-top-color: var(--positive); }
+.my-tile-amber { border-top-color: var(--caution); }
+.my-tile-red { border-top-color: var(--oxblood); }
+
+/* Overview pull-quote (section 9.1, "broadsheet pull-quote styling"): the
+   positioning sentence, set off from the tiles rather than buried in body
+   copy. */
+.my-quote {
+  border-left: var(--bw-heavy) solid var(--oxblood);
+  padding-left: var(--s-4);
+  margin-bottom: var(--s-6);
+  max-width: 640px;
+}
+
+/* Unassigned-owner attention bucket (section 9.1) */
+.my-attention { padding: var(--s-4); border-top: var(--bw-heavy) solid var(--caution); margin-bottom: var(--s-4); max-width: 640px; }
+.my-attention h3 { font-size: var(--fs-18); margin-bottom: var(--s-2); }
+.my-attention-list { list-style: none; margin: var(--s-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-2); }
+
+/* Banners: example / reload-offer already existed (Wave A); merge preview
+   and delete-undo (Wave B) reuse the same flat, left-accented shape. */
+.my-banner-merge { background: var(--info-tint); border-bottom: var(--bw-hair) solid var(--info); flex-wrap: wrap; }
+.my-banner-merge-open { flex-direction: column; align-items: flex-start; padding: var(--s-4); }
+.my-banner-undo { background: var(--paper-2); border-bottom: var(--bw-hair) solid var(--ink-3); }
+
+/* Risk filter chips (section 9.2): toggle buttons, not decoration, so they
+   are real <button>s with aria-pressed rather than styled checkboxes. */
+.my-filter-bar { display: flex; gap: var(--s-2); flex-wrap: wrap; margin: var(--s-3) 0; }
+.my-chip-filter {
+  padding: 6px 14px;
+  border: var(--bw-hair) solid var(--ink-3);
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  color: var(--ink-2);
+  font-family: var(--font-sans);
+  font-size: var(--fs-12);
+  cursor: pointer;
+}
+.my-chip-filter:hover { border-color: var(--ink); color: var(--ink); }
+/* Border matches the text tone: --caution on the tint sat at 2.5:1, below
+   the 3:1 non-text minimum; --noncore-fg holds 5:1 on the same tint. */
+.my-chip-filter.is-active { background: var(--caution-tint); border-color: var(--noncore-fg); color: var(--noncore-fg); }
+
+/* Per-row risk chip (amber, "text label always, colour never alone") */
+.my-chip { display: inline-block; margin-left: var(--s-2); padding: 1px 8px; border-radius: var(--r-pill); font-size: var(--fs-12); white-space: nowrap; }
+.my-chip-risk { background: var(--caution-tint); color: var(--noncore-fg); border: var(--bw-hair) solid var(--caution); }
+
+.my-accounts-actions { display: flex; gap: var(--s-2); margin: var(--s-3) 0; flex-wrap: wrap; }
+.my-bulk-bar { display: flex; align-items: center; gap: var(--s-2); margin: var(--s-3) 0; padding: var(--s-2) var(--s-3); background: var(--paper-2); flex-wrap: wrap; }
+.my-bulk-bar .input { max-width: 220px; }
+
+.my-templates-panel { padding: var(--s-4); margin: var(--s-3) 0; max-width: 420px; }
+.my-template-row { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-1) 0; font-size: var(--fs-14); cursor: pointer; }
+
+.my-table-wrap { overflow-x: auto; }
+.my-accounts-table { width: 100%; border-collapse: collapse; }
+.my-accounts-table th, .my-accounts-table td {
+  text-align: left;
+  padding: var(--s-2) var(--s-3);
+  border-bottom: var(--border);
+  font-size: var(--fs-14);
+  vertical-align: top;
+}
+.my-accounts-table th { color: var(--ink-2); font-weight: 500; }
+.my-acc-input { width: 100%; min-width: 8rem; }
+.my-acc-readonly { display: inline-block; padding: 9px 0; }
+.my-acc-details-btn { margin-top: var(--s-1); }
+.my-acc-drawer-row td { background: var(--paper-2); }
+.my-acc-drawer { padding: var(--s-2) 0; }
+.my-acc-drawer-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--s-3); margin: var(--s-3) 0; }
+.my-field-wide { grid-column: 1 / -1; }
+.my-field-wide textarea.input { width: 100%; min-height: 4rem; font-family: var(--font-text); }
+
+.my-completeness-bar { display: block; width: 100%; max-width: 120px; height: 4px; background: var(--paper-edge); margin-top: var(--s-1); }
+.my-completeness-fill { display: block; height: 100%; background: var(--oxblood); }
+
+.my-status-list { display: grid; grid-template-columns: max-content 1fr; gap: var(--s-1) var(--s-4); max-width: 560px; margin: var(--s-4) 0; }
+.my-status-list dt { color: var(--ink-2); font-size: var(--fs-14); }
+.my-status-list dd { margin: 0; font-size: var(--fs-14); }
+
+/* Adoption / positive chip variant (Wave C: My tools, "in use"), sitting
+   alongside the existing amber .my-chip-risk on the same base .my-chip. */
+.my-chip-ok { background: var(--positive-tint); color: var(--positive); border: var(--bw-hair) solid var(--positive); }
+
+/* Backup-age chip (section 8), sidebar footer and Backup screen alike: a
+   real button (a one-tap jump to Backup), never colour-only (the text
+   already states the age in words). */
+.my-age-chip {
+  text-align: left;
+  padding: var(--s-1) var(--s-2);
+  border: var(--bw-hair) solid var(--ink-3);
+  background: var(--paper);
+  color: var(--ink-2);
+  font-family: var(--font-sans);
+  font-size: var(--fs-12);
+  cursor: pointer;
+}
+.my-age-chip-amber { border-color: var(--caution); color: var(--noncore-fg); background: var(--caution-tint); }
+.my-age-chip-red { border-color: var(--oxblood); color: var(--oxblood); background: var(--oxblood-tint); }
+.my-banner-nag { background: var(--oxblood-tint); border-bottom: var(--bw-hair) solid var(--oxblood); }
+
+/* Wave C screens (My tools, Costs, Leavers) and the full Backup screen all
+   reuse .panel, .btn, .input, .my-field, .my-attention-list, .my-chip and
+   the rest of the vocabulary already established above rather than
+   inventing a second set: only the shapes that are genuinely new to these
+   three screens get their own rules from here down. */
+
+/* --- My tools (section 9.3) ------------------------------------------------ */
+.my-tool-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--s-4); margin: var(--s-4) 0 var(--s-6); }
+.my-tool-card { display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-4); border-top: var(--bw-heavy) solid var(--ink-3); }
+.my-tool-card-head { display: flex; align-items: center; gap: var(--s-2); }
+.my-tool-card-head h3 { flex: 1; font-size: var(--fs-16); margin: 0; }
+.my-tool-card-desc { flex: 1; }
+.my-tool-card-actions { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+
+/* --- Costs (section 9.4): flex rows throughout, deliberately never a
+   <table>, so a long service name or amount wraps onto its own line
+   instead of forcing horizontal scroll at narrow widths. ------------------- */
+.my-renewal-block { margin-bottom: var(--s-4); max-width: 640px; }
+.my-renewal-block h3 { font-size: var(--fs-18); margin-bottom: var(--s-2); }
+.my-renewal-list { display: flex; flex-direction: column; gap: var(--s-1); }
+.my-renewal-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-4);
+  padding: var(--s-2) 0;
+  border-bottom: var(--bw-hair) solid var(--paper-edge);
+  font-size: var(--fs-14);
+}
+.my-renewal-date { color: var(--ink-2); min-width: 7rem; }
+.my-renewal-service { flex: 1 1 160px; }
+.my-renewal-amount { font-family: var(--font-sans); }
+.my-costs-total { max-width: 420px; margin-bottom: var(--s-4); }
+.my-costs-toggle { display: flex; gap: var(--s-2); margin-bottom: var(--s-2); }
+.my-costs-figure { font-family: var(--font-sans); font-size: var(--fs-34); font-weight: 500; color: var(--oxblood); margin: 0; }
+.my-costs-uncosted { max-width: 480px; margin-bottom: var(--s-4); }
+.my-costs-chart-note { max-width: 480px; }
+
+/* --- Leavers (section 9.5) ------------------------------------------------- */
+.my-leaver-picker { max-width: 480px; display: flex; flex-direction: column; gap: var(--s-3); align-items: start; }
+/* A column flex container with align-items:start sizes its children to
+   their own content width, not the container's, which otherwise starves
+   .my-field's own "width:100%" rule of anything to be 100% OF: the select
+   and the free-text input both need the full picker width, only the
+   generate/regenerate button below them should stay shrink-to-fit. */
+.my-leaver-picker .my-field { width: 100%; }
+.my-leaver-checklist { max-width: 720px; }
+.my-leaver-heading { font-size: var(--fs-26); margin-bottom: var(--s-1); }
+.my-leaver-phase { margin: var(--s-5) 0; padding-top: var(--s-3); border-top: var(--bw-heavy) solid var(--ink-3); }
+.my-leaver-phase h3 { font-size: var(--fs-18); margin-bottom: var(--s-2); }
+.my-leaver-item-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-2); }
+.my-leaver-item { padding: var(--s-1) 0; }
+/* 44px tick targets throughout (accessibility brief and the mobile
+   correction alike): the label itself is the tap target, not just the tiny
+   checkbox glyph inside it, so a thumb only has to land anywhere on the
+   sentence, not thread a needle. */
+.my-leaver-tick-label { display: flex; align-items: flex-start; gap: var(--s-3); min-height: 44px; cursor: pointer; }
+.my-leaver-tick { width: 22px; height: 22px; flex: none; margin-top: 2px; accent-color: var(--oxblood); cursor: pointer; }
+.my-leaver-caveat { display: block; color: var(--oxblood); }
+.my-leaver-reassign { display: flex; flex-wrap: wrap; gap: var(--s-2); margin: var(--s-2) 0 0 calc(22px + var(--s-3)); }
+.my-leaver-reassign-input { max-width: 220px; }
+
+/* --- Backup (section 9.6) -------------------------------------------------- */
+.my-backup-section { max-width: 640px; margin: var(--s-6) 0; padding-top: var(--s-4); border-top: var(--border); }
+.my-backup-section h3 { font-size: var(--fs-18); margin-bottom: var(--s-2); }
+.my-backup-wipe h3 { color: var(--oxblood); }
+.my-import-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  padding: var(--s-5) var(--s-4);
+  border: var(--bw-hair) dashed var(--ink-3);
+  margin: var(--s-3) 0;
+}
+.my-import-drop.is-dragover { border-color: var(--oxblood); background: var(--paper-2); }
+.my-import-file-input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.my-import-preview { max-width: 480px; margin-top: var(--s-3); }
+
+@media (max-width: 768px) {
+  .my-shell { flex-direction: column; }
+  .my-sidebar {
+    position: fixed;
+    inset: 0 30% 0 0;
+    z-index: 20;
+    transform: translateX(-100%);
+    transition: transform var(--dur-base) var(--ease-out);
+    box-shadow: var(--shadow-3);
+  }
+  .my-sidebar.is-open { transform: translateX(0); }
+  .my-menu-toggle { display: inline-flex; }
+  .my-firstrun-choices { grid-template-columns: 1fr; }
+  /* Search stays reachable on a phone (section 9.2 composes it with the risk
+     chips): it drops onto its own full-width line instead of vanishing, as
+     Wave A's rule did before Wave B wired the input up. */
+  .my-topbar { flex-wrap: wrap; }
+  .my-topbar-search { flex: 1 1 100%; max-width: none; order: 3; }
+  .my-topbar-name { font-size: var(--fs-18); }
+
+  /* Accounts table becomes a stacked card per row, the same pattern the
+     curator table already uses at this width (RESPONSIVE block, .cell-*
+     grid-template-areas): thead hidden, each <tr> a small grid. */
+  .my-acc-table thead { display: none; }
+  .my-acc-table tbody { display: block; }
+  .my-acc-table tr.my-acc-row {
+    display: grid;
+    width: 100%;
+    grid-template-columns: auto 1fr 1fr;
+    grid-template-areas:
+      "check   service  service"
+      "identity identity identity"
+      "owner   owner    owner"
+      "mfa     mfa      renewal"
+      "completeness completeness completeness"
+      "actions actions  actions";
+    column-gap: var(--s-3);
+    row-gap: var(--s-2);
+    padding: var(--s-3);
+    margin-bottom: var(--s-3);
+    background: var(--paper);
+    border: var(--bw-hair) solid var(--paper-edge);
+  }
+  .my-acc-table td { display: block; padding: 0; border: none; }
+  .my-acc-table .my-acc-check { grid-area: check; }
+  .my-acc-table .my-acc-service { grid-area: service; display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
+  .my-acc-table .my-acc-identity { grid-area: identity; }
+  .my-acc-table .my-acc-owner { grid-area: owner; }
+  .my-acc-table .my-acc-mfa { grid-area: mfa; }
+  .my-acc-table .my-acc-renewal { grid-area: renewal; }
+  .my-acc-table .my-acc-completeness { grid-area: completeness; }
+  .my-acc-table .my-acc-actions { grid-area: actions; }
+  .my-acc-table tr.my-acc-drawer-row { display: block; padding: 0 var(--s-3) var(--s-3); margin-top: calc(-1 * var(--s-3)); margin-bottom: var(--s-3); border: var(--bw-hair) solid var(--paper-edge); border-top: none; }
+  .my-acc-table tr.my-acc-drawer-row td { display: block; }
+
+  /* Rocky's mobile correction: My tools, Costs and Leavers are first-class
+     at 375-390px, not a squeezed-down desktop layout. */
+  .my-tool-cards { grid-template-columns: 1fr; }
+  .my-status-list { grid-template-columns: 1fr; }
+  .my-status-list dd { margin-bottom: var(--s-2); }
+  /* Reassign control drops below the label instead of indenting under it,
+     so there is no horizontal reach needed to find it one-handed. */
+  .my-leaver-reassign { margin-left: 0; }
+  /* Verifier finding #4: btn-sm alone measured under the 44px floor
+     (section 14, primary workspace actions); flooring it here rather than
+     on .btn-sm globally keeps every OTHER small button (delete, close
+     details, filter chips) at their existing, deliberately compact size on
+     the screens where reach is not the concern this control has. */
+  .my-leaver-reassign .btn { min-height: 44px; }
+  .my-leaver-picker { max-width: none; }
+  .my-import-drop { align-items: stretch; text-align: center; }
+  .my-import-drop .btn { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .my-sidebar { transition: none; }
+}
+
+/* Quiet entry-point links to the awareness page (Wave D, section 12), shared
+   by js/client.js and js/public.js: a footnote line, never a button, so it
+   never competes with the workspace CTA or the "Talk to Kaipability" line
+   next to it. */
+.my-awareness-link-line { margin-top: var(--s-2); }
+
+/* --- Awareness page ("Why we built this", section 12): a standalone static
+   page outside the app shell, reusing .panel/.eyebrow/.t-*/.my-quote rather
+   than inventing a parallel type system. Narrower measure than the public
+   directory: this is read top to bottom, not scanned like a card grid. */
+#awareness-root {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: var(--s-8) var(--s-6) var(--s-24);
+}
+.my-awareness-back { font-size: var(--fs-14); display: inline-block; margin-bottom: var(--s-6); }
+.my-awareness-header {
+  padding: var(--s-8);
+  margin-bottom: var(--s-8);
+  border-top: var(--bw-heavy) solid var(--oxblood);
+}
+.my-awareness-header .logo { height: 32px; width: auto; margin-bottom: var(--s-6); }
+.my-awareness-section { margin-bottom: var(--s-10); }
+.my-awareness-section h2 { font-size: var(--fs-34); line-height: var(--lh-34); margin-bottom: var(--s-4); }
+.my-awareness-section p + p,
+.my-awareness-section p + ul,
+.my-awareness-section ul + p { margin-top: var(--s-3); }
+
+.my-awareness-evidence { margin: 0; padding-left: var(--s-5); display: flex; flex-direction: column; gap: var(--s-3); }
+.my-awareness-evidence li { max-width: var(--measure); }
+
+/* Honest threat table (PRD-REGISTER section 10): two lists, not a table, so
+   narrow viewports stack them with no horizontal scroll risk, the same
+   auto-fit trick as .my-firstrun-choices rather than a bespoke breakpoint. */
+.my-awareness-threat {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--s-6);
+  margin-top: var(--s-4);
+}
+.my-awareness-threat > div { padding: var(--s-4); border-top: var(--bw-heavy) solid var(--ink-3); }
+.my-awareness-threat > div.is-protects { border-top-color: var(--positive); }
+.my-awareness-threat > div.is-not { border-top-color: var(--oxblood); }
+.my-awareness-threat h3 { font-size: var(--fs-21); line-height: var(--lh-21); margin-bottom: var(--s-3); }
+.my-awareness-threat ul { margin: 0; padding-left: var(--s-5); display: flex; flex-direction: column; gap: var(--s-2); }
+
+.my-awareness-footer {
+  margin-top: var(--s-12);
+  padding-top: var(--s-6);
+  border-top: var(--border);
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  color: var(--ink-2);
+  font-size: var(--fs-14);
+}
+.my-awareness-footer .logo { height: 26px; width: auto; }
+
+@media (max-width: 767px) {
+  #awareness-root { padding: var(--s-5) var(--s-4) var(--s-16); }
+  .my-awareness-header { padding: var(--s-6) var(--s-5); }
+}
+
 /* === PRINT ================================================================= */
 
 @media print {
@@ -1307,4 +1745,25 @@ button { font: inherit; }
   .print-only { display: block; }
   .cli-print-qr { break-inside: avoid; }
   .cli-print-qr-svg { width: 26mm; height: 26mm; }
+
+  /* Leaver checklist (PRD-REGISTER section 9.5, BUILD-PLAN 11.3): plain,
+     numbered A4. The .no-print rule above already strips the app shell
+     (sidebar, topbar, every banner) on any /my screen, so what is left here
+     is just the checklist itself.
+
+     Deliberately does NOT reuse the client-mode print-only QR bridge
+     (.cli-print-qr / .print-only above): that pattern exists to hand a
+     reader a live link back into a shared, read-only stack page. A leaver
+     checklist is the opposite kind of document, something to hand to the
+     person leaving, or file away once they are gone, so it must never
+     carry a live link back into this business's own register. No QR code
+     is built for this screen at all, on screen or in print. */
+  .my-leaver-checklist { max-width: none; }
+  .my-leaver-phase { break-inside: avoid; }
+  .my-leaver-item { break-inside: avoid; }
+  .my-leaver-caveat { color: #000; text-decoration: underline; }
+  /* Real checkboxes print as boxes with a native tick when checked in every
+     evergreen engine this site already targets; sized up here so an
+     unticked box still reads clearly as a box on paper, not a stray dot. */
+  .my-leaver-tick { width: 12pt; height: 12pt; accent-color: #000; }
 }

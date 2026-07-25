@@ -102,6 +102,20 @@ export function renderClient(root, tools, selection, clientName, noteText, print
     class: 'btn btn-ghost btn-lg no-print', href: buildEditUrl(selection, clientName, noteText),
   }, 'Open in curator') : null;
 
+  // "Set up your workspace" / "Open your workspace" (Phase 11 Wave B,
+  // PRD-REGISTER section 2): the client-page entry point into the /my
+  // account register. hasWorkspace() below is a read-only existence probe
+  // only, so it does not need store.js's mutation discipline (PRD-REGISTER
+  // section 6 names load/save/exportBlob/importBlob/lock/unlock/status as
+  // the whole interface, on purpose, with no seventh method for a boolean);
+  // importing store.js here would also pull its WebCrypto and IndexedDB
+  // machinery into client mode for a single yes/no check. This mirrors
+  // store.js's own localStorage mirror key by name only, never its shape,
+  // and never writes to it.
+  const workspaceBtn = el('a', {
+    class: 'btn btn-ghost btn-lg no-print', href: workspaceHref(selection),
+  }, hasWorkspace() ? 'Open your workspace' : 'Set up your workspace');
+
   // Plain English toggle (Batch H, Feature 1): flips the local plainMode
   // binding, persists the choice, and redraws the plain-mode-dependent
   // parts of the page in place. Text stays constant; aria-pressed plus the
@@ -117,7 +131,16 @@ export function renderClient(root, tools, selection, clientName, noteText, print
   });
 
   const toolbar = el('div', { class: 'cli-toolbar no-print' },
-    shareBtn, printBtn, editBtn, plainBtn, themeToggleButton('btn-ghost btn-lg'));
+    shareBtn, printBtn, editBtn, workspaceBtn, plainBtn, themeToggleButton('btn-ghost btn-lg'));
+
+  // Awareness page link (Phase 11 Wave D, PRD-REGISTER section 12: "linked
+  // from ... the client page near the workspace CTA"). A quiet text line,
+  // not a button, so it reads as a footnote to workspaceBtn rather than
+  // competing with it for attention.
+  const workspaceAwarenessNote = el('p', { class: 't-meta my-awareness-link-line no-print' },
+    'Curious why the workspace exists? ',
+    el('a', { href: '/why-register.html', target: '_blank', rel: 'noopener noreferrer' }, 'Why we built this'),
+    '.');
 
   /* --- summary ----------------------------------------------------------- */
   const valueFigure = el('span', { class: 'num' }, money(0));
@@ -188,7 +211,7 @@ export function renderClient(root, tools, selection, clientName, noteText, print
 
     const printBlock = buildPrintQrBlock(selection, clientName, noteText, plainMode);
 
-    root.replaceChildren(header, toolbar, summary, progress, ...sections, footer, ...(printBlock ? [printBlock] : []));
+    root.replaceChildren(header, toolbar, workspaceAwarenessNote, summary, progress, ...sections, footer, ...(printBlock ? [printBlock] : []));
   }
 
   draw();
@@ -326,6 +349,19 @@ function buildEditUrl(selection, clientName, noteText) {
   if (clientName) params.set('client', clientName);
   if (noteText) params.set('note', noteText);
   return `${location.origin}/x?${params.toString().replace(/%2C/g, ',')}`;
+}
+
+/** Workspace CTA link (Phase 11 Wave B, PRD-REGISTER section 2). A
+    workspace that already exists on this device just gets reopened; one
+    that does not yet gets the current stack's ids so /my's setup can offer
+    "Start from your stack" (id 0 included, same list this whole page was
+    built from, so the id-0 trap is exactly as safe here as everywhere
+    else). */
+function workspaceHref(selection) {
+  return hasWorkspace() ? '/my' : `/my?from=${selection.join(',')}`;
+}
+function hasWorkspace() {
+  try { return localStorage.getItem('freestack:v1:my') !== null; } catch { return false; }
 }
 
 /** Canonical share URL for this exact stack (Batch H, Feature 3: the print
