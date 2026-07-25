@@ -239,7 +239,7 @@ Wave 3:
 
 ---
 
-## Phase 11: My Stack account register workspace `[~]`
+## Phase 11: My Stack account register workspace `[x]`
 
 Specified by `PRD-REGISTER.md` (authoritative). Owner: **workspace-builder** (new agent) for js/my/* and the WORKSPACE css block; content-editor for prose; verifier gates every wave. Informed by three research passes: storage-durability landmines (the file-is-primary doctrine), frontend/product inspiration (Watchtower tiles, consequence sentences, recessive sidebar, ledger costs), backend and security posture (store-adapter seam, PBKDF2 600k, strict CSP, privacy copy). Branch until Rocky's PR review, as ever.
 
