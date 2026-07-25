@@ -2,7 +2,7 @@
 
 [![Netlify Status](https://api.netlify.com/api/v1/badges/3bbf5cb0-fbf6-4ccc-b07a-b377af02b444/deploy-status)](https://app.netlify.com/projects/kai-freestack/deploys)
 
-Live at [kai-freestack.netlify.app](https://kai-freestack.netlify.app). Every push to `main` deploys to production.
+Live at [tools.airl.io](https://tools.airl.io) (Netlify project `kai-freestack`). Every push to `main` deploys to production.
 
 A curated directory of free and freemium software for small business, by [Kaipability Ltd](https://kaipability.com). No affiliate links, no sponsored placements, no vendor bias. Every tool ships with alternatives and training resources.
 
@@ -152,7 +152,7 @@ Client mode carries several small conveniences aimed at the person receiving the
 
 ```html
 <iframe
-  src="https://kai-freestack.netlify.app/embed.html?t=0,2,5&plain=1"
+  src="https://tools.airl.io/embed.html?t=0,2,5&plain=1"
   width="100%"
   height="600"
   loading="lazy"

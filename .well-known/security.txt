@@ -3,4 +3,4 @@
 Contact: mailto:info@kaipability.com
 Expires: 2027-07-25T00:00:00.000Z
 Preferred-Languages: en
-Canonical: https://kai-freestack.netlify.app/.well-known/security.txt
+Canonical: https://tools.airl.io/.well-known/security.txt
