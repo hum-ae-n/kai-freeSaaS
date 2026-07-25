@@ -1093,6 +1093,8 @@ button { font: inherit; }
    rules between entries. Archived entries get no extra treatment at all:
    retirements are a trust signal here, not something to visually apologise
    for, so .is-archived intentionally carries no rule of its own. */
+.pub-changelog-summary { cursor: pointer; list-style-position: outside; min-height: 24px; display: list-item; }
+.pub-changelog-details > ul { margin-top: var(--s-3); }
 .pub-changelog {
   margin-bottom: var(--s-10);
   padding: var(--s-5) var(--s-6);

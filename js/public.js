@@ -129,9 +129,13 @@ async function loadChangelog(section) {
   ));
 
   section.hidden = false;
+  // Collapsed by default (Rocky, 25 Jul): the strip is a trust signal for
+  // whoever wants it, not a headline. Native details keeps it keyboardable.
   section.replaceChildren(
-    el('span', { class: 'eyebrow' }, 'Recently updated'),
-    el('ul', { class: 'pub-changelog-list' }, list),
+    el('details', { class: 'pub-changelog-details' },
+      el('summary', { class: 'eyebrow pub-changelog-summary' }, 'Recently updated'),
+      el('ul', { class: 'pub-changelog-list' }, list),
+    ),
   );
 }
 
