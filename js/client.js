@@ -139,7 +139,7 @@ export function renderClient(root, tools, selection, clientName, noteText, print
   // competing with it for attention.
   const workspaceAwarenessNote = el('p', { class: 't-meta my-awareness-link-line no-print' },
     'Curious why the workspace exists? ',
-    el('a', { href: '/why-register.html', target: '_blank', rel: 'noopener noreferrer' }, 'Why we built this'),
+    el('a', { href: '/why-register.html' }, 'Why we built this'),
     '.');
 
   /* --- summary ----------------------------------------------------------- */

@@ -1124,6 +1124,15 @@ button { font: inherit; }
 .pub-footer { align-items: flex-start; }
 .pub-cta { margin-top: var(--s-1); }
 
+/* The footer's quiet links are the directory's only route into My Stack and
+   the awareness page, so on touch widths they must be genuinely tappable,
+   not 17px slivers of text (Rocky's 26 Jul phone test: taps on them failed).
+   Inline-block plus vertical padding lifts each to the 44px floor without
+   changing how the sentence reads. */
+@media (max-width: 768px) {
+  .pub-footer a { display: inline-block; padding: 12px 4px; margin: -4px 0; min-height: 44px; box-sizing: border-box; }
+}
+
 /* Embed mode (Feature 2, Batch I / BUILD-PLAN 10.11): chrome-free, sized to
    sit inside an iframe rather than assume a full browser viewport. */
 #embed-root {
@@ -1663,6 +1672,17 @@ button { font: inherit; }
 }
 
 /* === PRINT ================================================================= */
+
+/* Recovery sheet, printed from the current page (workspace.js
+   printRecoverySheet). Invisible on screen; when body carries
+   .my-printing-sheet under print media, the sheet is the only thing
+   that prints. */
+.my-print-sheet { display: none; }
+
+@media print {
+  body.my-printing-sheet > *:not(.my-print-sheet) { display: none !important; }
+  body.my-printing-sheet .my-print-sheet { display: block; padding: 2rem; font-size: 12pt; color: #000; }
+}
 
 @media print {
   /* Print is always light, regardless of the reader's on-screen choice: a

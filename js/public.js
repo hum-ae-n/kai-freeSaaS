@@ -94,7 +94,7 @@ export function renderPublic(root, tools) {
       el('p', { class: 't-meta my-awareness-link-line' },
         'Also free: ', el('a', { href: '/my' }, 'My Stack'),
         ', a register for tracking who holds which account. ',
-        el('a', { href: '/why-register.html', target: '_blank', rel: 'noopener noreferrer' }, 'Why we built this'),
+        el('a', { href: '/why-register.html' }, 'Why we built this'),
         '.',
       ),
     ),
