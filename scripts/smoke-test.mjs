@@ -172,6 +172,20 @@ await hoverPage.goto(`${base}/`);
 await hoverPage.waitForSelector('#public-root .tool-card');
 await hoverPage.waitForTimeout(700); // let the entrance animation finish first
 const firstCardLi = hoverPage.locator('#public-root .card-grid > li').first();
+
+// Regression guard: revealFirstPaint used to leave its inline entrance
+// transition-delay set forever, which (transition-delay being a single CSS
+// property, not scoped to the reveal transition alone) also delayed the
+// hover-lift transition on this same element by however many milliseconds
+// the entrance stagger had assigned it. Once the entrance transition has
+// had time to finish, the inline delay must be gone.
+const leftoverDelay = await firstCardLi.evaluate((n) => ({
+  inline: n.style.transitionDelay,
+  computed: getComputedStyle(n).transitionDelay,
+}));
+check('homepage: entrance stagger leaves no residual inline transition-delay',
+  leftoverDelay.inline === '' && /^(0s(, 0s)*)$/.test(leftoverDelay.computed), JSON.stringify(leftoverDelay));
+
 await firstCardLi.scrollIntoViewIfNeeded();
 await firstCardLi.hover();
 await hoverPage.waitForTimeout(300);
@@ -179,6 +193,44 @@ const hoverTransform = await firstCardLi.evaluate((n) => getComputedStyle(n).tra
 check('homepage: hover lift actually translates the card (not silently blocked by the entrance animation)',
   hoverTransform !== 'none' && hoverTransform !== 'matrix(1, 0, 0, 1, 0, 0)', hoverTransform);
 await hoverPage.close();
+
+/* --- Phase 12.1 regression: reveal must not refire on every draw -----------
+   revealSections used to call revealOnIntersect unconditionally for every
+   category past the first on every draw(), including redraws triggered by
+   search keystrokes and persona-chip clicks. A freshly rebuilt heading that
+   was already on screen got handed a brand new IntersectionObserver, which
+   fired immediately and re-ran the entrance (opacity 1 -> 0 -> back to 1)
+   on every keystroke. This reproduces that scenario directly: scroll a
+   below-fold section into view, type into search, and poll the heading's
+   opacity through the window a re-fired transition would occupy. */
+const categoryOrder = [];
+for (const t of active) { if (!categoryOrder.includes(t.category)) categoryOrder.push(t.category); }
+const targetCategory = categoryOrder[1] ?? categoryOrder[0];
+
+const noRefirePage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await noRefirePage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await noRefirePage.goto(`${base}/`);
+await noRefirePage.waitForSelector('#public-root .tool-card');
+await noRefirePage.locator('.cli-category', { hasText: targetCategory }).first().scrollIntoViewIfNeeded();
+await noRefirePage.waitForTimeout(500); // let its own once-only, intended reveal finish
+const opacityBeforeTyping = await noRefirePage.locator('.cli-category', { hasText: targetCategory }).first()
+  .evaluate((n) => getComputedStyle(n).opacity);
+check('regression: below-fold section fully visible before typing (sanity)', opacityBeforeTyping === '1', opacityBeforeTyping);
+
+await noRefirePage.locator('#public-root input[type=search]').pressSequentially(targetCategory, { delay: 20 });
+let minOpacitySeen = 1;
+const pollUntil = Date.now() + 400;
+while (Date.now() < pollUntil) {
+  const heading = noRefirePage.locator('.cli-category', { hasText: targetCategory }).first();
+  if (await heading.count()) {
+    const opacityNow = Number(await heading.evaluate((n) => getComputedStyle(n).opacity));
+    minOpacitySeen = Math.min(minOpacitySeen, opacityNow);
+  }
+  await noRefirePage.waitForTimeout(20);
+}
+check('homepage: typing into search never dips a visible section heading below opacity 1',
+  minOpacitySeen >= 0.99, `min=${minOpacitySeen} category="${targetCategory}"`);
+await noRefirePage.close();
 
 const reducedMotionPage = await browser.newPage();
 await reducedMotionPage.route(/^(?!.*localhost).*$/, (route) => route.abort());

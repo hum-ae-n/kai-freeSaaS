@@ -57,11 +57,23 @@ function revealFirstPaint(node, index, reduced) {
     return;
   }
   node.classList.add('pub-reveal');
-  node.style.transitionDelay = `${Math.min(index, FIRST_SCREEN_CAP) * STAGGER_MS}ms`;
+  const delayMs = Math.min(index, FIRST_SCREEN_CAP) * STAGGER_MS;
+  node.style.transitionDelay = `${delayMs}ms`;
   // Two frames, not one: the browser needs to paint the opacity:0 starting
   // state before the is-in class flips the transition's end state, or the
   // two can collapse into a single frame with no visible transition at all.
   requestAnimationFrame(() => requestAnimationFrame(() => node.classList.add('is-in')));
+  // transition-delay is a single CSS property, not scoped to the reveal
+  // transition alone: leaving the inline value set would also delay any
+  // later transition on this same element, including the hover-lift
+  // transition the PUBLIC block puts on this same node for first-screen
+  // cards (.card-grid > li). Clearing it once the entrance transition ends
+  // (with a timeout fallback in case transitionend never fires, e.g. a
+  // backgrounded tab) keeps the stagger scoped to the entrance only, so a
+  // hovered first-screen card lifts with no residual delay.
+  const clearDelay = () => { node.style.transitionDelay = ''; };
+  node.addEventListener('transitionend', clearDelay, { once: true });
+  setTimeout(clearDelay, delayMs + 500);
 }
 
 /** Once-only scroll reveal for a list section below the first screenful.
@@ -236,21 +248,26 @@ export function renderPublic(root, tools) {
   );
 
   /** Applies the two first-paint/scroll reveal treatments (motion items 1
-      and 2) to a freshly built set of category sections. Only the very
-      first draw animates: search, Plain English and persona-pack changes
-      after that just show the result, since re-fading the grid on every
-      keystroke would not be a "first paint" any more. Later categories
-      still get their once-only IntersectionObserver reveal on every draw,
-      since those are freshly created elements each time and are typically
-      still below the fold regardless of which draw produced them. */
+      and 2) to a freshly built set of category sections, but only on the
+      very first draw of this page visit: search, Plain English and
+      persona-pack changes rebuild the section DOM on every keystroke and
+      click, and PRD section 16's motion budget is once per visit, not once
+      per rebuilt node. Without this early return, every later draw would
+      hand fresh, still-below-fold headings to a brand new
+      IntersectionObserver, which would fire immediately for anything
+      already in view and fade it from opacity 1 to 0 and back, exactly the
+      re-fade-on-keystroke defect this guards against. A later draw's
+      sections are simply left with no reveal class at all, so they render
+      fully visible from the moment they are attached, no opacity or
+      transform change at all. */
   function revealSections(sections, animateFirstScreen) {
+    if (!animateFirstScreen) return;
     const reduced = prefersReducedMotion();
     for (let i = 0; i < sections.length; i += 2) {
       const heading = sections[i];
       const grid = sections[i + 1];
       const isFirstCategory = i === 0;
       if (isFirstCategory) {
-        if (!animateFirstScreen) continue;
         revealFirstPaint(heading, 0, reduced);
         const cards = grid ? [...grid.children] : [];
         cards.forEach((li, idx) => revealFirstPaint(li, idx + 1, reduced));
