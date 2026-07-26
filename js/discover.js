@@ -21,6 +21,20 @@
  * in its lifecycle: exits and the undo return are opacity-only, and a
  * sub-threshold release simply leaves the card exactly where it already was
  * (nothing to spring back from, since nothing ever moved).
+ *
+ * PHASE 12.3 (PRD section 16, "Grid quick-judge and list parity"): judgement
+ * read/write stays entirely in this module even though the browse list's
+ * state chip, chooser and corner controls now write to it too. getDecision/
+ * setDecision/clearDecision/subscribe below are that seam. A single shared
+ * in-memory copy (getSharedState) backs both the deck and the browse list
+ * for the page's whole lifetime, so a judgement made in either place is
+ * visible to the other without a re-read: every read in this file goes
+ * through the same object reference, its properties simply get mutated in
+ * place by whichever side wrote last. notify() is the half that still needs
+ * doing by hand, since a mutated object does not repaint itself; anything
+ * that renders a decision (the browse list's cards, this module's own
+ * completion screen while it is showing) subscribes and re-renders itself,
+ * never the unrelated rest of the page.
  */
 import { el, favicon, readPlainMode } from './data-loader.js';
 
@@ -88,11 +102,72 @@ function recordDecision(state, id, decision) {
 }
 
 /** Reverses exactly one decision: deletes the record and its seenIds entry,
-    per PRD 17's undo spec ("including its seenIds entry"). */
+    per PRD 17's undo spec ("including its seenIds entry"). Shared by the
+    deck's own single-level undo and by the browse list's "Clear" (PRD
+    section 16): clearing a judgement from the grid means "I have not
+    decided", so the tool becomes new-to-you again for a future deck, same
+    as an in-deck undo. */
 function undoStoredDecision(state, id) {
   delete state.decisions[String(id)];
   state.seenIds = state.seenIds.filter((existing) => existing !== id);
   writeState(state);
+}
+
+/* --- shared state and subscription (Phase 12.3, PRD section 16) -----------
+   One in-memory copy for the page's whole lifetime, not a fresh read per
+   deck session: the browse list's chip/chooser/corner controls need to read
+   and write the exact same object the deck itself is using, or a judgement
+   made on one side would not appear on the other without a hard reload. */
+let sharedState = null;
+const subscribers = new Set();
+
+function getSharedState() {
+  if (!sharedState) sharedState = readState();
+  return sharedState;
+}
+
+function notify() {
+  for (const fn of subscribers) {
+    try { fn(); } catch (cause) { console.warn('Discover subscriber threw:', cause); }
+  }
+}
+
+/** Subscribe to any decision change, from any source: the deck's own
+    buttons/keyboard/gesture, or the browse list's chip chooser and corner
+    controls. Returns an unsubscribe function. */
+export function subscribe(fn) {
+  subscribers.add(fn);
+  return () => subscribers.delete(fn);
+}
+
+/** Current decision for a tool id, or null when unjudged. Read API for the
+    browse list's state chip and corner controls. Number.isInteger, never a
+    truthiness test, so tool id 0 is never mistaken for "no id given". */
+export function getDecision(id) {
+  if (!Number.isInteger(id)) return null;
+  const rec = getSharedState().decisions[String(id)];
+  return rec ? rec.d : null;
+}
+
+/** Records have/want from outside the deck (PRD section 16's chip chooser
+    and corner buttons). Skip is deliberately not accepted here: it is a
+    deck-only concept with no browse-list control of its own (the section
+    names only a "Got it"/"On my list" chip, never a skip chip). */
+export function setDecision(id, decision) {
+  if (!Number.isInteger(id) || (decision !== 'have' && decision !== 'want')) return;
+  const state = getSharedState();
+  recordDecision(state, id, decision);
+  notify();
+}
+
+/** Clears a decision from outside the deck (the chooser's "Clear", or a
+    second activation of an already-set corner button). */
+export function clearDecision(id) {
+  if (!Number.isInteger(id)) return;
+  const state = getSharedState();
+  if (!(String(id) in state.decisions)) return; // nothing to clear: skip the notify
+  undoStoredDecision(state, id);
+  notify();
 }
 
 /* --- deck composition (PRD 17, "Deck composition") ------------------------ */
@@ -462,14 +537,17 @@ function buildCard(tool) {
  */
 export function openDiscoverDeck(options) {
   const { tools, container, opener, seed = { type: 'default' }, onClose, onBrowseAll } = options;
-  const state = readState();
+  // The shared, page-lifetime state object (Phase 12.3): reads anywhere in
+  // this closure stay live, since setDecision/clearDecision called from the
+  // browse list mutate this exact same object's properties rather than
+  // replacing it, and notify() is what tells this open deck to repaint.
+  const state = getSharedState();
   const reduced = prefersReducedMotion();
   const byId = new Map(tools.map((t) => [t.id, t]));
 
   const session = {
     order: buildOrder(tools, seed, state),
     index: 0,
-    tallies: { have: 0, want: 0, skip: 0 },
     lastJudged: null, // { id, decision, index }: single level, PRD 17 "Undo"
     // locked is true from the instant a judgement is accepted until the
     // next card is armed (dealCurrent) or the previous one is restored
@@ -481,6 +559,14 @@ export function openDiscoverDeck(options) {
     // id and never show it. A judgement is atomic per displayed card.
     locked: false,
   };
+  // Set only while the completion screen (below) is mounted: a chooser or
+  // corner change made from the browse list while it is showing must update
+  // its counts and hand-off link in place (PRD section 16), never wait for
+  // the reader to leave and come back.
+  let completionUnsub = null;
+  function stopCompletionSync() {
+    if (completionUnsub) { completionUnsub(); completionUnsub = null; }
+  }
 
   const progressEl = el('p', { class: 'discover-progress' });
   const liveEl = el('p', { class: 'discover-live visually-hidden', 'aria-live': 'polite' });
@@ -505,6 +591,7 @@ export function openDiscoverDeck(options) {
   );
 
   function closeDeck() {
+    stopCompletionSync();
     container.replaceChildren();
     container.hidden = true;
     if (typeof onClose === 'function') onClose();
@@ -559,7 +646,7 @@ export function openDiscoverDeck(options) {
     const card = stage.querySelector('.discover-card');
     session.lastJudged = { id, decision, index: session.index };
     recordDecision(state, id, decision);
-    session.tallies[decision] += 1;
+    notify(); // a card judged here must reach the browse list's chip too
     session.index += 1;
     undoBtn.hidden = false;
     updateProgress();
@@ -575,8 +662,8 @@ export function openDiscoverDeck(options) {
     if (!session.lastJudged) return; // one level only, a second Backspace does nothing
     const { id, index, decision } = session.lastJudged;
     const tool = byId.get(id);
-    session.tallies[decision] = Math.max(0, session.tallies[decision] - 1);
     undoStoredDecision(state, id);
+    notify();
     session.index = index;
     session.lastJudged = null;
     session.locked = false; // arm: the restored card now accepts a judgement
@@ -590,36 +677,64 @@ export function openDiscoverDeck(options) {
     animateCardIn(card, decision, reduced);
   }
 
+  /** Tallies are recomputed from the live shared state, filtered to this
+      deck's own dealt ids, rather than kept as a running counter: a single
+      source of truth that a browse-list chooser change and an in-deck
+      judgement both feed identically, so the two can never drift apart
+      (PRD section 16: "Deck and list never disagree after a repaint"). */
+  function sessionTallies() {
+    const tallies = { have: 0, want: 0, skip: 0 };
+    for (const id of session.order) {
+      const rec = state.decisions[String(id)];
+      if (rec && VALID_DECISIONS.includes(rec.d)) tallies[rec.d] += 1;
+    }
+    return tallies;
+  }
+
   function showCompletion() {
     controls.hidden = true;
     undoBtn.hidden = true;
-    const { have, want, skip } = session.tallies;
-    const summary = `${have} got it, ${want} on your list, ${skip} skipped.`;
     progressEl.textContent = 'Done';
-    announce(`Deck complete. ${summary}`);
-    const handoffUrl = buildHandoffUrl(state);
-    const openInMyStack = handoffUrl
-      ? el('a', { class: 'btn btn-primary', href: handoffUrl }, 'Open these in My Stack')
-      : null;
+
+    const summaryEl = el('p', {});
+    const openInMyStackSlot = el('span', {});
+    // Re-render just these two pieces, live, for as long as this exact
+    // completion screen stays mounted: a chip/chooser/corner change made on
+    // the browse list below must update the counts and hand-off link in
+    // place, never a stale snapshot from the moment the deck finished.
+    function renderSummary() {
+      const { have, want, skip } = sessionTallies();
+      summaryEl.textContent = `${have} got it, ${want} on your list, ${skip} skipped.`;
+      const handoffUrl = buildHandoffUrl(state);
+      openInMyStackSlot.replaceChildren(
+        handoffUrl ? el('a', { class: 'btn btn-primary', href: handoffUrl }, 'Open these in My Stack') : null,
+      );
+    }
+    renderSummary();
+    announce(`Deck complete. ${summaryEl.textContent}`);
+    stopCompletionSync(); // defensive: only one live subscription at a time
+    completionUnsub = subscribe(renderSummary);
+
     const anotherDeckBtn = el('button', { class: 'btn btn-secondary', type: 'button' }, 'Another deck');
     const browseAllBtn = el('button', { class: 'btn btn-ghost', type: 'button' }, 'Browse all');
     anotherDeckBtn.addEventListener('click', () => {
+      stopCompletionSync();
       session.order = buildOrder(tools, seed, state);
       session.index = 0;
-      session.tallies = { have: 0, want: 0, skip: 0 };
       session.lastJudged = null;
       if (!session.order.length) { showEmptyState(); return; }
       dealCurrent();
     });
     browseAllBtn.addEventListener('click', () => {
+      stopCompletionSync();
       closeDeck();
       if (typeof onBrowseAll === 'function') onBrowseAll();
     });
     stage.replaceChildren(
       el('div', { class: 'discover-completion' },
         el('h3', {}, 'Deck complete'),
-        el('p', {}, summary),
-        el('div', { class: 'discover-completion-actions' }, openInMyStack, anotherDeckBtn, browseAllBtn),
+        summaryEl,
+        el('div', { class: 'discover-completion-actions' }, openInMyStackSlot, anotherDeckBtn, browseAllBtn),
       ),
     );
   }

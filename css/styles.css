@@ -1266,6 +1266,85 @@ button { font: inherit; }
   #public-root .card-grid > li:hover { transform: none; box-shadow: var(--shadow-1); }
 }
 
+/* --- judgement parity (Phase 12.3, PRD section 16, "Grid quick-judge and
+   list parity") -------------------------------------------------------
+   The state chip and its chooser sit in normal flow, appended after the
+   CLIENT block's own .tool-card inside the same <li> (js/public.js does
+   this at the DOM level rather than editing that file); the corner buttons
+   are absolutely positioned within that same <li>, which is why it needs
+   position: relative here. No new transition or animation is introduced by
+   any rule below: the corner buttons appear and disappear with a plain
+   display swap, since the PRD section 16 motion inventory is exhaustive and
+   names no motion for this control. */
+#public-root .card-grid > li { position: relative; }
+
+.pub-judge-corners { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  .card-grid > li:hover .pub-judge-corners,
+  .card-grid > li:focus-within .pub-judge-corners {
+    display: flex;
+    position: absolute;
+    top: var(--s-2);
+    left: var(--s-2);
+    right: var(--s-2);
+    justify-content: space-between;
+    z-index: 2;
+  }
+}
+.pub-judge-corner-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: var(--r-pill);
+  border: var(--bw-hair) solid var(--steel-3);
+  background: var(--paper);
+  color: var(--ink-2);
+  font-family: var(--font-sans);
+  font-size: var(--fs-16);
+  font-weight: 700;
+  box-shadow: var(--shadow-1);
+  cursor: pointer;
+}
+.pub-judge-corner-btn:hover { border-color: var(--ink-3); color: var(--ink); }
+.pub-judge-corner-btn[aria-pressed="true"] {
+  background: var(--oxblood-tint);
+  border-color: var(--oxblood);
+  color: var(--oxblood-deep);
+}
+
+.pub-judge-chip-wrap:empty { display: none; }
+.pub-judge-chip-wrap {
+  margin-top: var(--s-3);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+}
+.pub-judge-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 16px;
+  border: var(--bw-hair) solid var(--oxblood);
+  border-radius: var(--r-pill);
+  background: var(--oxblood-tint);
+  color: var(--oxblood-deep);
+  font-family: var(--font-sans);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  letter-spacing: var(--tr-loose);
+  cursor: pointer;
+}
+.pub-judge-chip:hover { background: var(--oxblood); color: var(--paper); }
+.pub-judge-chooser {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+.pub-judge-chooser .btn { min-height: 44px; padding: 10px 14px; justify-content: center; }
+
 /* The footer's quiet links are the directory's only route into My Stack and
    the awareness page, so on touch widths they must be genuinely tappable,
    not 17px slivers of text (Rocky's 26 Jul phone test: taps on them failed).

@@ -17,9 +17,38 @@
  * entirely owned by discover.js. A currently active persona-pack chip seeds
  * the deck with that pack's ids (PRD section 17, "Deck composition"),
  * otherwise the deck falls back to its own default mix.
+ *
+ * PHASE 12.3 (PRD section 16, "Grid quick-judge and list parity"): every
+ * browse card whose tool has a Discover decision carries a state chip, and
+ * every card additionally grows two hover-only corner buttons on
+ * hover-capable, fine-pointer devices. Both write through discover.js's
+ * getDecision/setDecision/clearDecision/subscribe (loadDiscoverModule below
+ * shares the same dynamic import the Discover button already used, so
+ * loading it here costs nothing extra and still degrades to "no parity
+ * controls" rather than a broken page if the module never arrives). This
+ * file never builds the <li>/<article> card markup itself (that stays
+ * client.js's, Phase 4's file): it decorates the already-rendered <li> in
+ * place by appending sibling elements, the same technique the hover-lift
+ * CSS above already uses to work around the same ownership boundary.
  */
 import { el, themeToggleButton, readPlainMode, writePlainMode } from './data-loader.js';
 import { buildCardSections } from './client.js';
+
+/** Shared across every call (there is only ever one renderPublic() per page
+    load in practice, but this also means the Discover button's own click
+    handler and the judgement-parity bootstrap below reuse one cached
+    import rather than racing two separate dynamic imports of the same
+    module. Resolves to null, never rejects, on load failure. */
+let discoverModulePromise = null;
+function loadDiscoverModule() {
+  if (!discoverModulePromise) {
+    discoverModulePromise = import('./discover.js').catch((cause) => {
+      console.warn('Discover module unavailable:', cause);
+      return null;
+    });
+  }
+  return discoverModulePromise;
+}
 
 /** Live search across name, category and description (whichever text is
     currently on screen: plain when Plain English is on and the tool has a
@@ -233,7 +262,9 @@ export function renderPublic(root, tools) {
     if (discoverLoading) return;
     discoverLoading = true;
     try {
-      const { openDiscoverDeck } = await import('./discover.js');
+      const mod = await loadDiscoverModule();
+      if (!mod) throw new Error('module unavailable');
+      const { openDiscoverDeck } = mod;
       discoverOpen = true;
       openDiscoverDeck({
         tools,
@@ -330,9 +361,24 @@ export function renderPublic(root, tools) {
     }
   }
 
-  function draw() {
-    const filtered = active.filter((t) =>
+  // Discover's read/write API (getDecision/setDecision/clearDecision), once
+  // js/discover.js has loaded; null until then, and forever null if it
+  // never arrives, in which case every card simply renders with no
+  // judgement parity controls at all (the platform tolerance PRD section 16
+  // already asks for, extended to this wave's additions).
+  let judgeApi = null;
+
+  function computeFiltered() {
+    return active.filter((t) =>
       matchesSearch(t, searchTerm, plainMode) && (activePersonaIds === null || activePersonaIds.has(t.id)));
+  }
+
+  function decorateAllCards(sectionNodes, filteredTools) {
+    if (judgeApi) decorateCardsWithJudgement(sectionNodes, filteredTools, judgeApi);
+  }
+
+  function draw() {
+    const filtered = computeFiltered();
     if (!filtered.length) {
       listWrap.replaceChildren(el('p', { class: 'pub-empty' }, 'No tools match your search.'));
       return;
@@ -341,6 +387,7 @@ export function renderPublic(root, tools) {
     listWrap.replaceChildren(...sections);
     revealSections(sections, !hasRevealedList);
     hasRevealedList = true;
+    decorateAllCards(sections, filtered);
   }
 
   draw();
@@ -359,6 +406,158 @@ export function renderPublic(root, tools) {
     draw,
     scrollToBrowse,
   });
+
+  // Judgement parity bootstrap (PRD section 16): the module may still be
+  // loading (or may never arrive) by the time draw() first ran above, so
+  // once it resolves, decorate whatever the list currently holds in place
+  // rather than calling draw() again (which would rebuild card DOM for no
+  // reason this late). From here on, any decision change anywhere, deck or
+  // browse list, calls this same targeted redecoration through subscribe:
+  // never a full rebuild, so settled sections are never re-faded (the
+  // reveal-once law extended to this redraw path).
+  loadDiscoverModule().then((mod) => {
+    if (!mod) return;
+    judgeApi = mod;
+    const redecorate = () => decorateAllCards([...listWrap.children], computeFiltered());
+    redecorate();
+    mod.subscribe(redecorate);
+  });
+}
+
+/* --- judgement parity (Phase 12.3, PRD section 16, "Grid quick-judge and
+   list parity") --------------------------------------------------------
+   Every browse card whose tool carries a Discover decision gets a state
+   chip, on every device. Every card also grows two corner buttons, but
+   those only ever show under (hover: hover) and (pointer: fine): the CSS in
+   the PUBLIC block keeps them display:none, and therefore out of the tab
+   order, everywhere else, so "absent entirely on coarse-pointer devices"
+   holds without any UA sniffing here. A corner reflects the current
+   decision and clears it on a second activation of the same control, so a
+   fine-pointer visitor never needs the chooser just to toggle a card. */
+
+/** Pairs each rendered <li> with its tool by replaying the same category
+    grouping buildCardSections (client.js, Phase 4's file) used to build
+    these exact sections: a Map keyed by category, tools pushed in the
+    order they appear in filteredTools. Positional, not attribute-based,
+    because client.js's <li> carries no data-id of its own to read instead,
+    and this file may not add one to that function without touching a file
+    Phase 4 owns. */
+function decorateCardsWithJudgement(sectionNodes, filteredTools, judgeApi) {
+  const groups = new Map();
+  for (const tool of filteredTools) {
+    if (!groups.has(tool.category)) groups.set(tool.category, []);
+    groups.get(tool.category).push(tool);
+  }
+  let ulIndex = 0; // sections alternate h2, ul per category, in this same order
+  for (const toolsInGroup of groups.values()) {
+    const ul = sectionNodes[ulIndex * 2 + 1];
+    ulIndex += 1;
+    if (!ul) continue;
+    const lis = [...ul.children];
+    toolsInGroup.forEach((tool, j) => { if (lis[j]) decorateCard(lis[j], tool, judgeApi); });
+  }
+}
+
+/** Idempotent: removes whatever this function itself last appended before
+    adding fresh nodes, so a live subscribe notification (fired on every
+    decision change, from any source) never stacks a second chip or corner
+    pair onto the same card. */
+function decorateCard(li, tool, judgeApi) {
+  li.querySelectorAll(':scope > .pub-judge-corners, :scope > .pub-judge-chip-wrap').forEach((n) => n.remove());
+  li.append(buildJudgeCorners(li, tool, judgeApi), buildJudgeChipWrap(li, tool, judgeApi));
+}
+
+/** setDecision/clearDecision below call discover.js's notify() before
+    returning, which runs decorateCard again synchronously: by the time a
+    click handler here gets back control, the control the reader just
+    activated has already been replaced. This moves focus onto whatever now
+    represents the card, in priority order (the chip, a visible corner, the
+    card itself as a last resort), so a keyboard user's focus is never
+    silently dropped to <body>. */
+function focusJudgeChip(li) {
+  const chip = li.querySelector(':scope > .pub-judge-chip-wrap .pub-judge-chip');
+  if (chip) { chip.focus(); return; }
+  const corner = li.querySelector(':scope > .pub-judge-corners .pub-judge-corner-have');
+  if (corner && corner.offsetParent !== null) { corner.focus(); return; }
+  const article = li.querySelector(':scope > article');
+  if (!article) return;
+  article.setAttribute('tabindex', '-1');
+  article.focus();
+  article.addEventListener('blur', () => article.removeAttribute('tabindex'), { once: true });
+}
+
+/** Corner quick-judge buttons (PRD section 16): tick ("Got it") and plus
+    ("Try it", the corner's short label for "add to my list"), CSS-gated to
+    (hover: hover) and (pointer: fine) so they never enter the tab order on
+    a touch device. aria-pressed mirrors the current decision; activating
+    the control that already matches the current decision clears it. */
+function buildJudgeCorners(li, tool, judgeApi) {
+  const decision = judgeApi.getDecision(tool.id);
+  const haveBtn = el('button', {
+    class: 'pub-judge-corner-btn pub-judge-corner-have', type: 'button',
+    'aria-label': 'Got it', title: 'Got it', 'aria-pressed': String(decision === 'have'),
+  }, '✓');
+  const wantBtn = el('button', {
+    class: 'pub-judge-corner-btn pub-judge-corner-want', type: 'button',
+    'aria-label': 'Try it', title: 'Try it', 'aria-pressed': String(decision === 'want'),
+  }, '+');
+  haveBtn.addEventListener('click', () => {
+    if (judgeApi.getDecision(tool.id) === 'have') judgeApi.clearDecision(tool.id);
+    else judgeApi.setDecision(tool.id, 'have');
+    focusJudgeChip(li);
+  });
+  wantBtn.addEventListener('click', () => {
+    if (judgeApi.getDecision(tool.id) === 'want') judgeApi.clearDecision(tool.id);
+    else judgeApi.setDecision(tool.id, 'want');
+    focusJudgeChip(li);
+  });
+  return el('div', { class: 'pub-judge-corners' }, haveBtn, wantBtn);
+}
+
+/** The state chip and its Got it / Add to my list / Clear chooser (PRD
+    section 16): the single edit path for a judgement outside the deck,
+    present on every device regardless of pointer or hover capability. A
+    still-unjudged tool gets an empty wrapper: there is nothing to open a
+    chooser for yet, and the corner buttons above (fine-pointer only) or the
+    deck itself (universally) are how it gets judged for the first time. */
+function buildJudgeChipWrap(li, tool, judgeApi) {
+  const wrap = el('div', { class: 'pub-judge-chip-wrap' });
+  const decision = judgeApi.getDecision(tool.id);
+  if (decision !== 'have' && decision !== 'want') return wrap;
+
+  const chip = el('button', {
+    class: 'pub-judge-chip', type: 'button', 'aria-haspopup': 'true', 'aria-expanded': 'false',
+  }, decision === 'have' ? 'Got it' : 'On my list');
+  wrap.append(chip);
+
+  let chooser = null;
+  function closeChooser() {
+    if (!chooser) return;
+    chooser.remove();
+    chooser = null;
+    chip.setAttribute('aria-expanded', 'false');
+  }
+  chip.addEventListener('click', () => {
+    if (chooser) { closeChooser(); return; } // second activation of the chip: toggle it shut
+    chip.setAttribute('aria-expanded', 'true');
+    const gotItBtn = el('button', { class: 'btn btn-secondary', type: 'button' }, 'Got it');
+    const wantBtn = el('button', { class: 'btn btn-secondary', type: 'button' }, 'Add to my list');
+    const clearBtn = el('button', { class: 'btn btn-ghost', type: 'button' }, 'Clear');
+    gotItBtn.addEventListener('click', () => { judgeApi.setDecision(tool.id, 'have'); focusJudgeChip(li); });
+    wantBtn.addEventListener('click', () => { judgeApi.setDecision(tool.id, 'want'); focusJudgeChip(li); });
+    clearBtn.addEventListener('click', () => { judgeApi.clearDecision(tool.id); focusJudgeChip(li); });
+    chooser = el('div', {
+      class: 'pub-judge-chooser', role: 'group', 'aria-label': `Change judgement for ${tool.name}`,
+    }, gotItBtn, wantBtn, clearBtn);
+    chooser.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      closeChooser();
+      chip.focus();
+    });
+    wrap.append(chooser);
+  });
+  return wrap;
 }
 
 /** Persona-pack chips (PRD section 16, entry path 2). Fetched separately

@@ -500,6 +500,254 @@ const controlsDisplayAtCompletion = await hiddenPage.locator('.discover-controls
 check('discover: controls row computed display is none at completion', controlsDisplayAtCompletion === 'none', controlsDisplayAtCompletion);
 await hiddenPage.close();
 
+/* --- Phase 12.3: list parity and quick-judge (PRD section 16) -------------
+   getDecision/setDecision/clearDecision/subscribe live in js/discover.js;
+   this section drives them only through the UI (the browse list's chip
+   chooser and corner buttons, and the deck itself), the same way a reader
+   would, never by calling the module's exports directly. */
+async function toolNameFor(pg, id) {
+  return pg.evaluate(async (rawId) => {
+    const res = await fetch('/data/tools.json');
+    const tools = await res.json();
+    return tools.find((t) => String(t.id) === rawId)?.name;
+  }, id);
+}
+function browseCardFor(pg, name) {
+  return pg.locator('#public-root .card-grid > li', { hasText: name }).first();
+}
+
+// Tool 0, judged left in the deck (have), must appear as a chip on the
+// matching browse card, and the chooser's Clear must remove it from the
+// exact localStorage shape the deck itself writes (decisions keyed by
+// decimal id string, "0" included, per PRD section 17).
+const parityPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await parityPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await openDiscoverDeck(parityPage);
+await clearDiscoverStorage(parityPage);
+await parityPage.reload();
+await parityPage.waitForSelector('#public-root .tool-card');
+await parityPage.locator('[data-discover-entry]').click();
+await parityPage.waitForSelector('.discover-card');
+const parityFirstId = await parityPage.locator('.discover-card').getAttribute('data-id');
+await parityPage.locator('.discover-panel').press('ArrowLeft'); // have
+await parityPage.waitForTimeout(400);
+await parityPage.locator('.discover-close').click();
+await parityPage.waitForTimeout(300); // let the judgement-parity bootstrap import/decorate settle
+
+const parityToolName = await toolNameFor(parityPage, parityFirstId);
+const parityCard = browseCardFor(parityPage, parityToolName);
+await parityCard.scrollIntoViewIfNeeded();
+const chipText = await parityCard.locator('.pub-judge-chip').textContent().catch(() => '');
+check('parity: a deck decision (tool 0, have) renders as a list chip',
+  parityFirstId === '0' && chipText.trim() === 'Got it', `id=${parityFirstId} chip="${chipText}"`);
+
+await parityCard.locator('.pub-judge-chip').click();
+await parityPage.waitForTimeout(150);
+await parityCard.locator('.pub-judge-chooser button', { hasText: 'Clear' }).click();
+await parityPage.waitForTimeout(200);
+const decisionsAfterChooserClear = await parityPage.evaluate(() => JSON.parse(localStorage.getItem('freestack:v1:discover')).decisions);
+const chipCountAfterClear = await parityCard.locator('.pub-judge-chip').count();
+check('parity: chooser Clear removes the id from the stored decisions object',
+  !('0' in decisionsAfterChooserClear) && chipCountAfterClear === 0, JSON.stringify(decisionsAfterChooserClear));
+await parityPage.close();
+
+// Corner quick-judge: present and operable under (hover: hover) and
+// (pointer: fine), and includes the clear-on-second-activation path.
+const finePage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await finePage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await finePage.goto(`${base}/`);
+await finePage.waitForSelector('#public-root .tool-card');
+await finePage.evaluate(() => localStorage.removeItem('freestack:v1:discover'));
+await finePage.reload();
+await finePage.waitForSelector('#public-root .tool-card');
+await finePage.waitForTimeout(400); // let the discover.js dynamic import resolve
+const fineFirstLi = finePage.locator('#public-root .card-grid > li').first();
+await fineFirstLi.hover();
+const cornersDisplayFine = await fineFirstLi.locator('.pub-judge-corners').evaluate((n) => getComputedStyle(n).display);
+check('parity: corner quick-judge buttons are shown under (hover: hover) and (pointer: fine)',
+  cornersDisplayFine === 'flex', cornersDisplayFine);
+await fineFirstLi.locator('.pub-judge-corner-have').click();
+await finePage.waitForTimeout(200);
+const decisionsAfterCornerSet = await finePage.evaluate(() => JSON.parse(localStorage.getItem('freestack:v1:discover')).decisions);
+await fineFirstLi.hover();
+await fineFirstLi.locator('.pub-judge-corner-have').click(); // second activation of the same control
+await finePage.waitForTimeout(200);
+const decisionsAfterCornerClear = await finePage.evaluate(() => JSON.parse(localStorage.getItem('freestack:v1:discover')).decisions);
+check('parity: a second activation of the same corner control clears the decision',
+  decisionsAfterCornerSet['0']?.d === 'have' && !('0' in decisionsAfterCornerClear),
+  `afterSet=${JSON.stringify(decisionsAfterCornerSet)} afterClear=${JSON.stringify(decisionsAfterCornerClear)}`);
+await finePage.close();
+
+// Coarse pointer: corners must be entirely absent, not merely invisible.
+// Playwright has no direct "force (pointer: coarse)" media override, so
+// this emulates a touch/mobile device (hasTouch + isMobile), which is how
+// Chromium itself derives (hover: none)/(pointer: coarse) from the device
+// metrics override; a plain context with no touch always reports
+// (hover: hover)/(pointer: fine) regardless of viewport width alone.
+const coarseCtx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+const coarsePage = await coarseCtx.newPage();
+await coarsePage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await coarsePage.goto(`${base}/`);
+await coarsePage.waitForSelector('#public-root .tool-card');
+const coarseMediaMatches = await coarsePage.evaluate(() => ({
+  hoverNone: matchMedia('(hover: none)').matches,
+  pointerCoarse: matchMedia('(pointer: coarse)').matches,
+}));
+await coarsePage.waitForTimeout(400);
+const coarseCornersDisplay = await coarsePage.locator('#public-root .card-grid > li').first()
+  .locator('.pub-judge-corners').evaluate((n) => getComputedStyle(n).display);
+check('parity: corner quick-judge buttons are absent (display: none) under coarse-pointer emulation',
+  coarseMediaMatches.hoverNone && coarseMediaMatches.pointerCoarse && coarseCornersDisplay === 'none',
+  JSON.stringify({ ...coarseMediaMatches, display: coarseCornersDisplay }));
+await coarseCtx.close();
+
+// 44px targets: the chip and every chooser option, at 375px.
+const parity375 = await browser.newPage({ viewport: { width: 375, height: 900 } });
+await parity375.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await openDiscoverDeck(parity375);
+await clearDiscoverStorage(parity375);
+await parity375.reload();
+await parity375.waitForSelector('#public-root .tool-card');
+await parity375.locator('[data-discover-entry]').click();
+await parity375.waitForSelector('.discover-card');
+await parity375.locator('.discover-panel').press('ArrowLeft');
+await parity375.waitForTimeout(400);
+await parity375.locator('.discover-close').click();
+await parity375.waitForTimeout(300);
+const parity375ToolName = await toolNameFor(parity375, '0');
+const parity375Card = browseCardFor(parity375, parity375ToolName);
+await parity375Card.scrollIntoViewIfNeeded();
+const chipBox375 = await parity375Card.locator('.pub-judge-chip').boundingBox();
+await parity375Card.locator('.pub-judge-chip').click();
+await parity375.waitForTimeout(150);
+const chooserBoxes375 = await parity375Card.locator('.pub-judge-chooser button').evaluateAll(
+  (nodes) => nodes.map((n) => n.getBoundingClientRect().height));
+check('parity: state chip is at least 44px tall at 375px', chipBox375 && chipBox375.height >= 44, JSON.stringify(chipBox375));
+check('parity: every chooser option is at least 44px tall at 375px',
+  chooserBoxes375.length === 3 && chooserBoxes375.every((h) => h >= 44), JSON.stringify(chooserBoxes375));
+await parity375.close();
+
+// Reveal-once law extended to this redraw path: opening or acting on the
+// chooser must never dip an already-settled, below-fold section's opacity,
+// the same regression class 12.1's fix round hardened for search/persona
+// redraws.
+const parityRevealPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await parityRevealPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await openDiscoverDeck(parityRevealPage);
+await clearDiscoverStorage(parityRevealPage);
+await parityRevealPage.reload();
+await parityRevealPage.waitForSelector('#public-root .tool-card');
+await parityRevealPage.waitForTimeout(700); // let the first-screen entrance reveal finish
+await parityRevealPage.locator('[data-discover-entry]').click();
+await parityRevealPage.waitForSelector('.discover-card');
+await parityRevealPage.locator('.discover-panel').press('ArrowLeft');
+await parityRevealPage.waitForTimeout(400);
+await parityRevealPage.locator('.discover-close').click();
+await parityRevealPage.waitForTimeout(300);
+const parityCategoryOrder = [];
+for (const t of active) { if (!parityCategoryOrder.includes(t.category)) parityCategoryOrder.push(t.category); }
+const parityTargetCategory = parityCategoryOrder[1] ?? parityCategoryOrder[0];
+const parityHeading = parityRevealPage.locator('.cli-category', { hasText: parityTargetCategory }).first();
+await parityHeading.scrollIntoViewIfNeeded();
+await parityRevealPage.waitForTimeout(400);
+const parityToolNameForReveal = await toolNameFor(parityRevealPage, '0');
+const parityRevealCard = browseCardFor(parityRevealPage, parityToolNameForReveal);
+await parityRevealCard.scrollIntoViewIfNeeded();
+await parityRevealCard.locator('.pub-judge-chip').click();
+let parityMinOpacity = 1;
+const parityPollUntil = Date.now() + 500;
+while (Date.now() < parityPollUntil) {
+  if (await parityHeading.count()) {
+    const op = Number(await parityHeading.evaluate((n) => getComputedStyle(n).opacity));
+    parityMinOpacity = Math.min(parityMinOpacity, op);
+  }
+  await parityRevealPage.waitForTimeout(20);
+}
+await parityRevealCard.locator('.pub-judge-chooser button', { hasText: 'Clear' }).click();
+const parityPollUntil2 = Date.now() + 500;
+while (Date.now() < parityPollUntil2) {
+  if (await parityHeading.count()) {
+    const op = Number(await parityHeading.evaluate((n) => getComputedStyle(n).opacity));
+    parityMinOpacity = Math.min(parityMinOpacity, op);
+  }
+  await parityRevealPage.waitForTimeout(20);
+}
+check('parity: opening and acting on the chooser never dips a settled section below opacity 1',
+  parityMinOpacity >= 0.99, `min=${parityMinOpacity} category="${parityTargetCategory}"`);
+await parityRevealPage.close();
+
+// Counts agree: judge a deck through to completion, change one decision via
+// the browse-list chooser while the completion card is still showing, and
+// confirm its summary and hand-off link update in place (PRD section 16:
+// "Deck and list never disagree after a repaint").
+const countsPage = await browser.newPage({ viewport: { width: 1280, height: 1400 } });
+await countsPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await openDiscoverDeck(countsPage);
+await clearDiscoverStorage(countsPage);
+await countsPage.reload();
+await countsPage.waitForSelector('#public-root .tool-card');
+await countsPage.locator('[data-discover-entry]').click();
+await countsPage.waitForSelector('.discover-card');
+let countsGuard = 0;
+while ((await countsPage.locator('.discover-completion').count()) === 0 && countsGuard < 14) {
+  await countsPage.locator('.discover-panel').press(countsGuard % 2 === 0 ? 'ArrowLeft' : 'ArrowRight');
+  await countsPage.waitForTimeout(300);
+  countsGuard++;
+}
+await countsPage.waitForSelector('.discover-completion');
+const decisionsBeforeCountsEdit = await countsPage.evaluate(() => JSON.parse(localStorage.getItem('freestack:v1:discover')).decisions);
+const haveIdToClear = Object.entries(decisionsBeforeCountsEdit).find(([, v]) => v.d === 'have')?.[0];
+const haveCountBefore = Object.values(decisionsBeforeCountsEdit).filter((v) => v.d === 'have').length;
+const countsToolName = await toolNameFor(countsPage, haveIdToClear);
+const countsCard = browseCardFor(countsPage, countsToolName);
+await countsCard.scrollIntoViewIfNeeded();
+await countsCard.locator('.pub-judge-chip').click();
+await countsPage.waitForTimeout(150);
+await countsCard.locator('.pub-judge-chooser button', { hasText: 'Clear' }).click();
+await countsPage.waitForTimeout(300);
+const completionSummaryAfterEdit = await countsPage.locator('.discover-completion p').first().textContent();
+const expectedHaveCount = haveCountBefore - 1;
+check('parity: the still-open deck completion card updates its counts after a chooser change',
+  completionSummaryAfterEdit.startsWith(`${expectedHaveCount} got it`),
+  `expected=${expectedHaveCount} summary="${completionSummaryAfterEdit}"`);
+const completionHandoffAfterEdit = await countsPage.locator('.discover-completion-actions a.btn').getAttribute('href').catch(() => null);
+check('parity: the hand-off link no longer includes the id cleared via the chooser',
+  completionHandoffAfterEdit === null || !(completionHandoffAfterEdit.split('have=')[1] ?? '').split(',').includes(haveIdToClear),
+  `href=${completionHandoffAfterEdit} cleared=${haveIdToClear}`);
+await countsPage.close();
+
+// Keyboard-only operation of the chip chooser: Enter opens it, Tab reaches
+// the first option, Escape closes it and returns focus to the chip.
+const keyboardPage = await browser.newPage();
+await keyboardPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await openDiscoverDeck(keyboardPage);
+await clearDiscoverStorage(keyboardPage);
+await keyboardPage.reload();
+await keyboardPage.waitForSelector('#public-root .tool-card');
+await keyboardPage.locator('[data-discover-entry]').click();
+await keyboardPage.waitForSelector('.discover-card');
+await keyboardPage.locator('.discover-panel').press('ArrowLeft');
+await keyboardPage.waitForTimeout(400);
+await keyboardPage.locator('.discover-close').click();
+await keyboardPage.waitForTimeout(300);
+const keyboardToolName = await toolNameFor(keyboardPage, '0');
+const keyboardCard = browseCardFor(keyboardPage, keyboardToolName);
+await keyboardCard.scrollIntoViewIfNeeded();
+await keyboardCard.locator('.pub-judge-chip').focus();
+await keyboardPage.keyboard.press('Enter');
+await keyboardPage.waitForTimeout(150);
+const chooserOpenedByKeyboard = await keyboardCard.locator('.pub-judge-chooser').count();
+await keyboardPage.keyboard.press('Tab');
+const focusedAfterTab = await keyboardPage.evaluate(() => document.activeElement?.textContent);
+await keyboardPage.keyboard.press('Escape');
+await keyboardPage.waitForTimeout(150);
+const chooserClosedByEscape = await keyboardCard.locator('.pub-judge-chooser').count();
+const focusAfterEscape = await keyboardPage.evaluate(() => document.activeElement?.classList.contains('pub-judge-chip'));
+check('parity: the chip chooser opens on Enter, tabs to its first option and closes on Escape with focus restored',
+  chooserOpenedByKeyboard === 1 && focusedAfterTab === 'Got it' && chooserClosedByEscape === 0 && focusAfterEscape === true,
+  `opened=${chooserOpenedByKeyboard} tabbedTo="${focusedAfterTab}" closed=${chooserClosedByEscape} focusBack=${focusAfterEscape}`);
+await keyboardPage.close();
+
 /* --- curator mode (staff path /x, batch I) --------------------------------- */
 await page.goto(`${base}/x`);
 await page.waitForSelector('.tools-table');
