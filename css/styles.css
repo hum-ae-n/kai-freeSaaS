@@ -1124,6 +1124,139 @@ button { font: inherit; }
 .pub-footer { align-items: flex-start; }
 .pub-cta { margin-top: var(--s-1); }
 
+/* --- hero trust signals (Phase 12.1, PRD section 16) ----------------------
+   The three verifiable claims sit under the strapline as a quiet stacked
+   list, never as boastful metric tiles: same type scale as the existing
+   .trust-line, just three lines instead of one. */
+.pub-hero-trust {
+  margin-top: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.pub-hero-trust-item {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--fs-14);
+  max-width: none;
+}
+.pub-hero-trust-item.trust-line { color: var(--ink-3); }
+.pub-hero-count strong { color: var(--ink); font-family: var(--font-sans); }
+
+/* --- entry paths (Phase 12.1, PRD section 16) ------------------------------
+   Three equal-weight cards: Discover (a stub this wave, wired to scroll
+   only, see js/public.js), persona packs, browse all. One shared grid for
+   every viewport: mobile stacks to a single column (Discover naturally
+   leading, since it is first in source order and this grid never
+   duplicates the markup per breakpoint), 768px and up lays the three out
+   side by side. */
+.pub-entry { margin-bottom: var(--s-10); }
+.pub-entry-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--s-4);
+}
+@media (min-width: 768px) {
+  .pub-entry-grid { grid-template-columns: repeat(3, 1fr); }
+}
+.pub-entry-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-6);
+  background: var(--paper-2);
+  border: var(--border);
+}
+.pub-entry-item h2 {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--fs-21);
+  line-height: var(--lh-21);
+  letter-spacing: var(--tr-tight);
+  color: var(--ink);
+}
+.pub-entry-item .t-small { max-width: none; }
+.pub-discover-btn, .pub-browse-btn { align-self: stretch; justify-content: center; }
+
+.pub-persona-chip-row { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.pub-persona-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 16px;
+  border: var(--bw-hair) solid var(--steel-3);
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  color: var(--ink-2);
+  font-family: var(--font-sans);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  letter-spacing: var(--tr-loose);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.pub-persona-chip:hover { border-color: var(--ink-3); color: var(--ink); }
+.pub-persona-chip.is-active {
+  background: var(--oxblood-tint);
+  border-color: var(--oxblood);
+  color: var(--oxblood-deep);
+}
+
+/* --- motion: reveal (motion inventory items 1 and 2, PRD section 16) ------
+   Two classes, chosen in js/public.js before either is ever applied: the
+   transform-bearing one for a normal-motion visitor, the opacity-only one
+   for prefers-reduced-motion. The media query below is a second, CSS-only
+   guard on top of that JS choice, per the phase brief: if the transform
+   class ever landed on a reduced-motion visitor by mistake, this still
+   strips the transform out of the transition entirely, not just its
+   duration (the COMPONENTS block's blanket *,*::before,*::after rule above
+   only shortens durations, it does not remove transform from the property
+   list, so a dedicated override here is needed for the two classes below to
+   ever measure as opacity-only). */
+.pub-reveal {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out);
+}
+.pub-reveal.is-in { opacity: 1; transform: translateY(0); }
+.pub-reveal-reduced {
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.pub-reveal-reduced.is-in { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .pub-reveal { transition: opacity var(--dur-fast) var(--ease-out); transform: none; }
+  .pub-reveal.is-in { transform: none; }
+}
+
+/* --- motion: hover lift (motion inventory item 3, PRD section 16) ---------
+   Scoped to #public-root rather than editing the CLIENT block's .tool-card
+   rule above (owned by Phase 4): additive rules only, the existing
+   border-hover behaviour there is untouched and simply layers with this.
+   The lift is set on the card-grid's <li> wrapper, not on .tool-card
+   itself: the CLIENT block's own entrance keyframes (card-in, "both" fill
+   mode) never release their hold on .tool-card's transform property once
+   they finish, which silently defeats any later hover-triggered transition
+   on that same element and property (verified in isolation: identical
+   rules on a plain element transition correctly, the same rules on an
+   element also carrying a "both" fill-mode animation on transform do not).
+   The <li> carries no such animation and, with no padding or border of its
+   own, occupies exactly the same box as the card inside it, so the lift
+   reads identically to the reader while sidestepping the conflict rather
+   than touching Phase 4's file. Hover-capable devices only; reduced motion
+   drops the translate but keeps the shadow as a static, non-moving
+   affordance. */
+@media (hover: hover) {
+  #public-root .card-grid > li {
+    transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
+  }
+  #public-root .card-grid > li:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); }
+}
+@media (hover: hover) and (prefers-reduced-motion: reduce) {
+  #public-root .card-grid > li:hover { transform: none; box-shadow: var(--shadow-1); }
+}
+
 /* The footer's quiet links are the directory's only route into My Stack and
    the awareness page, so on touch widths they must be genuinely tappable,
    not 17px slivers of text (Rocky's 26 Jul phone test: taps on them failed).
@@ -1149,6 +1282,11 @@ button { font: inherit; }
   text-align: center;
 }
 .embed-footer a { color: inherit; }
+
+/* === DISCOVER ================================================================
+   Placeholder for wave 12.2 (js/discover.js, PRD section 17). Intentionally
+   empty: this wave ships no deck styling at all, only this delimited home so
+   the next wave never has to touch the PUBLIC block above to add its own. */
 
 /* === RESPONSIVE ============================================================ */
 

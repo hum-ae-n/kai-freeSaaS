@@ -104,6 +104,94 @@ await page.waitForTimeout(200);
 const publicFiltered = await page.locator('#public-root .tool-card:visible').count();
 check('public: search filters cards', publicFiltered > 0 && publicFiltered < active.length, `visible=${publicFiltered}`);
 check('public: recently-updated strip renders', await page.locator('.pub-changelog, [class*=changelog]').count() >= 1);
+await page.fill('#public-root input[type=search]', '');
+
+/* --- Phase 12.1: redesigned public homepage (PRD section 16) --------------
+   Robots meta and the CSP hash set are already exercised by the checks
+   above and by the csp: block further down respectively; this wave adds no
+   inline script, so those existing checks are the extension the task calls
+   for. The rest below is net new: the hero's live count, the three entry
+   paths and their order, the Discover stub's scroll (never a dead end
+   before js/discover.js exists), persona chips composing with the rest of
+   the filter state, and the reduced-motion reveal contract. */
+const heroCountText = await page.locator('.pub-hero-count').textContent();
+check('homepage: hero count equals the active tools.json count',
+  heroCountText.includes(String(active.length)), heroCountText.trim());
+
+const entryHeadings = await page.locator('.pub-entry-item h2').allTextContents();
+check('homepage: three entry paths present, Discover first',
+  entryHeadings.length === 3
+  && entryHeadings[0] === 'Discover'
+  && entryHeadings[1] === 'Persona packs'
+  && entryHeadings[2] === 'Browse all',
+  entryHeadings.join(' | '));
+
+const beforeScrollY = await page.evaluate(() => window.scrollY);
+await page.locator('[data-discover-entry]').click();
+await page.waitForTimeout(300);
+const afterDiscoverScrollY = await page.evaluate(() => window.scrollY);
+check('homepage: Discover stub scrolls to the browse list instead of dead-ending',
+  afterDiscoverScrollY > beforeScrollY, `before=${beforeScrollY} after=${afterDiscoverScrollY}`);
+await page.evaluate(() => window.scrollTo(0, 0));
+
+await page.waitForSelector('.pub-persona-chip');
+const chipCountBefore = await page.locator('#public-root .tool-card').count();
+await page.locator('.pub-persona-chip').first().click();
+await page.waitForTimeout(150);
+const chipFilteredCount = await page.locator('#public-root .tool-card').count();
+check('homepage: a persona chip filters the browse list',
+  chipFilteredCount > 0 && chipFilteredCount < chipCountBefore, `before=${chipCountBefore} after=${chipFilteredCount}`);
+await page.locator('.pub-persona-chip').first().click(); // toggle back off
+await page.waitForTimeout(150);
+const chipClearedCount = await page.locator('#public-root .tool-card').count();
+check('homepage: a second click on the active persona chip clears the filter',
+  chipClearedCount === active.length, `visible=${chipClearedCount}`);
+
+const homeMobile = await browser.newPage({ viewport: { width: 375, height: 812 } });
+await homeMobile.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await homeMobile.goto(`${base}/`);
+await homeMobile.waitForSelector('#public-root .tool-card');
+const homeMobileScrollW = await homeMobile.evaluate(() => document.documentElement.scrollWidth);
+check('homepage: no horizontal scroll at 375px', homeMobileScrollW <= 375, `scrollWidth=${homeMobileScrollW}`);
+const homeMobileHeadings = await homeMobile.locator('.pub-entry-item h2').allTextContents();
+check('homepage: entry paths still Discover-first at 375px',
+  homeMobileHeadings[0] === 'Discover' && homeMobileHeadings[1] === 'Persona packs' && homeMobileHeadings[2] === 'Browse all',
+  homeMobileHeadings.join(' | '));
+await homeMobile.close();
+
+// The hover lift is set on the card-grid <li>, never on .tool-card itself:
+// a "both" fill-mode keyframe animation (the CLIENT block's existing
+// entrance effect on .tool-card) permanently holds that element's
+// transform property once it finishes, which silently defeats any later
+// hover-triggered transition on the same element and property. Confirmed
+// in isolation while building this wave; this check is the regression
+// guard against it recurring.
+const hoverPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await hoverPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await hoverPage.goto(`${base}/`);
+await hoverPage.waitForSelector('#public-root .tool-card');
+await hoverPage.waitForTimeout(700); // let the entrance animation finish first
+const firstCardLi = hoverPage.locator('#public-root .card-grid > li').first();
+await firstCardLi.scrollIntoViewIfNeeded();
+await firstCardLi.hover();
+await hoverPage.waitForTimeout(300);
+const hoverTransform = await firstCardLi.evaluate((n) => getComputedStyle(n).transform);
+check('homepage: hover lift actually translates the card (not silently blocked by the entrance animation)',
+  hoverTransform !== 'none' && hoverTransform !== 'matrix(1, 0, 0, 1, 0, 0)', hoverTransform);
+await hoverPage.close();
+
+const reducedMotionPage = await browser.newPage();
+await reducedMotionPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await reducedMotionPage.emulateMedia({ reducedMotion: 'reduce' }); // set before goto, matchMedia is read at first render
+await reducedMotionPage.goto(`${base}/`);
+await reducedMotionPage.waitForSelector('.pub-reveal-reduced');
+const revealTransitionProp = await reducedMotionPage.locator('.pub-reveal-reduced').first()
+  .evaluate((node) => getComputedStyle(node).transitionProperty);
+check('homepage: reduced motion reveal elements carry no transform in their transition',
+  !revealTransitionProp.includes('transform'), revealTransitionProp);
+const reducedMotionClassCount = await reducedMotionPage.locator('.pub-reveal').count();
+check('homepage: reduced motion never applies the transform-bearing reveal class', reducedMotionClassCount === 0, `count=${reducedMotionClassCount}`);
+await reducedMotionPage.close();
 
 /* --- curator mode (staff path /x, batch I) --------------------------------- */
 await page.goto(`${base}/x`);

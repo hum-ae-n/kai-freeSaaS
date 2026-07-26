@@ -1,11 +1,19 @@
 /**
  * public.js: the public directory, per BUILD-PLAN item 10.12 (Rocky's 24 Jul
- * public/staff split). Mounted at #public-root by data-loader's boot() for
+ * public/staff split) and, since Phase 12 wave 12.1, the redesigned homepage
+ * of PRD section 16. Mounted at #public-root by data-loader's boot() for
  * every path that is not client mode, curator mode or the /x staff entry.
  * Read-only, indexable (no robots meta), no summary bar and no cost chart:
  * those belong to a curated selection, not the open catalogue. Cards reuse
  * client.js's card()/categoryIcon()/buildCardSections() rather than
  * duplicating the markup, with the checklist toggle suppressed throughout.
+ *
+ * PHASE 12.1 SEAM: the "Discover" entry path renders here as a stub button
+ * carrying data-discover-entry, which wave 12.2's js/discover.js claims for
+ * the real deck. This wave's click handler only scrolls to the browse list,
+ * so the entry path is never a dead end even before the deck exists. The
+ * DISCOVER block of styles.css is an empty placeholder for that same wave;
+ * nothing here depends on it.
  */
 import { el, themeToggleButton, readPlainMode, writePlainMode } from './data-loader.js';
 import { buildCardSections } from './client.js';
@@ -22,19 +30,137 @@ function matchesSearch(tool, term, plainMode) {
   return haystacks.some((h) => h.includes(term));
 }
 
+/* --- motion (PRD section 16, motion inventory items 1 and 2) ---------------
+   matchMedia is read before any animation class is ever applied, per the
+   phase brief: a reduced-motion visitor never receives the transform-based
+   class at all, only the opacity-only one, and the CSS behind the same
+   query is a second, belt-and-braces guard on top of that JS choice. Both
+   reveal classes are used purely for entrance: once .is-in lands, the CSS
+   transition owns the change, there is no requestAnimationFrame loop and no
+   scroll-linked effect, only a one-shot IntersectionObserver per element
+   that disconnects itself the moment it has fired. */
+function prefersReducedMotion() {
+  return matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+const STAGGER_MS = 70; // within the PRD's 60-80ms band
+const FIRST_SCREEN_CAP = 6; // "capped at the first screenful" (PRD section 16)
+
+/** First-paint reveal: fires once, immediately, with a per-item delay. Used
+    for the hero, the three entry paths and the first category's cards, all
+    of which are meant to be visible without scrolling. */
+function revealFirstPaint(node, index, reduced) {
+  if (!node) return;
+  if (reduced) {
+    node.classList.add('pub-reveal-reduced');
+    requestAnimationFrame(() => node.classList.add('is-in'));
+    return;
+  }
+  node.classList.add('pub-reveal');
+  node.style.transitionDelay = `${Math.min(index, FIRST_SCREEN_CAP) * STAGGER_MS}ms`;
+  // Two frames, not one: the browser needs to paint the opacity:0 starting
+  // state before the is-in class flips the transition's end state, or the
+  // two can collapse into a single frame with no visible transition at all.
+  requestAnimationFrame(() => requestAnimationFrame(() => node.classList.add('is-in')));
+}
+
+/** Once-only scroll reveal for a list section below the first screenful.
+    The observer disconnects itself the instant it fires, per the PRD's
+    "no scroll-linked effects" rule: this is a one-time entrance, never a
+    parallax or repeating effect. */
+function revealOnIntersect(node, reduced) {
+  if (!node) return;
+  if (reduced) {
+    node.classList.add('pub-reveal-reduced', 'is-in');
+    return;
+  }
+  node.classList.add('pub-reveal');
+  const observer = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      entry.target.classList.add('is-in');
+      observer.unobserve(entry.target);
+      observer.disconnect();
+    }
+  }, { threshold: 0.12 });
+  observer.observe(node);
+}
+
 export function renderPublic(root, tools) {
   // Archived tools are retired: the public directory shows only what a
   // reader could actually adopt today, same rule the curator table follows.
   const active = tools.filter((t) => !t.archived);
+  const activeIds = new Set(active.map((t) => t.id));
   let plainMode = readPlainMode();
   let searchTerm = '';
+  // Persona-pack filter (PRD section 16, entry path 2). null means "no pack
+  // chosen", never an empty array: an empty array would read as "show
+  // nothing", which is not what deselecting a pack means. A Set, not an
+  // array, so membership checks below never need a truthiness test against
+  // an id (id 0 is a real tool and must survive this filter untouched).
+  let activePersonaIds = null;
+  let activePersonaChip = null;
+  let hasRevealedList = false;
 
-  /* --- header -------------------------------------------------------------- */
+  /* --- hero (PRD section 16, "Hero") ---------------------------------------
+     Title and strapline as before, plus the three verifiable trust signals:
+     the live count (derived from the same active-tools filter the card
+     grid itself uses, never a separate hard-coded figure), the no-affiliates
+     line verbatim, and the curator identity with its existing link. */
+  const heroTrust = el('div', { class: 'pub-hero-trust' },
+    el('p', { class: 'pub-hero-trust-item pub-hero-count' },
+      el('strong', {}, String(active.length)),
+      active.length === 1 ? ' free tool in the directory.' : ' free tools in the directory.'),
+    el('p', { class: 'pub-hero-trust-item trust-line' }, 'No affiliates, no sponsors, no paid placement.'),
+    el('p', { class: 'pub-hero-trust-item pub-hero-curator' },
+      'Curated by ',
+      el('a', { href: 'https://kaipability.com', target: '_blank', rel: 'noopener noreferrer' }, 'Kaipability Ltd'),
+      '.',
+    ),
+  );
   const header = el('header', { class: 'panel pub-header' },
     el('img', { class: 'logo', src: 'design-system/assets/kaipability-logo-lockup.png', alt: 'Kaipability' }),
     el('h1', {}, 'Free Stack'),
     el('p', { class: 'subtitle' }, 'Curated free software for small business'),
-    el('p', { class: 'trust-line' }, 'No affiliates, no sponsors, no paid placement.'),
+    heroTrust,
+  );
+
+  /* --- entry paths (PRD section 16, "Entry paths") -------------------------
+     Three equal-weight ways in: Discover (a stub this wave, see the module
+     comment above), persona packs (data/presets.json, fetched the same
+     non-blocking way the changelog strip already is) and Browse all. All
+     three sit in one shared grid; mobile vs desktop ordering is handled by
+     CSS layout alone (see the PUBLIC block of styles.css), never by
+     rendering the markup twice. */
+  const discoverBtn = el('button', {
+    class: 'btn btn-primary btn-lg pub-discover-btn', type: 'button',
+    dataset: { discoverEntry: '1' },
+  }, 'Start Discover');
+  const discoverItem = el('div', { class: 'pub-entry-item pub-entry-discover' },
+    el('h2', {}, 'Discover'),
+    el('p', { class: 't-small' }, 'A short deck of tools, one at a time. Say what you already use and what you want to try.'),
+    discoverBtn,
+  );
+
+  const personaChipRow = el('div', { class: 'pub-persona-chip-row' });
+  const personaItem = el('div', { class: 'pub-entry-item pub-entry-personas' },
+    el('h2', {}, 'Persona packs'),
+    el('p', { class: 't-small' }, 'Ready-made shortlists for common situations. Choose one to filter the list below.'),
+    personaChipRow,
+  );
+
+  const browseBtn = el('button', {
+    class: 'btn btn-ghost btn-lg pub-browse-btn', type: 'button',
+    dataset: { browseEntry: '1' },
+  }, 'Browse all tools');
+  const browseItem = el('div', { class: 'pub-entry-item pub-entry-browse' },
+    el('h2', {}, 'Browse all'),
+    el('p', { class: 't-small' }, `Every one of the ${active.length} tools, grouped by category.`),
+    browseBtn,
+  );
+
+  const entryPaths = el('section', { class: 'pub-entry', 'aria-label': 'Ways to find a tool' },
+    el('div', { class: 'pub-entry-grid' }, discoverItem, personaItem, browseItem),
   );
 
   /* --- toolbar: search, Plain English, theme ------------------------------- */
@@ -58,7 +184,16 @@ export function renderPublic(root, tools) {
     draw();
   });
 
-  const toolbar = el('div', { class: 'pub-toolbar' }, searchInput, plainBtn, themeToggleButton('btn-ghost btn-lg'));
+  // id is the scroll target for both the Discover stub and Browse all: the
+  // start of the browse list itself, so either entry path lands a reader in
+  // the same place rather than two subtly different ones.
+  const toolbar = el('div', { class: 'pub-toolbar', id: 'pub-browse-list' }, searchInput, plainBtn, themeToggleButton('btn-ghost btn-lg'));
+
+  function scrollToBrowse() {
+    toolbar.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+  }
+  discoverBtn.addEventListener('click', scrollToBrowse);
+  browseBtn.addEventListener('click', scrollToBrowse);
 
   /* --- recently updated strip (Feature 3, Batch I) -------------------------
      Fetched separately from tools.json, non-blocking: a missing or broken
@@ -100,18 +235,110 @@ export function renderPublic(root, tools) {
     ),
   );
 
+  /** Applies the two first-paint/scroll reveal treatments (motion items 1
+      and 2) to a freshly built set of category sections. Only the very
+      first draw animates: search, Plain English and persona-pack changes
+      after that just show the result, since re-fading the grid on every
+      keystroke would not be a "first paint" any more. Later categories
+      still get their once-only IntersectionObserver reveal on every draw,
+      since those are freshly created elements each time and are typically
+      still below the fold regardless of which draw produced them. */
+  function revealSections(sections, animateFirstScreen) {
+    const reduced = prefersReducedMotion();
+    for (let i = 0; i < sections.length; i += 2) {
+      const heading = sections[i];
+      const grid = sections[i + 1];
+      const isFirstCategory = i === 0;
+      if (isFirstCategory) {
+        if (!animateFirstScreen) continue;
+        revealFirstPaint(heading, 0, reduced);
+        const cards = grid ? [...grid.children] : [];
+        cards.forEach((li, idx) => revealFirstPaint(li, idx + 1, reduced));
+      } else {
+        revealOnIntersect(heading, reduced);
+        if (grid) revealOnIntersect(grid, reduced);
+      }
+    }
+  }
+
   function draw() {
-    const filtered = active.filter((t) => matchesSearch(t, searchTerm, plainMode));
+    const filtered = active.filter((t) =>
+      matchesSearch(t, searchTerm, plainMode) && (activePersonaIds === null || activePersonaIds.has(t.id)));
     if (!filtered.length) {
       listWrap.replaceChildren(el('p', { class: 'pub-empty' }, 'No tools match your search.'));
       return;
     }
-    listWrap.replaceChildren(...buildCardSections(filtered, { plainMode, showToggle: false }));
+    const sections = buildCardSections(filtered, { plainMode, showToggle: false });
+    listWrap.replaceChildren(...sections);
+    revealSections(sections, !hasRevealedList);
+    hasRevealedList = true;
   }
 
   draw();
-  root.replaceChildren(header, toolbar, changelogSection, listWrap, footer);
+  root.replaceChildren(header, entryPaths, changelogSection, toolbar, listWrap, footer);
   document.title = 'Free Stack · Kaipability';
+
+  // Hero and entry paths reveal once, on mount, independently of the list's
+  // own reveal above: they are static content, never rebuilt by draw().
+  const reduced = prefersReducedMotion();
+  [header, discoverItem, personaItem, browseItem].forEach((node, i) => revealFirstPaint(node, i, reduced));
+
+  loadPersonaPacks(personaChipRow, activeIds, {
+    setPersonaIds: (ids) => { activePersonaIds = ids; },
+    getActiveChip: () => activePersonaChip,
+    setActiveChip: (chip) => { activePersonaChip = chip; },
+    draw,
+    scrollToBrowse,
+  });
+}
+
+/** Persona-pack chips (PRD section 16, entry path 2). Fetched separately
+    from tools.json, non-blocking: a missing or broken data/presets.json
+    leaves the Discover and Browse all entry paths fully usable, same
+    tolerance the changelog strip already has. Choosing a pack filters the
+    browse list to that pack's ids; it never navigates away. A second click
+    on the active chip clears the filter. State lives in renderPublic's
+    closure, not here, so it is threaded through as get/set pairs rather
+    than duplicated as module-level variables. */
+async function loadPersonaPacks(row, activeIds, state) {
+  const { setPersonaIds, getActiveChip, setActiveChip, draw, scrollToBrowse } = state;
+  let presets;
+  try {
+    const res = await fetch('data/presets.json');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    presets = await res.json();
+  } catch (cause) {
+    console.warn('Persona packs unavailable, continuing without them:', cause);
+    return;
+  }
+  if (!Array.isArray(presets) || !presets.length) return;
+
+  for (const preset of presets) {
+    const validIds = preset.ids.filter((id) => activeIds.has(id));
+    if (!validIds.length) continue;
+    const label = `${preset.name} (${validIds.length})`;
+    const chip = el('button', {
+      class: 'pub-persona-chip', type: 'button', 'aria-pressed': 'false', title: preset.description,
+    }, label);
+    chip.addEventListener('click', () => {
+      const wasActive = chip === getActiveChip();
+      const current = getActiveChip();
+      if (current) {
+        current.classList.remove('is-active');
+        current.setAttribute('aria-pressed', 'false');
+        setActiveChip(null);
+        setPersonaIds(null);
+      }
+      if (wasActive) { draw(); return; }
+      setPersonaIds(new Set(validIds));
+      chip.classList.add('is-active');
+      chip.setAttribute('aria-pressed', 'true');
+      setActiveChip(chip);
+      draw();
+      scrollToBrowse();
+    });
+    row.append(chip);
+  }
 }
 
 /** Newest-first, max 6 shown even if the file itself carries more (per the
