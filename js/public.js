@@ -8,12 +8,15 @@
  * client.js's card()/categoryIcon()/buildCardSections() rather than
  * duplicating the markup, with the checklist toggle suppressed throughout.
  *
- * PHASE 12.1 SEAM: the "Discover" entry path renders here as a stub button
- * carrying data-discover-entry, which wave 12.2's js/discover.js claims for
- * the real deck. This wave's click handler only scrolls to the browse list,
- * so the entry path is never a dead end even before the deck exists. The
- * DISCOVER block of styles.css is an empty placeholder for that same wave;
- * nothing here depends on it.
+ * PHASE 12.2: the "Discover" entry path (data-discover-entry) opens the deck
+ * engine from js/discover.js, imported dynamically so a blocked or missing
+ * module never stops the rest of the directory rendering (PRD section 16,
+ * "Platform and security"): the click handler falls back to the original
+ * scroll-to-browse-list behaviour on import failure. Mount and open/close
+ * wiring only lives here; the deck itself, its persistence and its DOM are
+ * entirely owned by discover.js. A currently active persona-pack chip seeds
+ * the deck with that pack's ids (PRD section 17, "Deck composition"),
+ * otherwise the deck falls back to its own default mix.
  */
 import { el, themeToggleButton, readPlainMode, writePlainMode } from './data-loader.js';
 import { buildCardSections } from './client.js';
@@ -113,6 +116,12 @@ export function renderPublic(root, tools) {
   let activePersonaIds = null;
   let activePersonaChip = null;
   let hasRevealedList = false;
+  // Discover deck open/close wiring (PRD section 17): discoverOpen tracks
+  // whether the panel is currently mounted so a second click on the button
+  // refocuses it rather than mounting a duplicate; discoverLoading guards a
+  // rapid double click against a duplicate in-flight dynamic import.
+  let discoverOpen = false;
+  let discoverLoading = false;
 
   /* --- hero (PRD section 16, "Hero") ---------------------------------------
      Title and strapline as before, plus the three verifiable trust signals:
@@ -175,6 +184,14 @@ export function renderPublic(root, tools) {
     el('div', { class: 'pub-entry-grid' }, discoverItem, personaItem, browseItem),
   );
 
+  // Deck mount point (PRD section 16: "an inline panel above the list,
+  // never a modal"). Sits right after the entry paths and before the
+  // changelog/toolbar/list, so it reads as inline above the list on every
+  // viewport, and below 768px it is already ahead of the browse list simply
+  // by DOM order, same as the entry paths themselves. discover.js owns
+  // everything rendered inside it once opened.
+  const discoverMount = el('div', { class: 'discover-mount', hidden: true });
+
   /* --- toolbar: search, Plain English, theme ------------------------------- */
   const searchInput = el('input', {
     class: 'input pub-search', type: 'search',
@@ -204,8 +221,43 @@ export function renderPublic(root, tools) {
   function scrollToBrowse() {
     toolbar.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
   }
-  discoverBtn.addEventListener('click', scrollToBrowse);
   browseBtn.addEventListener('click', scrollToBrowse);
+
+  discoverBtn.addEventListener('click', async () => {
+    if (discoverOpen) {
+      // Already open: bring it back into focus rather than mounting a
+      // second panel over the first.
+      discoverMount.querySelector('.discover-panel')?.focus();
+      return;
+    }
+    if (discoverLoading) return;
+    discoverLoading = true;
+    try {
+      const { openDiscoverDeck } = await import('./discover.js');
+      discoverOpen = true;
+      openDiscoverDeck({
+        tools,
+        container: discoverMount,
+        opener: discoverBtn,
+        // A currently active persona chip seeds the deck with that pack's
+        // ids (PRD section 17); otherwise the deck falls back to its own
+        // default mix. activePersonaIds is a Set, never an array filtered
+        // with .filter(Boolean), so tool id 0 survives untouched.
+        seed: activePersonaIds ? { type: 'persona', ids: [...activePersonaIds] } : { type: 'default' },
+        onClose: () => { discoverOpen = false; },
+        onBrowseAll: () => { discoverOpen = false; scrollToBrowse(); },
+      });
+      discoverMount.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+    } catch (cause) {
+      // js/discover.js failing to load must never dead-end the directory:
+      // fall back to the original stub behaviour (PRD section 16,
+      // "the browse list must render even if js/discover.js never arrives").
+      console.warn('Discover deck unavailable, falling back to the browse list:', cause);
+      scrollToBrowse();
+    } finally {
+      discoverLoading = false;
+    }
+  });
 
   /* --- recently updated strip (Feature 3, Batch I) -------------------------
      Fetched separately from tools.json, non-blocking: a missing or broken
@@ -292,7 +344,7 @@ export function renderPublic(root, tools) {
   }
 
   draw();
-  root.replaceChildren(header, entryPaths, changelogSection, toolbar, listWrap, footer);
+  root.replaceChildren(header, entryPaths, discoverMount, changelogSection, toolbar, listWrap, footer);
   document.title = 'Free Stack · Kaipability';
 
   // Hero and entry paths reveal once, on mount, independently of the list's

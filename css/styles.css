@@ -1284,9 +1284,172 @@ button { font: inherit; }
 .embed-footer a { color: inherit; }
 
 /* === DISCOVER ================================================================
-   Placeholder for wave 12.2 (js/discover.js, PRD section 17). Intentionally
-   empty: this wave ships no deck styling at all, only this delimited home so
-   the next wave never has to touch the PUBLIC block above to add its own. */
+   Wave 12.2, js/discover.js, PRD section 17. The inline panel public.js
+   mounts on demand above the browse list, never a modal. Every colour comes
+   from the shared custom properties, so dark mode (the :root[data-theme]
+   overrides in DARK MODE above) applies with no extra rules here. */
+
+.discover-mount { margin-bottom: var(--s-8); }
+
+.discover-panel {
+  background: var(--paper-2);
+  border: var(--border);
+  border-top: var(--bw-heavy) solid var(--oxblood);
+  padding: var(--s-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+}
+.discover-panel:focus-visible { outline: 2px solid var(--oxblood); outline-offset: 2px; }
+
+.discover-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+.discover-progress {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-14);
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.discover-close {
+  min-height: 44px;
+  min-width: 44px;
+  justify-content: center;
+  padding: 8px;
+  font-size: var(--fs-21);
+  line-height: 1;
+}
+
+.discover-stage {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  min-height: 260px;
+}
+
+/* The card itself: touch-action: pan-y is the gesture contract's other
+   half (js/discover.js never calls preventDefault until it has claimed a
+   horizontal drag), transform-origin bottom centre matches the "roughly 1
+   degree per 20px" rotation the module applies live in pointermove. */
+.discover-card {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  background: var(--paper);
+  border: var(--border);
+  border-radius: var(--r-3);
+  box-shadow: var(--shadow-2);
+  padding: var(--s-6);
+  touch-action: pan-y;
+  transform-origin: bottom center;
+  user-select: none;
+}
+.discover-card-dragging { transition: none; }
+.discover-card-springback { transition: transform var(--dur-base) var(--ease-out); }
+.discover-card-exit { transition: transform 220ms var(--ease-in), opacity 220ms var(--ease-in); }
+.discover-card-exit-reduced { transition: opacity 150ms var(--ease-out); }
+.discover-card-enter-reduced { transition: opacity var(--dur-base) var(--ease-out); }
+
+/* Verdict stamps: opacity only, proportional to drag distance, set inline
+   by js/discover.js. Never touched by rotation transforms of their own
+   beyond the fixed static tilt below, so reduced motion needs no override
+   here at all. */
+.discover-stamp {
+  position: absolute;
+  top: var(--s-6);
+  padding: 6px 14px;
+  border: var(--bw-rule) solid currentColor;
+  border-radius: var(--r-2);
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: var(--fs-18);
+  letter-spacing: var(--tr-eyebrow);
+  text-transform: uppercase;
+  opacity: 0;
+  pointer-events: none;
+}
+.discover-stamp-have { left: var(--s-6); color: var(--positive); transform: rotate(-8deg); }
+.discover-stamp-want { right: var(--s-6); color: var(--info); transform: rotate(8deg); }
+
+.discover-card-body { display: flex; flex-direction: column; gap: var(--s-3); }
+.discover-card-name {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--fs-21);
+  color: var(--ink);
+}
+.discover-card-category {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: var(--fs-12);
+  text-transform: uppercase;
+  letter-spacing: var(--tr-eyebrow);
+}
+.discover-card-desc { margin: 0; color: var(--ink-2); max-width: none; }
+.discover-card-limit { margin: 0; color: var(--ink-3); font-size: var(--fs-14); }
+.discover-card-more { align-self: flex-start; color: var(--ink-3); font-size: var(--fs-12); }
+
+/* Controls: "Got it" and "Add to my list" are equally weighted primary
+   actions either side of a deliberately narrower Skip, all three still
+   clearing the 44px target floor (WCAG 2.5.5/2.5.8), since Skip is a real
+   control, just a quieter one. */
+.discover-controls {
+  display: flex;
+  align-items: stretch;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+.discover-controls .btn { min-height: 44px; justify-content: center; }
+.discover-btn-have, .discover-btn-want { flex: 1 1 40%; }
+.discover-btn-skip { flex: 0 1 auto; }
+
+.discover-undo { align-self: center; min-height: 44px; }
+
+.discover-completion, .discover-empty {
+  max-width: 420px;
+  margin: 0 auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-6) 0;
+}
+.discover-completion-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  justify-content: center;
+}
+.discover-completion-actions .btn { min-height: 44px; }
+
+/* Reduced motion: belt-and-braces CSS guard behind the same query
+   js/discover.js checks before ever touching a transform. Even if a
+   transform-bearing class landed here by mistake, this still strips
+   transform and rotation out of the transition entirely. */
+@media (prefers-reduced-motion: reduce) {
+  .discover-card,
+  .discover-card-dragging,
+  .discover-card-springback {
+    transition: none !important;
+    transform: none !important;
+  }
+  .discover-card-exit {
+    transition: opacity 150ms var(--ease-out) !important;
+    transform: none !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .discover-btn-have, .discover-btn-want { flex-basis: 100%; }
+  .discover-btn-skip { flex-basis: 100%; }
+}
 
 /* === RESPONSIVE ============================================================ */
 

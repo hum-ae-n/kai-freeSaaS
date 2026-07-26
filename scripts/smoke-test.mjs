@@ -275,6 +275,168 @@ const reducedMotionClassCount = await reducedMotionPage.locator('.pub-reveal').c
 check('homepage: reduced motion never applies the transform-bearing reveal class', reducedMotionClassCount === 0, `count=${reducedMotionClassCount}`);
 await reducedMotionPage.close();
 
+/* --- Phase 12.2: Discover deck engine (PRD section 17) ---------------------
+   js/discover.js is dynamically imported by the Discover entry path's click
+   handler (js/public.js), so every check below opens the deck the same way
+   a reader would: click [data-discover-entry], wait for the first card. The
+   default seed deals unjudged core tools first (data/tools.json's first
+   core id is 0), which is what the tool-0 checks below rely on rather than
+   any special-cased test hook. */
+async function openDiscoverDeck(pg) {
+  await pg.goto(`${base}/`);
+  await pg.waitForSelector('#public-root .tool-card');
+  await pg.locator('[data-discover-entry]').click();
+  await pg.waitForSelector('.discover-card');
+}
+async function clearDiscoverStorage(pg) {
+  await pg.evaluate(() => localStorage.removeItem('freestack:v1:discover'));
+}
+
+const discoverPage = await browser.newPage();
+await discoverPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await openDiscoverDeck(discoverPage);
+await clearDiscoverStorage(discoverPage);
+await discoverPage.reload();
+await discoverPage.waitForSelector('#public-root .tool-card');
+await discoverPage.locator('[data-discover-entry]').click();
+await discoverPage.waitForSelector('.discover-card');
+
+const firstDealtId = await discoverPage.locator('.discover-card').getAttribute('data-id');
+await discoverPage.locator('.discover-panel').press('ArrowLeft'); // keyboard: got it
+await discoverPage.waitForTimeout(400);
+const decisionsAfterKeyboard = await discoverPage.evaluate(() => JSON.parse(localStorage.getItem('freestack:v1:discover')).decisions);
+check('discover: keyboard-judged tool 0 recorded as have',
+  firstDealtId === '0' && decisionsAfterKeyboard['0']?.d === 'have', `firstDealtId=${firstDealtId} decisions=${JSON.stringify(decisionsAfterKeyboard)}`);
+
+await discoverPage.reload();
+await discoverPage.waitForSelector('#public-root .tool-card');
+const decisionsAfterReload = await discoverPage.evaluate(() => JSON.parse(localStorage.getItem('freestack:v1:discover')).decisions);
+check('discover: tool 0 decision survives a reload', decisionsAfterReload['0']?.d === 'have', JSON.stringify(decisionsAfterReload));
+
+await discoverPage.locator('[data-discover-entry]').click();
+await discoverPage.waitForSelector('.discover-card');
+const secondDealIds = [];
+for (let i = 0; i < 12 && (await discoverPage.locator('.discover-card').count()) > 0; i++) {
+  secondDealIds.push(await discoverPage.locator('.discover-card').getAttribute('data-id'));
+  if ((await discoverPage.locator('.discover-btn-skip').count()) === 0) break;
+  await discoverPage.locator('.discover-btn-skip').click();
+  await discoverPage.waitForTimeout(300);
+  if ((await discoverPage.locator('.discover-completion').count()) > 0) break;
+}
+check('discover: a second deal excludes already-judged tool 0', !secondDealIds.includes('0'), secondDealIds.join(','));
+check('discover: deck length never exceeds 12', secondDealIds.length <= 12, `dealt=${secondDealIds.length}`);
+await discoverPage.close();
+
+// Sub-threshold drag: 40px, well under the 100px/35%-width commit floor,
+// paced over real elapsed time so it reads as a slow drag rather than a
+// fling (a near-instant synthetic jump is itself a real 0.5px/ms release
+// velocity by the spec's own definition, not a false positive to guard).
+const dragPage = await browser.newPage({ viewport: { width: 1000, height: 900 } });
+await dragPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await openDiscoverDeck(dragPage);
+await clearDiscoverStorage(dragPage);
+await dragPage.reload();
+await dragPage.waitForSelector('#public-root .tool-card');
+await dragPage.locator('[data-discover-entry]').click();
+await dragPage.waitForSelector('.discover-card');
+const idBeforeDrag = await dragPage.locator('.discover-card').getAttribute('data-id');
+const dragBox = await dragPage.locator('.discover-card').boundingBox();
+const dragStartX = dragBox.x + dragBox.width / 2;
+const dragStartY = dragBox.y + dragBox.height / 2;
+await dragPage.mouse.move(dragStartX, dragStartY);
+await dragPage.mouse.down();
+await dragPage.mouse.move(dragStartX + 20, dragStartY, { steps: 1 });
+await dragPage.waitForTimeout(120);
+await dragPage.mouse.move(dragStartX + 40, dragStartY, { steps: 1 });
+await dragPage.waitForTimeout(120);
+await dragPage.mouse.up();
+await dragPage.waitForTimeout(300);
+const idAfterDrag = await dragPage.locator('.discover-card').getAttribute('data-id');
+const stateAfterDrag = await dragPage.evaluate(() => {
+  const raw = localStorage.getItem('freestack:v1:discover');
+  return raw ? JSON.parse(raw) : null;
+});
+check('discover: sub-threshold drag springs back with no decision recorded',
+  idAfterDrag === idBeforeDrag && !stateAfterDrag?.decisions?.[idBeforeDrag],
+  `before=${idBeforeDrag} after=${idAfterDrag} decisions=${JSON.stringify(stateAfterDrag?.decisions)}`);
+await dragPage.close();
+
+// Escape restores focus to the opener button.
+const escPage = await browser.newPage();
+await escPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await escPage.goto(`${base}/`);
+await escPage.waitForSelector('#public-root .tool-card');
+await escPage.locator('[data-discover-entry]').focus();
+await escPage.locator('[data-discover-entry]').click();
+await escPage.waitForSelector('.discover-card');
+await escPage.locator('.discover-panel').press('Escape');
+await escPage.waitForTimeout(100);
+const focusReturnedToOpener = await escPage.evaluate(() => document.activeElement?.hasAttribute('data-discover-entry'));
+check('discover: Escape closes the deck and restores focus to the opener',
+  focusReturnedToOpener === true && (await escPage.locator('.discover-panel').count()) === 0);
+await escPage.close();
+
+// Completion hand-off: have= always present (even empty), skip never travels.
+const handoffPage = await browser.newPage();
+await handoffPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await openDiscoverDeck(handoffPage);
+await clearDiscoverStorage(handoffPage);
+await handoffPage.reload();
+await handoffPage.waitForSelector('#public-root .tool-card');
+await handoffPage.locator('[data-discover-entry]').click();
+await handoffPage.waitForSelector('.discover-card');
+// One "want" decision first: with only skips, both resolved lists would be
+// empty and the button is correctly not rendered at all (per the section's
+// own rule), which would make this the wrong scenario to test have= against.
+await handoffPage.locator('.discover-btn-want').click();
+await handoffPage.waitForTimeout(300);
+const skippedIds = [];
+let handoffGuard = 0;
+while ((await handoffPage.locator('.discover-completion').count()) === 0 && (await handoffPage.locator('.discover-card').count()) > 0 && handoffGuard < 12) {
+  skippedIds.push(await handoffPage.locator('.discover-card').getAttribute('data-id'));
+  await handoffPage.locator('.discover-btn-skip').click();
+  await handoffPage.waitForTimeout(300);
+  handoffGuard++;
+}
+await handoffPage.waitForSelector('.discover-completion');
+const handoffHref = await handoffPage.locator('.discover-completion-actions a.btn').getAttribute('href');
+check('discover: completion hand-off always carries the have= marker, even empty',
+  handoffHref !== null && /[?&]have=(&|$)/.test(handoffHref), handoffHref);
+check('discover: completion hand-off never carries a skipped id',
+  skippedIds.every((id) => !new URL(handoffHref, base).searchParams.get('have')?.split(',').includes(id)
+    && !(new URL(handoffHref, base).searchParams.get('from')?.split(',') ?? []).includes(id)),
+  `skipped=${skippedIds.join(',')} href=${handoffHref}`);
+await handoffPage.close();
+
+// Blocked localStorage: the deck must still deal and complete in-session,
+// with no console/page error cascade (private mode, some webviews).
+const blockedCtx = await browser.newContext();
+await blockedCtx.addInitScript(() => {
+  const blocked = () => { throw new DOMException('blocked', 'SecurityError'); };
+  Object.defineProperty(window, 'localStorage', {
+    get() { return { getItem: blocked, setItem: blocked, removeItem: blocked, clear: blocked }; },
+  });
+});
+const blockedPage = await blockedCtx.newPage();
+await blockedPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+const blockedPageErrors = [];
+blockedPage.on('pageerror', (e) => blockedPageErrors.push(String(e)));
+blockedPage.on('console', (m) => { if (m.type() === 'error' && !/net::|Failed to load resource/.test(m.text())) blockedPageErrors.push(m.text()); });
+await blockedPage.goto(`${base}/`);
+await blockedPage.waitForSelector('#public-root .tool-card');
+await blockedPage.locator('[data-discover-entry]').click();
+await blockedPage.waitForSelector('.discover-card');
+check('discover: blocked localStorage still deals a card', (await blockedPage.locator('.discover-card').count()) === 1);
+let blockedGuard = 0;
+while ((await blockedPage.locator('.discover-completion').count()) === 0 && blockedGuard < 14) {
+  await blockedPage.locator('.discover-btn-skip').click();
+  await blockedPage.waitForTimeout(300);
+  blockedGuard++;
+}
+check('discover: blocked localStorage still reaches a completion card', (await blockedPage.locator('.discover-completion').count()) === 1, `guard=${blockedGuard}`);
+check('discover: blocked localStorage produces no console/page errors', blockedPageErrors.length === 0, blockedPageErrors.join(' | ').slice(0, 300));
+await blockedCtx.close();
+
 /* --- curator mode (staff path /x, batch I) --------------------------------- */
 await page.goto(`${base}/x`);
 await page.waitForSelector('.tools-table');
