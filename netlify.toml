@@ -97,6 +97,20 @@
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
 
+# Old-domain consolidation: tools.airl.io is the primary domain, but Netlify's
+# automatic netlify.app-to-primary redirect was observed NOT engaging for this
+# site (fresh edge responses served 200 on the subdomain after two deploys with
+# primary set, 25 Jul). This explicit host-scoped rule is Netlify's documented
+# pattern for the same thing. 301 preserves the path via :splat, and Netlify
+# forwards query strings automatically, so every client link ever sent
+# (?t=...&client=...) lands intact on the new domain. Must sit before the
+# path-only rules below; it matches solely on the old host.
+[[redirects]]
+  from = "https://kai-freestack.netlify.app/*"
+  to = "https://tools.airl.io/:splat"
+  status = 301
+  force = true
+
 # Working documents are not part of the product. The publish directory is the
 # repo root, so without these rules every planning and spec file is served to
 # anyone who guesses the path (confirmed live 25 Jul: /PRD.md returned 200).
