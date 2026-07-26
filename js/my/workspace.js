@@ -141,8 +141,8 @@ function downloadBlob(blob, filename) {
     this file: PRD-REGISTER's "no password field, ever, anywhere" law reads
     most safely as covering any downloadable artefact, so the sheet leaves
     a blank box for the reader to fill in by hand instead. */
-function buildRecoverySheetHtml(business, date) {
-  const body = el('div', {},
+function buildRecoverySheetBody(business, date) {
+  return el('div', {},
     el('h1', {}, 'My Stack recovery sheet'),
     el('p', {}, `${business}, generated ${date}.`),
     el('p', {}, CONSEQUENCE_SENTENCE),
@@ -150,7 +150,33 @@ function buildRecoverySheetHtml(business, date) {
     el('div', { style: 'border:2px solid #000;height:80px;margin:16px 0;' }),
     el('p', {}, 'My Stack never stores your passphrase and cannot recover it for you.'),
   );
+}
+
+function buildRecoverySheetHtml(business, date) {
+  const body = buildRecoverySheetBody(business, date);
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>My Stack recovery sheet</title></head><body>${body.innerHTML}</body></html>`;
+}
+
+/** Prints the recovery sheet from the current page via the print stylesheet,
+    the same pattern the leaver checklist uses. A popup window
+    (window.open + document.write + print) is the obvious alternative and it
+    does not work on mobile: 'noopener' makes window.open return null in
+    modern browsers, and Android Chrome largely ignores scripted print calls
+    on blank popups. The sheet stays mounted (invisible on screen) until
+    afterprint fires; if a browser never fires it, the node is inert and is
+    removed on the next print. */
+function printRecoverySheet(business) {
+  const prev = document.querySelector('.my-print-sheet');
+  if (prev) prev.remove();
+  const sheet = el('div', { class: 'my-print-sheet' }, buildRecoverySheetBody(business, todayIso()));
+  document.body.appendChild(sheet);
+  document.body.classList.add('my-printing-sheet');
+  const cleanup = () => {
+    sheet.remove();
+    document.body.classList.remove('my-printing-sheet');
+  };
+  window.addEventListener('afterprint', cleanup, { once: true });
+  window.print();
 }
 
 /** ULID-style is the PRD's own word for this (section 4.2): not a literal
@@ -654,12 +680,7 @@ export async function renderWorkspace(root) {
     });
     const pr = el('button', { class: 'btn btn-ghost', type: 'button' }, 'Print recovery sheet');
     pr.addEventListener('click', () => {
-      const win = window.open('', '_blank', 'noopener,noreferrer');
-      if (!win) { showToast('Your browser blocked the print window; use Download instead.', 'error'); return; }
-      win.document.write(html);
-      win.document.close();
-      win.focus();
-      win.print();
+      printRecoverySheet(s.business);
       s.recoveryDone = true;
       draw();
     });
