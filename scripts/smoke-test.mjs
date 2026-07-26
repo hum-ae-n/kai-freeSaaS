@@ -217,7 +217,13 @@ const opacityBeforeTyping = await noRefirePage.locator('.cli-category', { hasTex
   .evaluate((n) => getComputedStyle(n).opacity);
 check('regression: below-fold section fully visible before typing (sanity)', opacityBeforeTyping === '1', opacityBeforeTyping);
 
-await noRefirePage.locator('#public-root input[type=search]').pressSequentially(targetCategory, { delay: 20 });
+// The search term must be broad, deliberately. Typing the category's own
+// name collapses the list to that single section, which becomes the FIRST
+// section of the redraw, and the original bug lived only in the non-first
+// branch: the focused re-verify proved a full-name variant of this check
+// passed on the buggy code. A single common letter keeps many categories
+// in the result set, so the watched heading stays a non-first section.
+await noRefirePage.locator('#public-root input[type=search]').pressSequentially('a', { delay: 20 });
 let minOpacitySeen = 1;
 const pollUntil = Date.now() + 400;
 while (Date.now() < pollUntil) {
@@ -228,8 +234,32 @@ while (Date.now() < pollUntil) {
   }
   await noRefirePage.waitForTimeout(20);
 }
-check('homepage: typing into search never dips a visible section heading below opacity 1',
+check('homepage: typing into search never dips a visible non-first section below opacity 1',
   minOpacitySeen >= 0.99, `min=${minOpacitySeen} category="${targetCategory}"`);
+
+// Same assertion for the persona-chip redraw path, which the original check
+// set did not cover at all: toggling a pack on and off rebuilds the list
+// both times, and the returning sections must render fully visible.
+await noRefirePage.locator('#public-root input[type=search]').fill('');
+await noRefirePage.waitForTimeout(200);
+const chip = noRefirePage.locator('.pub-persona-chip-row button').first();
+let minOpacityChip = 1;
+if (await chip.count()) {
+  await chip.click();
+  await noRefirePage.waitForTimeout(150);
+  await chip.click(); // clear the pack: the full list DOM is rebuilt again
+  const chipPollUntil = Date.now() + 400;
+  while (Date.now() < chipPollUntil) {
+    const heading = noRefirePage.locator('.cli-category', { hasText: targetCategory }).first();
+    if (await heading.count()) {
+      const opacityNow = Number(await heading.evaluate((n) => getComputedStyle(n).opacity));
+      minOpacityChip = Math.min(minOpacityChip, opacityNow);
+    }
+    await noRefirePage.waitForTimeout(20);
+  }
+}
+check('homepage: persona-chip toggle never dips a rebuilt section below opacity 1',
+  minOpacityChip >= 0.99, `min=${minOpacityChip}`);
 await noRefirePage.close();
 
 const reducedMotionPage = await browser.newPage();
