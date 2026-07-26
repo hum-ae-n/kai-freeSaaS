@@ -238,9 +238,21 @@ function springBack(card, reduced) {
     transitionend (with a timeout fallback in case the transition never
     fires, e.g. a backgrounded tab). have exits left, want exits right, skip
     fades and drops slightly so it is never visually confused with a
-    directional verdict it can never actually carry via gesture. */
+    directional verdict it can never actually carry via gesture.
+
+    cleanup() checks card.isConnected before calling done(): normally this
+    exiting card is still attached right up until this fires, but undo()
+    can replace the stage's contents early (while this transition is still
+    in flight), which detaches it as a side effect. done() here is always
+    dealCurrent(), whose job (arming the next card) has already been done
+    by that other path in that case, so calling it again would silently
+    re-deal and discard whatever the reader is now looking at. */
 function exitCard(card, decision, reduced, done) {
-  const cleanup = () => { card.remove(); done(); };
+  const cleanup = () => {
+    const stillCurrent = card.isConnected;
+    card.remove();
+    if (stillCurrent) done();
+  };
   if (reduced) {
     card.classList.add('discover-card-exit-reduced');
     requestAnimationFrame(() => requestAnimationFrame(() => { card.style.opacity = '0'; }));
@@ -287,23 +299,38 @@ function animateCardIn(card, fromDecision, reduced) {
 
 /** Pointer gesture: mouse and touch alike via the Pointer Events API. A drag
     is only claimed after 10px of slop and only when horizontal travel
-    dominates (|dx| > |dy|); anything more vertical releases pointer capture
-    and lets the page's native pan-y scroll take over untouched. Commits at
-    100px, or 35% of the card's own width if that is smaller, or a 0.5px/ms
-    release velocity (a fling); otherwise springs back. Skip is reached only
-    through its button, never through this gesture. */
+    dominates (|dx| > |dy|); anything more vertical hands the gesture back
+    to native pan-y scroll untouched. Commits at 100px, or 35% of the card's
+    own width if that is smaller, or a 0.5px/ms release velocity (a fling);
+    otherwise springs back. Skip is reached only through its button, never
+    through this gesture. Pointer capture is deferred until a drag is
+    actually claimed (see the pointermove handler): capturing unconditionally
+    on pointerdown would retarget every later event, including the
+    synthesised click, at the card itself, which silently swallows a
+    stationary tap or click on an interactive descendant such as the "More"
+    permalink. A drag that starts over that same link still works, since
+    capture engages the moment slop is exceeded, before the drag math ever
+    depends on it. */
 const VELOCITY_WINDOW_MS = 100; // trailing window a release velocity is read from
 
 function attachGesture(card, reduced, { getThreshold, onCommit }) {
   let pointerId = null;
   let claimed = false;
+  let captured = false;
   let startX = 0;
   let startY = 0;
   // Trailing window of {t, x} samples, oldest-first, trimmed to the last
-  // VELOCITY_WINDOW_MS: release velocity is read across this window rather
-  // than from the single most recent pair of samples, so one irregularly
-  // spaced sample (a slow frame, or a synthetic test event with an
-  // unrealistic timestamp gap) cannot read as a spurious fling on its own.
+  // VELOCITY_WINDOW_MS and drawn ONLY from pointermove events: release
+  // velocity is read across this window of real motion, never from the
+  // pointerup event's own coordinates and timestamp. Hardware and the OS
+  // routinely deliver pointerup tens of milliseconds after the last real
+  // move (the finger has already stopped before it lifts), and folding
+  // that late, stale-timed sample into the window would dilute an
+  // otherwise identical flick's velocity purely as a function of how long
+  // the release happened to be delayed. A finger that deliberately stops
+  // moving before releasing already reads as slow on its own terms: it
+  // keeps emitting near-stationary move samples, which correctly age the
+  // fast samples out of the trailing window without any special-casing.
   let samples = [];
 
   function pushSample(t, x) {
@@ -320,14 +347,21 @@ function attachGesture(card, reduced, { getThreshold, onCommit }) {
     return dt > 0 ? (last.x - first.x) / dt : 0;
   }
 
+  function reset() {
+    pointerId = null;
+    claimed = false;
+    captured = false;
+  }
+
   card.addEventListener('pointerdown', (event) => {
     if (event.button > 0) return;
     pointerId = event.pointerId;
     claimed = false;
+    captured = false;
     startX = event.clientX;
     startY = event.clientY;
     samples = [{ t: event.timeStamp, x: event.clientX }];
-    card.setPointerCapture(pointerId);
+    // No setPointerCapture here: see the function comment above.
   });
 
   card.addEventListener('pointermove', (event) => {
@@ -338,12 +372,14 @@ function attachGesture(card, reduced, { getThreshold, onCommit }) {
       if (Math.abs(dx) < SLOP_PX && Math.abs(dy) < SLOP_PX) return;
       if (Math.abs(dx) <= Math.abs(dy)) {
         // More vertical than horizontal: hand the gesture back to native
-        // scroll rather than claiming it as a card drag.
-        try { card.releasePointerCapture(pointerId); } catch { /* already released */ }
+        // scroll rather than claiming it as a card drag. Capture was never
+        // taken in this branch, so there is nothing to release.
         pointerId = null;
         return;
       }
       claimed = true;
+      captured = true;
+      card.setPointerCapture(pointerId);
       card.classList.add('discover-card-dragging');
     }
     event.preventDefault();
@@ -356,17 +392,29 @@ function attachGesture(card, reduced, { getThreshold, onCommit }) {
     if (pointerId === null || event.pointerId !== pointerId) return;
     const dx = event.clientX - startX;
     const wasClaimed = claimed;
-    pointerId = null;
-    claimed = false;
-    if (!wasClaimed) return;
-    pushSample(event.timeStamp, event.clientX);
+    if (captured) { try { card.releasePointerCapture(pointerId); } catch { /* already released */ } }
+    reset();
+    if (!wasClaimed) return; // a stationary tap/click: let the browser's own click go through
     const passedDistance = Math.abs(dx) >= getThreshold();
     const passedVelocity = Math.abs(releaseVelocity()) >= FLING_VELOCITY;
     if (passedDistance || passedVelocity) onCommit(dx < 0 ? 'have' : 'want');
     else springBack(card, reduced);
   }
+
+  // pointercancel means the system interrupted the gesture (an incoming
+  // call, an edge-swipe gesture, the browser reclaiming the pointer): it is
+  // never a considered release and must always spring back, never commit,
+  // regardless of where the pointer happened to be when it was cancelled.
+  function cancel(event) {
+    if (pointerId === null || event.pointerId !== pointerId) return;
+    const wasClaimed = claimed;
+    if (captured) { try { card.releasePointerCapture(pointerId); } catch { /* already released */ } }
+    reset();
+    if (wasClaimed) springBack(card, reduced);
+  }
+
   card.addEventListener('pointerup', release);
-  card.addEventListener('pointercancel', release);
+  card.addEventListener('pointercancel', cancel);
 }
 
 /* --- card content (PRD 17, "Card content") -------------------------------- */
@@ -423,6 +471,15 @@ export function openDiscoverDeck(options) {
     index: 0,
     tallies: { have: 0, want: 0, skip: 0 },
     lastJudged: null, // { id, decision, index }: single level, PRD 17 "Undo"
+    // locked is true from the instant a judgement is accepted until the
+    // next card is armed (dealCurrent) or the previous one is restored
+    // (undo). While locked, judge() refuses every further input: a second
+    // rapid click on the same visible button, or a drag committed on a
+    // card that is still mid-exit, both arrive while the first judgement's
+    // 220-320ms exit transition is still playing, and session.index has
+    // already moved on, so a naive re-read would silently judge the wrong
+    // id and never show it. A judgement is atomic per displayed card.
+    locked: false,
   };
 
   const progressEl = el('p', { class: 'discover-progress' });
@@ -483,7 +540,8 @@ export function openDiscoverDeck(options) {
   }
 
   function dealCurrent() {
-    if (session.index >= session.order.length) { showCompletion(); return; }
+    if (session.index >= session.order.length) { session.locked = false; showCompletion(); return; }
+    session.locked = false; // arm: this card, and only this card, now accepts a judgement
     controls.hidden = false;
     const tool = byId.get(session.order[session.index]);
     updateProgress();
@@ -493,7 +551,9 @@ export function openDiscoverDeck(options) {
   }
 
   function judge(decision) {
+    if (session.locked) return; // a judgement is already in flight for this card
     if (session.index >= session.order.length) return; // completion/empty screen showing
+    session.locked = true;
     const id = session.order[session.index];
     const tool = byId.get(id);
     const card = stage.querySelector('.discover-card');
@@ -519,6 +579,7 @@ export function openDiscoverDeck(options) {
     undoStoredDecision(state, id);
     session.index = index;
     session.lastJudged = null;
+    session.locked = false; // arm: the restored card now accepts a judgement
     undoBtn.hidden = true;
     controls.hidden = false;
     updateProgress();

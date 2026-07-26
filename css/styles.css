@@ -101,6 +101,15 @@ p { margin: 0; }
 img { max-width: 100%; }
 button { font: inherit; }
 
+/* The UA stylesheet's [hidden] rule is only display:none, which loses to
+   any later same-specificity display declaration in source order (flex
+   containers, inline-flex buttons and the like, all defined further down
+   this file). Every mount root and control across every surface (curator,
+   client, my, discover) toggles the hidden IDL property expecting it to
+   actually hide the element, so this needs to win outright rather than
+   relying on source order never regressing it again. */
+[hidden] { display: none !important; }
+
 :is(a, button, input, select, [tabindex]):focus-visible {
   outline: 2px solid var(--oxblood);
   outline-offset: 2px;

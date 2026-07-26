@@ -437,6 +437,69 @@ check('discover: blocked localStorage still reaches a completion card', (await b
 check('discover: blocked localStorage produces no console/page errors', blockedPageErrors.length === 0, blockedPageErrors.join(' | ').slice(0, 300));
 await blockedCtx.close();
 
+// Verifier round (defects 1, 2, 4): rapid double-judge, the More permalink,
+// and the [hidden] attribute actually hiding. Permanent per the fix report.
+
+// Defect 1: a zero-delay double click on the same visible button must
+// record exactly one decision, and the card shown afterwards must be the
+// true next id, not a second judgement read mid-transition.
+const doubleJudgePage = await browser.newPage();
+await doubleJudgePage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await openDiscoverDeck(doubleJudgePage);
+await clearDiscoverStorage(doubleJudgePage);
+await doubleJudgePage.reload();
+await doubleJudgePage.waitForSelector('#public-root .tool-card');
+await doubleJudgePage.locator('[data-discover-entry]').click();
+await doubleJudgePage.waitForSelector('.discover-card');
+const firstCardId = await doubleJudgePage.locator('.discover-card').getAttribute('data-id');
+await doubleJudgePage.evaluate(() => {
+  const btn = document.querySelector('.discover-btn-have');
+  btn.click();
+  btn.click(); // synchronous, same tick: no real-world delay is faster than this
+});
+await doubleJudgePage.waitForTimeout(500);
+const decisionsAfterDoubleClick = await doubleJudgePage.evaluate(() => JSON.parse(localStorage.getItem('freestack:v1:discover')).decisions);
+const nextCardIdAfterDoubleClick = await doubleJudgePage.locator('.discover-card').getAttribute('data-id');
+check('discover: zero-delay double click records exactly one decision',
+  Object.keys(decisionsAfterDoubleClick).length === 1 && decisionsAfterDoubleClick[firstCardId]?.d === 'have',
+  JSON.stringify(decisionsAfterDoubleClick));
+check('discover: zero-delay double click still shows the true next card',
+  nextCardIdAfterDoubleClick !== null && nextCardIdAfterDoubleClick !== firstCardId,
+  `first=${firstCardId} next=${nextCardIdAfterDoubleClick}`);
+await doubleJudgePage.close();
+
+// Defect 2: the quiet "More" permalink must be reachable by a stationary
+// mouse click, not silently swallowed by unconditional pointer capture.
+const morePage = await browser.newPage();
+await morePage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await openDiscoverDeck(morePage);
+const [moreTab] = await Promise.all([
+  morePage.context().waitForEvent('page'),
+  morePage.locator('.discover-card-more').click(),
+]);
+await moreTab.waitForLoadState();
+check('discover: More link click navigates to the tool permalink', /[?&]tool=/.test(moreTab.url()), moreTab.url());
+await moreTab.close();
+await morePage.close();
+
+// Defect 4: the hidden IDL property must actually hide, not just be present
+// with no visual effect (a flex/inline-flex display declaration elsewhere
+// wins over the bare UA [hidden] rule unless overridden).
+const hiddenPage = await browser.newPage();
+await hiddenPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await openDiscoverDeck(hiddenPage);
+const undoDisplayAtStart = await hiddenPage.locator('.discover-undo').evaluate((n) => getComputedStyle(n).display);
+check('discover: Undo button computed display is none at deck start', undoDisplayAtStart === 'none', undoDisplayAtStart);
+let hiddenGuard = 0;
+while ((await hiddenPage.locator('.discover-completion').count()) === 0 && hiddenGuard < 14) {
+  await hiddenPage.locator('.discover-btn-skip').click();
+  await hiddenPage.waitForTimeout(300);
+  hiddenGuard++;
+}
+const controlsDisplayAtCompletion = await hiddenPage.locator('.discover-controls').evaluate((n) => getComputedStyle(n).display);
+check('discover: controls row computed display is none at completion', controlsDisplayAtCompletion === 'none', controlsDisplayAtCompletion);
+await hiddenPage.close();
+
 /* --- curator mode (staff path /x, batch I) --------------------------------- */
 await page.goto(`${base}/x`);
 await page.waitForSelector('.tools-table');
