@@ -240,6 +240,212 @@ function cloneDoc(doc) {
 }
 
 /* ============================================================================
+   Batch add (PRD-REGISTER section 17, BUILD-PLAN 12.5): a pure row builder,
+   no closures needed. Every row in a batch, whatever it was ticked from
+   (catalogue tool, sovereign template, or a free-text name), gets the SAME
+   identity/owner/mfa/plan/status from the batch's one shared-details step;
+   the batch form itself carries no per-row fields (section 17's own words),
+   overrides happen afterwards through the existing drawer like any other
+   row. `item.kind` is 'tool' | 'template' | 'free'.
+   ========================================================================= */
+function buildBatchRow(item, shared) {
+  let service = '';
+  let url = '';
+  let toolId = null;
+  let notes = '';
+  if (item.kind === 'tool') {
+    service = item.tool.name;
+    const domain = item.tool.urls && item.tool.urls[0] && item.tool.urls[0].domain;
+    url = domain ? `https://${domain}` : '';
+    toolId = item.tool.id; // Number.isInteger elsewhere, never truthiness: id 0 is a real tool
+  } else if (item.kind === 'template') {
+    service = item.tpl.service;
+    url = item.tpl.url;
+    notes = item.tpl.notes || '';
+  } else {
+    service = item.name;
+  }
+  return blankAccount({
+    service, url, toolId, notes,
+    identity: shared.identity, owner: shared.owner, mfa: shared.mfa,
+    plan: shared.plan, status: shared.status,
+  });
+}
+
+/* ============================================================================
+   Sign-up generator (PRD-REGISTER section 18, BUILD-PLAN 12.5): pure text
+   and DOM builders, no closures needed, fed a list of { tool, row } pairs
+   (either may be absent: `row` is missing for a "want to try" catalogue
+   tool with no register row yet; `tool` is missing for a manual account
+   with no catalogue link). Shared by the on-screen sheet, the copy-as-text
+   handler and the in-page print sheet, so the three outputs can never say
+   different things about the same set of tools.
+   ========================================================================= */
+function generatorEntries(items) {
+  return items.map(({ tool, row }) => {
+    const name = (row && row.service) || (tool && tool.name) || 'Untitled account';
+    const identity = (row && row.identity) || '';
+    return { name, identity, personal: isPersonalEmail(identity), freeLimit: (tool && tool.free_limit) || null };
+  });
+}
+// Cyber Essentials wording law (section 11, section 18): "helps you prepare
+// for" is permitted; the explicit "does not make you certified" clause is
+// the law's own required negation, never a claim of compliance, and no CE
+// badge is ever rendered.
+const CE_LINE = 'Working through this checklist helps you prepare for Cyber Essentials account-management questions. It does not make you certified: certification needs an independent assessment.';
+function generatorChecklistPoints(e) {
+  const idLine = e.identity
+    ? `Sign up with your business email, not a personal one. Use ${e.identity}.${e.personal ? ' This looks like a personal email address: use a business one instead.' : ''}`
+    : 'Sign up with your business email, not a personal one.';
+  const points = [
+    idLine,
+    'Turn on two-factor authentication, app-based where the service offers it.',
+    'Record the account in this register: identity used, owner, 2FA method.',
+  ];
+  if (e.freeLimit) points.push(`Free tier: ${e.freeLimit}`);
+  return points;
+}
+function buildGeneratorText(items, business) {
+  const entries = generatorEntries(items);
+  const lines = [`Sign-up list for ${business || 'your business'}, ${formatDate(todayIso())}.`, ''];
+  for (const e of entries) {
+    lines.push(e.name);
+    for (const point of generatorChecklistPoints(e)) lines.push(`[ ] ${point}`);
+    lines.push('');
+  }
+  lines.push(CE_LINE);
+  return lines.join('\n');
+}
+function buildGeneratorSheetBody(items, business) {
+  const entries = generatorEntries(items);
+  return el('div', {},
+    el('h1', {}, 'Sign-up list'),
+    el('p', {}, `${business || 'Your business'}, generated ${formatDate(todayIso())}.`),
+    ...entries.map((e) => el('div', { class: 'my-signup-sheet-item' },
+      el('h2', {}, e.name),
+      el('ul', {}, ...generatorChecklistPoints(e).map((point) => el('li', {}, point))),
+    )),
+    el('p', { class: 't-meta' }, CE_LINE),
+  );
+}
+/** Prints the sign-up checklist via the same in-page sheet mechanism as
+    printRecoverySheet (module comment above it): a `.my-print-sheet` node,
+    a body class, `window.print()`, cleanup on `afterprint`. Never
+    `window.open` (see printRecoverySheet's own comment for why that fails
+    on mobile). */
+function printGeneratorSheet(items, business) {
+  const prev = document.querySelector('.my-print-sheet');
+  if (prev) prev.remove();
+  const sheet = el('div', { class: 'my-print-sheet' }, buildGeneratorSheetBody(items, business));
+  document.body.appendChild(sheet);
+  document.body.classList.add('my-printing-sheet');
+  const cleanup = () => { sheet.remove(); document.body.classList.remove('my-printing-sheet'); };
+  window.addEventListener('afterprint', cleanup, { once: true });
+  window.print();
+}
+async function copyGeneratorText(items, business) {
+  const text = buildGeneratorText(items, business);
+  try { await navigator.clipboard.writeText(text); showToast('Sign-up list copied.'); }
+  catch { showToast('Copy failed: select and copy by hand instead.', 'error'); }
+}
+
+/* ============================================================================
+   Reading-copy exports (PRD-REGISTER section 20, BUILD-PLAN 12.5): CSV, TXT
+   and a print sheet, all pure builders over a document, no closures needed.
+   Fields are exactly the section 4.2 list, deliberately excluding this
+   codebase's own `shared` boolean (real, but not a 4.2 field, so section
+   20's "the §4.2 fields the register holds and nothing else" excludes it).
+   Never any secret; `mfa` is a method label, never a password (section 4.1,
+   restated because every export surface restates it).
+   ========================================================================= */
+const REGISTER_FIELDS = ['id', 'service', 'url', 'toolId', 'identity', 'owner', 'admin', 'mfa', 'plan', 'renewal', 'monthlyCost', 'status', 'notes'];
+const READING_COPY_LAW = 'This is a reading copy. It cannot be imported back into My Stack: only the register file (.fsr.json) can.';
+/** OWASP formula-injection escaping (section 20, mandatory): any cell whose
+    value starts with '=', '+', '-', '@' or a literal tab gets a leading
+    apostrophe, so a spreadsheet reads it as text rather than a formula;
+    every field is then double-quoted with internal quotes doubled. Register
+    fields are free text a reader typed, and spreadsheets execute formulas:
+    this is a section 9.2-grade escaping duty, not polish. */
+function csvCell(value) {
+  let s = value === null || value === undefined ? '' : String(value);
+  if (/^[=+\-@\t]/.test(s)) s = `'${s}`;
+  s = s.replace(/"/g, '""');
+  return `"${s}"`;
+}
+function buildCsv(doc) {
+  const header = REGISTER_FIELDS.map(csvCell).join(',');
+  const rows = doc.accounts.map((a) => REGISTER_FIELDS.map((f) => csvCell(a[f])).join(','));
+  return [header, ...rows].map((line) => `${line}\r\n`).join(''); // CRLF, per section 20
+}
+/** Grouped like the register table (status, then service/identity/owner/2FA/
+    renewal/notes), section 4.2 fields only, header line with business name
+    and date, no markup: exactly section 20's own words for this format. */
+function buildTxt(doc) {
+  const lines = [`My Stack register: ${doc.business || 'Untitled register'}, ${formatDate(todayIso())}`, ''];
+  for (const status of STATUS_OPTIONS) {
+    const rows = doc.accounts.filter((a) => a.status === status);
+    if (!rows.length) continue;
+    lines.push(`${STATUS_LABEL[status]} (${rows.length})`);
+    for (const a of rows) {
+      lines.push(`- ${a.service || 'Untitled account'}`);
+      lines.push(`  Identity: ${a.identity || 'Not recorded'}`);
+      lines.push(`  Owner: ${a.owner || 'Not recorded'}`);
+      lines.push(`  2FA: ${MFA_LABEL[a.mfa] || a.mfa || 'Not recorded'}`);
+      lines.push(`  Renewal: ${a.renewal ? formatDate(a.renewal) : 'None'}`);
+      if (a.notes) lines.push(`  Notes: ${a.notes}`);
+      lines.push('');
+    }
+  }
+  lines.push(READING_COPY_LAW);
+  return lines.join('\n');
+}
+/** A clean tabular listing of the same content as buildTxt() above (section
+    20's own words), grouped by status the same way, built through el() so
+    every register field reaches the page via text nodes only. */
+function buildReadingCopySheetBody(doc) {
+  const groups = STATUS_OPTIONS
+    .map((status) => ({ status, rows: doc.accounts.filter((a) => a.status === status) }))
+    .filter((g) => g.rows.length);
+  return el('div', {},
+    el('h1', {}, 'My Stack register'),
+    el('p', {}, `${doc.business || 'Untitled register'}, generated ${formatDate(todayIso())}.`),
+    ...groups.map((g) => el('div', { class: 'my-readingcopy-group' },
+      el('h2', {}, `${STATUS_LABEL[g.status]} (${g.rows.length})`),
+      el('table', { class: 'my-readingcopy-table' },
+        el('thead', {}, el('tr', {}, ...['Service', 'Identity', 'Owner', '2FA', 'Renewal', 'Notes'].map((h) => el('th', {}, h)))),
+        el('tbody', {}, ...g.rows.map((a) => el('tr', {},
+          el('td', {}, a.service || 'Untitled account'),
+          el('td', {}, a.identity || 'Not recorded'),
+          el('td', {}, a.owner || 'Not recorded'),
+          el('td', {}, MFA_LABEL[a.mfa] || a.mfa || 'Not recorded'),
+          el('td', {}, a.renewal ? formatDate(a.renewal) : 'None'),
+          el('td', {}, a.notes || ''),
+        ))),
+      ),
+    )),
+    el('p', { class: 't-meta' }, READING_COPY_LAW),
+  );
+}
+/** Same in-page print-sheet mechanism as printRecoverySheet/printGeneratorSheet
+    above: never `window.open`. This is the "Print or save as PDF" path for
+    the register itself (section 20), distinct from the sign-up generator's
+    own print sheet, which prints a different set of tools entirely. */
+function printReadingCopySheet(doc) {
+  const prev = document.querySelector('.my-print-sheet');
+  if (prev) prev.remove();
+  const sheet = el('div', { class: 'my-print-sheet' }, buildReadingCopySheetBody(doc));
+  document.body.appendChild(sheet);
+  document.body.classList.add('my-printing-sheet');
+  const cleanup = () => { sheet.remove(); document.body.classList.remove('my-printing-sheet'); };
+  window.addEventListener('afterprint', cleanup, { once: true });
+  window.print();
+}
+function readingCopyFilename(business, ext) {
+  const date = new Date().toISOString().slice(0, 10);
+  return `mystack-register-${slugify(business)}-${date}.${ext}`;
+}
+
+/* ============================================================================
    Entry point
    ========================================================================= */
 export async function renderWorkspace(root) {
@@ -265,6 +471,15 @@ export async function renderWorkspace(root) {
     },
     undo: null,        // { row, index, timer }: the last delete, undoable
     mergePreview: null, // { wantIds, haveIds, ticked, open }: ?from=/?have= against an EXISTING register
+    // Batch add (section 17): null, or the three-step wizard's own state.
+    // Reachable only from Accounts, so this stays a single slot rather than
+    // per-screen state; commitBatch()/cancel both reset it to null.
+    batchUi: null,
+    // Sign-up generator (section 18): null, or { items, preSeed }, `items`
+    // being the { tool, row } pairs the sheet was opened over. Rendered at
+    // the shell level (see viewShell's container) so it stays visible
+    // whichever of Accounts/My tools/the merge banner opened it.
+    generatorUi: null,
     leaversUi: {
       person: '',            // selected from the distinct-owner dropdown
       customPerson: '',       // free text, for someone not in that list
@@ -1000,6 +1215,57 @@ export async function renderWorkspace(root) {
     });
     if (saved) showToast('Accounts added from your shared stack.');
   }
+
+  /** Batch add commit (section 17, BUILD-PLAN 12.5): ONE store.save() for
+      the whole batch, whichever mix of catalogue tools, sovereign templates
+      and free-text names was ticked, sharing the one identity/owner/mfa/
+      plan/status entered at step 2. Never N saves for N rows; per-row
+      overrides happen afterwards through the existing drawer, unchanged. */
+  async function commitBatch(items, shared) {
+    const rows = items.map((it) => buildBatchRow(it, shared));
+    const saved = await mutateDoc((doc) => { doc.accounts.push(...rows); return doc; });
+    if (saved) {
+      showToast(`Added ${rows.length} account${rows.length === 1 ? '' : 's'}.`);
+      state.batchUi = null;
+      draw();
+    }
+    return saved;
+  }
+
+  /** Sign-up generator (section 18, BUILD-PLAN 12.5): opens the in-app sheet
+      over a set of { tool, row } pairs. Reached from Accounts (the "To sign
+      up" group or a row selection), My tools (imported tools still only
+      planned) and the merge banner's want-list (a Discover arrival's "want
+      to try" ids, before any row exists for them). */
+  function openGenerator(items) {
+    const valid = (items || []).filter((it) => it && (it.tool || it.row));
+    if (!valid.length) { showToast('Nothing to build a sign-up list from.', 'error'); return; }
+    state.generatorUi = { items: valid, preSeed: false };
+    draw();
+  }
+  function closeGenerator() { state.generatorUi = null; draw(); }
+
+  /** Pre-seed (section 18, opt-in, off by default): ONE store.save() creates
+      a `planned` row per generator item whose tool is not already linked to
+      an existing account by `toolId` (a Set membership check, never a
+      truthiness test, so tool id 0 is never skipped and never duplicated).
+      A generator item with no catalogue tool (a manual account) cannot be
+      pre-seeded, since there is no `toolId` to dedupe or create a row from. */
+  async function preSeedGeneratorItems(items) {
+    const candidates = (items || []).filter((it) => it.tool && Number.isInteger(it.tool.id));
+    if (!candidates.length) return null;
+    const saved = await mutateDoc((doc) => {
+      const existingToolIds = new Set(doc.accounts.map((a) => a.toolId).filter((v) => v !== null && v !== undefined));
+      for (const it of candidates) {
+        if (existingToolIds.has(it.tool.id)) continue; // never a duplicate toolId row, id 0 included
+        doc.accounts.push(buildRowFromTool(it.tool, 'planned'));
+        existingToolIds.add(it.tool.id);
+      }
+      return doc;
+    });
+    return saved;
+  }
+
   /** Delete with undo (no confirm modal, per the brief): the row is removed
       and saved immediately (the store law: mutations persist, they do not
       wait in limbo), and "Undo" is a second, equally real mutation that
@@ -1263,23 +1529,57 @@ export async function renderWorkspace(root) {
           if (!owner) { showToast('Enter a name first.', 'error'); return; }
           await bulkSetOwner(new Set(ui.selected), owner);
         });
+        // Sign-up list over "a selection of rows" (section 18's own second
+        // bulk-action reach point, alongside the "To sign up" group below):
+        // whatever status the ticked rows carry, since a reader may just as
+        // well want the checklist for a handful of already-planned rows
+        // picked by hand as for the whole group at once.
+        const signup = el('button', { class: 'btn btn-secondary btn-sm', type: 'button' }, `Sign-up list for ${ui.selected.size}`);
+        signup.addEventListener('click', () => {
+          const ids = new Set(ui.selected);
+          const rows = accounts.filter((a) => ids.has(a.id));
+          const tools = toolsCache || [];
+          const byId = new Map(tools.map((t) => [t.id, t]));
+          openGenerator(rows.map((row) => ({ row, tool: (row.toolId !== null && row.toolId !== undefined) ? byId.get(row.toolId) : undefined })));
+        });
         const clear = el('button', { class: 'btn btn-ghost btn-sm', type: 'button' }, 'Clear selection');
         clear.addEventListener('click', () => { ui.selected.clear(); draw(); });
-        bulkBar = el('div', { class: 'my-bulk-bar' }, el('span', { class: 't-small' }, `${ui.selected.size} selected`), input, apply, clear);
+        bulkBar = el('div', { class: 'my-bulk-bar' }, el('span', { class: 't-small' }, `${ui.selected.size} selected`), input, apply, signup, clear);
       }
 
       const addBtn = el('button', { class: 'btn btn-primary btn-sm', type: 'button' }, 'Add account');
       addBtn.addEventListener('click', () => addAccount());
+      const batchBtn = el('button', { class: 'btn btn-secondary btn-sm', type: 'button' }, 'Add several at once');
+      batchBtn.addEventListener('click', async () => {
+        await ensureTools();
+        state.batchUi = defaultBatchState();
+        draw();
+      });
       const templatesBtn = el('button', { class: 'btn btn-ghost btn-sm', type: 'button' }, 'Add from templates');
       templatesBtn.addEventListener('click', () => { ui.templatesOpen = !ui.templatesOpen; draw(); });
-      const headerActions = readOnly ? null : el('div', { class: 'my-accounts-actions' }, addBtn, templatesBtn);
+      const headerActions = readOnly ? null : el('div', { class: 'my-accounts-actions' }, addBtn, batchBtn, templatesBtn);
       const templatesPanel = (!readOnly && ui.templatesOpen) ? renderTemplatesPicker() : null;
+      const batchPanel = (!readOnly && state.batchUi) ? renderBatchOverlay() : null;
 
       const table = liveFiltered.length ? renderAccountsTable(liveFiltered, readOnly) : null;
       const plannedTable = plannedFiltered.length ? renderAccountsTable(plannedFiltered, readOnly) : null;
+      // Sign-up list, bulk action over the "To sign up" group itself
+      // (section 18's first reach point): built from whichever planned rows
+      // are currently visible under the active search/filters, so the
+      // checklist always matches what the reader is looking at.
+      const signupGroupBtn = (!readOnly && plannedFiltered.length) ? (() => {
+        const btn = el('button', { class: 'btn btn-secondary btn-sm', type: 'button' }, 'Generate sign-up list');
+        btn.addEventListener('click', () => {
+          const tools = toolsCache || [];
+          const byId = new Map(tools.map((t) => [t.id, t]));
+          openGenerator(plannedFiltered.map((row) => ({ row, tool: (row.toolId !== null && row.toolId !== undefined) ? byId.get(row.toolId) : undefined })));
+        });
+        return btn;
+      })() : null;
       const plannedSection = plannedFiltered.length ? el('div', { class: 'my-signup-group' },
         el('h3', {}, 'To sign up'),
         el('p', { class: 't-meta' }, 'Accounts you plan to open but have not opened yet. They do not count toward the risk tiles on Overview or the Leavers checklist.'),
+        signupGroupBtn,
         plannedTable,
       ) : null;
       const emptyMsg = !accounts.length
@@ -1291,6 +1591,7 @@ export async function renderWorkspace(root) {
         readOnly ? el('p', { class: 't-meta' }, 'This is an example register: editing is switched off. Start your own register to add and edit real accounts.') : null,
         headerActions,
         templatesPanel,
+        batchPanel,
         filterBar,
         bulkBar,
         emptyMsg,
@@ -1321,6 +1622,179 @@ export async function renderWorkspace(root) {
         el('p', { class: 't-small' }, 'Common accounts every business has. Tick to add:'),
         ...rows,
         el('div', { class: 'my-setup-actions' }, add, cancel));
+    }
+
+    /* --- Batch add (section 17, BUILD-PLAN 12.5): a three-step wizard over
+       state.batchUi, rendered as an in-flow panel on Accounts (the same
+       pattern renderTemplatesPicker above already uses, no modal system
+       exists on this surface and none is introduced here). Step 1 mixes
+       catalogue tools, sovereign templates and free-text names; step 2
+       enters identity/owner/mfa/plan/status once; step 3 lists the rows
+       about to be created and commits them all in a single store.save()
+       via commitBatch() above. ------------------------------------------- */
+    function defaultBatchState() {
+      return {
+        step: 'pick', search: '',
+        tickedTools: new Set(), tickedTemplates: new Set(),
+        freeTexts: [], freeTextInput: '', freeTextCounter: 0,
+        identity: '', owner: '', mfa: 'unknown', plan: '', status: 'active',
+      };
+    }
+    function batchItems(b) {
+      const tools = toolsCache || [];
+      const items = [];
+      // Number.isInteger + Set#has, never truthiness: tool id 0 ticks and
+      // commits exactly like any other id (section 17's own words).
+      for (const id of b.tickedTools) {
+        const t = tools.find((x) => x.id === id);
+        if (t) items.push({ kind: 'tool', tool: t });
+      }
+      for (const key of b.tickedTemplates) {
+        const tpl = SOVEREIGN_TEMPLATES.find((x) => x.key === key);
+        if (tpl) items.push({ kind: 'template', tpl });
+      }
+      for (const f of b.freeTexts) items.push({ kind: 'free', name: f.name });
+      return items;
+    }
+    function batchStepPick(b) {
+      const tools = toolsCache || [];
+      const q = b.search.trim().toLowerCase();
+      const filteredTools = q ? tools.filter((t) => t.name.toLowerCase().includes(q)) : tools;
+      const searchInput = el('input', {
+        class: 'input', type: 'search', placeholder: 'Search the tool catalogue…',
+        value: b.search, dataset: { focusKey: 'batch-search' },
+      });
+      searchInput.addEventListener('input', () => { b.search = searchInput.value; draw(); });
+
+      const toolRows = filteredTools.map((t) => {
+        const id = `batch-tool-${t.id}`;
+        const cb = el('input', { type: 'checkbox', id, checked: b.tickedTools.has(t.id) });
+        cb.addEventListener('change', () => { if (cb.checked) b.tickedTools.add(t.id); else b.tickedTools.delete(t.id); draw(); });
+        return el('label', { class: 'my-template-row', for: id }, cb, el('span', {}, t.name));
+      });
+      const templateRows = SOVEREIGN_TEMPLATES.map((tpl) => {
+        const id = `batch-tpl-${tpl.key}`;
+        const cb = el('input', { type: 'checkbox', id, checked: b.tickedTemplates.has(tpl.key) });
+        cb.addEventListener('change', () => { if (cb.checked) b.tickedTemplates.add(tpl.key); else b.tickedTemplates.delete(tpl.key); draw(); });
+        return el('label', { class: 'my-template-row', for: id }, cb, el('span', {}, tpl.service));
+      });
+
+      const freeTextInput = el('input', {
+        class: 'input', type: 'text', placeholder: 'A service not in the catalogue…',
+        value: b.freeTextInput, dataset: { focusKey: 'batch-freetext' },
+      });
+      freeTextInput.addEventListener('input', () => { b.freeTextInput = freeTextInput.value; });
+      function commitFreeText() {
+        const name = b.freeTextInput.trim();
+        if (!name) return;
+        b.freeTexts.push({ id: `free-${b.freeTextCounter++}`, name });
+        b.freeTextInput = '';
+        draw();
+      }
+      const addFreeBtn = el('button', { class: 'btn btn-ghost btn-sm', type: 'button' }, 'Add name');
+      addFreeBtn.addEventListener('click', commitFreeText);
+      freeTextInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); commitFreeText(); } });
+
+      const freeList = b.freeTexts.length ? el('ul', { class: 'my-attention-list' }, ...b.freeTexts.map((f) => {
+        const removeBtn = el('button', { class: 'btn btn-ghost btn-sm', type: 'button' }, 'Remove');
+        removeBtn.addEventListener('click', () => { b.freeTexts = b.freeTexts.filter((x) => x.id !== f.id); draw(); });
+        return el('li', {}, `${f.name} `, removeBtn);
+      })) : null;
+
+      const total = b.tickedTools.size + b.tickedTemplates.size + b.freeTexts.length;
+      const cancelBtn = el('button', { class: 'btn btn-ghost', type: 'button' }, 'Cancel');
+      cancelBtn.addEventListener('click', () => { state.batchUi = null; draw(); });
+      const contBtn = el('button', { class: 'btn btn-primary', type: 'button', disabled: total === 0 }, `Continue (${total} ticked)`);
+      contBtn.addEventListener('click', () => { b.step = 'details'; draw(); });
+
+      return el('div', {},
+        el('h3', {}, 'Add several at once: pick services'),
+        el('p', { class: 't-body' }, 'Tick every service you want to add in one go. Mix catalogue tools, common templates and services typed by hand.'),
+        el('label', { class: 'my-field' }, el('span', { class: 't-small' }, 'Search the catalogue'), searchInput),
+        el('div', { class: 'my-batch-picklist' }, ...toolRows),
+        el('p', { class: 't-small' }, 'Common accounts:'),
+        el('div', { class: 'my-batch-picklist' }, ...templateRows),
+        el('p', { class: 't-small' }, 'Not in the catalogue:'),
+        el('div', { class: 'my-field' }, freeTextInput, addFreeBtn),
+        freeList,
+        el('div', { class: 'my-setup-actions' }, cancelBtn, contBtn),
+      );
+    }
+    function batchStepDetails(b) {
+      const identityInput = el('input', {
+        class: 'input', type: 'text', placeholder: 'name@business.co.uk',
+        value: b.identity, dataset: { focusKey: 'batch-identity' },
+      });
+      identityInput.addEventListener('input', () => { b.identity = identityInput.value; draw(); });
+      // Personal-email detection fires once, on the shared identity, before
+      // creation (section 17's own words), same chip vocabulary as Accounts.
+      const personalChip = isPersonalEmail(b.identity) ? el('span', { class: 'my-chip my-chip-risk' }, 'Personal email') : null;
+
+      const ownerInput = el('input', {
+        class: 'input', type: 'text', placeholder: 'Who owns these accounts',
+        value: b.owner, dataset: { focusKey: 'batch-owner' },
+      });
+      ownerInput.addEventListener('input', () => { b.owner = ownerInput.value; });
+
+      const mfaSelectEl = el('select', { class: 'select' },
+        ...['app', 'sms', 'hardware', 'none', 'unknown'].map((v) => el('option', { value: v, selected: b.mfa === v }, MFA_LABEL[v])));
+      mfaSelectEl.addEventListener('change', () => { b.mfa = mfaSelectEl.value; });
+
+      const planInput = el('input', {
+        class: 'input', type: 'text', placeholder: 'Plan (optional)',
+        value: b.plan, dataset: { focusKey: 'batch-plan' },
+      });
+      planInput.addEventListener('input', () => { b.plan = planInput.value; });
+
+      // Status offers only active/planned here (section 17): a batch is
+      // either accounts being opened now, or a batch of intentions, never a
+      // way to bulk-mark existing accounts to-close/closed.
+      const statusSelectEl = el('select', { class: 'select' },
+        ...['active', 'planned'].map((v) => el('option', { value: v, selected: b.status === v }, STATUS_LABEL[v])));
+      statusSelectEl.addEventListener('change', () => { b.status = statusSelectEl.value; });
+
+      const back = el('button', { class: 'btn btn-ghost', type: 'button' }, 'Back');
+      back.addEventListener('click', () => { b.step = 'pick'; draw(); });
+      const cont = el('button', { class: 'btn btn-primary', type: 'button' }, 'Continue');
+      cont.addEventListener('click', () => { b.step = 'review'; draw(); });
+
+      return el('div', {},
+        el('h3', {}, 'Add several at once: shared details'),
+        el('p', { class: 't-body' }, 'Entered once, applied to every account in this batch. You can change any single one afterwards, in its own details drawer.'),
+        el('label', { class: 'my-field' }, el('span', { class: 't-small' }, 'Identity (email or SSO label)'), identityInput, personalChip),
+        el('label', { class: 'my-field' }, el('span', { class: 't-small' }, 'Owner'), ownerInput),
+        el('label', { class: 'my-field' }, el('span', { class: 't-small' }, '2FA method'), mfaSelectEl),
+        el('label', { class: 'my-field' }, el('span', { class: 't-small' }, 'Plan (optional)'), planInput),
+        el('label', { class: 'my-field' }, el('span', { class: 't-small' }, 'Status'), statusSelectEl),
+        el('div', { class: 'my-setup-actions' }, back, cont),
+      );
+    }
+    function batchStepReview(b) {
+      const items = batchItems(b);
+      const rows = items.map((it) => {
+        const name = it.kind === 'tool' ? it.tool.name : it.kind === 'template' ? it.tpl.service : it.name;
+        return el('li', {}, name);
+      });
+      const back = el('button', { class: 'btn btn-ghost', type: 'button' }, 'Back');
+      back.addEventListener('click', () => { b.step = 'details'; draw(); });
+      const commitBtn = el('button', { class: 'btn btn-primary', type: 'button' }, `Add ${items.length} account${items.length === 1 ? '' : 's'}`);
+      commitBtn.addEventListener('click', () => { commitBatch(items, b); });
+      return el('div', {},
+        el('h3', {}, 'Add several at once: review'),
+        el('p', { class: 't-body' },
+          `${items.length} account${items.length === 1 ? '' : 's'}, one commit, all sharing: identity `,
+          el('strong', {}, b.identity || 'not set'), ', owner ',
+          el('strong', {}, b.owner || 'not set'), ', 2FA ',
+          el('strong', {}, MFA_LABEL[b.mfa]), ', status ',
+          el('strong', {}, STATUS_LABEL[b.status]), '.'),
+        el('ul', { class: 'my-attention-list' }, ...rows),
+        el('div', { class: 'my-setup-actions' }, back, commitBtn),
+      );
+    }
+    function renderBatchOverlay() {
+      const b = state.batchUi;
+      const body = b.step === 'details' ? batchStepDetails(b) : (b.step === 'review' ? batchStepReview(b) : batchStepPick(b));
+      return el('div', { class: 'panel my-batch-sheet' }, body);
     }
 
     function renderMergeBanner() {
@@ -1358,10 +1832,82 @@ export async function renderWorkspace(root) {
       apply.addEventListener('click', async () => { await applyMerge(mp, new Set(mp.ticked)); });
       const cancel = el('button', { class: 'btn btn-ghost btn-sm', type: 'button' }, 'Cancel');
       cancel.addEventListener('click', () => { state.mergePreview = null; draw(); });
+      // Sign-up generator, reached from the import review itself (section
+      // 18's second reach point), over the want-list ids of a Discover
+      // arrival: these tools have no register row yet at all, so the
+      // generator is opened with `row: undefined`, exactly the shape it
+      // already accepts for a manual account with no catalogue link.
+      const signupBtn = (isDiscoverArrival && mp.wantIds.length) ? (() => {
+        const btn = el('button', { class: 'btn btn-secondary btn-sm', type: 'button' }, 'Sign-up list for these');
+        btn.addEventListener('click', () => {
+          openGenerator(mp.wantIds.map((id) => ({ tool: byId.get(id), row: undefined })));
+        });
+        return btn;
+      })() : null;
       return el('div', { class: 'my-banner my-banner-merge my-banner-merge-open', role: 'status' },
         el('p', { class: 't-small' }, 'Adding these will never duplicate a tool already in this register:'),
         haveBlock, wantBlock,
-        el('div', { class: 'my-setup-actions' }, apply, cancel));
+        el('div', { class: 'my-setup-actions' }, apply, signupBtn, cancel));
+    }
+
+    /** The sign-up generator's in-app sheet (section 18): rendered at the
+        shell level (see the container assembly below) so it stays visible
+        whichever of Accounts/My tools/the merge banner opened it, rather
+        than being lost the instant the reader navigates away to look at
+        something else while working through it. Not a print sheet itself
+        (that is printGeneratorSheet(), the .my-print-sheet mechanism); this
+        is the interactive, on-screen view the Print and Copy buttons act
+        on. */
+    function renderGeneratorSheet() {
+      const g = state.generatorUi;
+      if (!g) return null;
+      const entries = generatorEntries(g.items);
+
+      const closeBtn = el('button', { class: 'btn btn-ghost btn-sm', type: 'button' }, 'Close');
+      closeBtn.addEventListener('click', closeGenerator);
+      const printBtn = el('button', { class: 'btn btn-secondary', type: 'button' }, 'Print or save as PDF');
+      printBtn.addEventListener('click', () => printGeneratorSheet(g.items, doc.business));
+      const copyBtn = el('button', { class: 'btn btn-secondary', type: 'button' }, 'Copy as text');
+      copyBtn.addEventListener('click', () => copyGeneratorText(g.items, doc.business));
+
+      // Pre-seed (section 18, opt-in, off by default): only offered when at
+      // least one item still has a catalogue tool with no matching register
+      // row yet, since that is the only case there is anything to create.
+      const existingToolIds = new Set(doc.accounts.map((a) => a.toolId).filter((v) => v !== null && v !== undefined));
+      const seedable = g.items.filter((it) => it.tool && Number.isInteger(it.tool.id) && !existingToolIds.has(it.tool.id));
+      let preSeedBlock = null;
+      if (seedable.length) {
+        const cbId = 'generator-preseed';
+        const cb = el('input', { type: 'checkbox', id: cbId, checked: g.preSeed });
+        cb.addEventListener('change', () => { g.preSeed = cb.checked; draw(); });
+        const addBtn = el('button', { class: 'btn btn-primary btn-sm', type: 'button', disabled: !g.preSeed }, `Add ${seedable.length} to the register as planned`);
+        addBtn.addEventListener('click', async () => {
+          const saved = await preSeedGeneratorItems(g.items);
+          if (saved) showToast('Added as planned accounts.');
+        });
+        preSeedBlock = el('div', { class: 'my-generator-preseed' },
+          el('label', { for: cbId, class: 'my-template-row' }, cb, el('span', {}, 'Add these to the register as planned')),
+          addBtn,
+        );
+      }
+
+      const list = entries.map((e) => el('div', { class: 'my-signup-sheet-item' },
+        el('h3', {}, e.name),
+        el('ul', { class: 'my-attention-list' },
+          el('li', {}, generatorChecklistPoints(e)[0]),
+          el('li', {}, 'Turn on two-factor authentication, app-based where the service offers it.'),
+          el('li', {}, 'Record the account in this register: identity used, owner, 2FA method.'),
+          e.freeLimit ? el('li', {}, `Free tier: ${e.freeLimit}`) : null,
+        ),
+      ));
+
+      return el('div', { class: 'panel my-generator-sheet no-print' },
+        el('div', { class: 'my-generator-head' }, el('h2', {}, 'Sign-up list'), closeBtn),
+        el('p', { class: 't-meta' }, CE_LINE),
+        ...list,
+        preSeedBlock,
+        el('div', { class: 'my-setup-actions' }, printBtn, copyBtn),
+      );
     }
 
     function renderAccountsTable(rows, readOnly) {
@@ -1567,9 +2113,20 @@ export async function renderWorkspace(root) {
         const adoptionLevel = statusChipLevel(row.status);
         return el('li', {}, btn, ' ', el('span', { class: `my-chip${adoptionLevel ? ` my-chip-${adoptionLevel}` : ''}` }, ADOPTION_LABEL[row.status] || row.status));
       })) : el('p', { class: 't-body' }, 'Nothing else recorded yet.');
+      // Sign-up generator, third reach point (section 18): imported tools
+      // with no active register row yet, i.e. still only `planned` here.
+      const plannedTools = withTool.filter((row) => row.status === 'planned');
+      const signupBtn = (!state.example && plannedTools.length) ? (() => {
+        const btn = el('button', { class: 'btn btn-secondary btn-sm', type: 'button' }, `Generate sign-up list (${plannedTools.length})`);
+        btn.addEventListener('click', () => {
+          openGenerator(plannedTools.map((row) => ({ row, tool: byId.get(row.toolId) })));
+        });
+        return btn;
+      })() : null;
       return el('section', { class: 'my-screen' },
         el('h2', {}, 'My tools'),
         el('p', { class: 't-body' }, 'Your imported stack, one card per tool, each linking back to its full entry in Accounts.'),
+        signupBtn,
         cardGrid,
         el('h3', {}, 'Everything else you told us about'),
         otherList,
@@ -2169,6 +2726,42 @@ export async function renderWorkspace(root) {
         el('p', { class: 't-body' }, 'On an iPhone, adding this page to your Home Screen (Share, then "Add to Home Screen") gives it its own storage counter, separate from the rest of Safari, which honestly means a little more room before anything here is at risk of eviction. It does not change anything about ', STORAGE_PHRASE, '.'),
       ) : null;
 
+      // Reading-copy exports (section 20): CSV, TXT and print-to-PDF, below
+      // the register file above (§8/§20's "primary export presented first,
+      // visually subordinate" rule), never touching savesSinceExport or the
+      // verified-backup date (no store.save()/exportBlob() call anywhere in
+      // these three handlers). Rendered from the unlocked in-memory
+      // document only: absent entirely while example (no register of the
+      // reader's own to export) or `st.locked` (section 20: "a locked
+      // register offers no reading-copy controls"). In this app shell a
+      // locked register normally never reaches this screen at all (the lock
+      // gate replaces the whole shell, viewLocked() not viewShell()), so
+      // `st.locked` here is a defensive second line, not the only guard.
+      function handleDownloadCsv() { downloadBlob(new Blob([buildCsv(doc)], { type: 'text/csv' }), readingCopyFilename(doc.business, 'csv')); }
+      function handleDownloadTxt() { downloadBlob(new Blob([buildTxt(doc)], { type: 'text/plain' }), readingCopyFilename(doc.business, 'txt')); }
+      function handlePrintReadingCopy() { printReadingCopySheet(doc); }
+      let readingCopySection = null;
+      if (!state.example) {
+        if (st.locked) {
+          readingCopySection = el('div', { class: 'my-backup-section my-reading-copy-section' },
+            el('h3', {}, 'Reading copies'),
+            el('p', { class: 't-body' }, 'This register is locked. Unlock it with your passphrase first.'),
+          );
+        } else {
+          const csvBtn = el('button', { class: 'btn btn-secondary', type: 'button' }, 'Download as CSV');
+          csvBtn.addEventListener('click', handleDownloadCsv);
+          const txtBtn = el('button', { class: 'btn btn-secondary', type: 'button' }, 'Download as text');
+          txtBtn.addEventListener('click', handleDownloadTxt);
+          const printBtn = el('button', { class: 'btn btn-secondary', type: 'button' }, 'Print or save as PDF');
+          printBtn.addEventListener('click', handlePrintReadingCopy);
+          readingCopySection = el('div', { class: 'my-backup-section my-reading-copy-section' },
+            el('h3', {}, 'Reading copies'),
+            el('p', { class: 't-body' }, READING_COPY_LAW, ' Keep the register file above as your real backup.'),
+            el('div', { class: 'my-setup-actions' }, csvBtn, txtBtn, printBtn),
+          );
+        }
+      }
+
       return el('section', { class: 'my-screen' },
         el('h2', {}, 'Backup'),
         el('p', { class: 't-body' }, 'The export file you download is the copy that truly lasts. Everything ', STORAGE_PHRASE, ' can be lost if you clear browsing data or switch devices.'),
@@ -2177,6 +2770,7 @@ export async function renderWorkspace(root) {
           el('h3', {}, 'Export'),
           state.example ? el('p', { class: 't-meta' }, 'Exports are disabled while exploring the example register.') : el('div', { class: 'my-setup-actions' }, downloadBtn, shareBtn),
         ),
+        readingCopySection,
         state.example ? null : renderImportSection(),
         state.example ? null : renderEncryptionSection(),
         homeScreenNote,
@@ -2191,7 +2785,8 @@ export async function renderWorkspace(root) {
       );
     }
 
-    const container = el('div', { class: 'my-shell' }, sidebar, el('div', { class: 'my-content' }, exampleBanner, reloadBanner, mergeBanner, undoBanner, nagBanner, topbar, main));
+    const generatorSheet = (!state.example && state.generatorUi) ? renderGeneratorSheet() : null;
+    const container = el('div', { class: 'my-shell' }, sidebar, el('div', { class: 'my-content' }, exampleBanner, reloadBanner, mergeBanner, undoBanner, nagBanner, topbar, generatorSheet, main));
     // A lazy top-up on top of the deliberate refreshes at mode transitions:
     // status() is async, so if it changed since the snapshot this render
     // used, quietly redraw once. The equality check is what stops this from

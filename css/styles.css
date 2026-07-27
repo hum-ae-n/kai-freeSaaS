@@ -1854,6 +1854,30 @@ button { font: inherit; }
 .my-signup-group h3 { font-size: var(--fs-18); margin-bottom: var(--s-1); }
 .my-signup-group > p { margin-bottom: var(--s-3); }
 
+/* Batch add (PRD-REGISTER section 17, BUILD-PLAN 12.5): an in-flow panel on
+   Accounts, the same shape .my-templates-panel already uses (no modal
+   system exists on this surface, and none is introduced here). */
+.my-batch-sheet { max-width: 640px; margin: var(--s-3) 0; padding: var(--s-4); border-top: var(--bw-heavy) solid var(--oxblood); }
+.my-batch-sheet h3 { font-size: var(--fs-18); margin-bottom: var(--s-2); }
+.my-batch-picklist {
+  max-height: 220px;
+  overflow-y: auto;
+  border: var(--bw-hair) solid var(--paper-edge);
+  padding: var(--s-2) var(--s-3);
+  margin-bottom: var(--s-3);
+}
+
+/* Sign-up generator (PRD-REGISTER section 18, BUILD-PLAN 12.5): rendered at
+   the shell level (workspace.js's container assembly) so it stays visible
+   across a screen switch while the reader works through it, same flat
+   left-accent panel shape as the rest of this surface. */
+.my-generator-sheet { max-width: 720px; margin: var(--s-4) 0; padding: var(--s-6); border-top: var(--bw-heavy) solid var(--oxblood); }
+.my-generator-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s-3); margin-bottom: var(--s-2); }
+.my-generator-head h2 { margin: 0; font-size: var(--fs-21); }
+.my-signup-sheet-item { margin: var(--s-3) 0; padding-bottom: var(--s-3); border-bottom: var(--bw-hair) solid var(--paper-edge); }
+.my-signup-sheet-item h3 { font-size: var(--fs-16); margin-bottom: var(--s-1); }
+.my-generator-preseed { display: flex; align-items: center; gap: var(--s-3); margin: var(--s-3) 0; flex-wrap: wrap; }
+
 /* Backup-age chip (section 8), sidebar footer and Backup screen alike: a
    real button (a one-tap jump to Backup), never colour-only (the text
    already states the age in words). */
@@ -2034,6 +2058,15 @@ button { font: inherit; }
   .my-leaver-picker { max-width: none; }
   .my-import-drop { align-items: stretch; text-align: center; }
   .my-import-drop .btn { width: 100%; }
+
+  /* Same 44px floor, same reasoning as the verifier finding noted just
+     above (section 14, primary workspace actions), extended to Phase 12
+     Wave E's new entry points and outputs: batch add's own actions, the
+     sign-up generator sheet, and the reading-copy download/print buttons. */
+  .my-accounts-actions .btn,
+  .my-batch-sheet .btn,
+  .my-generator-sheet .btn,
+  .my-reading-copy-section .btn { min-height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .my-sidebar { transition: none; }
@@ -2217,4 +2250,16 @@ button { font: inherit; }
      evergreen engine this site already targets; sized up here so an
      unticked box still reads clearly as a box on paper, not a stray dot. */
   .my-leaver-tick { width: 12pt; height: 12pt; accent-color: #000; }
+
+  /* Sign-up generator print sheet (section 18) and reading-copy print sheet
+     (section 20): both mount through the same .my-print-sheet mechanism as
+     the recovery sheet and leaver checklist above, so nothing further is
+     needed to make them print-only; these two rules only tidy pagination
+     and give the reading-copy table visible borders once on paper (the
+     .my-readingcopy-table itself is never shown on screen, only inside a
+     mounted .my-print-sheet, so this styling lives here and nowhere else). */
+  .my-signup-sheet-item { break-inside: avoid; }
+  .my-readingcopy-group { break-inside: avoid; }
+  .my-readingcopy-table { width: 100%; border-collapse: collapse; margin-bottom: 1em; }
+  .my-readingcopy-table th, .my-readingcopy-table td { border: 1px solid #000; padding: 4px 8px; text-align: left; font-size: 10pt; }
 }

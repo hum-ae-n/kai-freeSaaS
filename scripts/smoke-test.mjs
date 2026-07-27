@@ -1628,6 +1628,261 @@ async function completeHeadlessStackSetup(pg, business) {
   await ctx.close();
 }
 
+/* --- Phase 12.5 (BUILD-PLAN 12.5, PRD-REGISTER sections 17, 18, 20): batch
+   add, the sign-up generator, and reading-copy exports. Plaintext throughout
+   (PBKDF2 at 600,000 iterations is too slow for a smoke gate, same
+   reasoning as every /my suite above); the "locked register" check below is
+   therefore deliberately the PLAINTEXT-PATH CONTROL VISIBILITY check only
+   (its own comment says so), with the true encrypted/locked absence of
+   these controls driven instead through a real passphrase in the scratch
+   Playwright session outside this suite, per the task's own fallback for a
+   check that would otherwise need a slow KDF to set up. ------------------ */
+
+/* Batch add (section 17): one catalogue tool, one sovereign template and one
+   free-text name, mixed in a single batch, commit in exactly one
+   store.save(), so the on-disk revision increments by exactly 1, never 3. */
+{
+  const ctx = await browser.newContext();
+  await ctx.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  const pg = await ctx.newPage();
+  await pg.goto(`${base}/my`);
+  await pg.waitForSelector('#my-root:not([hidden])');
+  await completeHeadlessSetup(pg, 'Batch Add Test');
+  await pg.locator('.my-nav-item', { hasText: 'Accounts' }).click();
+  await waitForAccountsScreen(pg);
+  const revisionBefore = (await diskDoc(pg)).revision;
+
+  await pg.locator('button', { hasText: 'Add several at once' }).click();
+  await pg.waitForSelector('.my-batch-sheet');
+  // One catalogue tool, found by search-as-you-type (section 17).
+  await pg.locator('.my-batch-sheet input[type=search]').fill('Canva');
+  await pg.waitForTimeout(150);
+  await pg.locator('.my-batch-sheet .my-batch-picklist label', { hasText: 'Canva' }).first().locator('input[type=checkbox]').check();
+  // One sovereign template, mixed in with the catalogue pick.
+  await pg.locator('.my-batch-sheet .my-template-row', { hasText: 'HMRC Government Gateway' }).locator('input[type=checkbox]').check();
+  // One free-text name, mixed in with both of the above (section 17:
+  // "mixable in one batch").
+  await pg.locator('.my-batch-sheet input[type=text]').fill('A Handwritten Tool');
+  await pg.locator('.my-batch-sheet button', { hasText: 'Add name' }).click();
+  const tickedText = await pg.locator('.my-batch-sheet button', { hasText: 'Continue (' }).textContent();
+  check('my: batch add ticked count reflects three mixed picks (catalogue + template + free text)',
+    tickedText.includes('3 ticked'), tickedText);
+  await pg.locator('.my-batch-sheet button', { hasText: 'Continue (' }).click();
+
+  await pg.waitForSelector('.my-batch-sheet');
+  const identityFields = pg.locator('.my-batch-sheet input[type=text]');
+  await identityFields.nth(0).fill('accounts@gmail.com'); // a personal domain, deliberately
+  await identityFields.nth(1).fill('Priya Patel');
+  const personalChipCount = await pg.locator('.my-batch-sheet .my-chip-risk', { hasText: 'Personal email' }).count();
+  check('my: batch shared-identity personal-email detection fires once, at step 2', personalChipCount === 1, `chips=${personalChipCount}`);
+  await pg.locator('.my-batch-sheet button', { hasText: 'Continue' }).click();
+
+  await pg.waitForSelector('.my-batch-sheet');
+  const reviewRows = await pg.locator('.my-batch-sheet .my-attention-list li').count();
+  check('my: batch review lists one row per ticked service', reviewRows === 3, `rows=${reviewRows}`);
+  await pg.locator('.my-batch-sheet button', { hasText: 'Add 3 account' }).click();
+  await pg.waitForSelector('.my-batch-sheet', { state: 'detached' });
+
+  const docAfterBatch = await diskDoc(pg);
+  check('my: a batch of 3 increments revision by exactly 1',
+    docAfterBatch.revision === revisionBefore + 1, `before=${revisionBefore} after=${docAfterBatch.revision}`);
+  check('my: a batch of 3 adds exactly 3 accounts in one commit',
+    docAfterBatch.accounts.length === 3, `accounts=${docAfterBatch.accounts.length}`);
+  check('my: every batch row carries the shared identity/owner entered once',
+    docAfterBatch.accounts.every((a) => a.identity === 'accounts@gmail.com' && a.owner === 'Priya Patel'),
+    JSON.stringify(docAfterBatch.accounts.map((a) => [a.identity, a.owner])));
+
+  // Per-row override afterwards, through the existing drawer (section 17:
+  // "the batch form deliberately carries no per-row fields"). Service names
+  // live inside an <input value>, not a text node, so the row is found by
+  // that input's value rather than the row's (input-blind) textContent.
+  await waitForAccountsScreen(pg);
+  const canvaRow = pg.locator('.my-acc-row').filter({ has: pg.locator('input[value="Canva Free"]') }).first();
+  await canvaRow.locator('.my-acc-details-btn').click();
+  await pg.waitForSelector('.my-acc-drawer');
+  const planField = pg.locator('.my-acc-drawer label', { hasText: 'Plan' }).locator('input');
+  await planField.fill('Pro');
+  await planField.dispatchEvent('change');
+  await pg.waitForFunction(async () => {
+    const s = await import('/js/my/store.js');
+    const d = await s.load();
+    const row = d.accounts.find((a) => a.service === 'Canva Free');
+    return !!row && row.plan === 'Pro';
+  });
+  const docAfterOverride = await diskDoc(pg);
+  const canvaAccountRow = docAfterOverride.accounts.find((a) => a.service === 'Canva Free');
+  check('my: a per-row override after batch commit only changes that one row',
+    !!canvaAccountRow && canvaAccountRow.plan === 'Pro' && canvaAccountRow.identity === 'accounts@gmail.com',
+    JSON.stringify(canvaAccountRow));
+  await pg.close();
+  await ctx.close();
+}
+
+/* Sign-up generator (section 18): a planned row linked to tool id 0 (id 0
+   discipline, and this catalogue tool genuinely carries a free_limit
+   sentence) produces a checklist whose on-screen sheet includes that
+   sentence verbatim, and stays within the section 11 Cyber Essentials
+   wording law. Fed through a Discover arrival (?from=0&have=), the same
+   "want to try" mechanic Wave D already covers, then the "Generate sign-up
+   list" bulk action over the resulting "To sign up" group (section 18's
+   first reach point, from Accounts). */
+{
+  const ctx = await browser.newContext();
+  await ctx.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  const pg = await ctx.newPage();
+  await pg.goto(`${base}/my?from=0&have=`);
+  await pg.waitForSelector('#my-root:not([hidden])');
+  await completeHeadlessStackSetup(pg, 'Generator FreeLimit Test');
+  await pg.locator('.my-nav-item', { hasText: 'Accounts' }).click();
+  await waitForAccountsScreen(pg);
+  await pg.locator('button', { hasText: 'Generate sign-up list' }).first().click();
+  await pg.waitForSelector('.my-generator-sheet');
+  const sheetText = await pg.locator('.my-generator-sheet').textContent();
+  const freeLimitSentence = 'Each provider gives a daily message allowance on an older or smaller model with no memory of past chats between sessions; the roughly £16/month Pro/Plus tier per provider removes the daily cap and unlocks the top model.';
+  check('my: generator output contains the free_limit sentence verbatim for a tool that has one',
+    sheetText.includes(freeLimitSentence), sheetText.slice(0, 200));
+  check('my: generator stays within the Cyber Essentials wording law (prepares for, never certified/compliant)',
+    sheetText.includes('helps you prepare for Cyber Essentials') && sheetText.includes('does not make you certified'),
+    sheetText.slice(0, 400));
+  await pg.close();
+  await ctx.close();
+}
+
+/* Pre-seed dedupe (section 18): reached from the import review (the merge
+   banner's want-list, section 18's second reach point), over tool id 1, on
+   a register that does NOT yet have that tool. First pre-seed creates
+   exactly one planned row; reopening the same generator over the same
+   want-list id a second time offers no pre-seed control at all (the tool
+   is now already registered), and the on-disk row count for that toolId
+   never exceeds one. */
+{
+  const ctx = await browser.newContext();
+  await ctx.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  const pg = await ctx.newPage();
+  await pg.goto(`${base}/my`);
+  await pg.waitForSelector('#my-root:not([hidden])');
+  await completeHeadlessSetup(pg, 'PreSeed Dedup Test');
+
+  await pg.goto(`${base}/my?from=1&have=`);
+  await pg.waitForSelector('.my-banner-merge');
+  await pg.locator('.my-banner-merge button', { hasText: 'Review' }).click();
+  await pg.waitForSelector('.my-banner-merge-open');
+  await pg.locator('.my-banner-merge-open button', { hasText: 'Sign-up list for these' }).click();
+  await pg.waitForSelector('.my-generator-sheet');
+  check('my: pre-seed control offered the first time (tool not yet in the register)',
+    await pg.locator('.my-generator-preseed').count() === 1);
+  await pg.locator('.my-generator-preseed input[type=checkbox]').check();
+  await pg.locator('.my-generator-preseed button', { hasText: 'Add' }).click();
+  await pg.waitForSelector('.my-generator-preseed', { state: 'detached' });
+
+  const docAfterFirstSeed = await diskDoc(pg);
+  const firstSeedCount = docAfterFirstSeed.accounts.filter((a) => a.toolId === 1).length;
+  check('my: pre-seed creates exactly one planned row for the tool', firstSeedCount === 1, `count=${firstSeedCount}`);
+
+  await pg.locator('.my-generator-sheet button', { hasText: 'Close' }).click();
+  await pg.locator('.my-banner-merge-open button', { hasText: 'Sign-up list for these' }).click();
+  await pg.waitForSelector('.my-generator-sheet');
+  check('my: pre-seeding a second time offers no pre-seed control (tool already registered)',
+    await pg.locator('.my-generator-preseed').count() === 0);
+  const docAfterSecondAttempt = await diskDoc(pg);
+  const secondAttemptCount = docAfterSecondAttempt.accounts.filter((a) => a.toolId === 1).length;
+  check('my: pre-seeding twice yields no duplicate toolId rows', secondAttemptCount === 1, `count=${secondAttemptCount}`);
+  await pg.close();
+  await ctx.close();
+}
+
+/* Reading-copy exports (section 20): CSV formula-injection escaping, CRLF,
+   the section 4.2 field header, and the savesSinceExport/backup-age
+   invariant (producing a reading copy is never a save and never an
+   export). Also the plaintext-path control-visibility check the module
+   comment above explains. */
+{
+  const ctx = await browser.newContext();
+  await ctx.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  const pg = await ctx.newPage();
+  await pg.goto(`${base}/my`);
+  await pg.waitForSelector('#my-root:not([hidden])');
+  await completeHeadlessSetup(pg, 'CSV Escape Test');
+  await pg.evaluate(async () => {
+    const s = await import('/js/my/store.js');
+    const doc = await s.load();
+    doc.accounts.push({
+      id: 'csv-hostile-1', service: '=2+5', url: '', toolId: null,
+      identity: '', owner: '', admin: 'unknown', mfa: 'unknown',
+      plan: '', renewal: null, monthlyCost: null, status: 'active', notes: '', shared: false,
+    });
+    await s.save(doc, doc.revision);
+  });
+  // A known, distinct savesSinceExport, set directly (module comment on
+  // setBackupMeta above), so producing a reading copy afterwards can be
+  // shown to leave it untouched rather than merely unchanged by accident.
+  await setBackupMeta(pg, { lastExportAt: daysAgoIso(5), savesSinceExport: 4 });
+  await pg.reload();
+  await pg.waitForSelector('.my-nav-item');
+  await pg.locator('.my-nav-item', { hasText: 'Backup' }).click();
+  await pg.waitForSelector('.my-reading-copy-section');
+
+  const buttonLabels = await pg.locator('.my-reading-copy-section button').allTextContents();
+  check('my: reading-copy controls (CSV, text, print) are visible on the plaintext/unlocked path '
+    + '(the true encrypted/locked absence is checked in the scratch drive; PBKDF2 is too slow for this suite)',
+    buttonLabels.some((t) => t.includes('CSV')) && buttonLabels.some((t) => t.includes('text')) && buttonLabels.some((t) => t.includes('Print')),
+    buttonLabels.join(' | '));
+  check('my: reading-copy section carries the "cannot be imported back" line, JSON register presented first',
+    (await pg.locator('.my-reading-copy-section').textContent()).includes('cannot be imported back into My Stack'));
+
+  const [csvDownload] = await Promise.all([
+    pg.waitForEvent('download'),
+    pg.locator('.my-reading-copy-section button', { hasText: 'Download as CSV' }).click(),
+  ]);
+  const csvText = await readFile(await csvDownload.path(), 'utf8');
+  const csvLines = csvText.split('\r\n').filter(Boolean);
+  check('my: CSV uses CRLF line endings', csvText.includes('\r\n'), JSON.stringify(csvText.slice(0, 30)));
+  check('my: CSV header is exactly the section 4.2 field list',
+    csvLines[0] === '"id","service","url","toolId","identity","owner","admin","mfa","plan","renewal","monthlyCost","status","notes"',
+    csvLines[0]);
+  check('my: a CSV cell of "=2+5" gains a leading apostrophe and stays quoted',
+    csvLines.some((line) => line.includes('"\'=2+5"')), csvLines.find((l) => l.includes('2+5')));
+
+  const statusAfterCsv = await pg.evaluate(async () => { const s = await import('/js/my/store.js'); return s.status(); });
+  check('my: producing a CSV leaves savesSinceExport unchanged', statusAfterCsv.savesSinceExport === 4, `savesSinceExport=${statusAfterCsv.savesSinceExport}`);
+  check('my: producing a CSV leaves the backup-age (lastExportAt) untouched, never counted as a verified export',
+    statusAfterCsv.lastExportAt && new Date(statusAfterCsv.lastExportAt).toISOString().slice(0, 10) === daysAgoIso(5).slice(0, 10));
+
+  const [txtDownload] = await Promise.all([
+    pg.waitForEvent('download'),
+    pg.locator('.my-reading-copy-section button', { hasText: 'Download as text' }).click(),
+  ]);
+  const txtText = await readFile(await txtDownload.path(), 'utf8');
+  check('my: TXT is grouped like the register table (a status heading, then the hostile-named row)',
+    txtText.includes('Active (') && txtText.includes('=2+5'), txtText.slice(0, 200));
+  const statusAfterTxt = await pg.evaluate(async () => { const s = await import('/js/my/store.js'); return s.status(); });
+  check('my: producing a TXT listing leaves savesSinceExport unchanged too', statusAfterTxt.savesSinceExport === 4, `savesSinceExport=${statusAfterTxt.savesSinceExport}`);
+
+  const combinedOutputText = `${csvText}\n${txtText}`;
+  check('grep: neither reading-copy output contains a password-shaped field or value',
+    !/password/i.test(combinedOutputText));
+
+  await pg.close();
+  await ctx.close();
+}
+
+/* Grep gate (section 21 item 8, extended over this wave's own surfaces):
+   no password field anywhere in the batch form, the generator, or any of
+   the three reading-copy outputs. Every type=password input in
+   workspace.js is required to carry a genuine passphrase autocomplete hint
+   (new-password/current-password), which the batch form and the generator
+   never do, since neither introduces a type=password input at all; and the
+   reading-copy field list itself is checked directly against the source. */
+{
+  const src = (await readFile(join(ROOT, 'js', 'my', 'workspace.js'))).toString('utf8');
+  const passwordInputs = [...src.matchAll(/el\('input',\s*\{[^}]*type:\s*'password'[^}]*\}/gs)];
+  const offenders = passwordInputs.filter((m) => !/autocomplete:\s*'(new|current)-password'/.test(m[0]));
+  check('grep: every type=password input in workspace.js is a genuine passphrase field (batch/generator/exports introduce none)',
+    offenders.length === 0, offenders.map((m) => m[0]).join(' | '));
+  check('grep: the reading-copy CSV/TXT field list never includes a password-shaped field',
+    !/REGISTER_FIELDS\s*=\s*\[[^\]]*password/i.test(src));
+}
+
 check('no page errors across all loads', pageErrors.length === 0, pageErrors.join(' | ').slice(0, 300));
 
 await browser.close();
