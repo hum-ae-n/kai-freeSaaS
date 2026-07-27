@@ -1932,6 +1932,19 @@ button { font: inherit; }
 .my-leaver-reassign { display: flex; flex-wrap: wrap; gap: var(--s-2); margin: var(--s-2) 0 0 calc(22px + var(--s-3)); }
 .my-leaver-reassign-input { max-width: 220px; }
 
+/* Honesty line (Phase 12.4 fix round, 27 Jul, section 16): sits between
+   phase 1 and phase 2, so it reads as introducing the phases 2-4 region
+   rather than as a stray aside; the same flat left-accent shape as
+   .my-consequence, quieter (paper tint, not caution) since this is a plain
+   statement of fact, not a warning. */
+.my-leaver-honesty {
+  padding: var(--s-3) var(--s-4);
+  background: var(--paper-2);
+  border-left: var(--bw-heavy) solid var(--ink-3);
+  margin: var(--s-4) 0;
+  font-size: var(--fs-14);
+}
+
 /* --- Backup (section 9.6) -------------------------------------------------- */
 .my-backup-section { max-width: 640px; margin: var(--s-6) 0; padding-top: var(--s-4); border-top: var(--border); }
 .my-backup-section h3 { font-size: var(--fs-18); margin-bottom: var(--s-2); }

@@ -1604,7 +1604,12 @@ export async function renderWorkspace(root) {
       return `/?${params.toString()}`;
     }
     function screenCosts() {
-      const accounts = doc.accounts.filter((a) => a.status !== 'closed');
+      // Section 16 extension (BUILD-PLAN 12.4 fix round, 27 Jul): a planned
+      // row is an intention the business has not paid for by definition, so
+      // it never enters the renewal lists, the uncosted list or the
+      // monthly/annual totals below, exactly as it never enters the
+      // Overview risk tiles or the Leavers checklist for the same reason.
+      const accounts = doc.accounts.filter((a) => a.status !== 'closed' && a.status !== 'planned');
       const costed = accounts.filter((a) => typeof a.monthlyCost === 'number');
       const uncosted = accounts.filter((a) => typeof a.monthlyCost !== 'number');
       const monthlyTotal = costed.reduce((sum, a) => sum + a.monthlyCost, 0);
@@ -1650,7 +1655,16 @@ export async function renderWorkspace(root) {
     /* --- Leavers: the offboarding checklist (section 9.5) ------------------ */
     function distinctOwners(document_) {
       const set = new Set();
-      for (const a of document_.accounts) { const o = (a.owner || '').trim(); if (o) set.add(o); }
+      // Section 16 (BUILD-PLAN 12.4 fix round, 27 Jul): an owner whose
+      // entire footprint is planned rows is not offered here. A planned
+      // row's `owner` names a future account holder, someone who will hold
+      // a key once this account exists, not a leaver candidate the register
+      // can say anything real about yet.
+      for (const a of document_.accounts) {
+        if (a.status === 'planned') continue;
+        const o = (a.owner || '').trim();
+        if (o) set.add(o);
+      }
       return [...set].sort((x, y) => x.localeCompare(y));
     }
     function findLeaverEntry(document_, person) {
@@ -1746,10 +1760,11 @@ export async function renderWorkspace(root) {
       let checklistOut = null;
       if (existingEntry) {
         // Section 16: "an account that does not exist yet is a plan, not a
-        // risk", so it enters none of the five offboarding phases. Filtered
-        // here rather than inside risks.js's leaverChecklist (untouched this
-        // wave) since the exclusion is just as correct one call site earlier.
-        const phases = leaverChecklist(doc.accounts.filter((a) => a.status !== 'planned'), chosenPerson);
+        // risk", so it enters none of the five offboarding phases. The
+        // planned-row exclusion now lives inside leaverChecklist itself
+        // (risks.js, BUILD-PLAN 12.4 fix round, 27 Jul), the one place this
+        // checklist is built, rather than trusting this call site alone.
+        const phases = leaverChecklist(doc.accounts, chosenPerson);
         const printBtn = el('button', { class: 'btn btn-secondary no-print', type: 'button' }, 'Print checklist');
         printBtn.addEventListener('click', () => window.print());
 
@@ -1774,11 +1789,25 @@ export async function renderWorkspace(root) {
           `Reclaim the seat and stop payment for ${item.row.service || 'this account'}${item.row.monthlyCost ? ` (${money(item.row.monthlyCost)}/mo)` : ''}.`));
         const phase5 = phases.phase5.map((item) => leaverTickRow(existingEntry, item.key, item.text, item.caveat));
 
+        // Honesty line (BUILD-PLAN 12.4 fix round, 27 Jul): the free-text
+        // path deliberately still lets the reader type any name and get a
+        // checklist (a real leaver's mailbox and identity-provider account
+        // exist whether or not this register recorded anything about them,
+        // and typing the name is the reader asserting they are real), but
+        // when the register itself holds no non-planned row for this
+        // person, that must be stated plainly rather than left to read as
+        // real, specific guidance. Sits at the top of the phase 2 to 4
+        // region, since phase1 and phase5 above and below it are exactly
+        // the generic steps this note is talking about.
+        const noRecordedNote = !phases.hasRecordedRows ? el('p', { class: 'my-leaver-honesty', role: 'status' },
+          `The register has no live accounts recorded for ${chosenPerson}. The identity and mailbox steps above and below are generic guidance for any leaver, not drawn from anything recorded here.`) : null;
+
         checklistOut = el('div', { class: 'my-leaver-checklist' },
           el('h2', { class: 'my-leaver-heading' }, `Offboarding checklist: ${chosenPerson}`),
           el('p', { class: 't-meta' }, `Generated ${formatDate(existingEntry.generatedAt)}.`),
           printBtn,
           leaverPhaseSection(1, 'Identity first', phase1),
+          noRecordedNote,
           leaverPhaseSection(2, 'Transfer ownership', phase2),
           leaverPhaseSection(3, 'Rotate what they knew', phase3),
           leaverPhaseSection(4, 'Licences and money', phase4),

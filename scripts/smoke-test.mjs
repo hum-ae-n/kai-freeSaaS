@@ -1565,6 +1565,69 @@ async function completeHeadlessStackSetup(pg, business) {
   await ctx.close();
 }
 
+/* Fix round (BUILD-PLAN 12.4, verifier defect, 27 Jul): an owner whose only
+   footprint is planned rows must not appear in the Leavers dropdown (they
+   are a future account holder, not a leaver candidate); typing that name
+   free-text must still work (a real person's mailbox and identity-provider
+   account exist regardless of what the register recorded) but the checklist
+   must say plainly that phases 1 and 5 are then generic, nothing here drawn
+   from the register; and a planned row's monthlyCost must not move the
+   Costs total, only an otherwise-identical active row's cost should. */
+{
+  const ctx = await browser.newContext();
+  await ctx.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  const pg = await ctx.newPage();
+  await pg.goto(`${base}/my`);
+  await pg.waitForSelector('#my-root:not([hidden])');
+  await completeHeadlessSetup(pg, 'Leavers Costs Fix Test');
+  await pg.evaluate(async () => {
+    const s = await import('/js/my/store.js');
+    const doc = await s.load();
+    doc.accounts.push(
+      {
+        id: 'fix-active-owner', service: 'Xero', url: '', toolId: null,
+        identity: '', owner: 'Active Person', admin: 'unknown', mfa: 'unknown',
+        plan: '', renewal: null, monthlyCost: 50, status: 'active', notes: '', shared: false,
+      },
+      {
+        id: 'fix-planned-owner', service: 'Future Tool', url: '', toolId: null,
+        identity: '', owner: 'Planned Only Person', admin: 'unknown', mfa: 'unknown',
+        plan: '', renewal: null, monthlyCost: 50, status: 'planned', notes: '', shared: false,
+      },
+    );
+    await s.save(doc, doc.revision);
+  });
+  await pg.reload();
+  await pg.waitForSelector('.my-nav-item');
+
+  await pg.locator('.my-nav-item', { hasText: 'Leavers' }).click();
+  await pg.waitForSelector('.my-leaver-picker select');
+  const dropdownOptions = await pg.locator('.my-leaver-picker select option').allTextContents();
+  check('my: an owner of only planned rows is absent from the Leavers dropdown, an active owner is present',
+    dropdownOptions.includes('Active Person') && !dropdownOptions.includes('Planned Only Person'),
+    dropdownOptions.join(' | '));
+
+  await pg.locator('.my-leaver-picker input[type=text]').fill('Planned Only Person');
+  await pg.locator('button', { hasText: 'Generate checklist' }).click();
+  await pg.waitForSelector('.my-leaver-checklist');
+  const honestyText = await pg.locator('.my-leaver-honesty').textContent().catch(() => null);
+  check('my: typing a planned-only owner free-text still generates a checklist, with the honest "no live accounts" line',
+    honestyText !== null && honestyText.includes('no live accounts recorded') && honestyText.includes('Planned Only Person'),
+    honestyText);
+  const phase1Text = await pg.locator('.my-leaver-phase').first().textContent();
+  check('my: phase 1 (identity) still renders its generic step for a planned-only name',
+    phase1Text.includes('Disable'), phase1Text.trim().slice(0, 80));
+
+  await pg.locator('.my-nav-item', { hasText: 'Costs' }).click();
+  await pg.waitForSelector('.my-costs-figure');
+  const costsFigureText = (await pg.locator('.my-costs-figure').textContent()).trim();
+  check("my: a planned row's monthlyCost does not move the Costs total, only the active twin's does",
+    costsFigureText.includes('50') && !costsFigureText.includes('100'), costsFigureText);
+
+  await pg.close();
+  await ctx.close();
+}
+
 check('no page errors across all loads', pageErrors.length === 0, pageErrors.join(' | ').slice(0, 300));
 
 await browser.close();

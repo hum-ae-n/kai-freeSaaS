@@ -150,15 +150,32 @@ export function hasLicenceCost(account) {
     currently owns, so reassigning a row's owner elsewhere and recomputing
     this function is the entire mechanism by which that row leaves phase 2
     (and therefore 3 and 4 too, since both are subsets of phase 2's rows):
-    there is no separate "reassigned" flag to fall out of sync with reality. */
+    there is no separate "reassigned" flag to fall out of sync with reality.
+
+    Section 16 (BUILD-PLAN 12.4 fix round, 27 Jul): a `planned` row is an
+    intention, not an account that exists yet, so it is filtered out of
+    `owned` here, at the one place this checklist is built, rather than
+    trusting every call site to remember to pre-filter it. `hasRecordedRows`
+    (true exactly when `owned` is non-empty, i.e. phase2 is non-empty) is
+    returned alongside the phases so the caller can render an honest line
+    distinguishing "this person owns nothing recorded here" from "this
+    person owns rows but none needed rotating or cost reclaiming", which
+    look identical from phase2 alone but mean very different things: phase1
+    and phase5 stay in every case (the reader typing any name is treated as
+    an assertion that this is a real person whose identity-provider account
+    and mailbox exist regardless of what this register happens to record),
+    but the caller is expected to state plainly, when `hasRecordedRows` is
+    false, that phases 1 and 5 are then generic guidance rather than
+    anything drawn from this register. */
 export function leaverChecklist(accounts, person) {
   const trimmed = (person || '').trim();
   const norm = trimmed.toLowerCase();
-  const owned = (accounts || []).filter((a) => (a.owner || '').trim().toLowerCase() === norm);
+  const owned = (accounts || []).filter((a) => (a.owner || '').trim().toLowerCase() === norm && a.status !== 'planned');
   const rotate = owned.filter((a) => a.shared === true || identityBelongsToPerson(a.identity, trimmed));
   const licensed = owned.filter(hasLicenceCost);
   return {
     person: trimmed,
+    hasRecordedRows: owned.length > 0,
     phase1: [{
       key: 'identity-disable',
       text: `Disable ${trimmed ? `${trimmed}’s` : 'their'} sign-in at your identity provider (Google Workspace, Microsoft 365, Okta or similar).`,
