@@ -2066,6 +2066,7 @@ button { font: inherit; }
   .my-accounts-actions .btn,
   .my-batch-sheet .btn,
   .my-generator-sheet .btn,
+  .my-bulk-bar .btn,
   .my-reading-copy-section .btn { min-height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) {

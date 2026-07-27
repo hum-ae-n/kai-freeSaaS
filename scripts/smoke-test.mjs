@@ -1735,6 +1735,25 @@ async function completeHeadlessStackSetup(pg, business) {
   await completeHeadlessStackSetup(pg, 'Generator FreeLimit Test');
   await pg.locator('.my-nav-item', { hasText: 'Accounts' }).click();
   await waitForAccountsScreen(pg);
+
+  /* Wave 12.5 fix round: the bulk bar's buttons (including the new
+     "Sign-up list for N") must meet the 44px floor at phone width. The
+     original wave shipped them at 28px because .my-bulk-bar .btn was
+     missing from the mobile rule, and no earlier check measured real
+     pixels here. */
+  await pg.setViewportSize({ width: 375, height: 812 });
+  await pg.locator('.my-acc-check input[type=checkbox]').first().check();
+  await pg.waitForSelector('.my-bulk-bar');
+  const bulkHeights = [];
+  for (const b of await pg.locator('.my-bulk-bar .btn').all()) {
+    const box = await b.boundingBox();
+    if (box) bulkHeights.push(Math.round(box.height));
+  }
+  check('my: bulk-bar buttons meet the 44px floor at 375px',
+    bulkHeights.length > 0 && bulkHeights.every((h) => h >= 44), bulkHeights.join(','));
+  await pg.locator('.my-acc-check input[type=checkbox]').first().uncheck();
+  await pg.setViewportSize({ width: 1280, height: 900 });
+
   await pg.locator('button', { hasText: 'Generate sign-up list' }).first().click();
   await pg.waitForSelector('.my-generator-sheet');
   const sheetText = await pg.locator('.my-generator-sheet').textContent();
