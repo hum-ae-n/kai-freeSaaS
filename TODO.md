@@ -2,7 +2,7 @@
 
 Open items as of 27 July 2026. Build state: Phases 0-11 done, verified and merged to `main`. Phase 11, the My Stack account register workspace at `/my` (local-first account tracking, leaver checklists, a costs ledger, opt-in encryption, and the `why-register.html` awareness page), merged 25 Jul as `55ea0db` via PR 3 on Rocky's launch approval; the deploy-preview header audit caught and fixed a real Netlify header-replacement defect on `/embed.html` before merge, and production headers plus deployed files were verified by curl after the deploy.
 
-Phase 12 (homepage redesign, Discover deck, planned account status, batch add, sign-up generator, reading-copy exports) is built and verifier-passed wave by wave on branch `claude/read-todo-bk47qb`, not yet merged: close-out (content pass and the final full-phase sweep) is in progress now. Detail in [BUILD-PLAN.md](BUILD-PLAN.md); run `node scripts/validate-data.mjs` and `node scripts/smoke-test.mjs` before any push (a push to `main` is a production release, and CI now runs both automatically on every push and PR).
+Build state: Phases 0-12 done, verified and merged to `main`. Phase 12 (homepage redesign, Discover deck with first-open coach, planned account status, batch add, sign-up generator, reading-copy exports) merged 27 Jul as `03a5ac5` via PR 9. Detail in [BUILD-PLAN.md](BUILD-PLAN.md); run `node scripts/validate-data.mjs` and `node scripts/smoke-test.mjs` before any push (a push to `main` is a production release, and CI now runs both automatically on every push and PR).
 
 ## Deploy (Phase 6)
 
@@ -26,7 +26,7 @@ Phase 12 (homepage redesign, Discover deck, planned account status, batch add, s
 
 ## Merging Phase 12 (in progress)
 
-- [ ] **Merge `claude/read-todo-bk47qb` into `main`.** All five build waves (12.1-12.5: homepage redesign, Discover deck engine, list parity and quick-judge, planned account status, batch add/sign-up generator/reading-copy exports) are verifier-passed on the branch. Content pass (12.6, this document among others) and the final close-out sweep (12.7, smoke suite extended over every wave's additions, CSP hash check against the Deploy Preview) are what's left before a PR goes to Rocky.
+- [x] **Merge `claude/read-todo-bk47qb` into `main`.** Done 27 Jul as `03a5ac5` via PR 9 on Rocky's word, after his phone test drove two final improvements (the deck now fits the viewport so the buttons never fall off-screen, and a first-open coach explains the swipe directions). Production verified by curl after the deploy: new modules byte-identical, headers unchanged, working documents still blocked.
 
 ## Decisions only Rocky can make
 
