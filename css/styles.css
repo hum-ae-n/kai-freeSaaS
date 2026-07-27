@@ -1398,6 +1398,19 @@ button { font: inherit; }
   display: flex;
   flex-direction: column;
   gap: var(--s-5);
+  /* Never taller than one screenful. Without this a long card (a long
+     description plus a long free_limit line) can push the panel taller
+     than the viewport, carrying the control row (Got it / Skip / Add to
+     my list) below the fold. Interacting with an off-screen button then
+     triggers the browser's own "scroll the newly focused element into
+     view" correction, an uncontrolled jump this app never asked for and
+     cannot see coming, which is what a phone tester reads as an error: the
+     deck appears to leap away and reveal unrelated page content beneath
+     it. dvh (falls back to vh on older engines, this rule simply loses to
+     the later one when unsupported) tracks the real, dynamic viewport
+     height on mobile Chrome, where the address bar shows and hides. */
+  max-height: 100vh;
+  max-height: 100dvh;
 }
 .discover-panel:focus-visible { outline: 2px solid var(--oxblood); outline-offset: 2px; }
 
@@ -1423,17 +1436,35 @@ button { font: inherit; }
   line-height: 1;
 }
 
+/* flex: 1 1 260px, not a bare min-height: this is the one part of the
+   panel allowed to shrink when the panel's own max-height (above) runs
+   out of room, so the card's content scrolls internally instead of the
+   controls below it being pushed off-screen. min-height: 0 overrides the
+   flex default of min-height: auto, which would otherwise refuse to
+   shrink the stage below the card's intrinsic content height and defeat
+   this entirely. align-items on this row-direction flex container is
+   still the default stretch, so the card itself always fills exactly
+   whatever height the stage resolves to. */
 .discover-stage {
   position: relative;
   display: flex;
   justify-content: center;
-  min-height: 260px;
+  flex: 1 1 260px;
+  min-height: 0;
 }
 
 /* The card itself: touch-action: pan-y is the gesture contract's other
    half (js/discover.js never calls preventDefault until it has claimed a
    horizontal drag), transform-origin bottom centre matches the "roughly 1
-   degree per 20px" rotation the module applies live in pointermove. */
+   degree per 20px" rotation the module applies live in pointermove.
+   overflow-y: auto is the "scrollable card body" half of the panel-height
+   fix above: stretched by the stage (see above) to a bounded height, a
+   card whose own content (a long description, a long free_limit line)
+   would otherwise need more room than that scrolls internally rather than
+   growing the card, and the panel with it, past one screenful. touch-action
+   and overflow-y coexist normally here, the same as any ordinary
+   scrollable element: a vertical drag pans the card's own content first,
+   then chains to the page once the card has nothing further to scroll. */
 .discover-card {
   position: relative;
   width: 100%;
@@ -1446,6 +1477,8 @@ button { font: inherit; }
   touch-action: pan-y;
   transform-origin: bottom center;
   user-select: none;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .discover-card-dragging { transition: none; }
 .discover-card-springback { transition: transform var(--dur-base) var(--ease-out); }
@@ -1494,6 +1527,64 @@ button { font: inherit; }
 .discover-card-desc { margin: 0; color: var(--ink-2); max-width: none; }
 .discover-card-limit { margin: 0; color: var(--ink-3); font-size: var(--fs-14); }
 .discover-card-more { align-self: flex-start; color: var(--ink-3); font-size: var(--fs-12); }
+
+/* First-open coaching overlay (Phase 12 close-out): a solid panel-toned
+   layer, not a translucent scrim, so the semantic --positive/--info text
+   colours below read exactly as they already do on the verdict stamps
+   elsewhere in this block, correct in both themes with no bespoke colour
+   maths. Positioned absolutely within .discover-stage (already
+   position: relative), so it covers exactly the card area, "over the top
+   card" per the spec, while the control row below is blocked by disabling
+   those three buttons in js/discover.js rather than by stretching this
+   overlay down over them too. */
+.discover-coach {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-4);
+  padding: var(--s-6);
+  background: var(--paper-2);
+  border: var(--border);
+  border-radius: var(--r-3);
+  box-shadow: var(--shadow-2);
+  text-align: center;
+}
+.discover-coach-ghost {
+  width: 110px;
+  height: 74px;
+  background: var(--paper);
+  border: var(--bw-rule) dashed var(--ink-3);
+  border-radius: var(--r-2);
+  /* Two cycles, never a loop (motion inventory): animation-iteration-count
+     is the last value in this shorthand. Reduced motion strips this to
+     none entirely below, the same static overlay otherwise. */
+  animation: discover-coach-slide 1.8s ease-in-out 2;
+}
+.discover-coach-labels { display: flex; flex-direction: column; gap: var(--s-2); }
+.discover-coach-label {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--fs-14);
+}
+.discover-coach-label-have { color: var(--positive); }
+.discover-coach-label-want { color: var(--info); }
+.discover-coach-hint { margin: 0; color: var(--ink-3); font-size: var(--fs-12); max-width: none; }
+.discover-coach-dismiss { min-height: 44px; }
+
+@keyframes discover-coach-slide {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  25% { transform: translateX(-28px) rotate(-4deg); }
+  75% { transform: translateX(28px) rotate(4deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .discover-coach-ghost { animation: none !important; transform: none !important; }
+}
 
 /* Controls: "Got it" and "Add to my list" are equally weighted primary
    actions either side of a deliberately narrower Skip, all three still

@@ -51,10 +51,18 @@ const VALID_DECISIONS = ['have', 'want', 'skip'];
    webviews) must never stop the deck dealing or completing, it simply stays
    in memory for the session and nothing survives a reload. Ids are always
    read with Number.parseInt and validated with Number.isInteger, never a
-   truthiness test, so tool id 0 survives every read and write. */
+   truthiness test, so tool id 0 survives every read and write.
+
+   coachDone (Phase 12 close-out) is additive: a plain boolean bolted onto
+   the same v:1 shape rather than a schema bump, exactly the tolerance PRD
+   17 asks for ("unknown v: discard and start fresh" only applies to the
+   version number itself, never to an unrecognised extra field). A record
+   written before this field existed simply parses with coachDone: false,
+   which is the correct default: nobody has dismissed a coach mark they
+   have never seen. */
 
 function freshState() {
-  return { v: 1, lastVisit: new Date().toISOString(), seenIds: [], decisions: {} };
+  return { v: 1, lastVisit: new Date().toISOString(), seenIds: [], decisions: {}, coachDone: false };
 }
 
 function readState() {
@@ -79,6 +87,7 @@ function readState() {
       lastVisit: typeof parsed.lastVisit === 'string' ? parsed.lastVisit : new Date().toISOString(),
       seenIds,
       decisions,
+      coachDone: parsed.coachDone === true,
     };
   } catch {
     return freshState();
@@ -599,7 +608,72 @@ export function openDiscoverDeck(options) {
   }
   closeBtn.addEventListener('click', closeDeck);
 
+  /* --- first-open coaching overlay (Phase 12 close-out) --------------------
+     Shown over the very first card, once ever per device: the visitor has
+     judged nothing yet (state.decisions empty at the moment the deck opens)
+     and has never dismissed this exact tip before (state.coachDone). A
+     small CSS-only animated hint, a card ghost sliding left then right,
+     twice, never a loop, explains the two directions; reduced motion gets
+     the same explanation static, arrows and labels with no animation at
+     all (the two @keyframes rules live in the DISCOVER CSS block behind
+     that same media query, belt-and-braces on top of this check). Every
+     judge button is disabled for as long as the coach is up, so the very
+     first tap anywhere, even squarely on a button before the reader has
+     had a chance to read the tip, only ever dismisses it and never records
+     a judgement; the close button is deliberately left enabled throughout,
+     since leaving the deck entirely must never be blocked by a tutorial. */
+  let coachVisible = false;
+  let coachTimer = null;
+  let coachOverlay = null;
+
+  function dismissCoach() {
+    if (!coachVisible) return;
+    coachVisible = false;
+    if (coachTimer) { clearTimeout(coachTimer); coachTimer = null; }
+    coachOverlay?.remove();
+    coachOverlay = null;
+    haveBtn.disabled = false;
+    skipBtn.disabled = false;
+    wantBtn.disabled = false;
+    // Not a judgement, so no notify(): the browse list has nothing to
+    // repaint over a coach mark being dismissed. Best-effort write only,
+    // same as every other state mutation in this module: a blocked store
+    // just means a device-locked visitor may see the tip again next
+    // session, never a broken deck.
+    state.coachDone = true;
+    writeState(state);
+  }
+
+  function showCoachIfNeeded() {
+    if (Object.keys(state.decisions).length > 0 || state.coachDone) return;
+    coachVisible = true;
+    haveBtn.disabled = true;
+    skipBtn.disabled = true;
+    wantBtn.disabled = true;
+    coachOverlay = el('div', { class: 'discover-coach' },
+      el('div', { class: 'discover-coach-ghost', 'aria-hidden': 'true' }),
+      el('div', { class: 'discover-coach-labels' },
+        el('p', { class: 'discover-coach-label discover-coach-label-have' }, '← Got it, I already use this'),
+        el('p', { class: 'discover-coach-label discover-coach-label-want' }, 'Add to my list, I want to try it →'),
+      ),
+      el('p', { class: 'discover-coach-hint' }, 'Swipe the card, or use the buttons below.'),
+      el('button', { class: 'btn btn-primary discover-coach-dismiss', type: 'button' }, 'Continue'),
+    );
+    // One listener on the overlay itself, not per child: any tap or click
+    // anywhere within it (the ghost, the labels, the hint text, or the
+    // explicit Continue button) bubbles here and dismisses, per "dismiss
+    // on any tap or click".
+    coachOverlay.addEventListener('click', dismissCoach);
+    stage.appendChild(coachOverlay);
+    announce('New here? Swipe the card, or use the buttons: left for Got it, right for Add to my list.');
+    coachTimer = setTimeout(dismissCoach, 5000);
+  }
+
   panel.addEventListener('keydown', (event) => {
+    // Any key dismisses the coach mark first and does nothing else: a
+    // reader who has not yet read the tip should never have their first
+    // keypress silently register as a real judgement underneath it.
+    if (coachVisible) { event.preventDefault(); dismissCoach(); return; }
     if (event.key === 'Escape') { event.preventDefault(); closeDeck(); return; }
     if (event.key === 'ArrowLeft') { event.preventDefault(); judge('have'); return; }
     if (event.key === 'ArrowRight') { event.preventDefault(); judge('want'); return; }
@@ -779,6 +853,15 @@ export function openDiscoverDeck(options) {
   // here exists for keyboard reachability and the aria-live announcements,
   // not to reposition the page, so it must never scroll on its own.
   panel.focus({ preventScroll: true });
-  if (session.order.length) dealCurrent();
-  else showEmptyState();
+  if (session.order.length) {
+    dealCurrent();
+    // Checked once, right here, never re-checked on later cards in this
+    // same session: as soon as the first judgement lands, state.decisions
+    // stops being empty, so there is nothing to gain from asking again,
+    // and the empty-state screen (no card at all) has nothing to coach
+    // over in the first place.
+    showCoachIfNeeded();
+  } else {
+    showEmptyState();
+  }
 }

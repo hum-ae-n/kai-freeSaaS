@@ -288,8 +288,31 @@ async function openDiscoverDeck(pg) {
   await pg.locator('[data-discover-entry]').click();
   await pg.waitForSelector('.discover-card');
 }
+/** Resets to a fresh, unjudged deck, but with coachDone already true: the
+    first-open coaching overlay (Phase 12 close-out) would otherwise show
+    over a genuinely first-ever deck, disabling the three judge buttons and
+    swallowing the very first tap/click/key these tests rely on to exercise
+    real judging behaviour. The coach itself has its own dedicated checks
+    below, run against a truly removed key. */
 async function clearDiscoverStorage(pg) {
-  await pg.evaluate(() => localStorage.removeItem('freestack:v1:discover'));
+  await pg.evaluate(() => localStorage.setItem('freestack:v1:discover', JSON.stringify({
+    v: 1, lastVisit: new Date().toISOString(), seenIds: [], decisions: {}, coachDone: true,
+  })));
+}
+
+/** Same coach bypass as clearDiscoverStorage, but seeded before the very
+    first navigation (page.addInitScript), for the handful of checks below
+    that interact with the deck on a genuinely first load rather than the
+    open-then-clear-then-reopen sequence most of this section otherwise
+    uses. */
+async function seedCoachDoneBeforeLoad(pg) {
+  await pg.addInitScript(() => {
+    try {
+      localStorage.setItem('freestack:v1:discover', JSON.stringify({
+        v: 1, lastVisit: new Date().toISOString(), seenIds: [], decisions: {}, coachDone: true,
+      }));
+    } catch { /* private mode etc: irrelevant here, this is the non-blocked-storage path */ }
+  });
 }
 
 const discoverPage = await browser.newPage();
@@ -364,6 +387,7 @@ await dragPage.close();
 // Escape restores focus to the opener button.
 const escPage = await browser.newPage();
 await escPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await seedCoachDoneBeforeLoad(escPage); // otherwise the first Escape only dismisses the coach
 await escPage.goto(`${base}/`);
 await escPage.waitForSelector('#public-root .tool-card');
 await escPage.locator('[data-discover-entry]').focus();
@@ -427,6 +451,15 @@ await blockedPage.waitForSelector('#public-root .tool-card');
 await blockedPage.locator('[data-discover-entry]').click();
 await blockedPage.waitForSelector('.discover-card');
 check('discover: blocked localStorage still deals a card', (await blockedPage.locator('.discover-card').count()) === 1);
+// With storage genuinely blocked there is no way to pre-seed coachDone (the
+// mock throws on every access, including a seed attempt), so the coach
+// overlay legitimately shows here: exactly the "blocked-storage visitors
+// may see it once per session, acceptable" case the fix round names. A
+// real visitor would dismiss it once and carry on, so this test does too.
+if (await blockedPage.locator('.discover-coach-dismiss').count()) {
+  await blockedPage.locator('.discover-coach-dismiss').click();
+  await blockedPage.waitForTimeout(150);
+}
 let blockedGuard = 0;
 while ((await blockedPage.locator('.discover-completion').count()) === 0 && blockedGuard < 14) {
   await blockedPage.locator('.discover-btn-skip').click();
@@ -472,6 +505,7 @@ await doubleJudgePage.close();
 // mouse click, not silently swallowed by unconditional pointer capture.
 const morePage = await browser.newPage();
 await morePage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await seedCoachDoneBeforeLoad(morePage); // otherwise the coach overlay covers the card and the More link
 await openDiscoverDeck(morePage);
 const [moreTab] = await Promise.all([
   morePage.context().waitForEvent('page'),
@@ -487,6 +521,7 @@ await morePage.close();
 // wins over the bare UA [hidden] rule unless overridden).
 const hiddenPage = await browser.newPage();
 await hiddenPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await seedCoachDoneBeforeLoad(hiddenPage); // otherwise Skip stays disabled behind the coach overlay
 await openDiscoverDeck(hiddenPage);
 const undoDisplayAtStart = await hiddenPage.locator('.discover-undo').evaluate((n) => getComputedStyle(n).display);
 check('discover: Undo button computed display is none at deck start', undoDisplayAtStart === 'none', undoDisplayAtStart);
@@ -510,6 +545,7 @@ await hiddenPage.close();
 // at all, the worst case).
 const scrollRacePage = await browser.newPage({ viewport: { width: 375, height: 812 } });
 await scrollRacePage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await seedCoachDoneBeforeLoad(scrollRacePage); // otherwise the zero-delay click only dismisses the coach
 await scrollRacePage.goto(`${base}/`, { waitUntil: 'load' });
 await scrollRacePage.waitForSelector('#public-root .tool-card');
 await scrollRacePage.locator('[data-discover-entry]').click();
@@ -522,6 +558,139 @@ check('discover: an immediate judgement never carries the next card off-screen',
   scrollRaceCardBox !== null && scrollRaceCardBox.y >= 0 && scrollRaceCardBox.y + scrollRaceCardBox.height <= scrollRaceViewportHeight,
   scrollRaceCardBox ? `y=${scrollRaceCardBox.y} bottom=${scrollRaceCardBox.y + scrollRaceCardBox.height} viewportH=${scrollRaceViewportHeight}` : 'no card');
 await scrollRacePage.close();
+
+/* --- Phase 12 close-out, phone-test fix round -----------------------------
+   Two findings from Rocky's phone test of the Deploy Preview. (1) "swipe
+   has an error on bottom": investigated and reproduced as a layout defect,
+   not a broken image. A long card (a long description plus a long
+   free_limit line) could make .discover-panel taller than the viewport,
+   pushing the control row off-screen; interacting with an off-screen
+   button then triggered the browser's own scroll-the-focused-element-
+   into-view correction, an uncontrolled jump that revealed the browse list
+   underneath. Fixed by capping the panel to one screenful and making the
+   card body scroll internally instead. No broken image was reproducible
+   anywhere in this app's own DOM, including under a driven all-404 remote
+   network and across every dealt card's favicon; the checks below assert
+   both halves. (2) a first-open coaching overlay, additive coachDone in
+   freestack:v1:discover. */
+
+// (1e) Layout: the panel itself must never exceed the viewport, and no
+// <img> anywhere in the open deck may be broken (naturalWidth 0) while
+// still occupying visible layout space, even under a hostile network
+// where every remote favicon host genuinely 404s (not merely aborts).
+const longestContentTool = active.reduce((best, t) => {
+  const len = (t.description || '').length + (t.free_limit || '').length;
+  return len > best.len ? { id: t.id, len } : best;
+}, { id: null, len: -1 });
+
+async function checkLongestCardFitsOnScreen(viewport) {
+  const pg = await browser.newPage({ viewport });
+  await pg.route(/^(?!.*localhost).*$/, (route) => route.fulfill({ status: 404, contentType: 'text/plain', body: 'not found' }));
+  await pg.goto(`${base}/`);
+  await pg.waitForSelector('#public-root .tool-card');
+  await pg.evaluate(async (id) => {
+    const mod = await import('/js/discover.js');
+    const toolsRes = await fetch('/data/tools.json');
+    const allTools = await toolsRes.json();
+    const mount = document.createElement('div');
+    document.body.appendChild(mount);
+    mod.openDiscoverDeck({ tools: allTools, container: mount, opener: document.body, seed: { type: 'persona', ids: [id] } });
+  }, longestContentTool.id);
+  await pg.waitForSelector('.discover-card');
+  if (await pg.locator('.discover-coach-dismiss').count()) await pg.locator('.discover-coach-dismiss').click();
+  await pg.waitForTimeout(200);
+  const panelBox = await pg.locator('.discover-panel').boundingBox();
+  const haveBox = await pg.locator('.discover-btn-have').boundingBox();
+  const skipBox = await pg.locator('.discover-btn-skip').boundingBox();
+  const wantBox = await pg.locator('.discover-btn-want').boundingBox();
+  const boxes = { haveBox, skipBox, wantBox };
+  const allOnScreen = Object.values(boxes).every((b) => b && b.y >= 0 && b.y + b.height <= viewport.height);
+  check(`discover: the longest-content card (id ${longestContentTool.id}) keeps all three buttons on screen at ${viewport.width}x${viewport.height}`,
+    allOnScreen, JSON.stringify({ ...boxes, viewportHeight: viewport.height }));
+  check(`discover: the panel itself never exceeds the viewport at ${viewport.width}x${viewport.height} (longest card)`,
+    panelBox !== null && panelBox.height <= viewport.height, JSON.stringify(panelBox));
+  const brokenVisibleInViewport = await pg.evaluate(() => {
+    const vh = window.innerHeight;
+    return [...document.querySelectorAll('img')].filter((img) => {
+      const s = getComputedStyle(img);
+      const rect = img.getBoundingClientRect();
+      const visible = s.display !== 'none' && s.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+      const inViewport = rect.top < vh && rect.bottom > 0;
+      return img.naturalWidth === 0 && img.complete && visible && inViewport;
+    }).length;
+  });
+  check(`discover: no broken (failed, complete, visible) image sits in the viewport at ${viewport.width}x${viewport.height} under an all-404 network`,
+    brokenVisibleInViewport === 0, `count=${brokenVisibleInViewport}`);
+  await pg.close();
+}
+await checkLongestCardFitsOnScreen({ width: 375, height: 812 });
+await checkLongestCardFitsOnScreen({ width: 390, height: 844 });
+
+// (2) First-open coaching overlay.
+const coachFirstPage = await browser.newPage({ viewport: { width: 375, height: 812 } });
+await coachFirstPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await coachFirstPage.goto(`${base}/`);
+await coachFirstPage.waitForSelector('#public-root .tool-card');
+await coachFirstPage.evaluate(() => localStorage.removeItem('freestack:v1:discover')); // genuinely first-ever
+await coachFirstPage.reload();
+await coachFirstPage.waitForSelector('#public-root .tool-card');
+await coachFirstPage.locator('[data-discover-entry]').click();
+await coachFirstPage.waitForSelector('.discover-card');
+check('discover: the coach overlay appears on a genuinely first-ever deck open',
+  (await coachFirstPage.locator('.discover-coach').count()) === 1);
+check('discover: judge buttons are disabled while the coach overlay is up',
+  await coachFirstPage.locator('.discover-btn-have').isDisabled());
+
+await coachFirstPage.locator('.discover-coach-dismiss').click();
+await coachFirstPage.waitForTimeout(150);
+const coachDoneAfterDismiss = await coachFirstPage.evaluate(() => JSON.parse(localStorage.getItem('freestack:v1:discover')).coachDone);
+const decisionsAfterCoachDismiss = await coachFirstPage.evaluate(() => JSON.parse(localStorage.getItem('freestack:v1:discover')).decisions);
+check('discover: dismissing the coach records coachDone and judges nothing',
+  coachDoneAfterDismiss === true && Object.keys(decisionsAfterCoachDismiss).length === 0,
+  `coachDone=${coachDoneAfterDismiss} decisions=${JSON.stringify(decisionsAfterCoachDismiss)}`);
+
+await coachFirstPage.locator('.discover-close').click();
+await coachFirstPage.waitForTimeout(150);
+await coachFirstPage.locator('[data-discover-entry]').click();
+await coachFirstPage.waitForSelector('.discover-card');
+check('discover: a reopened deck shows no coach overlay once coachDone is set',
+  (await coachFirstPage.locator('.discover-coach').count()) === 0);
+await coachFirstPage.close();
+
+// coach does not appear once any judgement already exists (an existing
+// device with real history, even one that somehow has coachDone unset).
+const coachJudgedPage = await browser.newPage({ viewport: { width: 375, height: 812 } });
+await coachJudgedPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await coachJudgedPage.goto(`${base}/`);
+await coachJudgedPage.waitForSelector('#public-root .tool-card');
+await coachJudgedPage.evaluate(() => localStorage.setItem('freestack:v1:discover', JSON.stringify({
+  v: 1, lastVisit: new Date().toISOString(), seenIds: [0], decisions: { 0: { d: 'have', t: Date.now() } },
+})));
+await coachJudgedPage.reload();
+await coachJudgedPage.waitForSelector('#public-root .tool-card');
+await coachJudgedPage.locator('[data-discover-entry]').click();
+await coachJudgedPage.waitForSelector('.discover-card');
+check('discover: the coach overlay does not appear once any judgement already exists',
+  (await coachJudgedPage.locator('.discover-coach').count()) === 0);
+await coachJudgedPage.close();
+
+// Auto-dismiss within roughly 6 seconds, no interaction at all.
+const coachTimeoutPage = await browser.newPage({ viewport: { width: 375, height: 812 } });
+await coachTimeoutPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await coachTimeoutPage.goto(`${base}/`);
+await coachTimeoutPage.waitForSelector('#public-root .tool-card');
+await coachTimeoutPage.evaluate(() => localStorage.removeItem('freestack:v1:discover'));
+await coachTimeoutPage.reload();
+await coachTimeoutPage.waitForSelector('#public-root .tool-card');
+await coachTimeoutPage.locator('[data-discover-entry]').click();
+await coachTimeoutPage.waitForSelector('.discover-coach');
+await coachTimeoutPage.waitForTimeout(6000);
+const coachGoneUnattended = (await coachTimeoutPage.locator('.discover-coach').count()) === 0;
+const decisionsAfterCoachTimeout = await coachTimeoutPage.evaluate(() => JSON.parse(localStorage.getItem('freestack:v1:discover')).decisions);
+check('discover: the coach overlay disappears within about 6 seconds with no interaction',
+  coachGoneUnattended, `coachStillVisible=${!coachGoneUnattended}`);
+check('discover: auto-dismiss never judges a card', Object.keys(decisionsAfterCoachTimeout).length === 0, JSON.stringify(decisionsAfterCoachTimeout));
+await coachTimeoutPage.close();
 
 /* --- Phase 12.3: list parity and quick-judge (PRD section 16) -------------
    getDecision/setDecision/clearDecision/subscribe live in js/discover.js;
