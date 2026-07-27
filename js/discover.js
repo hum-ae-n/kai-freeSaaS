@@ -766,7 +766,19 @@ export function openDiscoverDeck(options) {
 
   container.hidden = false;
   container.replaceChildren(panel);
-  panel.focus();
+  // preventScroll: true is load-bearing, not a micro-optimisation. Native
+  // focus() scrolls the target into view by default, and public.js's own
+  // discoverMount.scrollIntoView({behavior:'smooth', block:'start'}) is the
+  // single deliberate scroll that is meant to bring the panel on screen.
+  // Without preventScroll here, an immediate first tap (well within the
+  // ~150-300ms the smooth scroll takes to settle) lands its own focus
+  // movement (buttons and links inside the panel also receive focus as
+  // part of ordinary interaction) on top of that still-animating scroll,
+  // and the two compound: the active card can end up carried hundreds of
+  // pixels off-screen at the exact moment a reader judges it. Panel focus
+  // here exists for keyboard reachability and the aria-live announcements,
+  // not to reposition the page, so it must never scroll on its own.
+  panel.focus({ preventScroll: true });
   if (session.order.length) dealCurrent();
   else showEmptyState();
 }

@@ -500,6 +500,29 @@ const controlsDisplayAtCompletion = await hiddenPage.locator('.discover-controls
 check('discover: controls row computed display is none at completion', controlsDisplayAtCompletion === 'none', controlsDisplayAtCompletion);
 await hiddenPage.close();
 
+// Phase 12 close-out: opening the deck used to race two scroll-affecting
+// calls (js/discover.js's panel.focus() and js/public.js's
+// discoverMount.scrollIntoView), and a judgement made in the first
+// ~100-150ms could carry the freshly dealt next card off-screen entirely.
+// panel.focus({preventScroll: true}) is the fix; this is the permanent
+// regression guard, at the mobile width the defect reproduced at, with the
+// judge button clicked the instant the first card exists (no settle wait
+// at all, the worst case).
+const scrollRacePage = await browser.newPage({ viewport: { width: 375, height: 812 } });
+await scrollRacePage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await scrollRacePage.goto(`${base}/`, { waitUntil: 'load' });
+await scrollRacePage.waitForSelector('#public-root .tool-card');
+await scrollRacePage.locator('[data-discover-entry]').click();
+await scrollRacePage.waitForSelector('.discover-card');
+await scrollRacePage.locator('.discover-btn-have').click(); // zero delay: the reproduced race window
+await scrollRacePage.waitForTimeout(600); // let any scroll and the exit/deal transition settle
+const scrollRaceViewportHeight = await scrollRacePage.evaluate(() => window.innerHeight);
+const scrollRaceCardBox = await scrollRacePage.locator('.discover-card').boundingBox();
+check('discover: an immediate judgement never carries the next card off-screen',
+  scrollRaceCardBox !== null && scrollRaceCardBox.y >= 0 && scrollRaceCardBox.y + scrollRaceCardBox.height <= scrollRaceViewportHeight,
+  scrollRaceCardBox ? `y=${scrollRaceCardBox.y} bottom=${scrollRaceCardBox.y + scrollRaceCardBox.height} viewportH=${scrollRaceViewportHeight}` : 'no card');
+await scrollRacePage.close();
+
 /* --- Phase 12.3: list parity and quick-judge (PRD section 16) -------------
    getDecision/setDecision/clearDecision/subscribe live in js/discover.js;
    this section drives them only through the UI (the browse list's chip
@@ -1806,6 +1829,51 @@ async function completeHeadlessStackSetup(pg, business) {
   const docAfterSecondAttempt = await diskDoc(pg);
   const secondAttemptCount = docAfterSecondAttempt.accounts.filter((a) => a.toolId === 1).length;
   check('my: pre-seeding twice yields no duplicate toolId rows', secondAttemptCount === 1, `count=${secondAttemptCount}`);
+  await pg.close();
+  await ctx.close();
+}
+
+/* Pre-seed dedupe, tool id 0 twin of the block above. Tool 0 is a real
+   catalogue entry and every id-keyed lookup in this codebase must use
+   Number.isInteger/strict equality rather than a truthiness test, or id 0
+   silently behaves like "no tool id" and vanishes. This same dedupe path
+   (accounts.filter((a) => a.toolId === 0)) would pass even if the id-0 row
+   never got created at all, if it were written with `a.toolId` alone as a
+   truthy check, since 0 rows also filter to nothing: the count assertion
+   below is only meaningful because the first-seed check above it confirms
+   the row actually exists before the count is read. */
+{
+  const ctx = await browser.newContext();
+  await ctx.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  const pg = await ctx.newPage();
+  await pg.goto(`${base}/my`);
+  await pg.waitForSelector('#my-root:not([hidden])');
+  await completeHeadlessSetup(pg, 'PreSeed Dedup Test Zero');
+
+  await pg.goto(`${base}/my?from=0&have=`);
+  await pg.waitForSelector('.my-banner-merge');
+  await pg.locator('.my-banner-merge button', { hasText: 'Review' }).click();
+  await pg.waitForSelector('.my-banner-merge-open');
+  await pg.locator('.my-banner-merge-open button', { hasText: 'Sign-up list for these' }).click();
+  await pg.waitForSelector('.my-generator-sheet');
+  check('my: tool 0 pre-seed control offered the first time (tool not yet in the register)',
+    await pg.locator('.my-generator-preseed').count() === 1);
+  await pg.locator('.my-generator-preseed input[type=checkbox]').check();
+  await pg.locator('.my-generator-preseed button', { hasText: 'Add' }).click();
+  await pg.waitForSelector('.my-generator-preseed', { state: 'detached' });
+
+  const docAfterFirstSeedZero = await diskDoc(pg);
+  const firstSeedCountZero = docAfterFirstSeedZero.accounts.filter((a) => a.toolId === 0).length;
+  check('my: tool 0 pre-seed creates exactly one planned row', firstSeedCountZero === 1, `count=${firstSeedCountZero}`);
+
+  await pg.locator('.my-generator-sheet button', { hasText: 'Close' }).click();
+  await pg.locator('.my-banner-merge-open button', { hasText: 'Sign-up list for these' }).click();
+  await pg.waitForSelector('.my-generator-sheet');
+  check('my: tool 0 pre-seeding a second time offers no pre-seed control (tool already registered)',
+    await pg.locator('.my-generator-preseed').count() === 0);
+  const docAfterSecondAttemptZero = await diskDoc(pg);
+  const secondAttemptCountZero = docAfterSecondAttemptZero.accounts.filter((a) => a.toolId === 0).length;
+  check('my: tool 0 pre-seeding twice yields no duplicate toolId rows', secondAttemptCountZero === 1, `count=${secondAttemptCountZero}`);
   await pg.close();
   await ctx.close();
 }
