@@ -1268,36 +1268,42 @@ button { font: inherit; }
 
 /* --- judgement parity (Phase 12.3, PRD section 16, "Grid quick-judge and
    list parity") -------------------------------------------------------
-   The state chip and its chooser sit in normal flow, appended after the
-   CLIENT block's own .tool-card inside the same <li> (js/public.js does
-   this at the DOM level rather than editing that file); the corner buttons
-   are absolutely positioned within that same <li>, which is why it needs
-   position: relative here. No new transition or animation is introduced by
-   any rule below: the corner buttons appear and disappear with a plain
-   display swap, since the PRD section 16 motion inventory is exhaustive and
-   names no motion for this control. */
-#public-root .card-grid > li { position: relative; }
+   The state chip/chooser and the quick-judge rail both sit in normal flow,
+   appended after the CLIENT block's own .tool-card inside the same <li>
+   (js/public.js does this at the DOM level rather than editing that file).
 
-/* top is deliberately not set here (verifier fix round): a static value
-   measured overlapping the card's own name/favicon/value row (.card-top)
-   at 1024, 1280 and 1440px, since that row's height is not constant across
-   tool names of different lengths. js/public.js measures the real
-   .card-top height per card and sets top inline instead, so the corners
-   always clear it regardless of viewport width or how many lines the name
-   wraps to. */
-.pub-judge-corners { display: none; }
+   Re-verify round 2: an earlier shape absolutely positioned the rail over
+   the card, its vertical offset read in JS from .card-top's rendered
+   height. That measurement raced the grid's own layout on fresh load (a
+   wrapped two-line title had not reached its settled height yet when read)
+   and never recomputed on viewport resize, so the overlay landed back on
+   top of the header it was meant to clear. This shape carries no position,
+   so there is nothing to measure or recompute: the rail is a plain
+   block-level sibling of .tool-card, sized only by its own two buttons, so
+   it can never occupy the same pixels as the card's own name, favicon or
+   value by construction, at any width, wrap state or load timing.
+
+   No new transition or animation either: the rail's box is always present
+   (reserved) the instant the media query matches, dimmed at rest, and only
+   its opacity swaps on hover/focus-within, a plain value change with no
+   transition property. The PRD section 16 motion inventory stays
+   exhaustive, and no layout shift ever accompanies a hover, since the space
+   was already reserved from the moment the card was decorated. */
+.pub-judge-rail { display: none; }
 @media (hover: hover) and (pointer: fine) {
-  .card-grid > li:hover .pub-judge-corners,
-  .card-grid > li:focus-within .pub-judge-corners {
+  .pub-judge-rail {
     display: flex;
-    position: absolute;
-    left: var(--s-2);
-    right: var(--s-2);
-    justify-content: space-between;
-    z-index: 2;
+    justify-content: flex-end;
+    gap: var(--s-2);
+    margin-top: var(--s-3);
+    opacity: 0.45;
+  }
+  .card-grid > li:hover .pub-judge-rail,
+  .card-grid > li:focus-within .pub-judge-rail {
+    opacity: 1;
   }
 }
-.pub-judge-corner-btn {
+.pub-judge-rail-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1310,11 +1316,10 @@ button { font: inherit; }
   font-family: var(--font-sans);
   font-size: var(--fs-16);
   font-weight: 700;
-  box-shadow: var(--shadow-1);
   cursor: pointer;
 }
-.pub-judge-corner-btn:hover { border-color: var(--ink-3); color: var(--ink); }
-.pub-judge-corner-btn[aria-pressed="true"] {
+.pub-judge-rail-btn:hover { border-color: var(--ink-3); color: var(--ink); }
+.pub-judge-rail-btn[aria-pressed="true"] {
   background: var(--oxblood-tint);
   border-color: var(--oxblood);
   color: var(--oxblood-deep);

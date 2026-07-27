@@ -20,16 +20,20 @@
  *
  * PHASE 12.3 (PRD section 16, "Grid quick-judge and list parity"): every
  * browse card whose tool has a Discover decision carries a state chip, and
- * every card additionally grows two hover-only corner buttons on
- * hover-capable, fine-pointer devices. Both write through discover.js's
- * getDecision/setDecision/clearDecision/subscribe (loadDiscoverModule below
- * shares the same dynamic import the Discover button already used, so
- * loading it here costs nothing extra and still degrades to "no parity
- * controls" rather than a broken page if the module never arrives). This
- * file never builds the <li>/<article> card markup itself (that stays
- * client.js's, Phase 4's file): it decorates the already-rendered <li> in
- * place by appending sibling elements, the same technique the hover-lift
- * CSS above already uses to work around the same ownership boundary.
+ * every card additionally grows a reserved-space quick-judge rail (tick and
+ * plus) on hover-capable, fine-pointer devices. Both write through
+ * discover.js's getDecision/setDecision/clearDecision/subscribe
+ * (loadDiscoverModule below shares the same dynamic import the Discover
+ * button already used, so loading it here costs nothing extra and still
+ * degrades to "no parity controls" rather than a broken page if the module
+ * never arrives). This file never builds the <li>/<article> card markup
+ * itself (that stays client.js's, Phase 4's file, save for the one
+ * data-id attribute it now carries for exactly this pairing): it decorates
+ * the already-rendered <li> in place by appending sibling elements, the
+ * same technique the hover-lift CSS above already uses to work around the
+ * same ownership boundary. The rail is a normal-flow sibling, never an
+ * absolutely-positioned overlay: see buildJudgeRail's own comment for why
+ * (re-verify round 2 found a measured-overlay shape geometrically unsound).
  */
 import { el, themeToggleButton, readPlainMode, writePlainMode } from './data-loader.js';
 import { buildCardSections } from './client.js';
@@ -427,13 +431,14 @@ export function renderPublic(root, tools) {
 /* --- judgement parity (Phase 12.3, PRD section 16, "Grid quick-judge and
    list parity") --------------------------------------------------------
    Every browse card whose tool carries a Discover decision gets a state
-   chip, on every device. Every card also grows two corner buttons, but
-   those only ever show under (hover: hover) and (pointer: fine): the CSS in
-   the PUBLIC block keeps them display:none, and therefore out of the tab
-   order, everywhere else, so "absent entirely on coarse-pointer devices"
-   holds without any UA sniffing here. A corner reflects the current
-   decision and clears it on a second activation of the same control, so a
-   fine-pointer visitor never needs the chooser just to toggle a card. */
+   chip, on every device. Every card also grows a quick-judge rail (tick and
+   plus), but that only ever shows under (hover: hover) and (pointer: fine):
+   the CSS in the PUBLIC block keeps it display:none, and therefore out of
+   the tab order, everywhere else, so "absent entirely on coarse-pointer
+   devices" holds without any UA sniffing here. A rail button reflects the
+   current decision and clears it on a second activation of the same
+   control, so a fine-pointer visitor never needs the chooser just to
+   toggle a card. */
 
 /** Pairs each rendered <li> with its tool by the data-id attribute
     client.js's buildCardSections now carries (wave 12.3 fix round: that
@@ -472,25 +477,25 @@ function closeAnyOpenChooser() {
 
 /** Idempotent: removes whatever this function itself last appended before
     adding fresh nodes, so a live subscribe notification (fired on every
-    decision change, from any source) never stacks a second chip or corner
+    decision change, from any source) never stacks a second chip or rail
     pair onto the same card. */
 function decorateCard(li, tool, judgeApi) {
-  li.querySelectorAll(':scope > .pub-judge-corners, :scope > .pub-judge-chip-wrap').forEach((n) => n.remove());
-  li.append(buildJudgeCorners(li, tool, judgeApi), buildJudgeChipWrap(li, tool, judgeApi));
+  li.querySelectorAll(':scope > .pub-judge-rail, :scope > .pub-judge-chip-wrap').forEach((n) => n.remove());
+  li.append(buildJudgeRail(li, tool, judgeApi), buildJudgeChipWrap(li, tool, judgeApi));
 }
 
 /** setDecision/clearDecision below call discover.js's notify() before
     returning, which runs decorateCard again synchronously: by the time a
     click handler here gets back control, the control the reader just
     activated has already been replaced. This moves focus onto whatever now
-    represents the card, in priority order (the chip, a visible corner, the
+    represents the card, in priority order (the chip, a rail button, the
     card itself as a last resort), so a keyboard user's focus is never
     silently dropped to <body>. */
 function focusJudgeChip(li) {
   const chip = li.querySelector(':scope > .pub-judge-chip-wrap .pub-judge-chip');
   if (chip) { chip.focus(); return; }
-  const corner = li.querySelector(':scope > .pub-judge-corners .pub-judge-corner-have');
-  if (corner && corner.offsetParent !== null) { corner.focus(); return; }
+  const railBtn = li.querySelector(':scope > .pub-judge-rail .pub-judge-rail-have');
+  if (railBtn && railBtn.offsetParent !== null) { railBtn.focus(); return; }
   const article = li.querySelector(':scope > article');
   if (!article) return;
   article.setAttribute('tabindex', '-1');
@@ -498,46 +503,34 @@ function focusJudgeChip(li) {
   article.addEventListener('blur', () => article.removeAttribute('tabindex'), { once: true });
 }
 
-/** Static safe zone (verifier fix round): corners used to sit pinned to the
-    literal top of the card, directly over .card-top, and were measured
-    overlapping the tool name/favicon and the value badge at 1024, 1280 and
-    1440px. Rather than a guessed fixed pixel offset (which would only ever
-    be correct at the widths someone happened to test), this measures the
-    card's own already-rendered .card-top height and positions the corners
-    below it plus a gap, so the guarantee holds at any width and for any
-    tool name length, including one that wraps to two lines. Falls back to
-    a conservative default if the card has not been laid out yet (a
-    collapsed rect reads as 0), which never happens in practice since
-    corners are only ever built once judgeApi exists, by which point the
-    list is already attached to the document (see the module doc comment). */
-function positionJudgeCorners(li, corners) {
-  const cardTop = li.querySelector(':scope > article .card-top');
-  const cardTopRect = cardTop ? cardTop.getBoundingClientRect() : null;
-  // Measured relative to the <li> itself (corners' own positioning
-  // context), not just .card-top's own height: the article around it
-  // carries its own top padding, which a height-only measurement ignored
-  // entirely, landing the "safe zone" back on top of the header row it was
-  // meant to clear.
-  const liTop = li.getBoundingClientRect().top;
-  const safeTop = cardTopRect && cardTopRect.height > 0
-    ? (cardTopRect.bottom - liTop) + 8
-    : 56;
-  corners.style.top = `${safeTop}px`;
-}
-
-/** Corner quick-judge buttons (PRD section 16): tick ("Got it") and plus
-    ("Try it", the corner's short label for "add to my list"), CSS-gated to
-    (hover: hover) and (pointer: fine) so they never enter the tab order on
-    a touch device. aria-pressed mirrors the current decision; activating
-    the control that already matches the current decision clears it. */
-function buildJudgeCorners(li, tool, judgeApi) {
+/** Quick-judge rail (PRD section 16; re-verify round 2 rearchitecture):
+    tick ("Got it") and plus ("Try it", the rail's short label for "add to
+    my list"). The previous shape was an absolutely-positioned overlay
+    pinned to a JS-measured offset below the card's name/favicon/value row
+    (.card-top); that measurement raced the grid's own layout on fresh load
+    (a wrapped two-line title had not reached its settled height yet when
+    read) and never recomputed on viewport resize, so the overlay landed on
+    top of the header both on a slow first paint and after a resize
+    re-wrapped a title. This shape carries no position, no
+    getBoundingClientRect call and no resize listener anywhere: the rail is
+    a plain sibling of the card's own <article> in normal document flow
+    (built and appended in decorateCard above, never inside client.js's own
+    element), so its box can never occupy the same pixels as the article's
+    internal content by construction, regardless of viewport width, wrap
+    state or load timing, the same guarantee the state chip below it
+    already had. The CSS block for .pub-judge-rail reserves this box's
+    height unconditionally the instant (hover: hover) and (pointer: fine)
+    matches (dimmed at rest, full opacity on hover/focus-within, a plain
+    value swap with no transition), so hovering never shifts layout either:
+    the space was already there from the moment this function ran. */
+function buildJudgeRail(li, tool, judgeApi) {
   const decision = judgeApi.getDecision(tool.id);
   const haveBtn = el('button', {
-    class: 'pub-judge-corner-btn pub-judge-corner-have', type: 'button',
+    class: 'pub-judge-rail-btn pub-judge-rail-have', type: 'button',
     'aria-label': 'Got it', title: 'Got it', 'aria-pressed': String(decision === 'have'),
   }, '✓');
   const wantBtn = el('button', {
-    class: 'pub-judge-corner-btn pub-judge-corner-want', type: 'button',
+    class: 'pub-judge-rail-btn pub-judge-rail-want', type: 'button',
     'aria-label': 'Try it', title: 'Try it', 'aria-pressed': String(decision === 'want'),
   }, '+');
   haveBtn.addEventListener('click', () => {
@@ -550,17 +543,15 @@ function buildJudgeCorners(li, tool, judgeApi) {
     else judgeApi.setDecision(tool.id, 'want');
     focusJudgeChip(li);
   });
-  const corners = el('div', { class: 'pub-judge-corners' }, haveBtn, wantBtn);
-  positionJudgeCorners(li, corners);
-  return corners;
+  return el('div', { class: 'pub-judge-rail' }, haveBtn, wantBtn);
 }
 
 /** The state chip and its Got it / Add to my list / Clear chooser (PRD
     section 16): the single edit path for a judgement outside the deck,
     present on every device regardless of pointer or hover capability. A
     still-unjudged tool gets an empty wrapper: there is nothing to open a
-    chooser for yet, and the corner buttons above (fine-pointer only) or the
-    deck itself (universally) are how it gets judged for the first time. */
+    chooser for yet, and the quick-judge rail above (fine-pointer only) or
+    the deck itself (universally) are how it gets judged for the first time. */
 function buildJudgeChipWrap(li, tool, judgeApi) {
   const wrap = el('div', { class: 'pub-judge-chip-wrap' });
   const decision = judgeApi.getDecision(tool.id);

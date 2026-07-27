@@ -563,22 +563,22 @@ await finePage.waitForSelector('#public-root .tool-card');
 await finePage.waitForTimeout(400); // let the discover.js dynamic import resolve
 const fineFirstLi = finePage.locator('#public-root .card-grid > li').first();
 await fineFirstLi.hover();
-const cornersDisplayFine = await fineFirstLi.locator('.pub-judge-corners').evaluate((n) => getComputedStyle(n).display);
-check('parity: corner quick-judge buttons are shown under (hover: hover) and (pointer: fine)',
-  cornersDisplayFine === 'flex', cornersDisplayFine);
-await fineFirstLi.locator('.pub-judge-corner-have').click();
+const railDisplayFine = await fineFirstLi.locator('.pub-judge-rail').evaluate((n) => getComputedStyle(n).display);
+check('parity: the quick-judge rail is shown under (hover: hover) and (pointer: fine)',
+  railDisplayFine === 'flex', railDisplayFine);
+await fineFirstLi.locator('.pub-judge-rail-have').click();
 await finePage.waitForTimeout(200);
-const decisionsAfterCornerSet = await finePage.evaluate(() => JSON.parse(localStorage.getItem('freestack:v1:discover')).decisions);
+const decisionsAfterRailSet = await finePage.evaluate(() => JSON.parse(localStorage.getItem('freestack:v1:discover')).decisions);
 await fineFirstLi.hover();
-await fineFirstLi.locator('.pub-judge-corner-have').click(); // second activation of the same control
+await fineFirstLi.locator('.pub-judge-rail-have').click(); // second activation of the same control
 await finePage.waitForTimeout(200);
-const decisionsAfterCornerClear = await finePage.evaluate(() => JSON.parse(localStorage.getItem('freestack:v1:discover')).decisions);
-check('parity: a second activation of the same corner control clears the decision',
-  decisionsAfterCornerSet['0']?.d === 'have' && !('0' in decisionsAfterCornerClear),
-  `afterSet=${JSON.stringify(decisionsAfterCornerSet)} afterClear=${JSON.stringify(decisionsAfterCornerClear)}`);
+const decisionsAfterRailClear = await finePage.evaluate(() => JSON.parse(localStorage.getItem('freestack:v1:discover')).decisions);
+check('parity: a second activation of the same rail control clears the decision',
+  decisionsAfterRailSet['0']?.d === 'have' && !('0' in decisionsAfterRailClear),
+  `afterSet=${JSON.stringify(decisionsAfterRailSet)} afterClear=${JSON.stringify(decisionsAfterRailClear)}`);
 await finePage.close();
 
-// Coarse pointer: corners must be entirely absent, not merely invisible.
+// Coarse pointer: the rail must be entirely absent, not merely invisible.
 // Playwright has no direct "force (pointer: coarse)" media override, so
 // this emulates a touch/mobile device (hasTouch + isMobile), which is how
 // Chromium itself derives (hover: none)/(pointer: coarse) from the device
@@ -594,11 +594,11 @@ const coarseMediaMatches = await coarsePage.evaluate(() => ({
   pointerCoarse: matchMedia('(pointer: coarse)').matches,
 }));
 await coarsePage.waitForTimeout(400);
-const coarseCornersDisplay = await coarsePage.locator('#public-root .card-grid > li').first()
-  .locator('.pub-judge-corners').evaluate((n) => getComputedStyle(n).display);
-check('parity: corner quick-judge buttons are absent (display: none) under coarse-pointer emulation',
-  coarseMediaMatches.hoverNone && coarseMediaMatches.pointerCoarse && coarseCornersDisplay === 'none',
-  JSON.stringify({ ...coarseMediaMatches, display: coarseCornersDisplay }));
+const coarseRailDisplay = await coarsePage.locator('#public-root .card-grid > li').first()
+  .locator('.pub-judge-rail').evaluate((n) => getComputedStyle(n).display);
+check('parity: the quick-judge rail is absent (display: none) under coarse-pointer emulation',
+  coarseMediaMatches.hoverNone && coarseMediaMatches.pointerCoarse && coarseRailDisplay === 'none',
+  JSON.stringify({ ...coarseMediaMatches, display: coarseRailDisplay }));
 await coarseCtx.close();
 
 // 44px targets: the chip and every chooser option, at 375px.
@@ -813,29 +813,86 @@ check('parity: Escape pressed with focus still on the chip (no Tab into the choo
   `before=${chooserOpenBeforeEscape} after=${chooserOpenAfterEscapeFromChip} focusOnChip=${focusStillChipAfterEscape}`);
 await escapeFromChipPage.close();
 
-// (c) Corner overlap: hovered corners must never intersect the card's own
-// name/favicon (h3) or value badge bounding boxes at 1280px (the verifier's
-// repro width; 12.3's scratch drive also covers 1024 and 1440 by hand).
+// (c) Rail overlap, re-verified round 2: the tick/plus used to be an
+// absolutely-positioned overlay whose vertical offset was measured in JS
+// from .card-top's rendered height. That raced the grid's own layout on
+// fresh load (a wrapped two-line title had not reached its settled height
+// yet when read) and never recomputed on resize, so it intermittently
+// landed back on top of the header it was meant to clear. The rail is now
+// a normal-flow sibling of the card with no position and no measurement at
+// all, so it cannot occupy the same pixels as the card's own name, favicon
+// or value by construction; this still checks it empirically, on the first
+// card, on the two longest active tool names (derived from tools.json
+// itself so the check keeps meaning if the data changes, rather than
+// hard-coding the ids the re-verifier's own repro happened to use), at
+// 1024, 1280 and 1440px after a settled load, and across a resize with no
+// reload, which a JS-measured, load-time-only offset could never survive.
 function rectsOverlap(a, b) {
   if (!a || !b) return false;
   return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
 }
-const cornerOverlapPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
-await cornerOverlapPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
-await cornerOverlapPage.goto(`${base}/`);
-await cornerOverlapPage.waitForSelector('#public-root .tool-card');
-await cornerOverlapPage.waitForTimeout(400); // let discover.js resolve so corners actually render
-const cornerLi = cornerOverlapPage.locator('#public-root .card-grid > li').first();
-await cornerLi.hover();
-const cornerH3Box = await cornerLi.locator('article .card-top h3').first().boundingBox();
-const cornerValueBox = await cornerLi.locator('article .card-top .card-value').first().boundingBox();
-const cornerHaveBox = await cornerLi.locator('.pub-judge-corner-have').boundingBox();
-const cornerWantBox = await cornerLi.locator('.pub-judge-corner-want').boundingBox();
-const anyCornerOverlap = rectsOverlap(cornerH3Box, cornerHaveBox) || rectsOverlap(cornerH3Box, cornerWantBox)
-  || rectsOverlap(cornerValueBox, cornerHaveBox) || rectsOverlap(cornerValueBox, cornerWantBox);
-check('parity: hovered corners never intersect the card name or value badge at 1280px',
-  !anyCornerOverlap, JSON.stringify({ cornerH3Box, cornerValueBox, cornerHaveBox, cornerWantBox }));
-await cornerOverlapPage.close();
+async function railClearance(li) {
+  const h3Box = await li.locator('article .card-top h3').first().boundingBox();
+  const faviconBox = await li.locator('article .card-top .favicon').first().boundingBox().catch(() => null);
+  const valueBox = await li.locator('article .card-top .card-value').first().boundingBox();
+  const haveBox = await li.locator('.pub-judge-rail-have').boundingBox();
+  const wantBox = await li.locator('.pub-judge-rail-want').boundingBox();
+  const overlap = [h3Box, faviconBox, valueBox].some((content) => [haveBox, wantBox].some((rail) => rectsOverlap(content, rail)));
+  return { overlap, h3Box, faviconBox, valueBox, haveBox, wantBox };
+}
+function cardByName(pg, name) {
+  return pg.locator('#public-root .card-grid > li').filter({ has: pg.locator('h3', { hasText: name }) }).first();
+}
+
+// First card (kept from the previous round).
+const railOverlapPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await railOverlapPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await railOverlapPage.goto(`${base}/`);
+await railOverlapPage.waitForSelector('#public-root .tool-card');
+await railOverlapPage.waitForTimeout(400); // let discover.js resolve so the rail actually renders
+const railLi = railOverlapPage.locator('#public-root .card-grid > li').first();
+await railLi.hover();
+const firstCardClearance = await railClearance(railLi);
+check('parity: the quick-judge rail never intersects the first card\'s name, favicon or value badge at 1280px',
+  !firstCardClearance.overlap, JSON.stringify(firstCardClearance));
+await railOverlapPage.close();
+
+// Data-driven: the two longest active tool names, the cards most likely to
+// wrap onto a second line, at three widths, each a fresh settled load.
+const longestNameTools = [...active].sort((a, b) => b.name.length - a.name.length).slice(0, 2);
+for (const width of [1024, 1280, 1440]) {
+  const widthPage = await browser.newPage({ viewport: { width, height: 900 } });
+  await widthPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await widthPage.goto(`${base}/`);
+  await widthPage.waitForSelector('#public-root .tool-card');
+  await widthPage.waitForTimeout(400); // settled load
+  for (const tool of longestNameTools) {
+    const li = cardByName(widthPage, tool.name);
+    await li.scrollIntoViewIfNeeded();
+    await li.hover();
+    const clearance = await railClearance(li);
+    check(`parity: rail clears "${tool.name}" (longest active name) at ${width}px`, !clearance.overlap, JSON.stringify(clearance));
+  }
+  await widthPage.close();
+}
+
+// Resize case: load at 1024, resize to 1280 with no reload (re-wraps a long
+// title differently), re-hover, assert clearance still holds.
+const resizePage = await browser.newPage({ viewport: { width: 1024, height: 900 } });
+await resizePage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await resizePage.goto(`${base}/`);
+await resizePage.waitForSelector('#public-root .tool-card');
+await resizePage.waitForTimeout(400);
+await resizePage.setViewportSize({ width: 1280, height: 900 });
+await resizePage.waitForTimeout(150);
+for (const tool of longestNameTools) {
+  const li = cardByName(resizePage, tool.name);
+  await li.scrollIntoViewIfNeeded();
+  await li.hover();
+  const clearance = await railClearance(li);
+  check(`parity: rail still clears "${tool.name}" after a 1024→1280 resize with no reload`, !clearance.overlap, JSON.stringify(clearance));
+}
+await resizePage.close();
 
 // (d) js/discover.js blocked entirely (PRD 16 AC7, never automated before
 // this fix round): the browse list must still render every active card,
