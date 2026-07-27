@@ -608,19 +608,25 @@ export function openDiscoverDeck(options) {
   }
   closeBtn.addEventListener('click', closeDeck);
 
-  /* --- first-open coaching overlay (Phase 12 close-out) --------------------
+  /* --- first-open coaching overlay (Phase 12 close-out, redesigned after
+     Rocky's phone test: "swipe left and right text not clear") -----------
      Shown over the very first card, once ever per device: the visitor has
      judged nothing yet (state.decisions empty at the moment the deck opens)
-     and has never dismissed this exact tip before (state.coachDone). A
-     small CSS-only animated hint, a card ghost sliding left then right,
-     twice, never a loop, explains the two directions; reduced motion gets
-     the same explanation static, arrows and labels with no animation at
-     all (the two @keyframes rules live in the DISCOVER CSS block behind
-     that same media query, belt-and-braces on top of this check). Every
-     judge button is disabled for as long as the coach is up, so the very
-     first tap anywhere, even squarely on a button before the reader has
-     had a chance to read the tip, only ever dismisses it and never records
-     a judgement; the close button is deliberately left enabled throughout,
+     and has never dismissed this exact tip before (state.coachDone). The
+     two directions are taught with the same visual language as the real
+     verdict stamps a reader sees while actually dragging (large, bold,
+     bordered, uppercase, --positive for Got it, --info for Add to my
+     list), sized well past the in-card stamp's fs-18 and always at full
+     opacity, an overlay on top of the card rather than baked faintly into
+     its background, since a low-opacity watermark fights the "legible on
+     a single static glance" requirement the animated version never had to
+     meet. The ghost-card slide is kept but demoted to reinforcement only:
+     the two stamps carry the message on their own, statically, so the
+     reduced-motion version (no slide at all) loses nothing. Every judge
+     button is disabled for as long as the coach is up, so the very first
+     tap anywhere, even squarely on a button before the reader has had a
+     chance to read the tip, only ever dismisses it and never records a
+     judgement; the close button is deliberately left enabled throughout,
      since leaving the deck entirely must never be blocked by a tutorial. */
   let coachVisible = false;
   let coachTimer = null;
@@ -650,22 +656,34 @@ export function openDiscoverDeck(options) {
     haveBtn.disabled = true;
     skipBtn.disabled = true;
     wantBtn.disabled = true;
+    // Left/right stamps, the same visual language (colour, border, weight,
+    // uppercase) as the real .discover-stamp-have/.discover-stamp-want a
+    // reader sees while actually dragging, just larger and always at full
+    // opacity rather than fading in with drag distance: a coach mark has
+    // to read on a single static glance, which a proportional-opacity
+    // stamp never had to do.
     coachOverlay = el('div', { class: 'discover-coach' },
       el('div', { class: 'discover-coach-ghost', 'aria-hidden': 'true' }),
-      el('div', { class: 'discover-coach-labels' },
-        el('p', { class: 'discover-coach-label discover-coach-label-have' }, '← Got it, I already use this'),
-        el('p', { class: 'discover-coach-label discover-coach-label-want' }, 'Add to my list, I want to try it →'),
+      el('div', { class: 'discover-coach-directions' },
+        el('div', { class: 'discover-coach-stamp discover-coach-stamp-have' },
+          el('div', { class: 'discover-coach-stamp-arrow', 'aria-hidden': 'true' }, '←'),
+          el('div', { class: 'discover-coach-stamp-text' }, 'Got it'),
+        ),
+        el('div', { class: 'discover-coach-stamp discover-coach-stamp-want' },
+          el('div', { class: 'discover-coach-stamp-arrow', 'aria-hidden': 'true' }, '→'),
+          el('div', { class: 'discover-coach-stamp-text' }, 'My list'),
+        ),
       ),
-      el('p', { class: 'discover-coach-hint' }, 'Swipe the card, or use the buttons below.'),
+      el('p', { class: 'discover-coach-hint' }, 'Swipe left or right, or use the buttons below.'),
       el('button', { class: 'btn btn-primary discover-coach-dismiss', type: 'button' }, 'Continue'),
     );
     // One listener on the overlay itself, not per child: any tap or click
-    // anywhere within it (the ghost, the labels, the hint text, or the
+    // anywhere within it (the ghost, either stamp, the hint text, or the
     // explicit Continue button) bubbles here and dismisses, per "dismiss
     // on any tap or click".
     coachOverlay.addEventListener('click', dismissCoach);
     stage.appendChild(coachOverlay);
-    announce('New here? Swipe the card, or use the buttons: left for Got it, right for Add to my list.');
+    announce('New here? Swipe left for Got it, right for Add to my list, or use the buttons below.');
     coachTimer = setTimeout(dismissCoach, 5000);
   }
 

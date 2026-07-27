@@ -641,6 +641,41 @@ check('discover: the coach overlay appears on a genuinely first-ever deck open',
 check('discover: judge buttons are disabled while the coach overlay is up',
   await coachFirstPage.locator('.discover-btn-have').isDisabled());
 
+// Rocky's phone-test finding: the old small side-text labels were unclear.
+// Both directions must now render in the same large, high-contrast stamp
+// treatment as the real in-card verdict stamps (colour reused exactly,
+// text visibly larger than the in-card stamp's fs-18), always at full
+// opacity so the message reads on a single static glance, not just mid
+// animation.
+const coachStampInfo = await coachFirstPage.evaluate(() => {
+  const have = document.querySelector('.discover-coach-stamp-have');
+  const want = document.querySelector('.discover-coach-stamp-want');
+  const px = (v) => Number.parseFloat(v);
+  return {
+    haveText: have?.textContent.trim(),
+    wantText: want?.textContent.trim(),
+    haveColor: have ? getComputedStyle(have).color : null,
+    wantColor: want ? getComputedStyle(want).color : null,
+    haveOpacity: have ? getComputedStyle(have).opacity : null,
+    arrowFontSize: have ? px(getComputedStyle(have.querySelector('.discover-coach-stamp-arrow')).fontSize) : 0,
+    inCardStampFontSize: px(getComputedStyle(document.querySelector('.discover-stamp-have')).fontSize),
+  };
+});
+const realStampColors = await coachFirstPage.evaluate(() => ({
+  have: getComputedStyle(document.querySelector('.discover-stamp-have')).color,
+  want: getComputedStyle(document.querySelector('.discover-stamp-want')).color,
+}));
+check('discover: both direction labels are present with the arrow and stamp word',
+  /got it/i.test(coachStampInfo.haveText) && coachStampInfo.haveText.includes('←')
+  && /my list/i.test(coachStampInfo.wantText) && coachStampInfo.wantText.includes('→'),
+  JSON.stringify({ have: coachStampInfo.haveText, want: coachStampInfo.wantText }));
+check('discover: the direction labels reuse the exact real-stamp colours (have and want)',
+  coachStampInfo.haveColor === realStampColors.have && coachStampInfo.wantColor === realStampColors.want,
+  JSON.stringify({ coach: { have: coachStampInfo.haveColor, want: coachStampInfo.wantColor }, real: realStampColors }));
+check('discover: the direction labels are visibly large, well past the in-card stamp size, and fully opaque',
+  coachStampInfo.arrowFontSize > coachStampInfo.inCardStampFontSize && coachStampInfo.haveOpacity === '1',
+  `arrow=${coachStampInfo.arrowFontSize} inCard=${coachStampInfo.inCardStampFontSize} opacity=${coachStampInfo.haveOpacity}`);
+
 await coachFirstPage.locator('.discover-coach-dismiss').click();
 await coachFirstPage.waitForTimeout(150);
 const coachDoneAfterDismiss = await coachFirstPage.evaluate(() => JSON.parse(localStorage.getItem('freestack:v1:discover')).coachDone);
