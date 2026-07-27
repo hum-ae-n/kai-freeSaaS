@@ -10,7 +10,7 @@
  * offline; favicon rendering itself is therefore NOT covered here.
  */
 import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { extname, join, normalize, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
@@ -1402,6 +1402,168 @@ check('my: backup-age red after 10 or more saves since export', await myFlow.loc
 
 await myFlow.close();
 await myCtx.close();
+
+/* --- Phase 12.4 (BUILD-PLAN 12.4, PRD-REGISTER sections 16 and 19): planned
+   status end to end and the Discover arrival (?from=/?have=). Each URL
+   variant gets its own fresh browser context, since each is a first-run
+   register of its own; plaintext throughout, same reasoning as the batch D
+   suite above (PBKDF2 is too slow to spend on a smoke gate). ------------- */
+async function completeHeadlessStackSetup(pg, business) {
+  await pg.locator('button', { hasText: 'Start from your stack' }).first().click();
+  await pg.waitForSelector('.my-setup-panel');
+  await pg.locator('.my-setup-panel input[type=text]').first().fill(business);
+  await pg.locator('button', { hasText: 'Continue' }).first().click();
+  await pg.waitForSelector('.my-setup-panel');
+  await pg.locator('button', { hasText: 'Continue' }).first().click(); // review step: no templates ticked
+  await pg.waitForSelector('.my-setup-panel');
+  await pg.locator('button', { hasText: 'Not now' }).first().click(); // no encryption on the plaintext path
+  await pg.waitForSelector('button:has-text("Download your register file")', { timeout: 15000 });
+  await Promise.all([
+    pg.waitForEvent('download', { timeout: 5000 }).catch(() => null),
+    pg.locator('button', { hasText: 'Download your register file' }).click(),
+  ]);
+  await pg.locator('button', { hasText: 'Finish setup' }).click();
+  await pg.waitForSelector('.my-nav-item');
+}
+
+/* /my?have=0 (section 19): tool 0 (id 0 discipline, named smoke check per
+   the task) commits as exactly one active row, in exactly one revision. */
+{
+  const ctx = await browser.newContext();
+  await ctx.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  const pg = await ctx.newPage();
+  await pg.goto(`${base}/my?have=0`);
+  await pg.waitForSelector('#my-root:not([hidden])');
+  await completeHeadlessStackSetup(pg, 'Have Zero Test');
+  const savedDoc = await diskDoc(pg);
+  check('my: /my?have=0 commits tool 0 as one active row, revision 1',
+    !!savedDoc && savedDoc.revision === 1 && savedDoc.accounts.length === 1
+    && savedDoc.accounts[0].toolId === 0 && savedDoc.accounts[0].status === 'active',
+    JSON.stringify(savedDoc && { revision: savedDoc.revision, accounts: savedDoc.accounts.map((a) => [a.toolId, a.status]) }));
+  await pg.close();
+  await ctx.close();
+}
+
+/* /my?from=2,5&have=0 (section 19): the arrival marker (have=, present at
+   all) flips the from= group's default to planned; have= itself is always
+   active. */
+{
+  const ctx = await browser.newContext();
+  await ctx.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  const pg = await ctx.newPage();
+  await pg.goto(`${base}/my?from=2,5&have=0`);
+  await pg.waitForSelector('#my-root:not([hidden])');
+  await completeHeadlessStackSetup(pg, 'Discover Arrival Test');
+  const savedDoc = await diskDoc(pg);
+  const byTool = new Map((savedDoc?.accounts || []).map((a) => [a.toolId, a.status]));
+  check('my: /my?from=2,5&have=0 defaults 2 and 5 to planned, 0 to active',
+    savedDoc && savedDoc.accounts.length === 3 && byTool.get(2) === 'planned' && byTool.get(5) === 'planned' && byTool.get(0) === 'active',
+    JSON.stringify([...byTool.entries()]));
+  await pg.close();
+  await ctx.close();
+}
+
+/* /my?from=t:0,2,5 WITHOUT have= (section 19): the arrival marker is wholly
+   absent, so behaviour matches every client-page link sent before this
+   phase existed, rows defaulting active, "t:" prefix stripped as ever. */
+{
+  const ctx = await browser.newContext();
+  await ctx.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  const pg = await ctx.newPage();
+  await pg.goto(`${base}/my?from=t:0,2,5`);
+  await pg.waitForSelector('#my-root:not([hidden])');
+  await completeHeadlessStackSetup(pg, 'Legacy From Test');
+  const savedDoc = await diskDoc(pg);
+  const statuses = (savedDoc?.accounts || []).map((a) => a.status);
+  check('my: /my?from=t:0,2,5 without have= matches pre-phase behaviour (all active)',
+    savedDoc && savedDoc.accounts.length === 3 && statuses.every((s) => s === 'active'),
+    JSON.stringify(statuses));
+  await pg.close();
+  await ctx.close();
+}
+
+/* A raw from= value over the 512-character cap (section 19) is treated as
+   wholly absent: no import offer on first-run, and no crash getting there. */
+{
+  const ctx = await browser.newContext();
+  await ctx.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  const pg = await ctx.newPage();
+  const longErrors = [];
+  pg.on('pageerror', (e) => longErrors.push(String(e)));
+  await pg.goto(`${base}/my?from=${'1'.repeat(600)}`);
+  await pg.waitForSelector('#my-root:not([hidden])');
+  await pg.waitForSelector('.my-firstrun');
+  const stackButtonCount = await pg.locator('button', { hasText: 'Start from your stack' }).count();
+  check('my: a 600-char from= value is ignored (no import offer, no crash)',
+    stackButtonCount === 0 && longErrors.length === 0, `stackButtons=${stackButtonCount} errors=${longErrors.join(' | ')}`);
+  await pg.close();
+  await ctx.close();
+}
+
+/* Grep gate (section 19, law restated in the changelog): no js/my/* module
+   may read the Discover deck's freestack:v1:discover key. The deck's own
+   js/discover.js is the one owner of that key and is deliberately excluded
+   from this scan. */
+{
+  const myDir = join(ROOT, 'js', 'my');
+  const files = (await readdir(myDir, { recursive: true }))
+    .filter((f) => f.endsWith('.js'))
+    .map((f) => join(myDir, f));
+  const offenders = [];
+  for (const file of files) {
+    const text = (await readFile(file)).toString('utf8');
+    if (text.includes('freestack:v1:discover')) offenders.push(file);
+  }
+  check('grep: no js/my/* module references freestack:v1:discover', offenders.length === 0, offenders.join(', '));
+}
+
+/* A planned row is excluded from the Overview risk tiles and renders inside
+   the Accounts screen's "To sign up" group with its quiet chip, while an
+   otherwise-identical active row IS counted: constructed directly through
+   store.js (the one write choke-point), one save, so this is a true
+   equivalence check rather than two separately-built registers. */
+{
+  const ctx = await browser.newContext();
+  await ctx.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  const pg = await ctx.newPage();
+  await pg.goto(`${base}/my`);
+  await pg.waitForSelector('#my-root:not([hidden])');
+  await completeHeadlessSetup(pg, 'Planned Risk Test');
+  await pg.evaluate(async () => {
+    const s = await import('/js/my/store.js');
+    const doc = await s.load();
+    doc.accounts.push(
+      {
+        id: 'planned-risk-1', service: 'Planned Tool', url: '', toolId: null,
+        identity: 'owner@gmail.com', owner: '', admin: 'unknown', mfa: 'none',
+        plan: '', renewal: null, monthlyCost: null, status: 'planned', notes: '', shared: false,
+      },
+      {
+        id: 'active-risk-1', service: 'Active Tool', url: '', toolId: null,
+        identity: 'owner2@gmail.com', owner: '', admin: 'unknown', mfa: 'none',
+        plan: '', renewal: null, monthlyCost: null, status: 'active', notes: '', shared: false,
+      },
+    );
+    await s.save(doc, doc.revision);
+  });
+  await pg.reload();
+  await pg.waitForSelector('.my-nav-item');
+  const personalTileText = (await pg.locator('.my-tile', { hasText: 'On personal email' }).textContent()).trim();
+  const mfaTileText = (await pg.locator('.my-tile', { hasText: 'No 2FA recorded' }).textContent()).trim();
+  check('my: planned row excluded from the personal-email risk tile (only the active twin counts)',
+    personalTileText.startsWith('1'), personalTileText);
+  check('my: planned row excluded from the no-2FA risk tile (only the active twin counts)',
+    mfaTileText.startsWith('1'), mfaTileText);
+
+  await pg.locator('.my-nav-item', { hasText: 'Accounts' }).click();
+  await waitForAccountsScreen(pg);
+  const accountsText = await pg.textContent('.my-screen');
+  check('my: "To sign up" group renders for a planned row', accountsText.includes('To sign up'));
+  check('my: planned row carries the quiet "Planned" chip',
+    await pg.locator('.my-signup-group .my-chip-quiet', { hasText: 'Planned' }).count() === 1);
+  await pg.close();
+  await ctx.close();
+}
 
 check('no page errors across all loads', pageErrors.length === 0, pageErrors.join(' | ').slice(0, 300));
 

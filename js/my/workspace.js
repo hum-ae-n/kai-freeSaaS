@@ -9,6 +9,18 @@
  * never touches storage directly. js/my/risks.js and js/my/templates.js are
  * pure-data helpers this module calls but never a storage seam of their own.
  *
+ * Phase 12 Wave D (BUILD-PLAN 12.4, PRD-REGISTER sections 16 and 19): the
+ * `planned` status end to end (chip, "To sign up" group, drawer, risk-tile
+ * and Leavers exclusion), and `?have=` parsed alongside `?from=` for the
+ * Discover deck hand-off. The deck's own public-surface storage key (named
+ * in js/discover.js's module comment, and deliberately not spelled out here
+ * either, so a blunt grep for it never turns up a false "read" in a comment)
+ * is never read anywhere in this file, or anywhere else under js/my/: the
+ * hand-off travels in the URL only, since store.js remains the one module
+ * that may touch this surface's persistence (section 6). store.js itself is
+ * untouched this wave: no new methods, no schema bump, the `planned` value
+ * is additive to an existing string enum.
+ *
  * Redraw discipline: each screen is built once by its view function and
  * only rebuilt wholesale on a genuine step/mode transition (a button
  * click), never on a keystroke. Text inputs write straight into local
@@ -120,9 +132,26 @@ function backupAgeInfo(lastExportAt, savesSinceExport = 0) {
 }
 const MFA_LABEL = { app: 'Authenticator app', sms: 'SMS code', hardware: 'Hardware key', none: 'None', unknown: 'Not recorded' };
 const ADMIN_LABEL = { owner: 'Owner', admin: 'Admin', member: 'Member', unknown: 'Not recorded' };
-const STATUS_LABEL = { active: 'Active', 'to-close': 'To close', closed: 'Closed' };
+// `planned` (section 16, amends section 4.2): an account the business means
+// to open but has not yet. Listed first since it is the earliest point in
+// an account's life, not because it is somehow the default.
+const STATUS_LABEL = { planned: 'Planned', active: 'Active', 'to-close': 'To close', closed: 'Closed' };
+const STATUS_OPTIONS = ['planned', 'active', 'to-close', 'closed'];
 // My tools (section 9.3): the same statuses, worded as an adoption echo.
-const ADOPTION_LABEL = { active: 'In use', 'to-close': 'To close', closed: 'Closed' };
+const ADOPTION_LABEL = { planned: 'Planned', active: 'In use', 'to-close': 'To close', closed: 'Closed' };
+/** Chip colour level for a status, shared by the Accounts table's quiet
+    "Planned" chip and My tools' adoption chip (section 16: "a quiet chip",
+    never the amber/green risk vocabulary, since a plan is not yet a risk or
+    a success). Unknown/future status strings (an import from an older or
+    stranger build, section 16's "importer treats an unknown status string
+    as data, never a crash") fall through to no colour at all rather than
+    throwing. */
+function statusChipLevel(status) {
+  if (status === 'active') return 'ok';
+  if (status === 'to-close') return 'amber';
+  if (status === 'planned') return 'quiet';
+  return null;
+}
 
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
@@ -193,15 +222,18 @@ function blankAccount(overrides = {}) {
     status: 'active', notes: '', shared: false, ...overrides,
   };
 }
-/** One register row per stack tool (section 2, section 9.7, section 15.2):
-    service and address filled in from the catalogue, identity and owner
-    deliberately left blank since nobody but the reader knows who opened the
-    account or with what address. `tool.urls[0].domain` is a bare hostname
-    (CLAUDE.md's own note on that field), so the https:// prefix is added
-    here to satisfy the register schema's "https URL" for `url`. */
-function buildRowFromTool(tool) {
+/** One register row per stack tool (section 2, section 9.7, section 15.2,
+    section 19): service and address filled in from the catalogue, identity
+    and owner deliberately left blank since nobody but the reader knows who
+    opened the account or with what address, never invented here.
+    `tool.urls[0].domain` is a bare hostname (CLAUDE.md's own note on that
+    field), so the https:// prefix is added here to satisfy the register
+    schema's "https URL" for `url`. `status` defaults to `active` (every
+    call site before section 19 existed relied on that default); a Discover
+    "want to try" row (section 19) passes `'planned'` explicitly instead. */
+function buildRowFromTool(tool, status = 'active') {
   const domain = tool.urls && tool.urls[0] && tool.urls[0].domain;
-  return blankAccount({ service: tool.name, url: domain ? `https://${domain}` : '', toolId: tool.id });
+  return blankAccount({ service: tool.name, url: domain ? `https://${domain}` : '', toolId: tool.id, status });
 }
 function cloneDoc(doc) {
   return typeof structuredClone === 'function' ? structuredClone(doc) : JSON.parse(JSON.stringify(doc));
@@ -232,7 +264,7 @@ export async function renderWorkspace(root) {
       templatesTicked: new Set(),
     },
     undo: null,        // { row, index, timer }: the last delete, undoable
-    mergePreview: null, // { ids, ticked, open }: ?from= against an EXISTING register
+    mergePreview: null, // { wantIds, haveIds, ticked, open }: ?from=/?have= against an EXISTING register
     leaversUi: {
       person: '',            // selected from the distinct-owner dropdown
       customPerson: '',       // free text, for someone not in that list
@@ -254,15 +286,31 @@ export async function renderWorkspace(root) {
     },
   };
 
-  // ?from= (section 2, 9.7, 15.2): parsed exactly like data-loader's own
-  // parseSelection (imported, not reimplemented), so id 0 is exactly as
-  // valid here as anywhere else on the site. Resolving it needs the tool
-  // catalogue, which this module fetches for itself (an absolute path, so
-  // it resolves the same whether the visited path is /my or /my/, unlike a
-  // relative fetch would). null = no ?from= param at all; [] = the param
-  // was present but named no tool ids this catalogue recognises.
-  const fromRaw = new URLSearchParams(location.search).get('from');
+  // ?from= and ?have= (section 2, 9.7, 15.2, section 19): parsed exactly
+  // like data-loader's own parseSelection (imported, not reimplemented), so
+  // id 0 is exactly as valid here as anywhere else on the site. Resolving
+  // either needs the tool catalogue, which this module fetches for itself
+  // (an absolute path, so it resolves the same whether the visited path is
+  // /my or /my/, unlike a relative fetch would). null = that param was not
+  // present at all (or was over the 512-character cap, section 19's own
+  // words: "treated as absent"); [] = present but named no tool ids this
+  // catalogue recognises.
+  const rawParams = new URLSearchParams(location.search);
+  const RAW_PARAM_CAP = 512; // section 19: defensive parity with ?client='s 80-char cap
+  function cappedRawParam(name) {
+    const v = rawParams.get(name);
+    return (v !== null && v.length <= RAW_PARAM_CAP) ? v : null;
+  }
+  const fromRaw = cappedRawParam('from');
+  const haveRaw = cappedRawParam('have');
+  // The Discover arrival marker (section 19): `have=` present in the URL AT
+  // ALL, even as an empty string, is the signal that this is a hand-off from
+  // the deck rather than a plain client-page "set up your workspace" link.
+  // An over-length `have=` already folds into `haveRaw === null` above, so
+  // it correctly reads as "no marker" (legacy behaviour), never a crash.
+  const isDiscoverArrival = haveRaw !== null;
   let fromIds = null;
+  let haveIds = null;
   let toolsCache = null;
   async function ensureTools() {
     if (!toolsCache) {
@@ -272,23 +320,36 @@ export async function renderWorkspace(root) {
     }
     return toolsCache;
   }
-  async function resolveFromIds() {
-    if (fromRaw == null) return;
+  async function resolveImportIds() {
+    if (fromRaw == null && haveRaw == null) return;
     try {
       const tools = await ensureTools();
-      // PRD-REGISTER section 2 documents the "t:0,2,5" form; bare "0,2,5" is what
-      // client.js generates. Accept both by stripping the optional prefix.
-      fromIds = parseSelection(fromRaw.replace(/^t:/, ''), tools);
+      // PRD-REGISTER section 2/19 documents the "t:0,2,5" form; bare "0,2,5"
+      // is what client.js and the Discover deck generate. Accept both, on
+      // both parameters, by stripping the optional prefix before the one
+      // shared parseSelection.
+      if (fromRaw != null) fromIds = parseSelection(fromRaw.replace(/^t:/, ''), tools);
+      if (haveRaw != null) haveIds = parseSelection(haveRaw.replace(/^t:/, ''), tools);
+      // Belt and braces: a "want" id that is also a "have" id is a
+      // contradiction the deck should never produce (skip/have/want are
+      // mutually exclusive per judgement), but if a hand-crafted URL ever
+      // does carry both, "already using it" wins over "want to try it".
+      if (fromIds && fromIds.length && haveIds && haveIds.length) {
+        const haveSet = new Set(haveIds);
+        fromIds = fromIds.filter((id) => !haveSet.has(id));
+      }
     } catch {
-      fromIds = []; // catalogue unreachable: degrade to "nothing to import", never block the workspace
+      // catalogue unreachable: degrade to "nothing to import", never block the workspace
+      if (fromRaw != null) fromIds = [];
+      if (haveRaw != null) haveIds = [];
     }
   }
 
   /** My tools (section 9.3) and Costs (section 9.4) both want the tool
       catalogue for names/descriptions/icons, but neither can await a fetch
       mid-render (view() is synchronous). Fire the fetch at most once, then
-      redraw when it lands; a no-op once toolsCache is warm, which resolveFromIds()
-      above may already have done for a ?from= visit. */
+      redraw when it lands; a no-op once toolsCache is warm, which resolveImportIds()
+      above may already have done for a ?from= or ?have= visit. */
   let toolsFetchStarted = false;
   function ensureToolsThenRedraw() {
     if (toolsCache || toolsFetchStarted) return;
@@ -378,7 +439,7 @@ export async function renderWorkspace(root) {
       draw();
       return;
     }
-    await resolveFromIds();
+    await resolveImportIds();
     await enterFromStorage();
   }
 
@@ -407,20 +468,29 @@ export async function renderWorkspace(root) {
     draw();
   }
 
-  /** Merge preview (section 2, 9.7, 15.2): a returning visitor arriving with
-      ?from= on a register that already exists. Only tools not already
-      present by toolId are offered, so re-visiting the same shared link
-      twice can never duplicate a row. Computed once on entry, not on every
-      redraw, so dismissing it (or applying it) does not get recomputed back
-      into existence a frame later. */
+  /** Merge preview (section 2, 9.7, 15.2, section 19): a returning visitor
+      arriving with ?from= and/or ?have= on a register that already exists.
+      Only tools not already present by toolId are offered, so re-visiting
+      the same shared link twice can never duplicate a row. Computed once on
+      entry, not on every redraw, so dismissing it (or applying it) does not
+      get recomputed back into existence a frame later. `wantIds` (from
+      `from=`) and `haveIds` (from `have=`) are kept as separate lists so the
+      review can group and default-status them differently (section 19:
+      "have=" rows are always active; "from=" rows default planned only when
+      the arrival marker, `have=`, is present in the URL at all). */
   async function computeMergePreview() {
-    if (!fromIds || !fromIds.length || state.example) { state.mergePreview = null; return; }
+    const hasWant = !!(fromIds && fromIds.length);
+    const hasHave = !!(haveIds && haveIds.length);
+    if ((!hasWant && !hasHave) || state.example) { state.mergePreview = null; return; }
     try {
       const tools = await ensureTools();
       const byId = new Map(tools.map((t) => [t.id, t]));
       const existingToolIds = new Set(state.doc.accounts.map((a) => a.toolId).filter((v) => v !== null && v !== undefined));
-      const newIds = fromIds.filter((id) => !existingToolIds.has(id) && byId.has(id));
-      state.mergePreview = newIds.length ? { ids: newIds, ticked: new Set(newIds), open: false } : null;
+      const newWantIds = (fromIds || []).filter((id) => !existingToolIds.has(id) && byId.has(id));
+      const newHaveIds = (haveIds || []).filter((id) => !existingToolIds.has(id) && byId.has(id));
+      state.mergePreview = (newWantIds.length || newHaveIds.length)
+        ? { wantIds: newWantIds, haveIds: newHaveIds, ticked: new Set([...newWantIds, ...newHaveIds]), open: false }
+        : null;
     } catch {
       state.mergePreview = null;
     }
@@ -472,7 +542,12 @@ export async function renderWorkspace(root) {
     return {
       step: 'name', business: '', wantsEncryption: null, passphrase1: '', passphrase2: '',
       error: null, recoveryDone: false, verifyOk: false, exportDone: false, blob: null, filename: '',
-      stackAccounts: [], templatesTicked: new Set(), fromStack: !!fromStack,
+      // stackAccounts is the flat list actually saved (section 19: haveAccounts
+      // then wantAccounts, so nothing depends on array order elsewhere); the
+      // two group arrays exist only so setupReview can show "Already using
+      // these" and "Want to try" as separate, clearly labelled groups.
+      stackAccounts: [], haveAccounts: [], wantAccounts: [],
+      templatesTicked: new Set(), fromStack: !!fromStack,
     };
   }
 
@@ -487,17 +562,24 @@ export async function renderWorkspace(root) {
     exampleBtn.addEventListener('click', enterExample);
 
     let stackChoice = null;
-    if (fromIds && fromIds.length) {
+    const stackTotal = (fromIds ? fromIds.length : 0) + (haveIds ? haveIds.length : 0);
+    if (stackTotal) {
       const stackBtn = el('button', { class: 'btn btn-primary btn-lg', type: 'button' },
-        `Start from your stack (${fromIds.length} tool${fromIds.length === 1 ? '' : 's'})`);
+        `Start from your stack (${stackTotal} tool${stackTotal === 1 ? '' : 's'})`);
       stackBtn.addEventListener('click', () => {
         state.mode = 'setup';
         state.setup = defaultSetupState(true);
         draw();
       });
+      // Discover arrival (section 19): the want-list defaults to `planned`,
+      // a deliberate difference the description states plainly rather than
+      // leaving the reader to discover it on the review step.
+      const desc = isDiscoverArrival
+        ? 'Pre-fill your register from the tools you judged: the ones you already use land as active accounts, the ones you want to try land as planned, a note to sign up properly rather than an account that exists yet.'
+        : 'Pre-fill one account row per tool from the link you followed here: service name and address filled in, identity and owner left for you to complete.';
       stackChoice = el('div', { class: 'my-firstrun-choice' },
         el('h3', {}, 'Start from your shared stack'),
-        el('p', { class: 't-body' }, 'Pre-fill one account row per tool from the link you followed here: service name and address filled in, identity and owner left for you to complete.'),
+        el('p', { class: 't-body' }, desc),
         stackBtn,
       );
     }
@@ -579,11 +661,20 @@ export async function renderWorkspace(root) {
       if (!s.business || s.business.trim().length < 2) { s.error = 'Enter your business name to continue.'; draw(); return; }
       s.business = s.business.trim();
       s.error = null;
-      if (s.fromStack && fromIds && fromIds.length) {
+      if (s.fromStack) {
+        // Section 19: "have=" rows are always active, "from=" rows default
+        // active UNLESS the arrival marker (have=, even empty) is present in
+        // the URL, in which case they default planned ("want to try"). Either
+        // list may be empty (a stack link can be all-want or all-have).
         const tools = toolsCache || [];
         const byId = new Map(tools.map((t) => [t.id, t]));
-        s.stackAccounts = fromIds.map((id) => byId.get(id)).filter((t) => t !== undefined).map(buildRowFromTool);
+        const wantStatus = isDiscoverArrival ? 'planned' : 'active';
+        s.haveAccounts = (haveIds || []).map((id) => byId.get(id)).filter((t) => t !== undefined).map((t) => buildRowFromTool(t, 'active'));
+        s.wantAccounts = (fromIds || []).map((id) => byId.get(id)).filter((t) => t !== undefined).map((t) => buildRowFromTool(t, wantStatus));
+        s.stackAccounts = [...s.haveAccounts, ...s.wantAccounts];
       } else {
+        s.haveAccounts = [];
+        s.wantAccounts = [];
         s.stackAccounts = [];
       }
       s.step = 'review';
@@ -604,10 +695,23 @@ export async function renderWorkspace(root) {
     const cont = el('button', { class: 'btn btn-primary', type: 'button' }, 'Continue');
     cont.addEventListener('click', () => { s.step = 'encrypt-choice'; draw(); });
 
-    const stackList = s.stackAccounts.length ? el('div', { class: 'my-review-block' },
-      el('p', { class: 't-small' }, `From your shared stack, ${s.stackAccounts.length} account${s.stackAccounts.length === 1 ? '' : 's'} will be added:`),
-      el('ul', { class: 'my-attention-list' }, ...s.stackAccounts.map((r) => el('li', {}, r.service))),
-    ) : null;
+    // Section 19: grouped so a "want to try" plan never mixes silently with
+    // an account already in genuine use, exactly as the "To sign up" group
+    // does later on the Accounts screen for the same reason.
+    function stackGroup(titleText, rows, note) {
+      if (!rows.length) return null;
+      return el('div', { class: 'my-review-block' },
+        el('p', { class: 't-small' }, `${titleText} (${rows.length}):`),
+        note ? el('p', { class: 't-meta' }, note) : null,
+        el('ul', { class: 'my-attention-list' }, ...rows.map((r) => el('li', {}, r.service))),
+      );
+    }
+    const haveBlock = stackGroup('Already using these', s.haveAccounts,
+      'Added as active accounts. Fill in who and what identity opened each one when you have a moment.');
+    const wantBlock = s.fromStack && isDiscoverArrival
+      ? stackGroup('Want to try', s.wantAccounts, 'Added as planned: a note to sign up properly, not an account yet.')
+      : stackGroup('From your shared stack', s.wantAccounts, null);
+    const stackList = (haveBlock || wantBlock) ? el('div', {}, haveBlock, wantBlock) : null;
 
     const templateRows = SOVEREIGN_TEMPLATES.map((tpl) => {
       const id = `setup-tpl-${tpl.key}`;
@@ -867,19 +971,31 @@ export async function renderWorkspace(root) {
       return doc;
     });
   }
-  async function applyMerge(ids) {
+  /** Commits the ticked ids from a merge preview (section 15.2, section 19)
+      in ONE store.save() for the whole batch, whichever mix of "want" and
+      "have" ids was ticked: never N saves for N rows, and never a second
+      pass that could see a revision the first pass already moved past.
+      `mp.wantIds` default to `planned` only on a Discover arrival, exactly
+      the same rule setupName's continue handler applies at first run;
+      `mp.haveIds` are always `active`. */
+  async function applyMerge(mp, tickedIds) {
     const tools = toolsCache || [];
     const byId = new Map(tools.map((t) => [t.id, t]));
+    const wantStatus = isDiscoverArrival ? 'planned' : 'active';
     state.mergePreview = null; // clears the instant the matching rows land, not a frame later
     const saved = await mutateDoc((doc) => {
       const existingToolIds = new Set(doc.accounts.map((a) => a.toolId).filter((v) => v !== null && v !== undefined));
-      for (const id of ids) {
-        if (existingToolIds.has(id)) continue; // never duplicates, per section 15.2
-        const tool = byId.get(id);
-        if (!tool) continue;
-        doc.accounts.push(buildRowFromTool(tool));
-        existingToolIds.add(id);
+      function addTicked(ids, status) {
+        for (const id of ids) {
+          if (!tickedIds.has(id) || existingToolIds.has(id)) continue; // never duplicates, per section 15.2
+          const tool = byId.get(id);
+          if (!tool) continue;
+          doc.accounts.push(buildRowFromTool(tool, status));
+          existingToolIds.add(id);
+        }
       }
+      addTicked(mp.haveIds, 'active');
+      addTicked(mp.wantIds, wantStatus);
       return doc;
     });
     if (saved) showToast('Accounts added from your shared stack.');
@@ -1056,11 +1172,16 @@ export async function renderWorkspace(root) {
       const st = currentStatus;
       const age = backupAgeInfo(st.lastExportAt, st.savesSinceExport);
       const accounts = doc.accounts;
+      // Section 16: "an account that does not exist yet is a plan, not a
+      // risk". Every risk tile below, and the no-owner attention bucket
+      // further down, is computed over non-planned rows only; "accounts
+      // recorded" (the first tile) still counts every row, planned included.
+      const riskAccounts = accounts.filter((a) => a.status !== 'planned');
       const counts = {
-        'personal-email': accounts.filter((a) => isPersonalEmail(a.identity)).length,
-        'no-mfa': accounts.filter((a) => mfaRiskLabel(a.mfa) !== null).length,
-        'no-owner': accounts.filter((a) => hasNoOwner(a.owner)).length,
-        'renewing-soon': accounts.filter((a) => isRenewalSoon(a.renewal)).length,
+        'personal-email': riskAccounts.filter((a) => isPersonalEmail(a.identity)).length,
+        'no-mfa': riskAccounts.filter((a) => mfaRiskLabel(a.mfa) !== null).length,
+        'no-owner': riskAccounts.filter((a) => hasNoOwner(a.owner)).length,
+        'renewing-soon': riskAccounts.filter((a) => isRenewalSoon(a.renewal)).length,
       };
       function tile(value, labelText, level, onClick) {
         const btn = el('button', { class: `panel my-tile${level ? ` my-tile-${level}` : ''}`, type: 'button' },
@@ -1080,8 +1201,9 @@ export async function renderWorkspace(root) {
 
       // "Unassigned attention bucket" (section 9.1): rows with no owner
       // surface here rather than rotting quietly in the table, each with a
-      // one-tap jump straight to that row's drawer.
-      const noOwnerRows = accounts.filter((a) => hasNoOwner(a.owner));
+      // one-tap jump straight to that row's drawer. Planned rows excluded
+      // for the same reason as the tiles above (section 16).
+      const noOwnerRows = riskAccounts.filter((a) => hasNoOwner(a.owner));
       const attention = noOwnerRows.length ? el('div', { class: 'panel my-attention' },
         el('h3', {}, 'Needs an owner'),
         el('p', { class: 't-body' }, 'Nobody is down as the owner for these accounts yet.'),
@@ -1125,6 +1247,11 @@ export async function renderWorkspace(root) {
         for (const key of ui.filters) if (!RISK_FILTERS[key].test(a)) return false;
         return matchesSearch(a, ui.search);
       });
+      // Section 16: planned rows never mix silently into the live register,
+      // so they render in their own "To sign up" group below rather than
+      // interleaved into the main table row for row.
+      const liveFiltered = filtered.filter((a) => a.status !== 'planned');
+      const plannedFiltered = filtered.filter((a) => a.status === 'planned');
 
       let bulkBar = null;
       if (!readOnly && ui.selected.size) {
@@ -1148,7 +1275,13 @@ export async function renderWorkspace(root) {
       const headerActions = readOnly ? null : el('div', { class: 'my-accounts-actions' }, addBtn, templatesBtn);
       const templatesPanel = (!readOnly && ui.templatesOpen) ? renderTemplatesPicker() : null;
 
-      const table = accounts.length ? renderAccountsTable(filtered, readOnly) : null;
+      const table = liveFiltered.length ? renderAccountsTable(liveFiltered, readOnly) : null;
+      const plannedTable = plannedFiltered.length ? renderAccountsTable(plannedFiltered, readOnly) : null;
+      const plannedSection = plannedFiltered.length ? el('div', { class: 'my-signup-group' },
+        el('h3', {}, 'To sign up'),
+        el('p', { class: 't-meta' }, 'Accounts you plan to open but have not opened yet. They do not count toward the risk tiles on Overview or the Leavers checklist.'),
+        plannedTable,
+      ) : null;
       const emptyMsg = !accounts.length
         ? el('p', { class: 't-body' }, 'No accounts recorded yet. Add one by hand, from a template, or from a shared stack link.')
         : (filtered.length ? null : el('p', { class: 't-body' }, 'No accounts match this search or these filters.'));
@@ -1162,6 +1295,7 @@ export async function renderWorkspace(root) {
         bulkBar,
         emptyMsg,
         table,
+        plannedSection,
       );
     }
 
@@ -1191,31 +1325,42 @@ export async function renderWorkspace(root) {
 
     function renderMergeBanner() {
       const mp = state.mergePreview;
+      const total = mp.wantIds.length + mp.haveIds.length;
       if (!mp.open) {
         const review = el('button', { class: 'btn btn-sm btn-primary', type: 'button' }, 'Review');
         review.addEventListener('click', () => { mp.open = true; draw(); });
         const dismiss = el('button', { class: 'btn btn-sm btn-ghost', type: 'button' }, 'Dismiss');
         dismiss.addEventListener('click', () => { state.mergePreview = null; draw(); });
         return el('div', { class: 'my-banner my-banner-merge', role: 'status' },
-          `Your stack link includes ${mp.ids.length} tool${mp.ids.length === 1 ? '' : 's'} not yet in this register. `,
+          `Your stack link includes ${total} tool${total === 1 ? '' : 's'} not yet in this register. `,
           review, dismiss);
       }
       const tools = toolsCache || [];
       const byId = new Map(tools.map((t) => [t.id, t]));
-      const rows = mp.ids.map((id) => {
-        const tool = byId.get(id);
-        const cbId = `merge-${id}`;
-        const cb = el('input', { type: 'checkbox', id: cbId, checked: mp.ticked.has(id) });
-        cb.addEventListener('change', () => { if (cb.checked) mp.ticked.add(id); else mp.ticked.delete(id); });
-        return el('label', { class: 'my-template-row', for: cbId }, cb, el('span', {}, tool ? tool.name : `Tool ${id}`));
-      });
+      function tickRows(ids) {
+        return ids.map((id) => {
+          const tool = byId.get(id);
+          const cbId = `merge-${id}`;
+          const cb = el('input', { type: 'checkbox', id: cbId, checked: mp.ticked.has(id) });
+          cb.addEventListener('change', () => { if (cb.checked) mp.ticked.add(id); else mp.ticked.delete(id); });
+          return el('label', { class: 'my-template-row', for: cbId }, cb, el('span', {}, tool ? tool.name : `Tool ${id}`));
+        });
+      }
+      // Section 19: the same "Already using these" / "Want to try" grouping
+      // as the first-run review step, so a returning visitor sees the same
+      // vocabulary a fresh setup would have shown them.
+      const haveBlock = mp.haveIds.length ? el('div', { class: 'my-review-block' },
+        el('p', { class: 't-small' }, 'Already using these:'), ...tickRows(mp.haveIds)) : null;
+      const wantHeading = isDiscoverArrival ? 'Want to try (added as planned):' : 'From your shared stack:';
+      const wantBlock = mp.wantIds.length ? el('div', { class: 'my-review-block' },
+        el('p', { class: 't-small' }, wantHeading), ...tickRows(mp.wantIds)) : null;
       const apply = el('button', { class: 'btn btn-primary btn-sm', type: 'button' }, 'Add ticked');
-      apply.addEventListener('click', async () => { await applyMerge(new Set(mp.ticked)); });
+      apply.addEventListener('click', async () => { await applyMerge(mp, new Set(mp.ticked)); });
       const cancel = el('button', { class: 'btn btn-ghost btn-sm', type: 'button' }, 'Cancel');
       cancel.addEventListener('click', () => { state.mergePreview = null; draw(); });
       return el('div', { class: 'my-banner my-banner-merge my-banner-merge-open', role: 'status' },
         el('p', { class: 't-small' }, 'Adding these will never duplicate a tool already in this register:'),
-        ...rows,
+        haveBlock, wantBlock,
         el('div', { class: 'my-setup-actions' }, apply, cancel));
     }
 
@@ -1274,7 +1419,11 @@ export async function renderWorkspace(root) {
       const detailsOpen = ui.openDrawerId === a.id;
       const detailsBtn = el('button', { class: 'btn btn-ghost btn-sm my-acc-details-btn', type: 'button', 'aria-expanded': String(detailsOpen) }, detailsOpen ? 'Close details' : 'Details');
       detailsBtn.addEventListener('click', () => { ui.openDrawerId = detailsOpen ? null : a.id; draw(); });
-      const serviceCell = el('td', { class: 'my-acc-service' }, fieldInput(a, 'service', 'text', readOnly, 'Service name'), detailsBtn);
+      // Quiet status chip (section 16): only `planned` gets one on the
+      // table itself, since active/to-close/closed are the ordinary life of
+      // a real account and do not need flagging on every row.
+      const plannedChip = a.status === 'planned' ? el('span', { class: 'my-chip my-chip-quiet' }, 'Planned') : null;
+      const serviceCell = el('td', { class: 'my-acc-service' }, fieldInput(a, 'service', 'text', readOnly, 'Service name'), plannedChip, detailsBtn);
 
       const identityCell = el('td', { class: 'my-acc-identity' },
         fieldInput(a, 'identity', 'text', readOnly, 'name@business.co.uk'),
@@ -1360,6 +1509,13 @@ export async function renderWorkspace(root) {
       })() : null;
       const closeBtn = el('button', { class: 'btn btn-ghost btn-sm', type: 'button' }, 'Close details');
       closeBtn.addEventListener('click', () => { state.accountsUi.openDrawerId = null; draw(); });
+      // Section 16's transition rule: marking a planned row active changes
+      // only the status field, nothing else automatically; this note is the
+      // reader's cue to go and confirm the identity actually used, rather
+      // than the app inventing or assuming one.
+      const plannedHint = (!readOnly && a.status === 'planned')
+        ? el('p', { class: 't-meta my-field-wide' }, 'Not opened yet. When you do sign up, come back here, mark this active, and check the identity above is the one you actually used.')
+        : null;
       return el('div', { class: 'my-acc-drawer' },
         toolLine,
         el('div', { class: 'my-acc-drawer-grid' },
@@ -1367,9 +1523,10 @@ export async function renderWorkspace(root) {
           drawerSelect('Access level', a, 'admin', ['owner', 'admin', 'member', 'unknown'], ADMIN_LABEL, readOnly),
           drawerField('Plan', a, 'plan', 'text', readOnly),
           drawerField('Monthly cost (GBP)', a, 'monthlyCost', 'number', readOnly),
-          drawerSelect('Status', a, 'status', ['active', 'to-close', 'closed'], STATUS_LABEL, readOnly),
+          drawerSelect('Status', a, 'status', STATUS_OPTIONS, STATUS_LABEL, readOnly),
           drawerCheckbox('Shared login (more than one person knows it)', a, 'shared', readOnly),
           drawerTextarea('Notes', a, 'notes', readOnly),
+          plannedHint,
         ),
         closeBtn,
       );
@@ -1382,7 +1539,7 @@ export async function renderWorkspace(root) {
     }
     function toolCard(row, tool) {
       const icon = tool ? categoryIcon(tool.category) : null;
-      const adoptionLevel = row.status === 'active' ? 'ok' : row.status === 'to-close' ? 'amber' : null;
+      const adoptionLevel = statusChipLevel(row.status);
       const adoption = el('span', { class: `my-chip${adoptionLevel ? ` my-chip-${adoptionLevel}` : ''}` }, ADOPTION_LABEL[row.status] || row.status);
       const linkUrl = row.url || (tool && tool.urls && tool.urls[0] ? `https://${tool.urls[0].domain}` : '');
       const visitLink = linkUrl ? el('a', { href: linkUrl, target: '_blank', rel: 'noopener noreferrer', class: 'btn btn-ghost btn-sm' }, 'Visit site') : null;
@@ -1407,7 +1564,7 @@ export async function renderWorkspace(root) {
       const otherList = withoutTool.length ? el('ul', { class: 'my-attention-list' }, ...withoutTool.map((row) => {
         const btn = el('button', { class: 'btn btn-ghost btn-sm', type: 'button' }, row.service || 'Untitled account');
         btn.addEventListener('click', () => openAccountDrawer(row.id));
-        const adoptionLevel = row.status === 'active' ? 'ok' : row.status === 'to-close' ? 'amber' : null;
+        const adoptionLevel = statusChipLevel(row.status);
         return el('li', {}, btn, ' ', el('span', { class: `my-chip${adoptionLevel ? ` my-chip-${adoptionLevel}` : ''}` }, ADOPTION_LABEL[row.status] || row.status));
       })) : el('p', { class: 't-body' }, 'Nothing else recorded yet.');
       return el('section', { class: 'my-screen' },
@@ -1588,7 +1745,11 @@ export async function renderWorkspace(root) {
 
       let checklistOut = null;
       if (existingEntry) {
-        const phases = leaverChecklist(doc.accounts, chosenPerson);
+        // Section 16: "an account that does not exist yet is a plan, not a
+        // risk", so it enters none of the five offboarding phases. Filtered
+        // here rather than inside risks.js's leaverChecklist (untouched this
+        // wave) since the exclusion is just as correct one call site earlier.
+        const phases = leaverChecklist(doc.accounts.filter((a) => a.status !== 'planned'), chosenPerson);
         const printBtn = el('button', { class: 'btn btn-secondary no-print', type: 'button' }, 'Print checklist');
         printBtn.addEventListener('click', () => window.print());
 

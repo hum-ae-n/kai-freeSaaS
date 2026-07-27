@@ -1836,6 +1836,24 @@ button { font: inherit; }
    alongside the existing amber .my-chip-risk on the same base .my-chip. */
 .my-chip-ok { background: var(--positive-tint); color: var(--positive); border: var(--bw-hair) solid var(--positive); }
 
+/* Quiet status chip (Phase 12 Wave D, section 16): "planned" is neither a
+   risk (amber) nor a success (green), so it gets its own neutral tone
+   rather than borrowing either vocabulary, "text label always, colour
+   never alone" as ever. */
+.my-chip-quiet { background: var(--paper-2); color: var(--ink-2); border: var(--bw-hair) solid var(--ink-3); }
+
+/* "To sign up" group (section 16, section 9.2): visually separate from the
+   live register table above it, same flat left-accent shape as the other
+   grouped panels on this surface (.my-attention, .my-quote), never a modal
+   or an accordion, so a planned row is always in view when it exists. */
+.my-signup-group {
+  margin-top: var(--s-6);
+  padding-top: var(--s-4);
+  border-top: var(--bw-heavy) solid var(--ink-3);
+}
+.my-signup-group h3 { font-size: var(--fs-18); margin-bottom: var(--s-1); }
+.my-signup-group > p { margin-bottom: var(--s-3); }
+
 /* Backup-age chip (section 8), sidebar footer and Backup screen alike: a
    real button (a one-tap jump to Backup), never colour-only (the text
    already states the age in words). */
