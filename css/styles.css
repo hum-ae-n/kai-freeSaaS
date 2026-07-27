@@ -1489,11 +1489,37 @@ button { font: inherit; }
 /* Verdict stamps: opacity only, proportional to drag distance, set inline
    by js/discover.js. Never touched by rotation transforms of their own
    beyond the fixed static tilt below, so reduced motion needs no override
-   here at all. */
+   here at all.
+
+   Rocky's phone-test finding (production, dark mode, mid-drag left): the
+   stamp was text and a border with no backing at all, so a green "GOT IT"
+   landed directly on top of the card's own white title text and both
+   became illegible together. Two independent fixes, not one:
+
+   1. A solid, token-based backing (--paper-2, shared with .discover-coach-
+      stamp below so the two visuals never drift apart) with a shadow, so
+      the stamp reads as a sticker sitting above the card rather than bare
+      coloured text fighting whatever is directly behind it. --paper-2 is a
+      solid hex colour in both themes (never rgba), so its computed
+      background-color always carries alpha 1; the existing drag-
+      proportional opacity still applies to the whole block (backing
+      included), which is fine, since the one hard requirement is that the
+      composite is fully opaque and legible at the commit threshold, where
+      opacity reaches 1 regardless of how translucent it was earlier in
+      the drag.
+   2. Moved from pinned to the card's top edge (where the h3/category row
+      always lives) to vertically centred on the card instead: top: 50%
+      plus a translateY(-50%) folded into the same transform that already
+      carries the rotation. .discover-stage stretches every card to the
+      same resolved height regardless of its own content length (see the
+      align-items: stretch note above), so this clears the title row on
+      the shortest card exactly as reliably as on the longest one, rather
+      than depending on a fixed pixel offset that only worked for cards
+      whose title happened to be short enough to fit above it. */
 .discover-stamp {
   position: absolute;
-  top: var(--s-6);
-  padding: 6px 14px;
+  top: 50%;
+  padding: 8px 16px;
   border: var(--bw-rule) solid currentColor;
   border-radius: var(--r-2);
   font-family: var(--font-sans);
@@ -1504,8 +1530,17 @@ button { font: inherit; }
   opacity: 0;
   pointer-events: none;
 }
-.discover-stamp-have { left: var(--s-6); color: var(--positive); transform: rotate(-8deg); }
-.discover-stamp-want { right: var(--s-6); color: var(--info); transform: rotate(8deg); }
+.discover-stamp-have { left: var(--s-6); color: var(--positive); transform: translateY(-50%) rotate(-8deg); }
+.discover-stamp-want { right: var(--s-6); color: var(--info); transform: translateY(-50%) rotate(8deg); }
+
+/* Shared backing for both the real drag stamp and the coach's static
+   direction stamps (below), one declaration so the two can never render
+   differently: this is the entire point of the coach, teaching the exact
+   visual a reader then sees while actually dragging. */
+.discover-stamp, .discover-coach-stamp {
+  background: var(--paper-2);
+  box-shadow: var(--shadow-2);
+}
 
 .discover-card-body { display: flex; flex-direction: column; gap: var(--s-3); }
 .discover-card-name {

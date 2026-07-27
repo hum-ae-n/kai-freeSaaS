@@ -382,6 +382,58 @@ const stateAfterDrag = await dragPage.evaluate(() => {
 check('discover: sub-threshold drag springs back with no decision recorded',
   idAfterDrag === idBeforeDrag && !stateAfterDrag?.decisions?.[idBeforeDrag],
   `before=${idBeforeDrag} after=${idAfterDrag} decisions=${JSON.stringify(stateAfterDrag?.decisions)}`);
+
+// Rocky's second phone-test finding (production, dark mode, mid-drag left):
+// the GOT IT stamp had no backing at all and landed directly on the
+// card's own title text, both becoming illegible together. Two guards,
+// per theme: the stamp's own computed background-color must carry alpha 1
+// (a solid token, never a translucent one), and at the commit distance
+// its bounding box must not intersect the card title's box, since it was
+// repositioned off the fixed top-of-card slot the title also lives in.
+async function checkStampLegibility(theme) {
+  const pg = await browser.newPage({ viewport: { width: 375, height: 812 } });
+  await pg.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await pg.goto(`${base}/`);
+  await pg.waitForSelector('#public-root .tool-card');
+  await pg.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
+  await clearDiscoverStorage(pg);
+  await pg.reload();
+  await pg.waitForSelector('#public-root .tool-card');
+  await pg.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
+  await pg.locator('[data-discover-entry]').click();
+  await pg.waitForSelector('.discover-card');
+
+  const alphaOk = await pg.evaluate(() => {
+    const alpha1 = (el) => {
+      const c = getComputedStyle(el).backgroundColor;
+      const m = c.match(/rgba?\(([^)]+)\)/);
+      const parts = m[1].split(',').map((s) => s.trim());
+      return parts.length === 3 || Number.parseFloat(parts[3]) === 1;
+    };
+    return alpha1(document.querySelector('.discover-stamp-have')) && alpha1(document.querySelector('.discover-stamp-want'));
+  });
+  check(`discover: ${theme} mode: both stamps have an opaque (alpha 1) background`, alphaOk, String(alphaOk));
+
+  const cardBox = await pg.locator('.discover-card').boundingBox();
+  const sx = cardBox.x + cardBox.width / 2;
+  const sy = cardBox.y + cardBox.height / 2;
+  await pg.mouse.move(sx, sy);
+  await pg.mouse.down();
+  await pg.mouse.move(sx - 40, sy, { steps: 2 });
+  await pg.mouse.move(sx - 110, sy, { steps: 4 }); // past the 100px commit floor
+  await pg.waitForTimeout(50);
+  const stampBox = await pg.locator('.discover-stamp-have').boundingBox();
+  const h3Box = await pg.locator('.discover-card-name').boundingBox();
+  const intersects = stampBox && h3Box
+    && stampBox.x < h3Box.x + h3Box.width && stampBox.x + stampBox.width > h3Box.x
+    && stampBox.y < h3Box.y + h3Box.height && stampBox.y + stampBox.height > h3Box.y;
+  check(`discover: ${theme} mode: the stamp never intersects the card title at commit distance`,
+    !intersects, JSON.stringify({ stampBox, h3Box }));
+  await pg.mouse.up();
+  await pg.close();
+}
+await checkStampLegibility('light');
+await checkStampLegibility('dark');
 await dragPage.close();
 
 // Escape restores focus to the opener button.

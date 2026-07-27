@@ -295,7 +295,11 @@ function setDragTransform(card, dx) {
 }
 
 /** Verdict stamp opacity rises with drag distance, proportional up to the
-    commit threshold, where it reaches full strength. */
+    commit threshold, where it reaches full strength. The stamp's own solid
+    --paper-2 backing (DISCOVER CSS block) rides along with this same
+    opacity, which is fine: the one hard requirement is that the composite
+    is fully opaque and legible once opacity reaches 1 at the commit
+    threshold, not throughout the whole drag. */
 function setStampOpacity(card, dx, threshold) {
   const ratio = threshold > 0 ? Math.min(Math.abs(dx) / threshold, 1) : 0;
   const haveStamp = card.querySelector('.discover-stamp-have');
@@ -499,6 +503,31 @@ function attachGesture(card, reduced, { getThreshold, onCommit }) {
 
   card.addEventListener('pointerup', release);
   card.addEventListener('pointercancel', cancel);
+}
+
+/** Measures the live card (must already be attached to the document: this
+    reads layout, which does not exist before insertion) and moves both
+    stamps to sit vertically centred in whatever space is left BELOW the
+    name/category header, rather than centred on the whole card. The CSS
+    default (top: 50% of the card) is a safe fallback if this cannot run
+    for some reason, but a title long enough to wrap to two or three lines
+    at a narrow width (the exact case Rocky's phone screenshot caught) can
+    reach a third or more of a short card's own height, and a single fixed
+    percentage cannot account for that: it has to be measured per card,
+    not guessed once in CSS. Runs off the currently rendered (unscrolled)
+    layout, which is correct: the stamp is an overlay tied to the card's
+    own box, not to whatever the reader has since scrolled its text to. */
+function positionStamps(card) {
+  const category = card.querySelector('.discover-card-category');
+  const haveStamp = card.querySelector('.discover-stamp-have');
+  const wantStamp = card.querySelector('.discover-stamp-want');
+  if (!category || !haveStamp || !wantStamp) return;
+  const cardRect = card.getBoundingClientRect();
+  const categoryRect = category.getBoundingClientRect();
+  const headerBottom = categoryRect.bottom - cardRect.top;
+  const top = headerBottom + Math.max(cardRect.height - headerBottom, 0) / 2;
+  haveStamp.style.top = `${top}px`;
+  wantStamp.style.top = `${top}px`;
 }
 
 /* --- card content (PRD 17, "Card content") -------------------------------- */
@@ -727,6 +756,7 @@ export function openDiscoverDeck(options) {
     const card = buildCard(tool);
     attachGesture(card, reduced, { getThreshold: () => cardThreshold(card), onCommit: (decision) => judge(decision) });
     stage.replaceChildren(card);
+    positionStamps(card); // after insertion: layout must exist to measure it
   }
 
   function judge(decision) {
@@ -766,6 +796,7 @@ export function openDiscoverDeck(options) {
     const card = buildCard(tool);
     attachGesture(card, reduced, { getThreshold: () => cardThreshold(card), onCommit: (d) => judge(d) });
     stage.replaceChildren(card);
+    positionStamps(card);
     animateCardIn(card, decision, reduced);
   }
 
