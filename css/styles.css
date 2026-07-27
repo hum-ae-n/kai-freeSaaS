@@ -1278,13 +1278,19 @@ button { font: inherit; }
    names no motion for this control. */
 #public-root .card-grid > li { position: relative; }
 
+/* top is deliberately not set here (verifier fix round): a static value
+   measured overlapping the card's own name/favicon/value row (.card-top)
+   at 1024, 1280 and 1440px, since that row's height is not constant across
+   tool names of different lengths. js/public.js measures the real
+   .card-top height per card and sets top inline instead, so the corners
+   always clear it regardless of viewport width or how many lines the name
+   wraps to. */
 .pub-judge-corners { display: none; }
 @media (hover: hover) and (pointer: fine) {
   .card-grid > li:hover .pub-judge-corners,
   .card-grid > li:focus-within .pub-judge-corners {
     display: flex;
     position: absolute;
-    top: var(--s-2);
     left: var(--s-2);
     right: var(--s-2);
     justify-content: space-between;

@@ -373,8 +373,8 @@ export function renderPublic(root, tools) {
       matchesSearch(t, searchTerm, plainMode) && (activePersonaIds === null || activePersonaIds.has(t.id)));
   }
 
-  function decorateAllCards(sectionNodes, filteredTools) {
-    if (judgeApi) decorateCardsWithJudgement(sectionNodes, filteredTools, judgeApi);
+  function decorateAllCards(container, filteredTools) {
+    if (judgeApi) decorateCardsWithJudgement(container, filteredTools, judgeApi);
   }
 
   function draw() {
@@ -387,7 +387,7 @@ export function renderPublic(root, tools) {
     listWrap.replaceChildren(...sections);
     revealSections(sections, !hasRevealedList);
     hasRevealedList = true;
-    decorateAllCards(sections, filtered);
+    decorateAllCards(listWrap, filtered);
   }
 
   draw();
@@ -418,7 +418,7 @@ export function renderPublic(root, tools) {
   loadDiscoverModule().then((mod) => {
     if (!mod) return;
     judgeApi = mod;
-    const redecorate = () => decorateAllCards([...listWrap.children], computeFiltered());
+    const redecorate = () => decorateAllCards(listWrap, computeFiltered());
     redecorate();
     mod.subscribe(redecorate);
   });
@@ -435,27 +435,39 @@ export function renderPublic(root, tools) {
    decision and clears it on a second activation of the same control, so a
    fine-pointer visitor never needs the chooser just to toggle a card. */
 
-/** Pairs each rendered <li> with its tool by replaying the same category
-    grouping buildCardSections (client.js, Phase 4's file) used to build
-    these exact sections: a Map keyed by category, tools pushed in the
-    order they appear in filteredTools. Positional, not attribute-based,
-    because client.js's <li> carries no data-id of its own to read instead,
-    and this file may not add one to that function without touching a file
-    Phase 4 owns. */
-function decorateCardsWithJudgement(sectionNodes, filteredTools, judgeApi) {
-  const groups = new Map();
-  for (const tool of filteredTools) {
-    if (!groups.has(tool.category)) groups.set(tool.category, []);
-    groups.get(tool.category).push(tool);
+/** Pairs each rendered <li> with its tool by the data-id attribute
+    client.js's buildCardSections now carries (wave 12.3 fix round: that
+    file's one-line addition, documented there, is the authorised
+    integration point). Number.parseInt plus Number.isInteger, never a
+    truthiness test, so tool id 0's li (data-id="0") is never skipped as if
+    it were "no id". Reads container.querySelectorAll directly rather than
+    replaying buildCardSections' own category-grouping order, which used to
+    be the only way to pair a card with its tool and broke silently the
+    moment the two orderings drifted apart. */
+function decorateCardsWithJudgement(container, filteredTools, judgeApi) {
+  closeAnyOpenChooser(); // defensive: never leak a stale chooser's document listeners across a redraw
+  const byId = new Map(filteredTools.map((tool) => [String(tool.id), tool]));
+  for (const li of container.querySelectorAll('.card-grid > li[data-id]')) {
+    const id = Number.parseInt(li.dataset.id, 10);
+    if (!Number.isInteger(id)) continue;
+    const tool = byId.get(String(id));
+    if (tool) decorateCard(li, tool, judgeApi);
   }
-  let ulIndex = 0; // sections alternate h2, ul per category, in this same order
-  for (const toolsInGroup of groups.values()) {
-    const ul = sectionNodes[ulIndex * 2 + 1];
-    ulIndex += 1;
-    if (!ul) continue;
-    const lis = [...ul.children];
-    toolsInGroup.forEach((tool, j) => { if (lis[j]) decorateCard(lis[j], tool, judgeApi); });
-  }
+}
+
+/** Tracks whichever chip chooser is currently open, page-wide (verifier fix
+    round: there was no dismissal at all before this). Only one chooser may
+    be open at a time: opening a new one closes whatever was already open,
+    and this same function is called defensively at the top of every
+    redecoration pass so a stale chooser's document-level listeners (see
+    buildJudgeChipWrap) can never leak across a search/persona redraw or a
+    live subscribe-triggered redraw fired from elsewhere on the page. */
+let openChooserClose = null;
+function closeAnyOpenChooser() {
+  if (!openChooserClose) return;
+  const close = openChooserClose;
+  openChooserClose = null;
+  close(false);
 }
 
 /** Idempotent: removes whatever this function itself last appended before
@@ -486,6 +498,33 @@ function focusJudgeChip(li) {
   article.addEventListener('blur', () => article.removeAttribute('tabindex'), { once: true });
 }
 
+/** Static safe zone (verifier fix round): corners used to sit pinned to the
+    literal top of the card, directly over .card-top, and were measured
+    overlapping the tool name/favicon and the value badge at 1024, 1280 and
+    1440px. Rather than a guessed fixed pixel offset (which would only ever
+    be correct at the widths someone happened to test), this measures the
+    card's own already-rendered .card-top height and positions the corners
+    below it plus a gap, so the guarantee holds at any width and for any
+    tool name length, including one that wraps to two lines. Falls back to
+    a conservative default if the card has not been laid out yet (a
+    collapsed rect reads as 0), which never happens in practice since
+    corners are only ever built once judgeApi exists, by which point the
+    list is already attached to the document (see the module doc comment). */
+function positionJudgeCorners(li, corners) {
+  const cardTop = li.querySelector(':scope > article .card-top');
+  const cardTopRect = cardTop ? cardTop.getBoundingClientRect() : null;
+  // Measured relative to the <li> itself (corners' own positioning
+  // context), not just .card-top's own height: the article around it
+  // carries its own top padding, which a height-only measurement ignored
+  // entirely, landing the "safe zone" back on top of the header row it was
+  // meant to clear.
+  const liTop = li.getBoundingClientRect().top;
+  const safeTop = cardTopRect && cardTopRect.height > 0
+    ? (cardTopRect.bottom - liTop) + 8
+    : 56;
+  corners.style.top = `${safeTop}px`;
+}
+
 /** Corner quick-judge buttons (PRD section 16): tick ("Got it") and plus
     ("Try it", the corner's short label for "add to my list"), CSS-gated to
     (hover: hover) and (pointer: fine) so they never enter the tab order on
@@ -511,7 +550,9 @@ function buildJudgeCorners(li, tool, judgeApi) {
     else judgeApi.setDecision(tool.id, 'want');
     focusJudgeChip(li);
   });
-  return el('div', { class: 'pub-judge-corners' }, haveBtn, wantBtn);
+  const corners = el('div', { class: 'pub-judge-corners' }, haveBtn, wantBtn);
+  positionJudgeCorners(li, corners);
+  return corners;
 }
 
 /** The state chip and its Got it / Add to my list / Clear chooser (PRD
@@ -530,15 +571,31 @@ function buildJudgeChipWrap(li, tool, judgeApi) {
   }, decision === 'have' ? 'Got it' : 'On my list');
   wrap.append(chip);
 
+  // chooser, and the document-level listeners that dismiss it, only exist
+  // between openChooser() and closeChooser(): nothing is ever left bound
+  // once this chip's chooser is closed, by any path (verifier fix round).
   let chooser = null;
-  function closeChooser() {
+  let docPointerHandler = null;
+  let docKeyHandler = null;
+
+  function detachDocListeners() {
+    if (docPointerHandler) { document.removeEventListener('pointerdown', docPointerHandler, true); docPointerHandler = null; }
+    if (docKeyHandler) { document.removeEventListener('keydown', docKeyHandler, true); docKeyHandler = null; }
+  }
+
+  function closeChooser(returnFocus) {
     if (!chooser) return;
     chooser.remove();
     chooser = null;
     chip.setAttribute('aria-expanded', 'false');
+    detachDocListeners();
+    if (openChooserClose === closeChooser) openChooserClose = null;
+    if (returnFocus) chip.focus();
   }
-  chip.addEventListener('click', () => {
-    if (chooser) { closeChooser(); return; } // second activation of the chip: toggle it shut
+
+  function openChooser() {
+    if (chooser) { closeChooser(true); return; } // second activation of the chip: toggle it shut
+    closeAnyOpenChooser(); // only one chooser open at a time, page-wide
     chip.setAttribute('aria-expanded', 'true');
     const gotItBtn = el('button', { class: 'btn btn-secondary', type: 'button' }, 'Got it');
     const wantBtn = el('button', { class: 'btn btn-secondary', type: 'button' }, 'Add to my list');
@@ -549,14 +606,30 @@ function buildJudgeChipWrap(li, tool, judgeApi) {
     chooser = el('div', {
       class: 'pub-judge-chooser', role: 'group', 'aria-label': `Change judgement for ${tool.name}`,
     }, gotItBtn, wantBtn, clearBtn);
-    chooser.addEventListener('keydown', (event) => {
+    wrap.append(chooser);
+
+    // Outside-click dismissal: a document-level pointerdown landing outside
+    // both the chooser and its own chip closes it, so clicking the search
+    // input, another card or anywhere else on the page dismisses it, not
+    // only Escape. Capture phase, so nothing downstream can swallow it.
+    docPointerHandler = (event) => {
+      if (chooser && !chooser.contains(event.target) && !chip.contains(event.target)) closeChooser(false);
+    };
+    // Escape closes regardless of where focus currently sits: a
+    // document-level listener rather than one scoped to the chooser
+    // element, since focus may still be on the chip (never having entered
+    // the chooser at all) when Escape is pressed.
+    docKeyHandler = (event) => {
       if (event.key !== 'Escape') return;
       event.preventDefault();
-      closeChooser();
-      chip.focus();
-    });
-    wrap.append(chooser);
-  });
+      closeChooser(true);
+    };
+    document.addEventListener('pointerdown', docPointerHandler, true);
+    document.addEventListener('keydown', docKeyHandler, true);
+    openChooserClose = closeChooser;
+  }
+
+  chip.addEventListener('click', openChooser);
   return wrap;
 }
 

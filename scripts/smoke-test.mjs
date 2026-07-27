@@ -748,6 +748,115 @@ check('parity: the chip chooser opens on Enter, tabs to its first option and clo
   `opened=${chooserOpenedByKeyboard} tabbedTo="${focusedAfterTab}" closed=${chooserClosedByEscape} focusBack=${focusAfterEscape}`);
 await keyboardPage.close();
 
+/* --- Phase 12.3 verifier fix round: dismissal, corner overlap, module
+   failure tolerance ---------------------------------------------------- */
+
+// (a) Outside click: a pointerdown outside the chooser and its own chip
+// closes it. Clicking the search input is the exact repro from the
+// verifier's report (it used to leave the chooser open).
+const outsideClickPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await outsideClickPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await openDiscoverDeck(outsideClickPage);
+await clearDiscoverStorage(outsideClickPage);
+await outsideClickPage.reload();
+await outsideClickPage.waitForSelector('#public-root .tool-card');
+await outsideClickPage.locator('[data-discover-entry]').click();
+await outsideClickPage.waitForSelector('.discover-card');
+await outsideClickPage.locator('.discover-panel').press('ArrowLeft');
+await outsideClickPage.waitForTimeout(400);
+await outsideClickPage.locator('.discover-close').click();
+await outsideClickPage.waitForTimeout(300);
+const outsideClickToolName = await toolNameFor(outsideClickPage, '0');
+const outsideClickCard = browseCardFor(outsideClickPage, outsideClickToolName);
+await outsideClickCard.scrollIntoViewIfNeeded();
+await outsideClickCard.locator('.pub-judge-chip').click();
+await outsideClickPage.waitForTimeout(150);
+const chooserOpenBeforeOutsideClick = await outsideClickCard.locator('.pub-judge-chooser').count();
+await outsideClickPage.locator('#public-root input[type=search]').click();
+await outsideClickPage.waitForTimeout(150);
+const chooserOpenAfterOutsideClick = await outsideClickCard.locator('.pub-judge-chooser').count();
+const searchFocusedAfter = await outsideClickPage.evaluate(() => document.activeElement === document.querySelector('#public-root input[type=search]'));
+check('parity: a click outside the chooser (the search input) closes it and still focuses the clicked control',
+  chooserOpenBeforeOutsideClick === 1 && chooserOpenAfterOutsideClick === 0 && searchFocusedAfter === true,
+  `before=${chooserOpenBeforeOutsideClick} after=${chooserOpenAfterOutsideClick} searchFocused=${searchFocusedAfter}`);
+await outsideClickPage.close();
+
+// (b) Escape pressed while focus is still on the chip, never having tabbed
+// into the chooser at all: the previous Escape check above tabs into the
+// chooser first, which is exactly why it missed this defect (a chooser-
+// scoped keydown listener never sees a keydown whose target is the chip).
+const escapeFromChipPage = await browser.newPage();
+await escapeFromChipPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await openDiscoverDeck(escapeFromChipPage);
+await clearDiscoverStorage(escapeFromChipPage);
+await escapeFromChipPage.reload();
+await escapeFromChipPage.waitForSelector('#public-root .tool-card');
+await escapeFromChipPage.locator('[data-discover-entry]').click();
+await escapeFromChipPage.waitForSelector('.discover-card');
+await escapeFromChipPage.locator('.discover-panel').press('ArrowLeft');
+await escapeFromChipPage.waitForTimeout(400);
+await escapeFromChipPage.locator('.discover-close').click();
+await escapeFromChipPage.waitForTimeout(300);
+const escapeFromChipToolName = await toolNameFor(escapeFromChipPage, '0');
+const escapeFromChipCard = browseCardFor(escapeFromChipPage, escapeFromChipToolName);
+await escapeFromChipCard.scrollIntoViewIfNeeded();
+await escapeFromChipCard.locator('.pub-judge-chip').focus();
+await escapeFromChipPage.keyboard.press('Enter');
+await escapeFromChipPage.waitForTimeout(150);
+const chooserOpenBeforeEscape = await escapeFromChipCard.locator('.pub-judge-chooser').count();
+await escapeFromChipPage.keyboard.press('Escape'); // focus is still on the chip, never tabbed in
+await escapeFromChipPage.waitForTimeout(150);
+const chooserOpenAfterEscapeFromChip = await escapeFromChipCard.locator('.pub-judge-chooser').count();
+const focusStillChipAfterEscape = await escapeFromChipPage.evaluate(() => document.activeElement?.classList.contains('pub-judge-chip'));
+check('parity: Escape pressed with focus still on the chip (no Tab into the chooser) closes it',
+  chooserOpenBeforeEscape === 1 && chooserOpenAfterEscapeFromChip === 0 && focusStillChipAfterEscape === true,
+  `before=${chooserOpenBeforeEscape} after=${chooserOpenAfterEscapeFromChip} focusOnChip=${focusStillChipAfterEscape}`);
+await escapeFromChipPage.close();
+
+// (c) Corner overlap: hovered corners must never intersect the card's own
+// name/favicon (h3) or value badge bounding boxes at 1280px (the verifier's
+// repro width; 12.3's scratch drive also covers 1024 and 1440 by hand).
+function rectsOverlap(a, b) {
+  if (!a || !b) return false;
+  return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+}
+const cornerOverlapPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await cornerOverlapPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await cornerOverlapPage.goto(`${base}/`);
+await cornerOverlapPage.waitForSelector('#public-root .tool-card');
+await cornerOverlapPage.waitForTimeout(400); // let discover.js resolve so corners actually render
+const cornerLi = cornerOverlapPage.locator('#public-root .card-grid > li').first();
+await cornerLi.hover();
+const cornerH3Box = await cornerLi.locator('article .card-top h3').first().boundingBox();
+const cornerValueBox = await cornerLi.locator('article .card-top .card-value').first().boundingBox();
+const cornerHaveBox = await cornerLi.locator('.pub-judge-corner-have').boundingBox();
+const cornerWantBox = await cornerLi.locator('.pub-judge-corner-want').boundingBox();
+const anyCornerOverlap = rectsOverlap(cornerH3Box, cornerHaveBox) || rectsOverlap(cornerH3Box, cornerWantBox)
+  || rectsOverlap(cornerValueBox, cornerHaveBox) || rectsOverlap(cornerValueBox, cornerWantBox);
+check('parity: hovered corners never intersect the card name or value badge at 1280px',
+  !anyCornerOverlap, JSON.stringify({ cornerH3Box, cornerValueBox, cornerHaveBox, cornerWantBox }));
+await cornerOverlapPage.close();
+
+// (d) js/discover.js blocked entirely (PRD 16 AC7, never automated before
+// this fix round): the browse list must still render every active card,
+// with zero page errors and no judgement chips at all (there is nothing to
+// read a decision from without the module).
+const discoverBlockedPage = await browser.newPage();
+const discoverBlockedErrors = [];
+discoverBlockedPage.on('pageerror', (e) => discoverBlockedErrors.push(String(e)));
+discoverBlockedPage.on('console', (m) => { if (m.type() === 'error' && !/net::|Failed to load resource/.test(m.text())) discoverBlockedErrors.push(m.text()); });
+await discoverBlockedPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await discoverBlockedPage.route('**/js/discover.js', (route) => route.abort());
+await discoverBlockedPage.goto(`${base}/`);
+await discoverBlockedPage.waitForSelector('#public-root .tool-card');
+await discoverBlockedPage.waitForTimeout(500); // give the aborted dynamic import time to settle
+check('parity: with js/discover.js blocked, every active card still renders',
+  await discoverBlockedPage.locator('#public-root .tool-card').count() === active.length);
+check('parity: with js/discover.js blocked, no judgement chips render (nothing to read a decision from)',
+  await discoverBlockedPage.locator('.pub-judge-chip').count() === 0);
+check('parity: with js/discover.js blocked, no page/console errors', discoverBlockedErrors.length === 0, discoverBlockedErrors.join(' | ').slice(0, 300));
+await discoverBlockedPage.close();
+
 /* --- curator mode (staff path /x, batch I) --------------------------------- */
 await page.goto(`${base}/x`);
 await page.waitForSelector('.tools-table');
