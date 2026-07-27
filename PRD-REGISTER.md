@@ -2,8 +2,8 @@
 
 **Project:** `free-stack`, fourth surface
 **Owner:** Kaipability Ltd (Rocky Verma)
-**Version:** 1.0
-**Date:** 26 July 2026
+**Version:** 1.1
+**Date:** 26 July 2026 (v1.1: 26 July 2026)
 **Build tool:** Claude Code from this PRD
 **Relationship to PRD.md:** additive. Everything in PRD.md still binds; where this document is silent, PRD.md governs. This document is authoritative for the `/my` surface and is section numbered; cite sections when implementing.
 
@@ -54,7 +54,7 @@ Browser storage is revocable by three parties who never consult the app: Safari 
 | `plan` | string | "Free", "Pro £12/mo"... |
 | `renewal` | ISO date or null | |
 | `monthlyCost` | number or null | GBP |
-| `status` | enum | `active`, `to-close`, `closed` |
+| `status` | enum | `planned`, `active`, `to-close`, `closed` |
 | `notes` | string | |
 
 ### 4.3 Workspace document
@@ -141,3 +141,121 @@ Sidebar is a `nav` with `aria-current` on the active item; screens are headed h1
 12. CSP live and the site fully functional under it; security.txt served; privacy notice verbatim.
 13. Awareness page live, linked from the three agreed places, CE wording within the law.
 14. Both themes, Plain English mode, 375px, print, and the 50+ check smoke suite extended to cover 1-13's mechanics, all green in CI.
+
+---
+
+## 16. Account status: `planned` (amends §4.2)
+
+The §4.2 `status` enum (`active`, `to-close`, `closed`) does not cover an account the business intends to open but has not yet. Phase 12 adds it. The enum becomes:
+
+`planned`, `active`, `to-close`, `closed`
+
+Apply the addition to the §4.2 table row in place.
+
+- **Meaning**: the business has decided to sign up for this service and has not done so yet. A `planned` row records the intention (service, url, `toolId`, ideally the identity it WILL be opened with) so the sign-up happens deliberately rather than with whatever email was to hand.
+- **Rendering**: a quiet chip on the Accounts table and drawer, and a "To sign up" group so planned rows do not mix silently into the live register.
+- **Risk arithmetic**: planned rows are excluded from the Overview risk tiles (no 2FA recorded, personal email, no owner) and from the Leavers generator. An account that does not exist yet is a plan, not a risk. They still count in "accounts recorded" and still carry the completeness meter.
+- **Transition**: marking a planned row `active` changes the status field and nothing else automatically; the reader confirms the identity actually used. Never invent facts.
+- **Schema**: additive; `schemaVersion` stays 1. Existing documents and exports remain valid. The export file is the only long-lived artefact and a current build reads both old and new values; the importer treats an unknown status string as data, never a crash.
+- **No password field exists anywhere in this amendment and none may be added.** Restated because every schema touch restates it.
+
+## 17. Batch account add (§9.2 extension)
+
+Several services often share one identity, one owner and one 2FA method (everything opened with `accounts@business.co.uk` by the same person). Entering that ten times is the tedium that stops registers being filled in. Batch add enters it once.
+
+- **Entry**: an "Add several at once" action on the Accounts screen, beside the existing single add.
+- **Step 1, pick services**: a multi-select over the tool catalogue (search-as-you-type), the sovereign templates, and free-text manual names, mixable in one batch. A count shows what is ticked. Tool-backed picks carry their `toolId` (id 0 valid, compared with `Number.isInteger`, never truthiness).
+- **Step 2, shared details, entered once**: identity, owner, `mfa` (method only, as ever), and optionally plan and status (default `active`; `planned` selectable for a batch of intentions). The same personal-email detection and amber chip from §9.2 fire on the shared identity, once, before creation.
+- **Step 3, review and commit**: one listed row per service, then a single commit. **The whole batch is one `store.save()` call**: one load-mutate-save cycle under one Web Lock, one revision increment, the standard `ConflictError` refusal if another tab got there first. Never N saves for N rows.
+- **Per-row overrides happen after creation**, through the existing detail drawer, like any other row. The batch form deliberately carries no per-row fields: it does one job.
+- Batch add is a UI convenience over the existing row shape. No new fields, no new store method, no password field.
+
+## 18. Sign-up to-do generator
+
+Turns a set of tools into a printable, copyable checklist for opening the accounts properly, and optionally pre-seeds the register so the intention is recorded before the first signup.
+
+### Where it lives
+
+Not a seventh sidebar item: the shell's six screens stand. The generator is a sheet reached from:
+
+- the Accounts screen, as a bulk action over the "To sign up" group or a selection of rows ("Sign-up list");
+- the stack-import review, on a Discover arrival (§19), covering the want-list ids;
+- the My tools screen, for imported tools with no active register row.
+
+### Checklist content, per tool, in order
+
+1. **Sign up with your business email, not a personal one.** When the batch or row already records the intended identity, it is printed here; when that identity is a consumer domain, the amber warning appears on the checklist too.
+2. **Turn on two-factor authentication**, app-based where the service offers it.
+3. **Record the account in this register**: identity used, owner, 2FA method.
+4. **The free-tier caveat**: the tool's `free_limit` sentence verbatim, when the catalogue has one, so the signup happens with eyes open.
+
+Copy stays inside the §11 laws: the checklist may say it "helps you prepare for Cyber Essentials"; it never claims compliance and never shows the CE badge.
+
+### Output
+
+- **Print**: the in-page print-sheet pattern exactly as `printRecoverySheet` and the leaver checklist in `js/my/workspace.js` (mount a `.my-print-sheet` node, body class, `window.print()`, cleanup on `afterprint`). Never `window.open`. The button is labelled "Print or save as PDF".
+- **Copy as text**: async Clipboard API with the existing toast on success and failure. Plain text: a header line ("Sign-up list for {business}, {date}"), one block per tool with `[ ]` tick boxes, blank line between tools. No markdown tables, no HTML.
+- Both outputs render only what the register and catalogue hold. Never any secret; `mfa` is a method label.
+
+### Pre-seed (opt-in)
+
+- A checkbox, off by default: "Add these to the register as planned". Ticked, commit creates one `planned` row per tool **through a single `store.save()`**, same discipline as §17. Never automatic, never a second module touching storage.
+- **No duplicates**: a tool whose `toolId` already matches an existing row (strict comparison; `toolId` 0 is real) is listed on the checklist but not re-created.
+- Rows are created with service, url and `toolId` from the catalogue; identity and owner stay blank unless the generator was fed from rows that already record them. Ticking a list into existence records intentions, not facts.
+
+## 19. Discover arrival: `?from=` and `?have=` (§2, §9.7 extension)
+
+The public Discover deck (PRD §17) hands its judgements to the workspace **entirely in the URL**. No `/my` module reads the deck's `freestack:v1:discover` key: `store.js` remains the only storage-touching module on this surface, and the deck's key belongs to the public surface alone.
+
+```
+/my?from=<want-ids>&have=<have-ids>
+```
+
+- **Grammar, both parameters**: the `?t=` grammar, optional `t:` prefix accepted, parsed by the shared `parseSelection` after prefix strip, exactly as `?from=` is parsed today. Id 0 valid, unknown ids and duplicates dropped silently. A raw parameter value longer than **512 characters** is treated as absent (defensive; `parseSelection` already bounds the resolved list to the active catalogue).
+- **`have=`** carries the got-it list: tools the visitor already uses. The import review offers them pre-ticked under "Already using these"; accepted rows are created with status `active`, service, url and `toolId` from the catalogue, identity and owner blank (nobody but the reader knows who opened them).
+- **`from=`** keeps its existing meaning and its backward compatibility. **When `have=` is absent** (every client-page link ever sent), behaviour is exactly today's: import offer, rows default `active`. **When `have=` is present in the URL, even with an empty value**, the arrival is a Discover hand-off: the `from=` ids are presented as "Want to try", default status `planned`, and the sign-up to-do generator (§18) is offered for them. Discover always emits `have=` for this reason (PRD §17).
+- Both groups flow through the existing import review and commit in **one `store.save()`** together with whatever sovereign templates were ticked.
+- On first run, the arrival passes through the unchanged §9.7 gates and setup (webview, sentinel, export-and-verify); the generator offer appears on first landing in the app shell, never before the register exists.
+- `skip` judgements never reach this surface at all.
+
+## 20. Reading-copy exports: CSV, TXT, print-to-PDF (§8, §9.6 extension)
+
+Rocky's direction: the register should also come out as CSV, TXT and PDF for reading, sharing and filing. These are **reading copies**. They join the Backup screen; they change nothing about the doctrine.
+
+### The reading-copy law
+
+- **Only the register file (`.fsr.json`) can be imported back. These cannot be imported, only json can.** Every surface that shows these options carries that line, in exactly that spirit, house voice.
+- The register file stays presented **first**, as the primary backup, per §3. The reading copies render below it, visually subordinate.
+- Reading copies **never count as a verified export**: they do not touch the verified-backup state, its date, `savesSinceExport`, or the §8 backup-age escalation. Exporting a CSV while the JSON backup is 70 days old leaves the red indicator red.
+
+### Formats
+
+- **CSV**: direct download, vanilla JS, `Blob` plus the existing `downloadBlob` helper pattern in `js/my/workspace.js`. One row per account, header row, the §4.2 fields the register holds and nothing else. **Formula-injection escaping is mandatory** (OWASP): any cell whose value starts with `=`, `+`, `-`, `@`, or a tab gets a leading apostrophe; every field is double-quoted with internal quotes doubled; CRLF line endings. Register fields are user-entered text and spreadsheets execute formulas; this is a §9.2-grade escaping duty, not polish.
+- **TXT**: direct download, same `Blob` pattern. A readable plain-text listing grouped like the register table (grouped by status, then service, identity, owner, 2FA method, renewal, notes), header line with business name and date. No markup.
+- **PDF**: **no library, ever** (the no-dependency law binds). PDF is the in-page print-sheet path: the `printRecoverySheet` pattern (mounted `.my-print-sheet` node, body class, `window.print()`, `afterprint` cleanup), button labelled **"Print or save as PDF"**. The print sheet is a clean tabular listing of the same content as TXT.
+- All three contain only what the register holds: never passphrase material, never any secret; `mfa` is a method label only. Grep-level §4.1 verification extends to these outputs.
+
+### Encrypted registers
+
+Reading copies render from the **unlocked in-memory document only**. A locked register offers no CSV, TXT or PDF: the buttons are absent or disabled with the standard locked message, and no code path derives a reading copy from the stored envelope.
+
+### Acceptance criteria (this section)
+
+1. CSV, TXT and "Print or save as PDF" appear on the Backup screen below the register file export, each surface carrying the cannot-be-imported line, with the JSON register file presented first.
+2. A cell value of `=2+5`, `+44...`, `-x`, `@a` or tab-led text round-trips into the CSV with a leading apostrophe, quoted, CRLF endings; opening in a spreadsheet executes nothing.
+3. Producing any reading copy leaves `savesSinceExport`, the verified-backup date and the backup-age indicator untouched.
+4. TXT groups rows like the register table and includes only §4.2 fields; grep of all three outputs finds no password-shaped field.
+5. Print path mounts and cleans up the in-page sheet, never `window.open`, and produces a usable PDF via the browser dialogue.
+6. With the register locked, no reading copy can be produced.
+
+## 21. Definition of Done, Phase 12 register features
+
+1. `status` accepts `planned` end to end: schema, table chip, "To sign up" group, drawer, exports; planned rows are excluded from risk tiles and the Leavers generator; existing documents load unchanged.
+2. Batch add creates N rows from one shared identity/owner/mfa form in exactly one `store.save()` (revision increments by 1), with personal-email detection firing on the shared identity and per-row overrides available in the drawer afterwards.
+3. The sign-up generator produces the four-point checklist per tool including the `free_limit` line where present, prints via the in-page sheet, copies as plain text with a toast, and stays within the §11 Cyber Essentials wording law.
+4. Pre-seed, when opted in, creates `planned` rows in one save with no duplicate `toolId` rows; tool 0 pre-seeds correctly; opt-out creates nothing.
+5. `/my?have=0` offers tool 0 under "Already using these" and commits it as one `active` row. `/my?from=2,5&have=0` defaults tools 2 and 5 to `planned` and offers the generator. `/my?from=t:0,2,5` without `have=` behaves exactly as before Phase 12.
+6. A raw `from=` or `have=` value over 512 characters is ignored; no `/my` module reads `freestack:v1:discover`; all persistence still flows through `store.js` (grep-level verification).
+7. Reading-copy exports meet §20's own acceptance list in full.
+8. No password field exists in any new schema, form, storage, export or output; grep-level verification extended to the batch form, the generator, and all three reading copies.
+9. Both themes, Plain English labels, 375px, print, and the smoke suite extended over items 1-8, all green in CI.

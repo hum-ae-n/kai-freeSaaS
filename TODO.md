@@ -1,6 +1,8 @@
 # TODO
 
-Open items as of 25 July 2026. Build state: Phases 0-11 done, verified and merged to `main`. Phase 11, the My Stack account register workspace at `/my` (local-first account tracking, leaver checklists, a costs ledger, opt-in encryption, and the `why-register.html` awareness page), merged 25 Jul as `55ea0db` via PR 3 on Rocky's launch approval; the deploy-preview header audit caught and fixed a real Netlify header-replacement defect on `/embed.html` before merge, and production headers plus deployed files were verified by curl after the deploy. Detail in [BUILD-PLAN.md](BUILD-PLAN.md); run `node scripts/validate-data.mjs` and `node scripts/smoke-test.mjs` before any push (a push to `main` is a production release, and CI now runs both automatically on every push and PR).
+Open items as of 27 July 2026. Build state: Phases 0-11 done, verified and merged to `main`. Phase 11, the My Stack account register workspace at `/my` (local-first account tracking, leaver checklists, a costs ledger, opt-in encryption, and the `why-register.html` awareness page), merged 25 Jul as `55ea0db` via PR 3 on Rocky's launch approval; the deploy-preview header audit caught and fixed a real Netlify header-replacement defect on `/embed.html` before merge, and production headers plus deployed files were verified by curl after the deploy.
+
+Phase 12 (homepage redesign, Discover deck, planned account status, batch add, sign-up generator, reading-copy exports) is built and verifier-passed wave by wave on branch `claude/read-todo-bk47qb`, not yet merged: close-out (content pass and the final full-phase sweep) is in progress now. Detail in [BUILD-PLAN.md](BUILD-PLAN.md); run `node scripts/validate-data.mjs` and `node scripts/smoke-test.mjs` before any push (a push to `main` is a production release, and CI now runs both automatically on every push and PR).
 
 ## Deploy (Phase 6)
 
@@ -22,8 +24,13 @@ Open items as of 25 July 2026. Build state: Phases 0-11 done, verified and merge
 - [x] **Merge `claude/read-todo-bk47qb` into `main`.** Done 25 Jul as `84f1e0f`, approved by Rocky.
 - [x] **Header checks on the Netlify deploy preview.** Confirmed clean before the merge above (the merge commit records a "deploy-preview header audit clean"), covering `X-Frame-Options: DENY` on `/`, `/index.html` and `/x`, the `/embed.html`-scoped CSP, and `/robots.txt` returning 404 rather than the SPA fallback's 200.
 
+## Merging Phase 12 (in progress)
+
+- [ ] **Merge `claude/read-todo-bk47qb` into `main`.** All five build waves (12.1-12.5: homepage redesign, Discover deck engine, list parity and quick-judge, planned account status, batch add/sign-up generator/reading-copy exports) are verifier-passed on the branch. Content pass (12.6, this document among others) and the final close-out sweep (12.7, smoke suite extended over every wave's additions, CSP hash check against the Deploy Preview) are what's left before a PR goes to Rocky.
+
 ## Decisions only Rocky can make
 
+- [x] **Batch add of a service already in the register (Phase 12.5).** Decided by Rocky 27 Jul: fine as is. A batch pick matching a `toolId` already recorded creates a second row, the same as a manual add would; genuinely-duplicate accounts for one service are a real situation and the register records what exists.
 - [x] **Public curator mode.** Resolved 24 Jul: the root URL becomes a public read-only directory; the curator moves to the hidden, noindexed path `/x` (BUILD-PLAN 10.12). Not cryptographic security, the data stays public by nature of a static site, but the staff interface stops being the front door. Progress share-back address: info@kaipability.com.
 - [ ] **Value figure spot-check (Phase 1.5).** The validator can't judge honesty (PRD §10). Review the `value` field across `data/tools.json`; flag anything indefensible.
 - [ ] **Favicon self-hosting (Phase 5.6).** Client pages currently hit DuckDuckGo/Google proxies per link. Decide whether to inline/self-host icons for the 15 core tools (privacy + reliability) or accept the proxies.
@@ -31,7 +38,7 @@ Open items as of 25 July 2026. Build state: Phases 0-11 done, verified and merge
 - [ ] **"How we choose" page.** A draft now exists at `docs/how-we-choose.md` (selection criteria, why every tool carries alternatives, how `value` is worked out), but it isn't wired into the public directory yet. Needs Rocky's sign-off on the copy, then a decision on where it surfaces on the public page.
 - [x] **Borderline non-SaaS entries.** Decided 23 Jul: archived 61 (HMRC Tools), 65 (NCSC guidance), 66 (ICO guidance) and 83 (OPITO/GWO/HSE/Charities Commission training) as government or regulatory guidance rather than SaaS. Kept 74 (Free Training Academies): vendor learning platforms, genuinely SaaS-adjacent. Core count is now 12 by design.
 - [ ] **Value figures the pricing research turned up as questionable (Phase 8.3).** Two remain for the Phase 1.5 review (the third, 66 ICO, is now archived and moot): 29 Hotjar Free looks low at `value: 100` since Contentsquare's acquisition of Hotjar; 82 Sketchup Free / Go carries `value: 200` but its free tier is licensed for non-commercial use only, which the value figure doesn't currently reflect.
-- [ ] **Vercel listing (id 86, Vercel Hobby).** Its free Hobby tier's terms of service ban commercial use, unusual among the tools in this directory. Currently kept, with a `notes` entry warning that a client's production site needs Vercel Pro or an alternative such as Netlify Free. Decide whether that warning is enough or whether it should be archived instead.
+- [x] **Vercel listing (id 86, Vercel Hobby).** Decided by Rocky 27 Jul: keep with the warning for now. The `notes` entry stating that a client's production site needs Vercel Pro or an alternative such as Netlify Free stays as the honesty mechanism; revisit if the terms change.
 
 ## Nice-to-have / flagged
 

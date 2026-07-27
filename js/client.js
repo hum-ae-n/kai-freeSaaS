@@ -283,7 +283,11 @@ export function buildCardSections(pickedTools, opts = {}) {
   const sections = [];
   for (const [category, groupTools] of groups) {
     sections.push(el('h2', { class: 'cli-category' }, categoryIcon(category), category));
-    const items = groupTools.map((tool) => el('li', {}, card(tool, cardIndex++, doneIds, onToggle, { showToggle, plainMode })));
+    // data-id: added for judgement parity, wave 12.3 fix round. public.js
+    // pairs a rendered <li> with its tool by this attribute alone (never by
+    // replaying this function's own grouping order); String(tool.id) keeps
+    // the id-string discipline id 0 depends on elsewhere in the app.
+    const items = groupTools.map((tool) => el('li', { dataset: { id: String(tool.id) } }, card(tool, cardIndex++, doneIds, onToggle, { showToggle, plainMode })));
     if (items.length === 1) items[0].classList.add('card-solo');
     sections.push(el('ul', { class: 'card-grid' }, items));
   }

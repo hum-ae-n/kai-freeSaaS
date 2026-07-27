@@ -101,6 +101,15 @@ p { margin: 0; }
 img { max-width: 100%; }
 button { font: inherit; }
 
+/* The UA stylesheet's [hidden] rule is only display:none, which loses to
+   any later same-specificity display declaration in source order (flex
+   containers, inline-flex buttons and the like, all defined further down
+   this file). Every mount root and control across every surface (curator,
+   client, my, discover) toggles the hidden IDL property expecting it to
+   actually hide the element, so this needs to win outright rather than
+   relying on source order never regressing it again. */
+[hidden] { display: none !important; }
+
 :is(a, button, input, select, [tabindex]):focus-visible {
   outline: 2px solid var(--oxblood);
   outline-offset: 2px;
@@ -1124,6 +1133,229 @@ button { font: inherit; }
 .pub-footer { align-items: flex-start; }
 .pub-cta { margin-top: var(--s-1); }
 
+/* --- hero trust signals (Phase 12.1, PRD section 16) ----------------------
+   The three verifiable claims sit under the strapline as a quiet stacked
+   list, never as boastful metric tiles: same type scale as the existing
+   .trust-line, just three lines instead of one. */
+.pub-hero-trust {
+  margin-top: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.pub-hero-trust-item {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--fs-14);
+  max-width: none;
+}
+.pub-hero-trust-item.trust-line { color: var(--ink-3); }
+.pub-hero-count strong { color: var(--ink); font-family: var(--font-sans); }
+
+/* --- entry paths (Phase 12.1, PRD section 16) ------------------------------
+   Three equal-weight cards: Discover (a stub this wave, wired to scroll
+   only, see js/public.js), persona packs, browse all. One shared grid for
+   every viewport: mobile stacks to a single column (Discover naturally
+   leading, since it is first in source order and this grid never
+   duplicates the markup per breakpoint), 768px and up lays the three out
+   side by side. */
+.pub-entry { margin-bottom: var(--s-10); }
+.pub-entry-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--s-4);
+}
+@media (min-width: 768px) {
+  .pub-entry-grid { grid-template-columns: repeat(3, 1fr); }
+}
+.pub-entry-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-6);
+  background: var(--paper-2);
+  border: var(--border);
+}
+.pub-entry-item h2 {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--fs-21);
+  line-height: var(--lh-21);
+  letter-spacing: var(--tr-tight);
+  color: var(--ink);
+}
+.pub-entry-item .t-small { max-width: none; }
+.pub-discover-btn, .pub-browse-btn { align-self: stretch; justify-content: center; }
+
+.pub-persona-chip-row { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.pub-persona-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 16px;
+  border: var(--bw-hair) solid var(--steel-3);
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  color: var(--ink-2);
+  font-family: var(--font-sans);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  letter-spacing: var(--tr-loose);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.pub-persona-chip:hover { border-color: var(--ink-3); color: var(--ink); }
+.pub-persona-chip.is-active {
+  background: var(--oxblood-tint);
+  border-color: var(--oxblood);
+  color: var(--oxblood-deep);
+}
+
+/* --- motion: reveal (motion inventory items 1 and 2, PRD section 16) ------
+   Two classes, chosen in js/public.js before either is ever applied: the
+   transform-bearing one for a normal-motion visitor, the opacity-only one
+   for prefers-reduced-motion. The media query below is a second, CSS-only
+   guard on top of that JS choice, per the phase brief: if the transform
+   class ever landed on a reduced-motion visitor by mistake, this still
+   strips the transform out of the transition entirely, not just its
+   duration (the COMPONENTS block's blanket *,*::before,*::after rule above
+   only shortens durations, it does not remove transform from the property
+   list, so a dedicated override here is needed for the two classes below to
+   ever measure as opacity-only). */
+.pub-reveal {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out);
+}
+.pub-reveal.is-in { opacity: 1; transform: translateY(0); }
+.pub-reveal-reduced {
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.pub-reveal-reduced.is-in { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .pub-reveal { transition: opacity var(--dur-fast) var(--ease-out); transform: none; }
+  .pub-reveal.is-in { transform: none; }
+}
+
+/* --- motion: hover lift (motion inventory item 3, PRD section 16) ---------
+   Scoped to #public-root rather than editing the CLIENT block's .tool-card
+   rule above (owned by Phase 4): additive rules only, the existing
+   border-hover behaviour there is untouched and simply layers with this.
+   The lift is set on the card-grid's <li> wrapper, not on .tool-card
+   itself: the CLIENT block's own entrance keyframes (card-in, "both" fill
+   mode) never release their hold on .tool-card's transform property once
+   they finish, which silently defeats any later hover-triggered transition
+   on that same element and property (verified in isolation: identical
+   rules on a plain element transition correctly, the same rules on an
+   element also carrying a "both" fill-mode animation on transform do not).
+   The <li> carries no such animation and, with no padding or border of its
+   own, occupies exactly the same box as the card inside it, so the lift
+   reads identically to the reader while sidestepping the conflict rather
+   than touching Phase 4's file. Hover-capable devices only; reduced motion
+   drops the translate but keeps the shadow as a static, non-moving
+   affordance. */
+@media (hover: hover) {
+  #public-root .card-grid > li {
+    transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
+  }
+  #public-root .card-grid > li:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); }
+}
+@media (hover: hover) and (prefers-reduced-motion: reduce) {
+  #public-root .card-grid > li:hover { transform: none; box-shadow: var(--shadow-1); }
+}
+
+/* --- judgement parity (Phase 12.3, PRD section 16, "Grid quick-judge and
+   list parity") -------------------------------------------------------
+   The state chip/chooser and the quick-judge rail both sit in normal flow,
+   appended after the CLIENT block's own .tool-card inside the same <li>
+   (js/public.js does this at the DOM level rather than editing that file).
+
+   Re-verify round 2: an earlier shape absolutely positioned the rail over
+   the card, its vertical offset read in JS from .card-top's rendered
+   height. That measurement raced the grid's own layout on fresh load (a
+   wrapped two-line title had not reached its settled height yet when read)
+   and never recomputed on viewport resize, so the overlay landed back on
+   top of the header it was meant to clear. This shape carries no position,
+   so there is nothing to measure or recompute: the rail is a plain
+   block-level sibling of .tool-card, sized only by its own two buttons, so
+   it can never occupy the same pixels as the card's own name, favicon or
+   value by construction, at any width, wrap state or load timing.
+
+   No new transition or animation either: the rail's box is always present
+   (reserved) the instant the media query matches, dimmed at rest, and only
+   its opacity swaps on hover/focus-within, a plain value change with no
+   transition property. The PRD section 16 motion inventory stays
+   exhaustive, and no layout shift ever accompanies a hover, since the space
+   was already reserved from the moment the card was decorated. */
+.pub-judge-rail { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  .pub-judge-rail {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--s-2);
+    margin-top: var(--s-3);
+    opacity: 0.45;
+  }
+  .card-grid > li:hover .pub-judge-rail,
+  .card-grid > li:focus-within .pub-judge-rail {
+    opacity: 1;
+  }
+}
+.pub-judge-rail-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: var(--r-pill);
+  border: var(--bw-hair) solid var(--steel-3);
+  background: var(--paper);
+  color: var(--ink-2);
+  font-family: var(--font-sans);
+  font-size: var(--fs-16);
+  font-weight: 700;
+  cursor: pointer;
+}
+.pub-judge-rail-btn:hover { border-color: var(--ink-3); color: var(--ink); }
+.pub-judge-rail-btn[aria-pressed="true"] {
+  background: var(--oxblood-tint);
+  border-color: var(--oxblood);
+  color: var(--oxblood-deep);
+}
+
+.pub-judge-chip-wrap:empty { display: none; }
+.pub-judge-chip-wrap {
+  margin-top: var(--s-3);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+}
+.pub-judge-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 16px;
+  border: var(--bw-hair) solid var(--oxblood);
+  border-radius: var(--r-pill);
+  background: var(--oxblood-tint);
+  color: var(--oxblood-deep);
+  font-family: var(--font-sans);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  letter-spacing: var(--tr-loose);
+  cursor: pointer;
+}
+.pub-judge-chip:hover { background: var(--oxblood); color: var(--paper); }
+.pub-judge-chooser {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+.pub-judge-chooser .btn { min-height: 44px; padding: 10px 14px; justify-content: center; }
+
 /* The footer's quiet links are the directory's only route into My Stack and
    the awareness page, so on touch widths they must be genuinely tappable,
    not 17px slivers of text (Rocky's 26 Jul phone test: taps on them failed).
@@ -1149,6 +1381,265 @@ button { font: inherit; }
   text-align: center;
 }
 .embed-footer a { color: inherit; }
+
+/* === DISCOVER ================================================================
+   Wave 12.2, js/discover.js, PRD section 17. The inline panel public.js
+   mounts on demand above the browse list, never a modal. Every colour comes
+   from the shared custom properties, so dark mode (the :root[data-theme]
+   overrides in DARK MODE above) applies with no extra rules here. */
+
+.discover-mount { margin-bottom: var(--s-8); }
+
+.discover-panel {
+  background: var(--paper-2);
+  border: var(--border);
+  border-top: var(--bw-heavy) solid var(--oxblood);
+  padding: var(--s-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  /* Never taller than one screenful. Without this a long card (a long
+     description plus a long free_limit line) can push the panel taller
+     than the viewport, carrying the control row (Got it / Skip / Add to
+     my list) below the fold. Interacting with an off-screen button then
+     triggers the browser's own "scroll the newly focused element into
+     view" correction, an uncontrolled jump this app never asked for and
+     cannot see coming, which is what a phone tester reads as an error: the
+     deck appears to leap away and reveal unrelated page content beneath
+     it. dvh (falls back to vh on older engines, this rule simply loses to
+     the later one when unsupported) tracks the real, dynamic viewport
+     height on mobile Chrome, where the address bar shows and hides. */
+  max-height: 100vh;
+  max-height: 100dvh;
+}
+.discover-panel:focus-visible { outline: 2px solid var(--oxblood); outline-offset: 2px; }
+
+.discover-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+.discover-progress {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-14);
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.discover-close {
+  min-height: 44px;
+  min-width: 44px;
+  justify-content: center;
+  padding: 8px;
+  font-size: var(--fs-21);
+  line-height: 1;
+}
+
+/* flex: 1 1 260px, not a bare min-height: this is the one part of the
+   panel allowed to shrink when the panel's own max-height (above) runs
+   out of room, so the card's content scrolls internally instead of the
+   controls below it being pushed off-screen. min-height: 0 overrides the
+   flex default of min-height: auto, which would otherwise refuse to
+   shrink the stage below the card's intrinsic content height and defeat
+   this entirely. align-items on this row-direction flex container is
+   still the default stretch, so the card itself always fills exactly
+   whatever height the stage resolves to. */
+.discover-stage {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  flex: 1 1 260px;
+  min-height: 0;
+}
+
+/* The card itself: touch-action: pan-y is the gesture contract's other
+   half (js/discover.js never calls preventDefault until it has claimed a
+   horizontal drag), transform-origin bottom centre matches the "roughly 1
+   degree per 20px" rotation the module applies live in pointermove.
+   overflow-y: auto is the "scrollable card body" half of the panel-height
+   fix above: stretched by the stage (see above) to a bounded height, a
+   card whose own content (a long description, a long free_limit line)
+   would otherwise need more room than that scrolls internally rather than
+   growing the card, and the panel with it, past one screenful. touch-action
+   and overflow-y coexist normally here, the same as any ordinary
+   scrollable element: a vertical drag pans the card's own content first,
+   then chains to the page once the card has nothing further to scroll. */
+.discover-card {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  background: var(--paper);
+  border: var(--border);
+  border-radius: var(--r-3);
+  box-shadow: var(--shadow-2);
+  padding: var(--s-6);
+  touch-action: pan-y;
+  transform-origin: bottom center;
+  user-select: none;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.discover-card-dragging { transition: none; }
+.discover-card-springback { transition: transform var(--dur-base) var(--ease-out); }
+.discover-card-exit { transition: transform 220ms var(--ease-in), opacity 220ms var(--ease-in); }
+.discover-card-exit-reduced { transition: opacity 150ms var(--ease-out); }
+.discover-card-enter-reduced { transition: opacity var(--dur-base) var(--ease-out); }
+
+/* Verdict stamps: opacity only, proportional to drag distance, set inline
+   by js/discover.js. Never touched by rotation transforms of their own
+   beyond the fixed static tilt below, so reduced motion needs no override
+   here at all. */
+.discover-stamp {
+  position: absolute;
+  top: var(--s-6);
+  padding: 6px 14px;
+  border: var(--bw-rule) solid currentColor;
+  border-radius: var(--r-2);
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: var(--fs-18);
+  letter-spacing: var(--tr-eyebrow);
+  text-transform: uppercase;
+  opacity: 0;
+  pointer-events: none;
+}
+.discover-stamp-have { left: var(--s-6); color: var(--positive); transform: rotate(-8deg); }
+.discover-stamp-want { right: var(--s-6); color: var(--info); transform: rotate(8deg); }
+
+.discover-card-body { display: flex; flex-direction: column; gap: var(--s-3); }
+.discover-card-name {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--fs-21);
+  color: var(--ink);
+}
+.discover-card-category {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: var(--fs-12);
+  text-transform: uppercase;
+  letter-spacing: var(--tr-eyebrow);
+}
+.discover-card-desc { margin: 0; color: var(--ink-2); max-width: none; }
+.discover-card-limit { margin: 0; color: var(--ink-3); font-size: var(--fs-14); }
+.discover-card-more { align-self: flex-start; color: var(--ink-3); font-size: var(--fs-12); }
+
+/* First-open coaching overlay (Phase 12 close-out): a solid panel-toned
+   layer, not a translucent scrim, so the semantic --positive/--info text
+   colours below read exactly as they already do on the verdict stamps
+   elsewhere in this block, correct in both themes with no bespoke colour
+   maths. Positioned absolutely within .discover-stage (already
+   position: relative), so it covers exactly the card area, "over the top
+   card" per the spec, while the control row below is blocked by disabling
+   those three buttons in js/discover.js rather than by stretching this
+   overlay down over them too. */
+.discover-coach {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-4);
+  padding: var(--s-6);
+  background: var(--paper-2);
+  border: var(--border);
+  border-radius: var(--r-3);
+  box-shadow: var(--shadow-2);
+  text-align: center;
+}
+.discover-coach-ghost {
+  width: 110px;
+  height: 74px;
+  background: var(--paper);
+  border: var(--bw-rule) dashed var(--ink-3);
+  border-radius: var(--r-2);
+  /* Two cycles, never a loop (motion inventory): animation-iteration-count
+     is the last value in this shorthand. Reduced motion strips this to
+     none entirely below, the same static overlay otherwise. */
+  animation: discover-coach-slide 1.8s ease-in-out 2;
+}
+.discover-coach-labels { display: flex; flex-direction: column; gap: var(--s-2); }
+.discover-coach-label {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--fs-14);
+}
+.discover-coach-label-have { color: var(--positive); }
+.discover-coach-label-want { color: var(--info); }
+.discover-coach-hint { margin: 0; color: var(--ink-3); font-size: var(--fs-12); max-width: none; }
+.discover-coach-dismiss { min-height: 44px; }
+
+@keyframes discover-coach-slide {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  25% { transform: translateX(-28px) rotate(-4deg); }
+  75% { transform: translateX(28px) rotate(4deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .discover-coach-ghost { animation: none !important; transform: none !important; }
+}
+
+/* Controls: "Got it" and "Add to my list" are equally weighted primary
+   actions either side of a deliberately narrower Skip, all three still
+   clearing the 44px target floor (WCAG 2.5.5/2.5.8), since Skip is a real
+   control, just a quieter one. */
+.discover-controls {
+  display: flex;
+  align-items: stretch;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+.discover-controls .btn { min-height: 44px; justify-content: center; }
+.discover-btn-have, .discover-btn-want { flex: 1 1 40%; }
+.discover-btn-skip { flex: 0 1 auto; }
+
+.discover-undo { align-self: center; min-height: 44px; }
+
+.discover-completion, .discover-empty {
+  max-width: 420px;
+  margin: 0 auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-6) 0;
+}
+.discover-completion-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  justify-content: center;
+}
+.discover-completion-actions .btn { min-height: 44px; }
+
+/* Reduced motion: belt-and-braces CSS guard behind the same query
+   js/discover.js checks before ever touching a transform. Even if a
+   transform-bearing class landed here by mistake, this still strips
+   transform and rotation out of the transition entirely. */
+@media (prefers-reduced-motion: reduce) {
+  .discover-card,
+  .discover-card-dragging,
+  .discover-card-springback {
+    transition: none !important;
+    transform: none !important;
+  }
+  .discover-card-exit {
+    transition: opacity 150ms var(--ease-out) !important;
+    transform: none !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .discover-btn-have, .discover-btn-want { flex-basis: 100%; }
+  .discover-btn-skip { flex-basis: 100%; }
+}
 
 /* === RESPONSIVE ============================================================ */
 
@@ -1436,6 +1927,48 @@ button { font: inherit; }
    alongside the existing amber .my-chip-risk on the same base .my-chip. */
 .my-chip-ok { background: var(--positive-tint); color: var(--positive); border: var(--bw-hair) solid var(--positive); }
 
+/* Quiet status chip (Phase 12 Wave D, section 16): "planned" is neither a
+   risk (amber) nor a success (green), so it gets its own neutral tone
+   rather than borrowing either vocabulary, "text label always, colour
+   never alone" as ever. */
+.my-chip-quiet { background: var(--paper-2); color: var(--ink-2); border: var(--bw-hair) solid var(--ink-3); }
+
+/* "To sign up" group (section 16, section 9.2): visually separate from the
+   live register table above it, same flat left-accent shape as the other
+   grouped panels on this surface (.my-attention, .my-quote), never a modal
+   or an accordion, so a planned row is always in view when it exists. */
+.my-signup-group {
+  margin-top: var(--s-6);
+  padding-top: var(--s-4);
+  border-top: var(--bw-heavy) solid var(--ink-3);
+}
+.my-signup-group h3 { font-size: var(--fs-18); margin-bottom: var(--s-1); }
+.my-signup-group > p { margin-bottom: var(--s-3); }
+
+/* Batch add (PRD-REGISTER section 17, BUILD-PLAN 12.5): an in-flow panel on
+   Accounts, the same shape .my-templates-panel already uses (no modal
+   system exists on this surface, and none is introduced here). */
+.my-batch-sheet { max-width: 640px; margin: var(--s-3) 0; padding: var(--s-4); border-top: var(--bw-heavy) solid var(--oxblood); }
+.my-batch-sheet h3 { font-size: var(--fs-18); margin-bottom: var(--s-2); }
+.my-batch-picklist {
+  max-height: 220px;
+  overflow-y: auto;
+  border: var(--bw-hair) solid var(--paper-edge);
+  padding: var(--s-2) var(--s-3);
+  margin-bottom: var(--s-3);
+}
+
+/* Sign-up generator (PRD-REGISTER section 18, BUILD-PLAN 12.5): rendered at
+   the shell level (workspace.js's container assembly) so it stays visible
+   across a screen switch while the reader works through it, same flat
+   left-accent panel shape as the rest of this surface. */
+.my-generator-sheet { max-width: 720px; margin: var(--s-4) 0; padding: var(--s-6); border-top: var(--bw-heavy) solid var(--oxblood); }
+.my-generator-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s-3); margin-bottom: var(--s-2); }
+.my-generator-head h2 { margin: 0; font-size: var(--fs-21); }
+.my-signup-sheet-item { margin: var(--s-3) 0; padding-bottom: var(--s-3); border-bottom: var(--bw-hair) solid var(--paper-edge); }
+.my-signup-sheet-item h3 { font-size: var(--fs-16); margin-bottom: var(--s-1); }
+.my-generator-preseed { display: flex; align-items: center; gap: var(--s-3); margin: var(--s-3) 0; flex-wrap: wrap; }
+
 /* Backup-age chip (section 8), sidebar footer and Backup screen alike: a
    real button (a one-tap jump to Backup), never colour-only (the text
    already states the age in words). */
@@ -1513,6 +2046,19 @@ button { font: inherit; }
 .my-leaver-caveat { display: block; color: var(--oxblood); }
 .my-leaver-reassign { display: flex; flex-wrap: wrap; gap: var(--s-2); margin: var(--s-2) 0 0 calc(22px + var(--s-3)); }
 .my-leaver-reassign-input { max-width: 220px; }
+
+/* Honesty line (Phase 12.4 fix round, 27 Jul, section 16): sits between
+   phase 1 and phase 2, so it reads as introducing the phases 2-4 region
+   rather than as a stray aside; the same flat left-accent shape as
+   .my-consequence, quieter (paper tint, not caution) since this is a plain
+   statement of fact, not a warning. */
+.my-leaver-honesty {
+  padding: var(--s-3) var(--s-4);
+  background: var(--paper-2);
+  border-left: var(--bw-heavy) solid var(--ink-3);
+  margin: var(--s-4) 0;
+  font-size: var(--fs-14);
+}
 
 /* --- Backup (section 9.6) -------------------------------------------------- */
 .my-backup-section { max-width: 640px; margin: var(--s-6) 0; padding-top: var(--s-4); border-top: var(--border); }
@@ -1603,6 +2149,16 @@ button { font: inherit; }
   .my-leaver-picker { max-width: none; }
   .my-import-drop { align-items: stretch; text-align: center; }
   .my-import-drop .btn { width: 100%; }
+
+  /* Same 44px floor, same reasoning as the verifier finding noted just
+     above (section 14, primary workspace actions), extended to Phase 12
+     Wave E's new entry points and outputs: batch add's own actions, the
+     sign-up generator sheet, and the reading-copy download/print buttons. */
+  .my-accounts-actions .btn,
+  .my-batch-sheet .btn,
+  .my-generator-sheet .btn,
+  .my-bulk-bar .btn,
+  .my-reading-copy-section .btn { min-height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .my-sidebar { transition: none; }
@@ -1786,4 +2342,16 @@ button { font: inherit; }
      evergreen engine this site already targets; sized up here so an
      unticked box still reads clearly as a box on paper, not a stray dot. */
   .my-leaver-tick { width: 12pt; height: 12pt; accent-color: #000; }
+
+  /* Sign-up generator print sheet (section 18) and reading-copy print sheet
+     (section 20): both mount through the same .my-print-sheet mechanism as
+     the recovery sheet and leaver checklist above, so nothing further is
+     needed to make them print-only; these two rules only tidy pagination
+     and give the reading-copy table visible borders once on paper (the
+     .my-readingcopy-table itself is never shown on screen, only inside a
+     mounted .my-print-sheet, so this styling lives here and nowhere else). */
+  .my-signup-sheet-item { break-inside: avoid; }
+  .my-readingcopy-group { break-inside: avoid; }
+  .my-readingcopy-table { width: 100%; border-collapse: collapse; margin-bottom: 1em; }
+  .my-readingcopy-table th, .my-readingcopy-table td { border: 1px solid #000; padding: 4px 8px; text-align: left; font-size: 10pt; }
 }

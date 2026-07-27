@@ -48,6 +48,20 @@ Their page shows, per tool: what it does, what the free tier honestly includes a
 - **Print or save as PDF** and **Share this page** buttons, and the same dark-mode toggle you have. A printed page or saved PDF also carries a small QR code linking back to the live stack, so a paper copy still points somewhere current (skipped automatically for an unusually large selection whose link is too long to encode).
 - **Open in curator**, but only for you: if you're viewing a client's page from a device that has visited `/x` before, a button lets you reopen that exact stack in the staff curator, pre-ticked, to adjust and re-share. A client viewing the same page on their own device never sees this button.
 
+## Discover deck and the My Stack hand-off
+
+The public homepage's Discover deck lets any visitor swipe or click through a short set of tools, saying "Got it" for one they already use or "Add to my list" for one they want to try. You don't administer this: judgements are saved in that visitor's own browser only, exactly the same device-only honesty as "Mark as set up" above, and there is no record of it anywhere on your side.
+
+Finishing a deck offers "Open these in My Stack", which hands both lists to the workspace as a link (`/my?from=…&have=…`). Tools the visitor said they already use land as active accounts; tools on their "want to try" list land as **planned** accounts, a quiet status meaning the business intends to sign up but hasn't yet. A planned row sits in its own "To sign up" group on the Accounts screen and stays out of the risk tiles and the Leavers checklist, since an account that doesn't exist yet is a plan, not a risk.
+
+## Sign-up lists and batch add
+
+Once a client has a shortlist of planned accounts, whichever way they arrived (a Discover hand-off, a batch add, or typed in one at a time), the **"Generate sign-up list"** action turns them into a printable, copyable checklist: sign up with the business email rather than a personal one, turn on two-factor authentication, record the account in the register, and the tool's free-tier caveat where the catalogue has one. It's a genuinely useful onboarding aid to point a client at once you've settled on a stack together: a concrete, ordered checklist rather than a bare tool list, with an optional tick to pre-seed those accounts into the register as planned rows in one save, so the intention is recorded before the first signup happens.
+
+**Add several at once** (on the Accounts screen) covers the common case of one person opening several services under a single identity: pick catalogue tools, sovereign templates (HMRC Government Gateway and the like) and typed-in names in one tick-list, enter the shared identity, owner and 2FA method once, and commit the whole batch together. Per-row detail, a specific plan, a different owner, is edited afterwards in the usual details drawer, same as any other row.
+
+The Backup screen also offers CSV, plain-text and print/PDF **reading copies** of the register, useful for a quick read, a share, or filing alongside other paperwork. They sit below the JSON register file, which stays the one that matters: only that `.fsr.json` export can be imported back in, and producing a reading copy never counts towards the "days since last export" warning.
+
 ## Keeping the directory honest
 
 - **Adding or editing tools**: edit `data/tools.json`, run `node scripts/validate-data.mjs`, push. CI re-runs the validator and the browser test suite on every push; a push to `main` is a production release. Full field guidance in the README.
@@ -58,4 +72,4 @@ Their page shows, per tool: what it does, what the free tier honestly includes a
 
 ## Open decisions (kept in TODO.md)
 
-Two value figures under review (Hotjar, Sketchup), the Vercel non-commercial terms question, favicon self-hosting, and sign-off on the "How we choose" page copy. The domain question is resolved: tools.airl.io is live with the canonical and social-preview URLs updated. The public-curator question is resolved: the root is public, the curator lives at `/x`.
+Two value figures under review (Hotjar, Sketchup), the Vercel non-commercial terms question, favicon self-hosting, and sign-off on the "How we choose" page copy. The domain question is resolved: tools.airl.io is live with the canonical and social-preview URLs updated. The public-curator question is resolved: the root is public, the curator lives at `/x`. New from Phase 12: batch-adding a service the register already holds currently creates a second row rather than merging with the existing one, since PRD-REGISTER §17 is silent on the case; Rocky's call on whether that's fine (consistent with a manual add) or should be prevented.

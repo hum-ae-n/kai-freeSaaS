@@ -2,8 +2,8 @@
 
 **Project:** `free-stack`
 **Owner:** Kaipability Ltd (Rocky Verma)
-**Version:** 1.3
-**Date:** 22 July 2026 (v1.0: 14 July 2026)
+**Version:** 1.4
+**Date:** 22 July 2026 (v1.0: 14 July 2026; v1.4: 26 July 2026)
 **Build tool:** Claude Code from this PRD
 **Deploy target:** Netlify via GitHub
 
@@ -382,7 +382,7 @@ Not for consultants, not for SEO. Write as if explaining to a smart person who h
 
 ## 11. Styling
 
-**Source of truth: `design-system/`** — the Kaipability brand system (v1.3; this section's original provisional palette of Source Sans 3 and `#c0392b` is superseded, recorded in the BUILD-PLAN changelog).
+**Source of truth: `design-system/`**: the Kaipability brand system (v1.3; this section's original provisional palette of Source Sans 3 and `#c0392b` is superseded, recorded in the BUILD-PLAN changelog).
 
 `css/styles.css` imports `design-system/colors_and_type.css` (tokens, self-hosted fonts, base type) and adds the app layer on top. Rules that bind:
 
@@ -457,3 +457,155 @@ The companion `tools.json` was calibrated from real-world consulting engagements
 15 active categories spanning AI, design, video, analytics, SEO, security, finance, CRM, marketing, e-commerce, business operations and developer infrastructure. The Grants & Business Support category holds only archived entries and no longer appears in the interface.
 
 When converting or extending the dataset, ensure every entry has: at least 2 alternatives with full URLs, at least 2 training resources with full URLs, a `domain` field in every `urls[]` entry for favicon resolution, and no em dashes in any text field.
+
+---
+
+## 16. Public Homepage
+
+The root path `/` remains the public, read-only, indexable directory established in Phase 10.12, redesigned for the first-time visitor. Two jobs, in order: earn trust in the first screenful, then offer three ways in. The Phase 10.12 "one CTA" description is superseded by the entry paths below; everything else from that decision (read-only, indexable, no summary bar, no cost chart, curator stays at `/x`) still binds.
+
+### Layout
+
+1. **Hero** (editorial, text-led, no imagery carousel, no metric inflation):
+   - Title and strapline as today.
+   - Three trust signals, all verifiable: the live tool count computed from the fetched `tools.json` active set (never hard-coded, never rounded up), the no-affiliates line ("No affiliates, no sponsors, no paid placement."), and the curator identity ("Curated by Kaipability Ltd" with the existing link).
+   - Hero copy holds the §10 honesty bar. No superlatives the data cannot back.
+
+2. **Entry paths**, three, equal visual weight:
+   - **Discover**: starts a Discover deck (§17).
+   - **Persona packs**: the five packs from `data/presets.json`, rendered as chips. Choosing one seeds a deck with that pack's ids (§17); it does not navigate away.
+   - **Browse all**: jumps to the full list below.
+
+3. **Browse list**: the existing category-grouped card directory, with judgement parity (below).
+
+### Ordering by viewport
+
+- **Below 768px**: condensed hero, then the Discover deck entry leading the page (the deck, or its start affordance, renders before the browse list), then the list. A phone visitor meets the deck first.
+- **768px and above**: hero, entry paths, then the browse list with grid quick-judge. The deck opens on demand from the Discover entry path, as an inline panel above the list, never a modal. Focus moves into the deck on open; Escape closes it and returns focus to the opener.
+
+### Grid quick-judge and list parity
+
+Judgement state (§17) is not deck-private. On the browse list:
+
+- A judged tool's card carries a state chip ("Got it" or "On my list"), which is a button. Activating it opens a small chooser: Got it / Add to my list / Clear. This works on every device and is the single edit path for judgements outside the deck.
+- On hover-capable, fine-pointer devices only (`@media (hover: hover) and (pointer: fine)`), unjudged cards additionally show two corner quick-judge buttons ("Got it", "Try it") on hover and on focus-within, so a desktop visitor can judge from the grid without opening the deck.
+- Every judgement control is a real button, minimum 44px target, and writes the same §17 persistence record the deck writes. Deck and list never disagree after a repaint.
+
+### Motion inventory
+
+This list is exhaustive. Any motion not named here is banned on the public surface (no parallax, no looping or ambient motion, no autoplaying anything):
+
+1. Staggered first-paint reveal of the hero and entry paths, 60-80ms per item, capped at the first screenful.
+2. Once-only reveals of list sections via `IntersectionObserver`, disconnecting after firing.
+3. Hover lift on cards, hover-capable devices only.
+4. Deck card physics per §17.
+5. The existing client-mode motion (Phase 7.6) is unchanged.
+
+Implementation constraints: CSS transitions and transforms only, driven by pointer events; no `requestAnimationFrame` animation loop; no animation library. Under `prefers-reduced-motion: reduce`, every item above degrades to instant opacity changes: no translation, no rotation, no stagger, and deck cards snap off and snap back without travel.
+
+### Platform and security
+
+- No new inline scripts in `index.html` or `embed.html`. The deck ships as an external module (`js/discover.js`) so the `netlify.toml` CSP hash set does not change. If an inline script ever becomes unavoidable, its hash lands in `netlify.toml` in the same commit with a changelog row.
+- All strings from `tools.json` and all user-visible state render through the existing `el()`/`textContent` discipline. Nothing is concatenated into HTML.
+- The homepage stays indexable: no robots meta at `/`. The deck module loads separately and its failure is tolerated the way `data/changelog.json` failure already is: the browse list must render even if `js/discover.js` never arrives.
+- External links keep `target="_blank" rel="noopener noreferrer"`.
+
+### Acceptance criteria
+
+1. The hero tool count equals the active (non-archived) entry count of the deployed `tools.json`, computed at runtime.
+2. All three entry paths are present and functional; a persona chip seeds a deck with that pack's ids.
+3. Below 768px the deck entry renders before the browse list; at 768px and above the list leads and the deck opens inline from the Discover path, with correct focus handling on open and Escape.
+4. A judgement made in the deck appears as a chip on the corresponding browse card, and clearing it from the chip chooser removes it from the deck's persistence record. Tool id 0 round-trips through this parity.
+5. Corner quick-judge buttons appear only under `(hover: hover) and (pointer: fine)`; the chip chooser works everywhere; all judgement targets are 44px minimum.
+6. With `prefers-reduced-motion: reduce`, no element translates or rotates: reveals and card exits are opacity-only.
+7. `js/discover.js` blocked or missing leaves the directory fully browsable with no console-error cascade.
+8. No inline script is added; the CSP hash set in `netlify.toml` is byte-identical before and after the phase (or a changelog row records the exception).
+9. Both themes, 375px with no horizontal scroll, and house style (no em dashes, British English) hold across all new copy.
+
+---
+
+## 17. Discover Deck
+
+A short card deck for judging tools one at a time. Swipe or press left for **"Got it"** (I already use this), right for **"Add to my list"** (I want to try it). Judgements persist on the device, so a returning visitor never re-judges a tool. The got-it list later prefills My Stack; the try-it list feeds the sign-up to-do generator (PRD-REGISTER §18-19).
+
+### Deck composition
+
+- A deck deals **10 to 12 cards** and always ends: a progress counter ("4 of 12") and a completion card are part of every deck. Never infinite.
+- Seeding, in priority order: a chosen persona pack (`data/presets.json` ids, filtered to active and unjudged), a chosen category, otherwise the default mix (unjudged core tools first, then unjudged tools spread across categories).
+- Only active tools are dealt. Only "new to you" ids (not in `seenIds`, below) are dealt, unless the visitor explicitly chooses to review judged tools again.
+- Fewer than 10 eligible ids: deal what remains. Zero: the entry point says so and offers review or browse instead of an empty deck.
+- The completion card summarises the counts ("3 got it, 4 on your list, 5 skipped"), and offers: **Open these in My Stack** (hand-off below), **Another deck**, and **Browse all**.
+
+### Card content
+
+Name, favicon (§8 rules), category, description (`plain` when Plain English mode is on and the tool has one), and the `free_limit` line when present. A card is never itself a link: a tap must never navigate mid-deck. A quiet "More" link may open the single-tool permalink `?tool=ID` in a new tab under the standard link rules.
+
+### Controls
+
+Buttons and keyboard are the primary controls; the gesture is an enhancement (WCAG 2.5.7: no function may require dragging).
+
+- **Buttons**, always visible beneath the card, 44px minimum: "Got it", "Skip", "Add to my list". **Skip is button-only**: no gesture maps to it, so an accidental drag can never silently discard a card.
+- **Keyboard**, while focus is within the deck: Left arrow = got it, Right arrow = add to my list, Backspace = undo, Escape = close the deck and return focus to the opener. Skip is reached as an ordinary button (Tab, then Enter or Space).
+- **Gesture** (pointer events, mouse and touch alike): the card container sets `touch-action: pan-y` so vertical page scroll always survives. A drag begins only after 10px of slop. A release commits the judgement when horizontal travel reaches 100px or 35% of the card width, whichever is smaller, or when release velocity reaches 0.5px/ms (a fling). Below threshold, the card snaps back and nothing is recorded.
+
+### Card physics
+
+CSS transforms only, set directly in the `pointermove` handler; no `requestAnimationFrame` loop, no library. Rotation of roughly 1 degree per 20px of horizontal travel, `transform-origin` bottom centre. Release animations (snap back, fly off) are CSS transitions. Under reduced motion, exits and returns are instant opacity changes with no travel.
+
+### Undo and announcements
+
+- **Single-level undo** (Backspace or the Undo button): the most recent card animates back onto the deck and its decision record is reversed, including its `seenIds` entry. One level only; undo of an undo redoes nothing.
+- An `aria-live="polite"` region announces each judgement and position: "Canva: added to your list. 5 of 12." The progress counter is text, not colour or position alone.
+
+### Persistence
+
+One localStorage key: **`freestack:v1:discover`**. Shape:
+
+```json
+{
+  "v": 1,
+  "lastVisit": "2026-07-26T10:00:00.000Z",
+  "seenIds": [0, 2, 5],
+  "decisions": {
+    "0": { "d": "have", "t": 1784023200000 },
+    "2": { "d": "want", "t": 1784023230000 },
+    "5": { "d": "skip", "t": 1784023260000 }
+  }
+}
+```
+
+- `d` is one of `have` (got it), `want` (add to my list), `skip`. `t` is epoch milliseconds. `decisions` keys are decimal id strings; **`"0"` is a valid key and tool 0 must survive every read and write**. Parse ids with `Number.parseInt` and validate with `Number.isInteger` against the catalogue; never a truthiness test, never `.filter(Boolean)`.
+- Unknown `v`: discard and start fresh. This key is a device-local working copy of low-stakes preferences, not a register; losing it costs re-judging, nothing more, and the copy must never claim otherwise (approved phrasing at most: "saved on this device"; §the register storage laws' ban on "safe" claims applies to all copy).
+- Storage unavailable (private mode, webview): the deck still deals and judges in memory for the session; nothing persists and no error is shown beyond honest wording if persistence is mentioned at all.
+- This key belongs to the public surface and is deliberately **outside `js/my/store.js`**, whose single-choke-point law governs `/my` persistence only. **No `/my` module may read this key.** The hand-off to My Stack travels entirely in the URL (below), keeping `store.js` the only storage-touching module on its surface.
+
+### New to you
+
+"New to you" means an active tool id absent from `seenIds`. No schema change: it is a set difference computed at render. Entry points may show the count ("31 tools you have not judged"). Archived tools are never counted and never dealt.
+
+### Hand-off: Open these in My Stack
+
+The completion card (and any equivalent affordance built from stored judgements) builds:
+
+```
+/my?from=<want-ids>&have=<have-ids>
+```
+
+- Both parameters use the `?t=` grammar: comma-separated integer ids, optional `t:` prefix accepted, parsed by the shared `parseSelection` (id 0 valid, duplicates and unknown ids dropped silently).
+- `from=` carries the **want** list; `have=` carries the **got-it** list. `skip` decisions never travel in the URL.
+- **Discover always emits the `have=` parameter when it emits this URL, even with an empty value** (`have=` with no ids). Its presence marks the arrival as a Discover hand-off, which is what tells the workspace to default the `from=` group to `planned` status (PRD-REGISTER §19). A legacy `?from=` link without `have=` behaves exactly as before.
+- Tool 0: `/my?have=0` is a complete, valid hand-off producing one got-it row.
+- Length limits: a raw parameter value longer than **512 characters** is treated as absent (defensive; every active tool today fits in under 400 characters, and `parseSelection` bounds the resolved list to the active catalogue regardless). If both resolved lists are empty the button is not rendered.
+
+### Acceptance criteria
+
+1. A deck deals 10-12 cards, shows "n of N" progress, and ends on a completion card with correct counts. No path deals infinitely.
+2. Judging by button, by keyboard and by gesture all write the same `freestack:v1:discover` record; a reload restores it; a second visit deals none of the judged ids by default.
+3. Tool 0 judged left appears under key `"0"` with `d: "have"`, survives reload, and appears in the `have=` hand-off URL.
+4. Skip has no gesture: no drag direction records a skip.
+5. A sub-threshold drag snaps back and records nothing; drags past 100px, past 35% width on a narrow card, and a 0.5px/ms fling all commit; vertical page scroll works over the deck on touch.
+6. Backspace undoes exactly the last judgement, animating the card back (instantly under reduced motion), and a second Backspace does not un-undo.
+7. The `aria-live` region announces judgement and position politely; Escape closes the deck and restores focus to the opener; every control is keyboard-reachable with visible focus.
+8. With localStorage blocked, a deck still deals and completes in-session without console errors.
+9. "Open these in My Stack" emits `from=` and `have=` per this section, including the always-emitted `have=` marker and the 512-character cap; no `skip` id ever appears in the URL.
+10. Reduced motion: no card translates or rotates at any point in the deck lifecycle.
