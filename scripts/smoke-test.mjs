@@ -382,6 +382,58 @@ const stateAfterDrag = await dragPage.evaluate(() => {
 check('discover: sub-threshold drag springs back with no decision recorded',
   idAfterDrag === idBeforeDrag && !stateAfterDrag?.decisions?.[idBeforeDrag],
   `before=${idBeforeDrag} after=${idAfterDrag} decisions=${JSON.stringify(stateAfterDrag?.decisions)}`);
+
+// Rocky's second phone-test finding (production, dark mode, mid-drag left):
+// the GOT IT stamp had no backing at all and landed directly on the
+// card's own title text, both becoming illegible together. Two guards,
+// per theme: the stamp's own computed background-color must carry alpha 1
+// (a solid token, never a translucent one), and at the commit distance
+// its bounding box must not intersect the card title's box, since it was
+// repositioned off the fixed top-of-card slot the title also lives in.
+async function checkStampLegibility(theme) {
+  const pg = await browser.newPage({ viewport: { width: 375, height: 812 } });
+  await pg.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await pg.goto(`${base}/`);
+  await pg.waitForSelector('#public-root .tool-card');
+  await pg.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
+  await clearDiscoverStorage(pg);
+  await pg.reload();
+  await pg.waitForSelector('#public-root .tool-card');
+  await pg.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
+  await pg.locator('[data-discover-entry]').click();
+  await pg.waitForSelector('.discover-card');
+
+  const alphaOk = await pg.evaluate(() => {
+    const alpha1 = (el) => {
+      const c = getComputedStyle(el).backgroundColor;
+      const m = c.match(/rgba?\(([^)]+)\)/);
+      const parts = m[1].split(',').map((s) => s.trim());
+      return parts.length === 3 || Number.parseFloat(parts[3]) === 1;
+    };
+    return alpha1(document.querySelector('.discover-stamp-have')) && alpha1(document.querySelector('.discover-stamp-want'));
+  });
+  check(`discover: ${theme} mode: both stamps have an opaque (alpha 1) background`, alphaOk, String(alphaOk));
+
+  const cardBox = await pg.locator('.discover-card').boundingBox();
+  const sx = cardBox.x + cardBox.width / 2;
+  const sy = cardBox.y + cardBox.height / 2;
+  await pg.mouse.move(sx, sy);
+  await pg.mouse.down();
+  await pg.mouse.move(sx - 40, sy, { steps: 2 });
+  await pg.mouse.move(sx - 110, sy, { steps: 4 }); // past the 100px commit floor
+  await pg.waitForTimeout(50);
+  const stampBox = await pg.locator('.discover-stamp-have').boundingBox();
+  const h3Box = await pg.locator('.discover-card-name').boundingBox();
+  const intersects = stampBox && h3Box
+    && stampBox.x < h3Box.x + h3Box.width && stampBox.x + stampBox.width > h3Box.x
+    && stampBox.y < h3Box.y + h3Box.height && stampBox.y + stampBox.height > h3Box.y;
+  check(`discover: ${theme} mode: the stamp never intersects the card title at commit distance`,
+    !intersects, JSON.stringify({ stampBox, h3Box }));
+  await pg.mouse.up();
+  await pg.close();
+}
+await checkStampLegibility('light');
+await checkStampLegibility('dark');
 await dragPage.close();
 
 // Escape restores focus to the opener button.
@@ -640,6 +692,41 @@ check('discover: the coach overlay appears on a genuinely first-ever deck open',
   (await coachFirstPage.locator('.discover-coach').count()) === 1);
 check('discover: judge buttons are disabled while the coach overlay is up',
   await coachFirstPage.locator('.discover-btn-have').isDisabled());
+
+// Rocky's phone-test finding: the old small side-text labels were unclear.
+// Both directions must now render in the same large, high-contrast stamp
+// treatment as the real in-card verdict stamps (colour reused exactly,
+// text visibly larger than the in-card stamp's fs-18), always at full
+// opacity so the message reads on a single static glance, not just mid
+// animation.
+const coachStampInfo = await coachFirstPage.evaluate(() => {
+  const have = document.querySelector('.discover-coach-stamp-have');
+  const want = document.querySelector('.discover-coach-stamp-want');
+  const px = (v) => Number.parseFloat(v);
+  return {
+    haveText: have?.textContent.trim(),
+    wantText: want?.textContent.trim(),
+    haveColor: have ? getComputedStyle(have).color : null,
+    wantColor: want ? getComputedStyle(want).color : null,
+    haveOpacity: have ? getComputedStyle(have).opacity : null,
+    arrowFontSize: have ? px(getComputedStyle(have.querySelector('.discover-coach-stamp-arrow')).fontSize) : 0,
+    inCardStampFontSize: px(getComputedStyle(document.querySelector('.discover-stamp-have')).fontSize),
+  };
+});
+const realStampColors = await coachFirstPage.evaluate(() => ({
+  have: getComputedStyle(document.querySelector('.discover-stamp-have')).color,
+  want: getComputedStyle(document.querySelector('.discover-stamp-want')).color,
+}));
+check('discover: both direction labels are present with the arrow and stamp word',
+  /got it/i.test(coachStampInfo.haveText) && coachStampInfo.haveText.includes('←')
+  && /my list/i.test(coachStampInfo.wantText) && coachStampInfo.wantText.includes('→'),
+  JSON.stringify({ have: coachStampInfo.haveText, want: coachStampInfo.wantText }));
+check('discover: the direction labels reuse the exact real-stamp colours (have and want)',
+  coachStampInfo.haveColor === realStampColors.have && coachStampInfo.wantColor === realStampColors.want,
+  JSON.stringify({ coach: { have: coachStampInfo.haveColor, want: coachStampInfo.wantColor }, real: realStampColors }));
+check('discover: the direction labels are visibly large, well past the in-card stamp size, and fully opaque',
+  coachStampInfo.arrowFontSize > coachStampInfo.inCardStampFontSize && coachStampInfo.haveOpacity === '1',
+  `arrow=${coachStampInfo.arrowFontSize} inCard=${coachStampInfo.inCardStampFontSize} opacity=${coachStampInfo.haveOpacity}`);
 
 await coachFirstPage.locator('.discover-coach-dismiss').click();
 await coachFirstPage.waitForTimeout(150);
