@@ -336,6 +336,18 @@ function springBack(card, reduced) {
     by that other path in that case, so calling it again would silently
     re-deal and discard whatever the reader is now looking at. */
 function exitCard(card, decision, reduced, done) {
+  // Cancel any still-running entrance animation first. A running CSS
+  // keyframe animation on transform/opacity takes precedence over a CSS
+  // transition on the same properties and blocks that transition from
+  // ever starting (per spec) until the animation ends, which meant a card
+  // judged before its own 200ms deal-in had finished never fired
+  // transitionend at all: the exit silently fell back to the 320ms
+  // setTimeout every time, and the judged card lingered, visually stuck,
+  // for as long as the animation was still notionally "in charge" of it.
+  // Removing the class here hands transform/opacity back to ordinary CSS
+  // (and this element's own inline styles) immediately, so the exit
+  // transition set up below always actually runs and fires on schedule.
+  card.classList.remove('discover-card-enter');
   const cleanup = () => {
     const stillCurrent = card.isConnected;
     card.remove();
@@ -383,6 +395,30 @@ function animateCardIn(card, fromDecision, reduced) {
     card.style.transform = 'none';
     card.style.opacity = '1';
   }));
+}
+
+/** Once-only staggered reveal (the completion card's tallies and buttons):
+    the same double-rAF-then-is-in, transition-delay-then-clear pattern
+    js/public.js uses for the homepage's first-paint reveal, kept local to
+    this module rather than imported, since public.js already depends on
+    discover.js and never the other way round. Under reduced motion every
+    node simply appears (opacity only, no delay, no stagger), matching the
+    DISCOVER CSS block's .discover-reveal rules for the same query. */
+function revealStagger(nodes, reduced) {
+  nodes.forEach((node, index) => {
+    if (!node) return;
+    node.classList.add('discover-reveal');
+    if (reduced) {
+      requestAnimationFrame(() => node.classList.add('is-in'));
+      return;
+    }
+    const delayMs = index * 70;
+    node.style.transitionDelay = `${delayMs}ms`;
+    requestAnimationFrame(() => requestAnimationFrame(() => node.classList.add('is-in')));
+    const clearDelay = () => { node.style.transitionDelay = ''; };
+    node.addEventListener('transitionend', clearDelay, { once: true });
+    setTimeout(clearDelay, delayMs + 400);
+  });
 }
 
 /** Pointer gesture: mouse and touch alike via the Pointer Events API. A drag
@@ -468,6 +504,12 @@ function attachGesture(card, reduced, { getThreshold, onCommit }) {
       claimed = true;
       captured = true;
       card.setPointerCapture(pointerId);
+      // Cancel any still-running deal-in animation the instant a drag is
+      // claimed, same reasoning as exitCard: a running keyframe animation
+      // on transform overrides an inline style on that same property, so
+      // dragging a card within its own 200ms entrance would otherwise not
+      // visibly respond to the pointer at all until the animation ended.
+      card.classList.remove('discover-card-enter');
       card.classList.add('discover-card-dragging');
     }
     event.preventDefault();
@@ -757,6 +799,12 @@ export function openDiscoverDeck(options) {
     attachGesture(card, reduced, { getThreshold: () => cardThreshold(card), onCommit: (decision) => judge(decision) });
     stage.replaceChildren(card);
     positionStamps(card); // after insertion: layout must exist to measure it
+    // New-card deal-in ("a few fancy animations"): a subtle rise and fade,
+    // distinct from the exit (sideways with rotation) and from undo's own
+    // animate-back. Never added at all under reduced motion, matching
+    // every other motion path in this file; the CSS media query is the
+    // second guard on top of that.
+    if (!reduced) card.classList.add('discover-card-enter');
   }
 
   function judge(decision) {
@@ -776,6 +824,19 @@ export function openDiscoverDeck(options) {
     const verdict = decision === 'have' ? 'added to what you already use'
       : decision === 'want' ? 'added to your list' : 'skipped';
     announce(`${tool.name}: ${verdict}. ${remaining} card${remaining === 1 ? '' : 's'} left.`);
+    // Stamp pop on commit: a single quick scale settle as the verdict
+    // locks, regardless of input method. Skip has no stamp of its own, so
+    // there is nothing to pop for that decision. A button or keyboard
+    // judgement never touched stamp opacity at all before this (only the
+    // drag gesture did), so this is also what makes those commits show a
+    // verdict stamp for the first time, not only a drag ever did.
+    if (card && decision !== 'skip') {
+      const stamp = card.querySelector(decision === 'have' ? '.discover-stamp-have' : '.discover-stamp-want');
+      if (stamp) {
+        stamp.style.opacity = '1';
+        if (!reduced) stamp.classList.add('discover-stamp-pop');
+      }
+    }
     if (card) exitCard(card, decision, reduced, dealCurrent);
     else dealCurrent();
   }
@@ -819,6 +880,7 @@ export function openDiscoverDeck(options) {
     undoBtn.hidden = true;
     progressEl.textContent = 'Done';
 
+    const headingEl = el('h3', {}, 'Deck complete');
     const summaryEl = el('p', {});
     const openInMyStackSlot = el('span', {});
     // Re-render just these two pieces, live, for as long as this exact
@@ -855,11 +917,17 @@ export function openDiscoverDeck(options) {
     });
     stage.replaceChildren(
       el('div', { class: 'discover-completion' },
-        el('h3', {}, 'Deck complete'),
+        headingEl,
         summaryEl,
         el('div', { class: 'discover-completion-actions' }, openInMyStackSlot, anotherDeckBtn, browseAllBtn),
       ),
     );
+    // Staggered reveal ("a few fancy animations"): the tallies and buttons
+    // arrive one after another rather than all at once, 70ms apart, once,
+    // never on later renderSummary() re-renders (those only ever touch
+    // summaryEl's text and openInMyStackSlot's single link in place, both
+    // of which stay mounted and already revealed).
+    revealStagger([headingEl, summaryEl, openInMyStackSlot, anotherDeckBtn, browseAllBtn], reduced);
   }
 
   function showEmptyState() {
