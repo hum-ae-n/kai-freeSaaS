@@ -281,7 +281,7 @@ Sequencing is deliberate: waves 12.1-12.3 ship the deck usable on its own before
 
 Rocky's 29 Jul direction: a first payment feature as a learning exercise, provider-agnostic. Build instructions live in `docs/PAYMENTS.md` (the spec for this phase): hosted checkout links only, no SDK, no CSP change, no backend, provider swappable by editing one constants file. Gated on Rocky completing Stripe setup and supplying the live payment link URLs; the site side is one small builder wave plus the usual verifier gate. The binding trust rule: payments never influence listings, and the no-affiliates line must remain literally true.
 
-- [ ] 13.0 Rocky: Stripe account, two products (tip, stack audit), payment links per docs/PAYMENTS.md section 3
+- [ ] 13.0 Rocky: Stripe account and tip payment link, GoCardless account and audit paylink, per docs/PAYMENTS.md section 3 (decided 29 Jul: both providers, one per product)
 - [ ] 13.1 Builder wave per docs/PAYMENTS.md section 4 (js/payments.js constants, public footer links, trust sentence, smoke checks), verifier gate, PR
 
 ---
