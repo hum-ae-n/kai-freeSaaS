@@ -1543,6 +1543,14 @@ button { font: inherit; }
 }
 
 .discover-card-body { display: flex; flex-direction: column; gap: var(--s-3); }
+/* Rocky's third phone-test note ("check fonts and text sizes... here too
+   big"): the h3 element selector in design-system/colors_and_type.css
+   pairs h3 with its own font-size (34px) AND line-height (40px). The rule
+   below already overrode the size to fs-21 to read as a card title rather
+   than a page heading, but never touched line-height, so the 40px leading
+   from the unrelated 34px scale stayed in effect regardless, loosening the
+   title far more than a 21px line needs. Set explicitly here so the two
+   always travel together. */
 .discover-card-name {
   display: flex;
   align-items: center;
@@ -1550,18 +1558,71 @@ button { font: inherit; }
   font-family: var(--font-sans);
   font-weight: 500;
   font-size: var(--fs-21);
+  line-height: var(--lh-21);
   color: var(--ink);
 }
+/* font-family and font-weight added to match the shared .eyebrow
+   convention used everywhere else a small-caps label appears (COMPONENTS
+   block above); colour deliberately stays --ink-3 rather than the
+   eyebrow's oxblood, since a card is dealt one at a time and the one-
+   accent-colour house style already spends oxblood on this same panel's
+   top border and primary buttons a few pixels away. */
 .discover-card-category {
   margin: 0;
   color: var(--ink-3);
+  font-family: var(--font-sans);
+  font-weight: 500;
   font-size: var(--fs-12);
   text-transform: uppercase;
   letter-spacing: var(--tr-eyebrow);
 }
-.discover-card-desc { margin: 0; color: var(--ink-2); max-width: none; }
+/* fs-16, not the inherited body default of fs-18: client mode's own
+   .card-desc (css/styles.css CLIENT block) sizes its description at fs-16,
+   and a deck card is the same kind of editorial card read at the same
+   distance, so it matches that register rather than the site's full body
+   copy size, which reads oversized in a compact panel this narrow. */
+.discover-card-desc { margin: 0; color: var(--ink-2); font-size: var(--fs-16); line-height: var(--lh-16); max-width: none; }
 .discover-card-limit { margin: 0; color: var(--ink-3); font-size: var(--fs-14); }
 .discover-card-more { align-self: flex-start; color: var(--ink-3); font-size: var(--fs-12); }
+
+/* New-card deal-in (motion inventory, "a few fancy animations"): a subtle
+   rise and fade as the next card arms, clearly distinct from the exit
+   (which travels sideways with rotation) and from undo's own animate-back
+   (js/discover.js's animateCardIn). Only ever added when !reduced in JS,
+   the CSS query below is the belt-and-braces second guard on top of that,
+   consistent with every other motion path in this block. */
+@keyframes discover-card-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.discover-card-enter { animation: discover-card-enter 200ms var(--ease-out); }
+@media (prefers-reduced-motion: reduce) {
+  .discover-card-enter { animation: none; }
+}
+
+/* Stamp pop on commit: a single quick scale settle as the verdict locks,
+   fired by js/discover.js on every commit regardless of input method (a
+   button or keyboard judgement never touched stamp opacity at all before
+   this, since only the drag gesture did, so a click used to show no stamp
+   whatsoever). Full transform is repeated at each stage rather than only
+   the scale term, since a CSS animation replaces the whole transform value
+   for its duration: without this the pop would visibly reset the stamp's
+   static translateY(-50%) rotate(...) positioning for as long as it ran. */
+@keyframes discover-stamp-pop-have {
+  0% { transform: translateY(-50%) rotate(-8deg) scale(0.85); }
+  60% { transform: translateY(-50%) rotate(-8deg) scale(1.08); }
+  100% { transform: translateY(-50%) rotate(-8deg) scale(1); }
+}
+@keyframes discover-stamp-pop-want {
+  0% { transform: translateY(-50%) rotate(8deg) scale(0.85); }
+  60% { transform: translateY(-50%) rotate(8deg) scale(1.08); }
+  100% { transform: translateY(-50%) rotate(8deg) scale(1); }
+}
+.discover-stamp-have.discover-stamp-pop { animation: discover-stamp-pop-have 220ms var(--ease-out); }
+.discover-stamp-want.discover-stamp-pop { animation: discover-stamp-pop-want 220ms var(--ease-out); }
+@media (prefers-reduced-motion: reduce) {
+  .discover-stamp-have.discover-stamp-pop, .discover-stamp-want.discover-stamp-pop { animation: none; }
+}
 
 /* First-open coaching overlay (Phase 12 close-out): a solid panel-toned
    layer, not a translucent scrim, so the semantic --positive/--info text
@@ -1677,6 +1738,24 @@ button { font: inherit; }
   gap: var(--s-4);
   padding: var(--s-6) 0;
 }
+/* The bare <h3>/<p> js/discover.js builds here carry no class of their own,
+   so with no rule scoped to this panel they fell straight through to the
+   design-system's page-level h3 (34px/40px) and body p (18px) defaults,
+   the same "too big for a compact panel" pattern the card content had.
+   Sized to match the deck card's own title and body registers instead, so
+   the whole panel reads at one consistent scale. */
+.discover-completion h3, .discover-empty h3 {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--fs-21);
+  line-height: var(--lh-21);
+  color: var(--ink);
+}
+.discover-completion p, .discover-empty p {
+  font-size: var(--fs-16);
+  line-height: var(--lh-16);
+  color: var(--ink-2);
+}
 .discover-completion-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1684,6 +1763,22 @@ button { font: inherit; }
   justify-content: center;
 }
 .discover-completion-actions .btn { min-height: 44px; }
+
+/* Completion-card staggered reveal ("a few fancy animations"): the same
+   once-only, transform+opacity, JS-gated-then-CSS-guarded pattern
+   js/public.js already uses for the homepage's first-paint reveal, scoped
+   locally here rather than imported, since public.js depends on this
+   module and never the other way round. */
+.discover-reveal {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out);
+}
+.discover-reveal.is-in { opacity: 1; transform: translateY(0); }
+@media (prefers-reduced-motion: reduce) {
+  .discover-reveal { transition: opacity 120ms var(--ease-out); transform: none; }
+  .discover-reveal.is-in { transform: none; }
+}
 
 /* Reduced motion: belt-and-braces CSS guard behind the same query
    js/discover.js checks before ever touching a transform. Even if a
@@ -1908,6 +2003,23 @@ button { font: inherit; }
   gap: var(--s-1);
 }
 .my-tile-value { font-family: var(--font-sans); font-size: var(--fs-34); font-weight: 500; color: var(--oxblood); }
+/* Sentence-scale value (Rocky's phone-test fix): the big stat-numeral style
+   above suits a short count ("1", "0"); it is wrong for a status sentence
+   (the backup-age tile's "Last exported 2 days ago (11 changes since
+   then): export again soon" rendered as four lines of giant text at
+   375px). This modifier drops to body size and normal line height while
+   keeping the tile's own status colour, one level lower per parent class
+   below: quiet ink-2 at rest, --noncore-fg for amber and --oxblood for red,
+   the same colour pairing already used by the .my-age-chip in the sidebar
+   footer and Backup screen. --noncore-fg (not raw --caution) is
+   deliberate: raw --caution on --paper clears only ~2.8:1 in light mode at
+   body size, below the 4.5:1 body-text minimum, though it is fine as a
+   border/non-text accent (3:1) or on the numeral scale (large-text 3:1
+   rule). --oxblood already clears 4.5:1 at body size in both themes
+   (7.2:1 light, 5.8:1 dark against --paper), so red keeps it unchanged. */
+.my-tile-value--text { font-size: var(--fs-16); line-height: var(--lh-16); font-weight: 400; color: var(--ink-2); }
+.my-tile-amber .my-tile-value--text { color: var(--noncore-fg); }
+.my-tile-red .my-tile-value--text { color: var(--oxblood); }
 .my-tile-label { font-size: var(--fs-14); color: var(--ink-2); }
 .my-tile-ok { border-top-color: var(--positive); }
 .my-tile-amber { border-top-color: var(--caution); }

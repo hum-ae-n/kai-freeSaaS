@@ -436,6 +436,58 @@ await checkStampLegibility('light');
 await checkStampLegibility('dark');
 await dragPage.close();
 
+// Rocky's third phone-test finding ("check fonts and text sizes... here
+// too big", the deck card's description reading oversized at 375-390px):
+// the description must match client mode's own card-desc register, not
+// the site's larger default body-copy size, and the title must actually
+// be set in the brand heading font rather than silently falling back to a
+// generic sans-serif (which would also read as "wrong" even at the
+// correct size).
+const typographyPage = await browser.newPage({ viewport: { width: 375, height: 812 } });
+await typographyPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await openDiscoverDeck(typographyPage);
+await clearDiscoverStorage(typographyPage);
+await typographyPage.reload();
+await typographyPage.waitForSelector('#public-root .tool-card');
+await typographyPage.locator('[data-discover-entry]').click();
+await typographyPage.waitForSelector('.discover-card');
+const deckDescSize = await typographyPage.locator('.discover-card-desc').evaluate((n) => Number.parseFloat(getComputedStyle(n).fontSize));
+const deckTitleFont = await typographyPage.locator('.discover-card-name').evaluate((n) => getComputedStyle(n).fontFamily);
+await typographyPage.close();
+
+const clientComparisonPage = await browser.newPage({ viewport: { width: 375, height: 812 } });
+await clientComparisonPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await clientComparisonPage.goto(`${base}/?t=0,2,6&client=Test`);
+await clientComparisonPage.waitForSelector('.tool-card');
+const clientDescSize = await clientComparisonPage.locator('.tool-card .card-desc').first().evaluate((n) => Number.parseFloat(getComputedStyle(n).fontSize));
+await clientComparisonPage.close();
+
+check('discover: at 375px the deck card description is at or below the client-mode card description size',
+  deckDescSize <= clientDescSize, `deck=${deckDescSize}px client=${clientDescSize}px`);
+check('discover: the deck card title renders in the brand heading font, not a fallback',
+  deckTitleFont.trim().startsWith('"Galano Grotesque"') || deckTitleFont.trim().startsWith('Galano Grotesque'),
+  deckTitleFont);
+
+// Reduced motion: the two new animated paths (new-card deal-in, stamp pop
+// on commit) must yield zero transform transitions/animations, the same
+// guarantee every other motion path in this module already carries.
+const reducedDiscoverPage = await browser.newPage();
+await reducedDiscoverPage.emulateMedia({ reducedMotion: 'reduce' });
+await reducedDiscoverPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await openDiscoverDeck(reducedDiscoverPage);
+await clearDiscoverStorage(reducedDiscoverPage);
+await reducedDiscoverPage.reload();
+await reducedDiscoverPage.waitForSelector('#public-root .tool-card');
+await reducedDiscoverPage.locator('[data-discover-entry]').click();
+await reducedDiscoverPage.waitForSelector('.discover-card');
+const enterAnimationName = await reducedDiscoverPage.locator('.discover-card').evaluate((n) => getComputedStyle(n).animationName);
+check('discover: reduced motion: the new-card deal-in carries no animation', enterAnimationName === 'none', enterAnimationName);
+await reducedDiscoverPage.locator('.discover-btn-have').click();
+await reducedDiscoverPage.waitForTimeout(30);
+const stampPopAnimationName = await reducedDiscoverPage.locator('.discover-stamp-have').evaluate((n) => getComputedStyle(n).animationName).catch(() => 'gone');
+check('discover: reduced motion: the stamp pop on commit carries no animation', stampPopAnimationName === 'none' || stampPopAnimationName === 'gone', stampPopAnimationName);
+await reducedDiscoverPage.close();
+
 // Escape restores focus to the opener button.
 const escPage = await browser.newPage();
 await escPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
@@ -1678,6 +1730,21 @@ await setBackupMeta(myFlow, { lastExportAt: daysAgoIso(5), savesSinceExport: 10 
 await myFlow.reload();
 await myFlow.waitForSelector('.my-age-chip');
 check('my: backup-age red after 10 or more saves since export', await myFlow.locator('.my-age-chip.my-age-chip-red').count() === 1);
+
+/* Rocky's 28 Jul phone find: the backup-age tile rendered its whole status
+   sentence at the 34px stat-numeral size. Long (textual) tile values must
+   drop to the body register; numeric tiles keep the big numerals. */
+await setBackupMeta(myFlow, { lastExportAt: daysAgoIso(2), savesSinceExport: 11 });
+await myFlow.reload();
+await myFlow.waitForSelector('.my-tiles');
+const backupTileValue = myFlow.locator('.my-tile-value--text').first();
+check('my: backup-age tile sentence renders at body scale, not the stat-numeral size',
+  await backupTileValue.count() === 1
+  && await backupTileValue.evaluate((n) => getComputedStyle(n).fontSize) === '16px',
+  await backupTileValue.count() ? await backupTileValue.evaluate((n) => getComputedStyle(n).fontSize) : 'missing');
+const numericTileValue = myFlow.locator('.my-tile-value:not(.my-tile-value--text)').first();
+check('my: numeric tiles keep the stat-numeral size',
+  parseInt(await numericTileValue.evaluate((n) => getComputedStyle(n).fontSize), 10) >= 30);
 
 await myFlow.close();
 await myCtx.close();

@@ -1449,9 +1449,17 @@ export async function renderWorkspace(root) {
         'no-owner': riskAccounts.filter((a) => hasNoOwner(a.owner)).length,
         'renewing-soon': riskAccounts.filter((a) => isRenewalSoon(a.renewal)).length,
       };
+      // Two value treatments share one tile shell (Rocky's phone-test fix):
+      // a short number reads as the big stat-numeral style; anything textual
+      // (the backup-age tile's status sentence today, whatever else might
+      // ever carry a long string tomorrow) gets the sentence-scale modifier
+      // instead, so a run of prose never inherits 34px numeral typography.
+      // The check is on the JS value's type, not the tile's identity, so the
+      // treatment follows the data rather than a hardcoded tile name.
       function tile(value, labelText, level, onClick) {
+        const isTextValue = typeof value !== 'number';
         const btn = el('button', { class: `panel my-tile${level ? ` my-tile-${level}` : ''}`, type: 'button' },
-          el('span', { class: 'my-tile-value' }, String(value)),
+          el('span', { class: `my-tile-value${isTextValue ? ' my-tile-value--text' : ''}` }, String(value)),
           el('span', { class: 'my-tile-label' }, labelText));
         btn.addEventListener('click', onClick);
         return btn;
