@@ -683,6 +683,15 @@ Start with Google Business Profile, free forever and the single biggest factor i
 **Q10. What free security tools should a small business start with?**
 Bitwarden Free gives unlimited passwords across unlimited devices, including a free two-person sharing option. Have I Been Pwned checks whether your email addresses appear in known data breaches, free for individual lookups. Google Password Checkup flags reused or compromised passwords at no cost. These three cover the basics before you spend anything on security.
 
+### Per-tool questions (Rocky's 30 Jul direction: every tool carries one)
+
+Every active tool gets a question-shaped entry, because "Is [tool] free for a small business?" is the exact phrasing people and answer engines use, 89 times over, and the honest answers already exist in the dataset. Rules:
+
+- **Derived at generation time, never hand-maintained by default.** `scripts/build-seo.mjs` composes each tool's question and answer mechanically from existing fields: the question from the tool's name ("Is Canva Free actually free for a small business?" pattern, with sensible variants for grouped names), the answer assembled from `free_limit` (verbatim where present), `description`, `paid_from` ("paid plans from £N/month") and up to two alternatives by name. Answers are 40-80 words, standing alone, section 10 honesty throughout. A tool without `free_limit` gets the description-led variant, never an invented claim.
+- **An optional hand-written override may be added to the schema later** (an `faq` field, section 4) if generated phrasing reads awkwardly for specific tools; until then generation keeps maintenance at zero, the same bet as the rest of the site.
+- **Where it surfaces.** (1) In each tool's entry inside the static crawler content block, as a heading-and-paragraph pair, so non-JS crawlers get the question-led text. (2) On the `?tool=` permalink view, rendered visibly to humans in the same words, keeping parity between what engines read and what people see. (3) NOT in the FAQPage JSON-LD: an 89-item FAQPage is spam-shaped; the ten site-level questions remain the only FAQPage payload, and per-tool questions live as ordinary marked-up text.
+- The drift gate covers these like everything else the generator emits: regenerating against the current `tools.json` must be byte-identical to what is committed.
+
 ### Title and meta description
 
 The generator maintains these in `index.html`, keeping the count live:
