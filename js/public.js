@@ -34,9 +34,33 @@
  * same ownership boundary. The rail is a normal-flow sibling, never an
  * absolutely-positioned overlay: see buildJudgeRail's own comment for why
  * (re-verify round 2 found a measured-overlay shape geometrically unsound).
+ *
+ * PHASE 14.1 (PRD section 16 as amended, v1.5, "compact landing"): the flat
+ * browse list below is now 15 collapsed category shelves, one <section> per
+ * category, each a single 44px header row (icon, name, count, a truncated
+ * "scent" of tool names, chevron) that reveals its card grid on click. The
+ * "Browse all" entry card is retired; its job passes to the shelves plus the
+ * Expand all / Collapse all toggle on the shelf-band header. Search is
+ * promoted into the ways-in band, full width, its placeholder count-bearing.
+ *
+ * The key architectural change from 12.1: buildCardSections() is now called
+ * exactly ONCE per plain-English toggle, against the full active list, never
+ * per keystroke. Search and persona filtering no longer rebuild any DOM at
+ * all; they only toggle the `hidden` IDL property on individual <li> cards
+ * and on whole shelf <section>s, which is what makes shelf collapse "CSS
+ * only" and the rendered DOM "a superset of the previous layout's" (PRD
+ * section 16, "Shelf mechanics"): every one of the 89 active cards is always
+ * attached, nothing is ever lazily fetched, deferred or removed. This also
+ * retires the per-category scroll-reveal system 12.1 built (revealOnIntersect
+ * for categories past the first): with shelves collapsed by default there is
+ * no "first screenful of cards" to animate in, and the shelf-open stagger
+ * itself is wave 14.2's job (the motion inventory), not this one's. The
+ * hero/entry-band first-paint reveal (motion item 1) is unchanged.
  */
 import { el, themeToggleButton, readPlainMode, writePlainMode } from './data-loader.js';
-import { buildCardSections } from './client.js';
+import { buildCardSections, categoryIcon } from './client.js';
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
 
 /** Shared across every call (there is only ever one renderPublic() per page
     load in practice, but this also means the Discover button's own click
@@ -66,15 +90,15 @@ function matchesSearch(tool, term, plainMode) {
   return haystacks.some((h) => h.includes(term));
 }
 
-/* --- motion (PRD section 16, motion inventory items 1 and 2) ---------------
+/* --- motion (PRD section 16, motion inventory item 1) ----------------------
    matchMedia is read before any animation class is ever applied, per the
    phase brief: a reduced-motion visitor never receives the transform-based
    class at all, only the opacity-only one, and the CSS behind the same
-   query is a second, belt-and-braces guard on top of that JS choice. Both
-   reveal classes are used purely for entrance: once .is-in lands, the CSS
-   transition owns the change, there is no requestAnimationFrame loop and no
-   scroll-linked effect, only a one-shot IntersectionObserver per element
-   that disconnects itself the moment it has fired. */
+   query is a second, belt-and-braces guard on top of that JS choice. Wave
+   14.1 scopes this to the hero and ways-in band only (see the file banner):
+   the per-category card reveal 12.1 built is retired along with the flat
+   list it revealed, since collapsed shelves have no "first screenful of
+   cards" left to animate, and shelf-open motion is wave 14.2's inventory. */
 function prefersReducedMotion() {
   return matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
@@ -83,8 +107,8 @@ const STAGGER_MS = 70; // within the PRD's 60-80ms band
 const FIRST_SCREEN_CAP = 6; // "capped at the first screenful" (PRD section 16)
 
 /** First-paint reveal: fires once, immediately, with a per-item delay. Used
-    for the hero, the three entry paths and the first category's cards, all
-    of which are meant to be visible without scrolling. */
+    for the hero and the two ways-in entry items, all of which are meant to
+    be visible without scrolling. */
 function revealFirstPaint(node, index, reduced) {
   if (!node) return;
   if (reduced) {
@@ -105,33 +129,52 @@ function revealFirstPaint(node, index, reduced) {
   // transition the PUBLIC block puts on this same node for first-screen
   // cards (.card-grid > li). Clearing it once the entrance transition ends
   // (with a timeout fallback in case transitionend never fires, e.g. a
-  // backgrounded tab) keeps the stagger scoped to the entrance only, so a
-  // hovered first-screen card lifts with no residual delay.
+  // backgrounded tab) keeps the stagger scoped to the entrance only.
   const clearDelay = () => { node.style.transitionDelay = ''; };
   node.addEventListener('transitionend', clearDelay, { once: true });
   setTimeout(clearDelay, delayMs + 500);
 }
 
-/** Once-only scroll reveal for a list section below the first screenful.
-    The observer disconnects itself the instant it fires, per the PRD's
-    "no scroll-linked effects" rule: this is a one-time entrance, never a
-    parallax or repeating effect. */
-function revealOnIntersect(node, reduced) {
-  if (!node) return;
-  if (reduced) {
-    node.classList.add('pub-reveal-reduced', 'is-in');
-    return;
+/** Category name to a URL-safe fragment for the `#cat-<slug>` deep link and
+    the shelf grid's own id (the aria-controls target). Lower-cased,
+    non-alphanumerics collapsed to a single hyphen, trimmed of leading and
+    trailing hyphens: "AI Assistants" -> "ai-assistants". */
+function slugify(text) {
+  return text.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+/** A plain chevron, hand-built the same way data-loader.js's theme icon and
+    client.js's category icons are (no icon font, no extra request). Rotated
+    by a static CSS rule keyed off the header's own aria-expanded value: a
+    state change, not an animation, so it carries no transition of its own
+    (this wave introduces no new animation styles; the showpiece shelf-open
+    stagger is wave 14.2's). */
+function chevronIcon() {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  for (const [key, value] of Object.entries({
+    viewBox: '0 0 24 24', width: '18', height: '18', fill: 'none',
+    stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round',
+    'stroke-linejoin': 'round', 'aria-hidden': 'true', class: 'pub-shelf-chevron',
+  })) svg.setAttribute(key, value);
+  const path = document.createElementNS(SVG_NS, 'path');
+  path.setAttribute('d', 'm6 9 6 6 6-6');
+  svg.append(path);
+  return svg;
+}
+
+/** Groups tools by category, insertion order preserved, the same grouping
+    buildCardSections does internally. Called on the same array in the same
+    order as the buildCardSections() call below, so the two orderings can
+    never drift apart: this is what lets shelf metadata (count, scent, tool
+    ids) be computed straight from tools.json rather than scraped back out
+    of the rendered card DOM. */
+function groupByCategory(list) {
+  const map = new Map();
+  for (const tool of list) {
+    if (!map.has(tool.category)) map.set(tool.category, []);
+    map.get(tool.category).push(tool);
   }
-  node.classList.add('pub-reveal');
-  const observer = new IntersectionObserver((entries) => {
-    for (const entry of entries) {
-      if (!entry.isIntersecting) continue;
-      entry.target.classList.add('is-in');
-      observer.unobserve(entry.target);
-      observer.disconnect();
-    }
-  }, { threshold: 0.12 });
-  observer.observe(node);
+  return map;
 }
 
 export function renderPublic(root, tools) {
@@ -139,6 +182,7 @@ export function renderPublic(root, tools) {
   // reader could actually adopt today, same rule the curator table follows.
   const active = tools.filter((t) => !t.archived);
   const activeIds = new Set(active.map((t) => t.id));
+  const toolsById = new Map(active.map((t) => [t.id, t]));
   let plainMode = readPlainMode();
   let searchTerm = '';
   // Persona-pack filter (PRD section 16, entry path 2). null means "no pack
@@ -148,19 +192,28 @@ export function renderPublic(root, tools) {
   // an id (id 0 is a real tool and must survive this filter untouched).
   let activePersonaIds = null;
   let activePersonaChip = null;
-  let hasRevealedList = false;
   // Discover deck open/close wiring (PRD section 17): discoverOpen tracks
   // whether the panel is currently mounted so a second click on the button
   // refocuses it rather than mounting a duplicate; discoverLoading guards a
   // rapid double click against a duplicate in-flight dynamic import.
   let discoverOpen = false;
   let discoverLoading = false;
+  // Discover's read/write API (getDecision/setDecision/clearDecision), once
+  // js/discover.js has loaded; null until then, and forever null if it
+  // never arrives, in which case every card simply renders with no
+  // judgement parity controls at all.
+  let judgeApi = null;
+  // Shelf records, rebuilt only when plainMode toggles (card body text is
+  // baked in at render time); search and persona filtering below never
+  // touch this array's membership, only the hidden/aria-expanded state of
+  // the nodes it already holds.
+  let shelves = [];
 
   /* --- hero (PRD section 16, "Hero") ---------------------------------------
-     Title and strapline as before, plus the three verifiable trust signals:
-     the live count (derived from the same active-tools filter the card
-     grid itself uses, never a separate hard-coded figure), the no-affiliates
-     line verbatim, and the curator identity with its existing link. */
+     Tightened but unchanged in content: the live count (derived from the
+     same active-tools filter the shelves themselves use, never a separate
+     hard-coded figure), the no-affiliates line verbatim, and the curator
+     identity with its existing link. */
   const heroTrust = el('div', { class: 'pub-hero-trust' },
     el('p', { class: 'pub-hero-trust-item pub-hero-count' },
       el('strong', {}, String(active.length)),
@@ -179,62 +232,56 @@ export function renderPublic(root, tools) {
     heroTrust,
   );
 
-  /* --- entry paths (PRD section 16, "Entry paths") -------------------------
-     Three equal-weight ways in: Discover (a stub this wave, see the module
-     comment above), persona packs (data/presets.json, fetched the same
-     non-blocking way the changelog strip already is) and Browse all. All
-     three sit in one shared grid; mobile vs desktop ordering is handled by
-     CSS layout alone (see the PUBLIC block of styles.css), never by
-     rendering the markup twice. */
+  /* --- ways-in band (PRD section 16, "Ways-in band") -----------------------
+     Search promoted to first-class, full width, its placeholder count
+     computed at runtime, above the Discover and persona-pack entry items.
+     The "Browse all" entry card is retired: its job passes to the shelves
+     below plus the Expand all / Collapse all toggle on the shelf-band
+     header. Mobile vs desktop ordering of the two remaining entry items is
+     handled by CSS layout alone (see the PUBLIC block of styles.css), never
+     by rendering the markup twice. */
+  const searchInput = el('input', {
+    class: 'input pub-search', type: 'search',
+    placeholder: `Search ${active.length} tool${active.length === 1 ? '' : 's'}: invoicing, design, CRM…`,
+    'aria-label': 'Search the directory',
+  });
+  searchInput.addEventListener('input', () => {
+    searchTerm = searchInput.value.trim().toLowerCase();
+    applyFilter();
+  });
+  const searchRow = el('div', { class: 'pub-search-row' }, searchInput);
+
+  // PRD section 16: "Discover entry: button plus one-line pitch" and
+  // "Persona chips: behaviour unchanged". Neither calls for the heading and
+  // padded-panel treatment Phase 12.1's three-equal-card design used; the
+  // compact landing needs the ways-in band to actually be compact, so this
+  // wave drops that chrome in favour of a lean pitch line plus its control,
+  // which is also most of what closes the gap to the page-height budget's
+  // "first shelf rows visible within the first mobile viewport" clause.
   const discoverBtn = el('button', {
     class: 'btn btn-primary btn-lg pub-discover-btn', type: 'button',
     dataset: { discoverEntry: '1' },
   }, 'Start Discover');
   const discoverItem = el('div', { class: 'pub-entry-item pub-entry-discover' },
-    el('h2', {}, 'Discover'),
-    el('p', { class: 't-small' }, 'A short deck of tools, one at a time. Say what you already use and what you want to try.'),
+    el('p', { class: 'pub-entry-pitch' }, 'Discover: a short deck of tools, one at a time. Say what you already use and what you want to try.'),
     discoverBtn,
   );
 
   const personaChipRow = el('div', { class: 'pub-persona-chip-row' });
   const personaItem = el('div', { class: 'pub-entry-item pub-entry-personas' },
-    el('h2', {}, 'Persona packs'),
-    el('p', { class: 't-small' }, 'Ready-made shortlists for common situations. Choose one to filter the list below.'),
+    el('p', { class: 'pub-entry-pitch' }, 'Or jump to a ready-made shortlist for your situation:'),
     personaChipRow,
   );
 
-  const browseBtn = el('button', {
-    class: 'btn btn-ghost btn-lg pub-browse-btn', type: 'button',
-    dataset: { browseEntry: '1' },
-  }, 'Browse all tools');
-  const browseItem = el('div', { class: 'pub-entry-item pub-entry-browse' },
-    el('h2', {}, 'Browse all'),
-    el('p', { class: 't-small' }, `Every one of the ${active.length} tools, grouped by category.`),
-    browseBtn,
-  );
-
   const entryPaths = el('section', { class: 'pub-entry', 'aria-label': 'Ways to find a tool' },
-    el('div', { class: 'pub-entry-grid' }, discoverItem, personaItem, browseItem),
+    searchRow,
+    el('div', { class: 'pub-entry-grid' }, discoverItem, personaItem),
   );
 
   // Deck mount point (PRD section 16: "an inline panel above the list,
-  // never a modal"). Sits right after the entry paths and before the
-  // changelog/toolbar/list, so it reads as inline above the list on every
-  // viewport, and below 768px it is already ahead of the browse list simply
-  // by DOM order, same as the entry paths themselves. discover.js owns
-  // everything rendered inside it once opened.
+  // never a modal"). discover.js owns everything rendered inside it once
+  // opened.
   const discoverMount = el('div', { class: 'discover-mount', hidden: true });
-
-  /* --- toolbar: search, Plain English, theme ------------------------------- */
-  const searchInput = el('input', {
-    class: 'input pub-search', type: 'search',
-    placeholder: 'Search tools, categories, descriptions…',
-    'aria-label': 'Search the directory',
-  });
-  searchInput.addEventListener('input', () => {
-    searchTerm = searchInput.value.trim().toLowerCase();
-    draw();
-  });
 
   const plainBtn = el('button', {
     class: 'btn btn-ghost btn-lg plain-toggle', type: 'button', 'aria-pressed': String(plainMode),
@@ -243,18 +290,17 @@ export function renderPublic(root, tools) {
     plainMode = !plainMode;
     writePlainMode(plainMode);
     plainBtn.setAttribute('aria-pressed', String(plainMode));
-    draw();
+    // Card body text (plain vs normal) is baked in at render time by
+    // client.js's card(), so this is the one action in this file that still
+    // rebuilds shelf DOM wholesale rather than toggling hidden/aria state.
+    shelves = buildShelves(active, plainMode);
+    applyFilter();
   });
+  const miniToolbar = el('div', { class: 'pub-toolbar' }, plainBtn, themeToggleButton('btn-ghost btn-lg'));
 
-  // id is the scroll target for both the Discover stub and Browse all: the
-  // start of the browse list itself, so either entry path lands a reader in
-  // the same place rather than two subtly different ones.
-  const toolbar = el('div', { class: 'pub-toolbar', id: 'pub-browse-list' }, searchInput, plainBtn, themeToggleButton('btn-ghost btn-lg'));
-
-  function scrollToBrowse() {
-    toolbar.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+  function scrollToShelfBand() {
+    shelfBand.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
   }
-  browseBtn.addEventListener('click', scrollToBrowse);
 
   discoverBtn.addEventListener('click', async () => {
     if (discoverOpen) {
@@ -280,15 +326,15 @@ export function renderPublic(root, tools) {
         // with .filter(Boolean), so tool id 0 survives untouched.
         seed: activePersonaIds ? { type: 'persona', ids: [...activePersonaIds] } : { type: 'default' },
         onClose: () => { discoverOpen = false; },
-        onBrowseAll: () => { discoverOpen = false; scrollToBrowse(); },
+        onBrowseAll: () => { discoverOpen = false; scrollToShelfBand(); },
       });
       discoverMount.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
     } catch (cause) {
       // js/discover.js failing to load must never dead-end the directory:
       // fall back to the original stub behaviour (PRD section 16,
       // "the browse list must render even if js/discover.js never arrives").
-      console.warn('Discover deck unavailable, falling back to the browse list:', cause);
-      scrollToBrowse();
+      console.warn('Discover deck unavailable, falling back to the shelf band:', cause);
+      scrollToShelfBand();
     } finally {
       discoverLoading = false;
     }
@@ -301,8 +347,164 @@ export function renderPublic(root, tools) {
   const changelogSection = el('section', { class: 'panel pub-changelog', hidden: true, 'aria-label': 'Recently updated' });
   loadChangelog(changelogSection);
 
-  /* --- tool list, grouped by category, rebuilt on search/plain change ------ */
-  const listWrap = el('div', { class: 'pub-list' });
+  /* --- category shelves (PRD section 16, "Category shelves", "Shelf
+     mechanics") ---------------------------------------------------------- */
+  const matchCountLine = el('p', { class: 'pub-shelf-match-count', hidden: true, 'aria-live': 'polite' });
+  const expandAllBtn = el('button', {
+    class: 'btn btn-ghost pub-expand-all', type: 'button', 'aria-pressed': 'false',
+  }, 'Expand all');
+  expandAllBtn.addEventListener('click', () => {
+    const shouldOpen = !allShelvesOpen();
+    for (const shelf of shelves) setShelfOpen(shelf, shouldOpen, true);
+    syncExpandAllLabel();
+  });
+  const shelfBandHeader = el('div', { class: 'pub-shelf-band-header' },
+    el('h2', { class: 'pub-shelf-band-title' }, 'Browse all tools'),
+    expandAllBtn,
+  );
+  const shelvesWrap = el('div', { class: 'pub-shelves' });
+  const shelfBand = el('section', {
+    class: 'pub-shelf-band', id: 'pub-browse-list', 'aria-label': 'Browse by category',
+  }, shelfBandHeader, matchCountLine, shelvesWrap);
+
+  function allShelvesOpen() {
+    return shelves.length > 0 && shelves.every((s) => !s.grid.hidden);
+  }
+  function syncExpandAllLabel() {
+    const open = allShelvesOpen();
+    expandAllBtn.textContent = open ? 'Collapse all' : 'Expand all';
+    expandAllBtn.setAttribute('aria-pressed', String(open));
+  }
+  /** manual: true when the change comes from an explicit user toggle (a
+      shelf header, Expand all/Collapse all, a deep link); false when the
+      search/persona filter is forcing a shelf open temporarily, which must
+      not overwrite the manually-chosen state that clearing the filter later
+      restores. */
+  function setShelfOpen(shelf, open, manual) {
+    shelf.grid.hidden = !open;
+    shelf.headerBtn.setAttribute('aria-expanded', String(open));
+    if (manual) shelf.manualOpen = open;
+  }
+
+  /** Builds one <section> per category from a single buildCardSections()
+      call, discarding client.js's own <h2> in favour of the shelf's button
+      header (which already carries the category name and icon, plus the
+      count/scent/chevron the plain heading never had): buildCardSections()
+      itself is untouched, this is purely how its output is wrapped. The
+      grid (`ul.card-grid`) is kept exactly as rendered; only its `hidden`
+      IDL property changes hereafter, never its children. */
+  function buildShelves(activeTools, plain) {
+    const sections = buildCardSections(activeTools, { plainMode: plain, showToggle: false });
+    const grouped = groupByCategory(activeTools);
+    const built = [];
+    const nodes = [];
+    let i = 0;
+    for (const [category, toolsInCat] of grouped) {
+      const grid = sections[i * 2 + 1]; // sections[i*2] is the discarded h2
+      i += 1;
+      grid.classList.add('pub-shelf-grid');
+      grid.hidden = true; // collapsed by default; CSS-only via the [hidden] rule
+      const slug = slugify(category);
+      const gridId = `shelf-grid-${slug}`;
+      grid.id = gridId;
+      const count = toolsInCat.length;
+      const scentText = toolsInCat.map((t) => t.name).join(', ');
+      const headerBtn = el('button', {
+        class: 'pub-shelf-header', type: 'button',
+        'aria-expanded': 'false', 'aria-controls': gridId,
+      },
+        categoryIcon(category),
+        el('span', { class: 'pub-shelf-name' }, category),
+        el('span', { class: 'pub-shelf-count' }, `· ${count} tool${count === 1 ? '' : 's'}`),
+        el('span', { class: 'pub-shelf-scent' }, scentText),
+        chevronIcon(),
+      );
+      const section = el('section', { class: 'pub-shelf', id: `cat-${slug}` },
+        el('h2', { class: 'pub-shelf-heading' }, headerBtn),
+        grid,
+      );
+      const shelf = {
+        category, section, headerBtn, grid,
+        toolIds: new Set(toolsInCat.map((t) => t.id)),
+        manualOpen: false,
+      };
+      headerBtn.addEventListener('click', () => {
+        setShelfOpen(shelf, shelf.grid.hidden, true);
+        syncExpandAllLabel();
+      });
+      built.push(shelf);
+      nodes.push(section);
+    }
+    shelvesWrap.replaceChildren(...nodes);
+    return built;
+  }
+
+  /** Search and persona filtering (PRD section 16, "Shelf mechanics"):
+      nothing is rebuilt, only `hidden` toggled, on both individual cards and
+      whole shelf sections. A shelf with at least one match is force-opened
+      (without touching its manualOpen record); a shelf with none is hidden
+      outright. Clearing the filter restores each shelf's manually-chosen
+      state, defaulting to collapsed. */
+  function computeMatches(tool) {
+    return matchesSearch(tool, searchTerm, plainMode) && (activePersonaIds === null || activePersonaIds.has(tool.id));
+  }
+
+  function applyFilter() {
+    const filtering = searchTerm !== '' || activePersonaIds !== null;
+    let totalMatches = 0;
+    for (const shelf of shelves) {
+      let shelfMatches = 0;
+      for (const li of shelf.grid.children) {
+        const id = Number.parseInt(li.dataset.id, 10);
+        const tool = Number.isInteger(id) ? toolsById.get(id) : undefined;
+        const matches = tool !== undefined && computeMatches(tool);
+        li.hidden = filtering && !matches;
+        if (matches) shelfMatches += 1;
+      }
+      totalMatches += shelfMatches;
+      if (filtering) {
+        shelf.section.hidden = shelfMatches === 0;
+        if (shelfMatches > 0) setShelfOpen(shelf, true, false);
+      } else {
+        shelf.section.hidden = false;
+        setShelfOpen(shelf, shelf.manualOpen, false);
+      }
+    }
+    matchCountLine.hidden = !filtering;
+    if (filtering) {
+      matchCountLine.textContent = totalMatches === 0
+        ? 'No tools match your search.'
+        : `${totalMatches} tool${totalMatches === 1 ? '' : 's'} match`;
+    }
+    syncExpandAllLabel();
+    decorateAllCards();
+  }
+
+  function decorateAllCards() {
+    if (judgeApi) decorateCardsWithJudgement(shelvesWrap, active, judgeApi);
+  }
+
+  /** `#cat-<slug>` deep link: opens and scrolls to the named shelf. Read on
+      mount and again on any later hash change, so an in-page link clicked
+      after the app has already booted still works. */
+  function openShelfBySlug(slug) {
+    const shelf = shelves.find((s) => s.section.id === `cat-${slug}`);
+    if (!shelf) return;
+    setShelfOpen(shelf, true, true);
+    syncExpandAllLabel();
+    shelf.section.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+  }
+  function handleHashDeepLink() {
+    const hash = location.hash.slice(1);
+    if (hash.startsWith('cat-')) openShelfBySlug(hash.slice(4));
+  }
+
+  /* --- FAQ section slot (BUILD-PLAN 14.1; native <details>/<summary> Q&As
+     land in wave 14.3, PRD section 18). The section element exists here so
+     the layout slot is in the right position between the shelves and the
+     footer; it renders empty and hidden this wave, so it costs nothing
+     against the page-height budget until 14.3 fills it in. */
+  const faqSection = el('section', { class: 'pub-faq', id: 'faq', 'aria-label': 'Frequently asked questions', hidden: true });
 
   /* --- footer ---------------------------------------------------------------
      The one CTA line points a visitor who wants a curated selection at
@@ -334,97 +536,38 @@ export function renderPublic(root, tools) {
     ),
   );
 
-  /** Applies the two first-paint/scroll reveal treatments (motion items 1
-      and 2) to a freshly built set of category sections, but only on the
-      very first draw of this page visit: search, Plain English and
-      persona-pack changes rebuild the section DOM on every keystroke and
-      click, and PRD section 16's motion budget is once per visit, not once
-      per rebuilt node. Without this early return, every later draw would
-      hand fresh, still-below-fold headings to a brand new
-      IntersectionObserver, which would fire immediately for anything
-      already in view and fade it from opacity 1 to 0 and back, exactly the
-      re-fade-on-keystroke defect this guards against. A later draw's
-      sections are simply left with no reveal class at all, so they render
-      fully visible from the moment they are attached, no opacity or
-      transform change at all. */
-  function revealSections(sections, animateFirstScreen) {
-    if (!animateFirstScreen) return;
-    const reduced = prefersReducedMotion();
-    for (let i = 0; i < sections.length; i += 2) {
-      const heading = sections[i];
-      const grid = sections[i + 1];
-      const isFirstCategory = i === 0;
-      if (isFirstCategory) {
-        revealFirstPaint(heading, 0, reduced);
-        const cards = grid ? [...grid.children] : [];
-        cards.forEach((li, idx) => revealFirstPaint(li, idx + 1, reduced));
-      } else {
-        revealOnIntersect(heading, reduced);
-        if (grid) revealOnIntersect(grid, reduced);
-      }
-    }
-  }
-
-  // Discover's read/write API (getDecision/setDecision/clearDecision), once
-  // js/discover.js has loaded; null until then, and forever null if it
-  // never arrives, in which case every card simply renders with no
-  // judgement parity controls at all (the platform tolerance PRD section 16
-  // already asks for, extended to this wave's additions).
-  let judgeApi = null;
-
-  function computeFiltered() {
-    return active.filter((t) =>
-      matchesSearch(t, searchTerm, plainMode) && (activePersonaIds === null || activePersonaIds.has(t.id)));
-  }
-
-  function decorateAllCards(container, filteredTools) {
-    if (judgeApi) decorateCardsWithJudgement(container, filteredTools, judgeApi);
-  }
-
-  function draw() {
-    const filtered = computeFiltered();
-    if (!filtered.length) {
-      listWrap.replaceChildren(el('p', { class: 'pub-empty' }, 'No tools match your search.'));
-      return;
-    }
-    const sections = buildCardSections(filtered, { plainMode, showToggle: false });
-    listWrap.replaceChildren(...sections);
-    revealSections(sections, !hasRevealedList);
-    hasRevealedList = true;
-    decorateAllCards(listWrap, filtered);
-  }
-
-  draw();
-  root.replaceChildren(header, entryPaths, discoverMount, changelogSection, toolbar, listWrap, footer);
+  shelves = buildShelves(active, plainMode);
+  applyFilter();
+  root.replaceChildren(header, entryPaths, discoverMount, changelogSection, miniToolbar, shelfBand, faqSection, footer);
   document.title = 'Free Stack · Kaipability';
 
-  // Hero and entry paths reveal once, on mount, independently of the list's
-  // own reveal above: they are static content, never rebuilt by draw().
+  handleHashDeepLink();
+  window.addEventListener('hashchange', handleHashDeepLink);
+
+  // Hero and entry paths reveal once, on mount (motion inventory item 1):
+  // static content, never rebuilt after this.
   const reduced = prefersReducedMotion();
-  [header, discoverItem, personaItem, browseItem].forEach((node, i) => revealFirstPaint(node, i, reduced));
+  [header, discoverItem, personaItem].forEach((node, i) => revealFirstPaint(node, i, reduced));
 
   loadPersonaPacks(personaChipRow, activeIds, {
     setPersonaIds: (ids) => { activePersonaIds = ids; },
     getActiveChip: () => activePersonaChip,
     setActiveChip: (chip) => { activePersonaChip = chip; },
-    draw,
-    scrollToBrowse,
+    draw: applyFilter,
+    scrollToBrowse: scrollToShelfBand,
   });
 
   // Judgement parity bootstrap (PRD section 16): the module may still be
-  // loading (or may never arrive) by the time draw() first ran above, so
-  // once it resolves, decorate whatever the list currently holds in place
-  // rather than calling draw() again (which would rebuild card DOM for no
-  // reason this late). From here on, any decision change anywhere, deck or
-  // browse list, calls this same targeted redecoration through subscribe:
-  // never a full rebuild, so settled sections are never re-faded (the
-  // reveal-once law extended to this redraw path).
+  // loading (or may never arrive) by the time applyFilter() first ran above,
+  // so once it resolves, decorate whatever the shelves currently hold in
+  // place. From here on, any decision change anywhere, deck or browse list,
+  // calls this same targeted redecoration through subscribe: never a full
+  // rebuild, so settled shelves are never disturbed.
   loadDiscoverModule().then((mod) => {
     if (!mod) return;
     judgeApi = mod;
-    const redecorate = () => decorateAllCards(listWrap, computeFiltered());
-    redecorate();
-    mod.subscribe(redecorate);
+    decorateAllCards();
+    mod.subscribe(decorateAllCards);
   });
 }
 
@@ -448,10 +591,13 @@ export function renderPublic(root, tools) {
     it were "no id". Reads container.querySelectorAll directly rather than
     replaying buildCardSections' own category-grouping order, which used to
     be the only way to pair a card with its tool and broke silently the
-    moment the two orderings drifted apart. */
-function decorateCardsWithJudgement(container, filteredTools, judgeApi) {
+    moment the two orderings drifted apart. Wave 14.1: called against the
+    full active list every time, never a filtered subset, since every card
+    is always attached to the DOM regardless of the current search/persona
+    filter (only its `hidden` state differs). */
+function decorateCardsWithJudgement(container, activeTools, judgeApi) {
   closeAnyOpenChooser(); // defensive: never leak a stale chooser's document listeners across a redraw
-  const byId = new Map(filteredTools.map((tool) => [String(tool.id), tool]));
+  const byId = new Map(activeTools.map((tool) => [String(tool.id), tool]));
   for (const li of container.querySelectorAll('.card-grid > li[data-id]')) {
     const id = Number.parseInt(li.dataset.id, 10);
     if (!Number.isInteger(id)) continue;
@@ -626,12 +772,13 @@ function buildJudgeChipWrap(li, tool, judgeApi) {
 
 /** Persona-pack chips (PRD section 16, entry path 2). Fetched separately
     from tools.json, non-blocking: a missing or broken data/presets.json
-    leaves the Discover and Browse all entry paths fully usable, same
-    tolerance the changelog strip already has. Choosing a pack filters the
-    browse list to that pack's ids; it never navigates away. A second click
-    on the active chip clears the filter. State lives in renderPublic's
-    closure, not here, so it is threaded through as get/set pairs rather
-    than duplicated as module-level variables. */
+    leaves the Discover entry path fully usable, same tolerance the
+    changelog strip already has. Choosing a pack filters the shelves to that
+    pack's ids (via the same applyFilter() the search box calls); it never
+    navigates away. A second click on the active chip clears the filter.
+    State lives in renderPublic's closure, not here, so it is threaded
+    through as get/set pairs rather than duplicated as module-level
+    variables. */
 async function loadPersonaPacks(row, activeIds, state) {
   const { setPersonaIds, getActiveChip, setActiveChip, draw, scrollToBrowse } = state;
   let presets;

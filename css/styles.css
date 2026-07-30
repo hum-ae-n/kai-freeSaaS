@@ -1063,10 +1063,15 @@ button { font: inherit; }
 
 /* === PUBLIC ================================================================= */
 /* Public/staff split (BUILD-PLAN 10.12, Batch I): the read-only, indexable
-   directory at root. Shares .cli-category/.card-grid/.tool-card from the
-   CLIENT block above (the same card renderer, checklist toggle suppressed)
-   rather than a parallel set of card styles; this block covers only the
-   page-level chrome that is unique to the public view. */
+   directory at root. Shares .card-grid/.tool-card from the CLIENT block
+   above (the same card renderer, checklist toggle suppressed) rather than a
+   parallel set of card styles; this block covers only the page-level chrome
+   that is unique to the public view. Since Phase 14.1 (PRD section 16
+   amended, "compact landing") the flat list is 15 collapsed category
+   shelves; client.js's own .cli-category heading is no longer used here at
+   all (js/public.js discards it in favour of the shelf's own button
+   header), though .card-grid/.tool-card/.cli-category-icon are still
+   shared, per the file banner above. */
 
 #public-root {
   max-width: 960px;
@@ -1076,10 +1081,10 @@ button { font: inherit; }
 
 .pub-header {
   padding: var(--s-10) var(--s-10) var(--s-8);
-  margin-bottom: var(--s-6);
+  margin-bottom: var(--s-4);
   border-top: var(--bw-heavy) solid var(--oxblood);
 }
-.pub-header .logo { height: 40px; width: auto; margin-bottom: var(--s-8); }
+.pub-header .logo { height: 40px; width: auto; margin-bottom: var(--s-5); }
 .pub-header h1 {
   font-family: var(--font-display);
   font-weight: 900;
@@ -1090,16 +1095,22 @@ button { font: inherit; }
 .pub-header .subtitle { margin-top: var(--s-4); color: var(--ink-2); font-size: var(--fs-16); max-width: none; }
 .pub-header .trust-line { margin-top: var(--s-2); color: var(--ink-3); font-size: var(--fs-14); max-width: none; }
 
+/* Phase 14.1: holds only the Plain English and theme-toggle buttons now
+   (search moved into the ways-in band below, promoted to first-class). */
 .pub-toolbar {
   display: flex;
   gap: var(--s-3);
   flex-wrap: wrap;
   align-items: center;
-  margin-bottom: var(--s-8);
+  margin-bottom: var(--s-6);
 }
-/* Grows to fill the row on desktop; the mobile block below resets this to
-   flex: 0 0 auto, the same trap documented there for .cur-toolbar/.linkgen. */
-.pub-search { flex: 1 1 20rem; min-width: 0; }
+
+/* Search, promoted to first-class (PRD section 16, "Ways-in band"): its own
+   full-width row above the entry-path grid, on every viewport, not only
+   below 768px (the PRD's floor, not a ceiling: there is no reason to shrink
+   it back down again once there is room to spare). */
+.pub-search-row { margin-bottom: var(--s-5); }
+.pub-search { width: 100%; min-width: 0; }
 
 /* Recently updated strip (Feature 3, Batch I): quiet, editorial, hairline
    rules between entries. Archived entries get no extra treatment at all:
@@ -1108,7 +1119,7 @@ button { font: inherit; }
 .pub-changelog-summary { cursor: pointer; list-style-position: outside; min-height: 24px; display: list-item; }
 .pub-changelog-details > ul { margin-top: var(--s-3); }
 .pub-changelog {
-  margin-bottom: var(--s-10);
+  margin-bottom: var(--s-6);
   padding: var(--s-5) var(--s-6);
 }
 .pub-changelog-list {
@@ -1152,41 +1163,36 @@ button { font: inherit; }
 .pub-hero-trust-item.trust-line { color: var(--ink-3); }
 .pub-hero-count strong { color: var(--ink); font-family: var(--font-sans); }
 
-/* --- entry paths (Phase 12.1, PRD section 16) ------------------------------
-   Three equal-weight cards: Discover (a stub this wave, wired to scroll
-   only, see js/public.js), persona packs, browse all. One shared grid for
-   every viewport: mobile stacks to a single column (Discover naturally
-   leading, since it is first in source order and this grid never
-   duplicates the markup per breakpoint), 768px and up lays the three out
-   side by side. */
-.pub-entry { margin-bottom: var(--s-10); }
+/* --- entry paths (Phase 12.1, PRD section 16; Phase 14.1 amends this to two
+   items) -------------------------------------------------------------------
+   Discover and persona packs, equal weight. The "Browse all" entry card
+   (Phase 12.1) is retired: its job passes to the shelf band below plus its
+   own Expand all / Collapse all toggle. One shared grid for every viewport:
+   mobile stacks to a single column (Discover naturally leading, since it is
+   first in source order and this grid never duplicates the markup per
+   breakpoint), 768px and up lays the two out side by side. */
+.pub-entry { margin-bottom: var(--s-6); }
 .pub-entry-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--s-4);
 }
 @media (min-width: 768px) {
-  .pub-entry-grid { grid-template-columns: repeat(3, 1fr); }
+  .pub-entry-grid { grid-template-columns: repeat(2, 1fr); }
 }
+/* No panel chrome (padding/background/border): PRD section 16 describes the
+   Discover entry as "button plus one-line pitch" and the persona entry as
+   just its chips, not a padded card, and the compact landing's page-height
+   budget (particularly "first shelf rows visible within the first mobile
+   viewport") depends on the ways-in band actually being lean. */
 .pub-entry-item {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: var(--s-3);
-  padding: var(--s-6);
-  background: var(--paper-2);
-  border: var(--border);
+  gap: var(--s-2);
 }
-.pub-entry-item h2 {
-  font-family: var(--font-sans);
-  font-weight: 500;
-  font-size: var(--fs-21);
-  line-height: var(--lh-21);
-  letter-spacing: var(--tr-tight);
-  color: var(--ink);
-}
-.pub-entry-item .t-small { max-width: none; }
-.pub-discover-btn, .pub-browse-btn { align-self: stretch; justify-content: center; }
+.pub-entry-pitch { max-width: none; color: var(--ink-2); font-size: var(--fs-14); }
+.pub-discover-btn { align-self: stretch; justify-content: center; }
 
 .pub-persona-chip-row { display: flex; flex-wrap: wrap; gap: var(--s-2); }
 .pub-persona-chip {
@@ -1212,10 +1218,90 @@ button { font: inherit; }
   color: var(--oxblood-deep);
 }
 
-/* --- motion: reveal (motion inventory items 1 and 2, PRD section 16) ------
-   Two classes, chosen in js/public.js before either is ever applied: the
+/* --- category shelves (Phase 14.1, PRD section 16 amended, "compact
+   landing", "Category shelves" and "Shelf mechanics") ------------------
+   One <section> per category, a single 44px header row when collapsed.
+   Collapse is CSS only: js/public.js toggles the grid's `hidden` IDL
+   property, which the BASE block's `[hidden] { display: none !important; }`
+   rule already turns into the closed state, so no dedicated display rule is
+   needed here at all. Row height is pinned to exactly the button's own
+   min-height (no extra vertical padding on the header or the section), so
+   15 collapsed shelves stay well inside the page-height budget. */
+.pub-shelf-band { margin-bottom: var(--s-10); }
+.pub-shelf-band-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--s-4);
+  margin-bottom: var(--s-4);
+}
+.pub-shelf-band-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-21);
+  letter-spacing: var(--tr-tight);
+  color: var(--ink);
+}
+.pub-shelf-match-count { margin: 0 0 var(--s-4); color: var(--ink-2); font-size: var(--fs-14); }
+
+.pub-shelves { display: flex; flex-direction: column; gap: var(--s-2); }
+.pub-shelf { background: var(--paper); border: var(--border); }
+/* design-system/colors_and_type.css sets a bare `h2` selector to 44px with a
+   tall line-height (its own heading scale); this wraps a 44px-minimum
+   *button*, not a page heading, and BASE's `button { font: inherit; }` would
+   otherwise pull that whole 44px/line-height pair down onto the button,
+   nearly doubling every collapsed shelf row's height. Reset here, in the
+   PUBLIC block, rather than touching the frozen design-system file. */
+.pub-shelf-heading { margin: 0; font-size: var(--fs-16); line-height: 1; letter-spacing: normal; }
+.pub-shelf-header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  min-height: 44px;
+  padding: 0 var(--s-5);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-sans);
+  color: var(--ink);
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.pub-shelf-header:hover { background: var(--paper-2); }
+.pub-shelf-header .cli-category-icon { flex: none; color: var(--oxblood); }
+.pub-shelf-name { flex: none; font-weight: 500; font-size: var(--fs-16); }
+.pub-shelf-count { flex: none; color: var(--ink-3); font-size: var(--fs-14); }
+/* The "scent": a muted, single-line, ellipsis-truncated list of the
+   category's own tool names, so a collapsed row still hints at what is
+   inside it. min-width: 0 is required for a flex child to actually shrink
+   and truncate rather than pushing the row wider (the same trap the
+   card-grid comment above documents for grid tracks). */
+.pub-shelf-scent {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-3);
+  font-size: var(--fs-14);
+}
+.pub-shelf-chevron { flex: none; color: var(--ink-3); }
+/* A static state flip keyed off aria-expanded, not an animation: this wave
+   introduces no new animation styles, the shelf-open stagger itself is wave
+   14.2's (PRD section 16 motion inventory item 2). */
+.pub-shelf-header[aria-expanded="true"] .pub-shelf-chevron { transform: rotate(180deg); }
+
+.pub-shelf-grid { padding: 0 var(--s-5) var(--s-5); }
+
+/* --- motion: reveal (motion inventory item 1, PRD section 16) -------------
+   One class pair, chosen in js/public.js before either is ever applied: the
    transform-bearing one for a normal-motion visitor, the opacity-only one
-   for prefers-reduced-motion. The media query below is a second, CSS-only
+   for prefers-reduced-motion. Scoped since Phase 14.1 to the hero and the
+   two ways-in entry items only: the per-category card reveal Phase 12.1
+   built here is retired along with the flat list it revealed (see the
+   js/public.js file banner). The media query below is a second, CSS-only
    guard on top of that JS choice, per the phase brief: if the transform
    class ever landed on a reduced-motion visitor by mistake, this still
    strips the transform out of the transition entirely, not just its
@@ -1824,10 +1910,13 @@ button { font: inherit; }
   /* In a column, the desktop flex-basis 16rem would become height. */
   .linkgen-controls .input { flex: 0 0 auto; }
   .pub-header { padding: var(--s-6) var(--s-5); }
-  .pub-toolbar { flex-direction: column; align-items: stretch; }
-  /* Same trap as .cur-toolbar/.linkgen-controls above: in a column, the
-     desktop flex-basis 20rem would become height, not width. */
-  .pub-search { width: 100%; flex: 0 0 auto; }
+  /* Phase 14.1: .pub-toolbar now holds only the Plain English and
+     theme-toggle buttons, which both fit comfortably in one row even at
+     375px (search moved to its own always-full-width row above), so unlike
+     the old three-item toolbar this one no longer needs to stack into a
+     column: keeping it a row saves a full line of height, which the
+     page-height budget's "first shelf rows visible within the first mobile
+     viewport" clause needs every bit of. */
   .cli-header { padding: var(--s-6) var(--s-5); }
   .cli-summary { gap: var(--s-6); padding: var(--s-5); }
   .tool-card { padding: var(--s-6); }

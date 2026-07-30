@@ -92,8 +92,19 @@ page.on('console', (m) => { if (m.type() === 'error' && !/net::|Failed to load r
 await page.route(/^(?!.*localhost).*$/, (route) => route.abort());
 
 /* --- public directory at the root (batch I) -------------------------------- */
+/* Phase 14.1 adaptation, applies to every occurrence below: with the compact
+   landing (PRD section 16 amended), every category shelf starts collapsed,
+   so no .tool-card is ever visible without either expanding a shelf or
+   searching/filtering to force one open. The readiness gate below (and
+   every other waitForSelector('#public-root .tool-card') in this file)
+   therefore waits for the card to be attached to the DOM rather than
+   Playwright's default "visible", which is exactly the property the shelf
+   redesign's DOM-superset rule (nothing lazily fetched, deferred or
+   removed) actually guarantees. Tests further down that need to interact
+   with a specific card (hover, click) separately expand the relevant shelf
+   first, noted at each call site. */
 await page.goto(`${base}/`);
-await page.waitForSelector('#public-root .tool-card');
+await page.waitForSelector('#public-root .tool-card', { state: 'attached' });
 check(`public: all ${active.length} active tools as cards`, await page.locator('#public-root .tool-card').count() === active.length);
 check('public: indexable, no robots meta', await page.locator('meta[name=robots]').count() === 0);
 check('public: trust line and CTA present',
@@ -118,13 +129,18 @@ const heroCountText = await page.locator('.pub-hero-count').textContent();
 check('homepage: hero count equals the active tools.json count',
   heroCountText.includes(String(active.length)), heroCountText.trim());
 
-const entryHeadings = await page.locator('.pub-entry-item h2').allTextContents();
-check('homepage: three entry paths present, Discover first',
-  entryHeadings.length === 3
-  && entryHeadings[0] === 'Discover'
-  && entryHeadings[1] === 'Persona packs'
-  && entryHeadings[2] === 'Browse all',
-  entryHeadings.join(' | '));
+// Phase 14.1 adaptation: PRD section 16 as amended retires the "Browse all"
+// entry card, its job passing to the shelf band's own Expand all / Collapse
+// all toggle, so only Discover and Persona packs remain in the ways-in
+// band. It also retires the padded-card treatment (and its per-item <h2>)
+// in favour of a lean pitch line, per the amended spec's "button plus
+// one-line pitch": the readiness signal is now the pitch text itself.
+const entryPitches = await page.locator('.pub-entry-item .pub-entry-pitch').allTextContents();
+check('homepage: two entry paths present, Discover first',
+  entryPitches.length === 2
+  && entryPitches[0].startsWith('Discover:')
+  && entryPitches[1].toLowerCase().includes('shortlist'),
+  entryPitches.join(' | '));
 
 const beforeScrollY = await page.evaluate(() => window.scrollY);
 await page.locator('[data-discover-entry]').click();
@@ -134,30 +150,58 @@ check('homepage: Discover stub scrolls to the browse list instead of dead-ending
   afterDiscoverScrollY > beforeScrollY, `before=${beforeScrollY} after=${afterDiscoverScrollY}`);
 await page.evaluate(() => window.scrollTo(0, 0));
 
+// Phase 14.1 adaptation: with all shelves collapsed by default, ZERO cards
+// are visible before any filter is applied (there is no longer a
+// meaningful "before" visible count to compare against, since a persona
+// chip no longer removes cards from the DOM at all: shelf mechanics keep
+// every card attached, only its `hidden` IDL property changes, per the
+// DOM-superset rule). The assertion is rephrased as "a proper, non-empty
+// subset of the full catalogue is visible", which is what "filters the
+// browse list" now means; the plain .count() this used to read would
+// return 89 unconditionally today, so it is replaced with :visible.
 await page.waitForSelector('.pub-persona-chip');
-const chipCountBefore = await page.locator('#public-root .tool-card').count();
 await page.locator('.pub-persona-chip').first().click();
 await page.waitForTimeout(150);
-const chipFilteredCount = await page.locator('#public-root .tool-card').count();
+const chipFilteredCount = await page.locator('#public-root .tool-card:visible').count();
 check('homepage: a persona chip filters the browse list',
-  chipFilteredCount > 0 && chipFilteredCount < chipCountBefore, `before=${chipCountBefore} after=${chipFilteredCount}`);
+  chipFilteredCount > 0 && chipFilteredCount < active.length, `visible=${chipFilteredCount} total=${active.length}`);
 await page.locator('.pub-persona-chip').first().click(); // toggle back off
 await page.waitForTimeout(150);
-const chipClearedCount = await page.locator('#public-root .tool-card').count();
-check('homepage: a second click on the active persona chip clears the filter',
-  chipClearedCount === active.length, `visible=${chipClearedCount}`);
+// Clearing restores the collapsed default (PRD section 16, "Shelf
+// mechanics": "Clearing restores the collapsed state"), which is zero
+// *visible* cards, not all 89: the pre-Phase-14.1 behaviour of showing
+// every card again no longer applies once shelves exist. The plain
+// .count() (all 89 always attached) is still checked to confirm nothing
+// was actually removed from the DOM.
+const chipClearedVisible = await page.locator('#public-root .tool-card:visible').count();
+const chipClearedAttached = await page.locator('#public-root .tool-card').count();
+check('homepage: a second click on the active persona chip clears the filter and restores collapsed shelves',
+  chipClearedVisible === 0 && chipClearedAttached === active.length,
+  `visible=${chipClearedVisible} attached=${chipClearedAttached}`);
 
 const homeMobile = await browser.newPage({ viewport: { width: 375, height: 812 } });
 await homeMobile.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await homeMobile.goto(`${base}/`);
-await homeMobile.waitForSelector('#public-root .tool-card');
+await homeMobile.waitForSelector('#public-root .tool-card', { state: 'attached' });
 const homeMobileScrollW = await homeMobile.evaluate(() => document.documentElement.scrollWidth);
 check('homepage: no horizontal scroll at 375px', homeMobileScrollW <= 375, `scrollWidth=${homeMobileScrollW}`);
-const homeMobileHeadings = await homeMobile.locator('.pub-entry-item h2').allTextContents();
+// Phase 14.1 adaptation: two entry paths now, not three, and the readiness
+// signal is the pitch text (see the entryPitches note above, same reason).
+const homeMobilePitches = await homeMobile.locator('.pub-entry-item .pub-entry-pitch').allTextContents();
 check('homepage: entry paths still Discover-first at 375px',
-  homeMobileHeadings[0] === 'Discover' && homeMobileHeadings[1] === 'Persona packs' && homeMobileHeadings[2] === 'Browse all',
-  homeMobileHeadings.join(' | '));
+  homeMobilePitches[0]?.startsWith('Discover:') && homeMobilePitches[1]?.toLowerCase().includes('shortlist'),
+  homeMobilePitches.join(' | '));
 await homeMobile.close();
+
+// Phase 14.1: shared helper, used throughout the rest of this file. Every
+// card lives inside a collapsed shelf by default (PRD section 16 amended,
+// "Shelf mechanics"), so any test that needs to hover, click or measure a
+// specific card first has to open its shelf. Expand all is the simplest
+// reliable way to do that regardless of which card a given test needs.
+async function expandAllShelves(pg) {
+  await pg.locator('.pub-expand-all').click();
+  await pg.waitForTimeout(50);
+}
 
 // The hover lift is set on the card-grid <li>, never on .tool-card itself:
 // a "both" fill-mode keyframe animation (the CLIENT block's existing
@@ -169,40 +213,55 @@ await homeMobile.close();
 const hoverPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 await hoverPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await hoverPage.goto(`${base}/`);
-await hoverPage.waitForSelector('#public-root .tool-card');
-await hoverPage.waitForTimeout(700); // let the entrance animation finish first
+await hoverPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+// Phase 14.1 adaptation: the first card lives inside a collapsed shelf, so
+// it must be expanded before it can be hovered at all.
+await expandAllShelves(hoverPage);
 const firstCardLi = hoverPage.locator('#public-root .card-grid > li').first();
 
 // Regression guard: revealFirstPaint used to leave its inline entrance
 // transition-delay set forever, which (transition-delay being a single CSS
 // property, not scoped to the reveal transition alone) also delayed the
 // hover-lift transition on this same element by however many milliseconds
-// the entrance stagger had assigned it. Once the entrance transition has
-// had time to finish, the inline delay must be gone.
+// the entrance stagger had assigned it. Phase 14.1 adaptation: cards no
+// longer carry any entrance reveal at all (the per-category card reveal is
+// retired along with the flat list it revealed; see js/public.js's file
+// banner), so this now simply confirms no stray inline delay was ever set,
+// with no need to wait for an entrance transition that no longer exists.
 const leftoverDelay = await firstCardLi.evaluate((n) => ({
   inline: n.style.transitionDelay,
   computed: getComputedStyle(n).transitionDelay,
 }));
-check('homepage: entrance stagger leaves no residual inline transition-delay',
+check('homepage: shelf cards carry no residual inline transition-delay',
   leftoverDelay.inline === '' && /^(0s(, 0s)*)$/.test(leftoverDelay.computed), JSON.stringify(leftoverDelay));
 
 await firstCardLi.scrollIntoViewIfNeeded();
 await firstCardLi.hover();
 await hoverPage.waitForTimeout(300);
 const hoverTransform = await firstCardLi.evaluate((n) => getComputedStyle(n).transform);
-check('homepage: hover lift actually translates the card (not silently blocked by the entrance animation)',
+check('homepage: hover lift actually translates the card (not silently blocked by any entrance animation)',
   hoverTransform !== 'none' && hoverTransform !== 'matrix(1, 0, 0, 1, 0, 0)', hoverTransform);
 await hoverPage.close();
 
-/* --- Phase 12.1 regression: reveal must not refire on every draw -----------
+/* --- Phase 12.1 regression, adapted for Phase 14.1's shelf architecture ---
    revealSections used to call revealOnIntersect unconditionally for every
    category past the first on every draw(), including redraws triggered by
    search keystrokes and persona-chip clicks. A freshly rebuilt heading that
    was already on screen got handed a brand new IntersectionObserver, which
    fired immediately and re-ran the entrance (opacity 1 -> 0 -> back to 1)
-   on every keystroke. This reproduces that scenario directly: scroll a
-   below-fold section into view, type into search, and poll the heading's
-   opacity through the window a re-fired transition would occupy. */
+   on every keystroke.
+
+   Phase 14.1 adaptation: that regression class is now structurally
+   impossible, not merely fixed. draw() (now applyFilter()) no longer
+   rebuilds any shelf or card DOM on a keystroke or a persona-chip click; it
+   only toggles `hidden` on already-built nodes (see js/public.js's file
+   banner). There is no more per-category opacity reveal to poll for at all
+   (.cli-category does not even render inside #public-root any more: the
+   shelf header replaces it, see the PUBLIC block of styles.css). The
+   equivalent, honest regression guard for the new architecture is a
+   DOM-identity check: mark a shelf header with a throwaway data attribute,
+   then confirm the exact same node (not a rebuilt lookalike) still carries
+   it after a search keystroke and after a persona-chip round trip. */
 const categoryOrder = [];
 for (const t of active) { if (!categoryOrder.includes(t.category)) categoryOrder.push(t.category); }
 const targetCategory = categoryOrder[1] ?? categoryOrder[0];
@@ -210,56 +269,35 @@ const targetCategory = categoryOrder[1] ?? categoryOrder[0];
 const noRefirePage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 await noRefirePage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await noRefirePage.goto(`${base}/`);
-await noRefirePage.waitForSelector('#public-root .tool-card');
-await noRefirePage.locator('.cli-category', { hasText: targetCategory }).first().scrollIntoViewIfNeeded();
-await noRefirePage.waitForTimeout(500); // let its own once-only, intended reveal finish
-const opacityBeforeTyping = await noRefirePage.locator('.cli-category', { hasText: targetCategory }).first()
-  .evaluate((n) => getComputedStyle(n).opacity);
-check('regression: below-fold section fully visible before typing (sanity)', opacityBeforeTyping === '1', opacityBeforeTyping);
+await noRefirePage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+const targetShelfHeader = noRefirePage.locator('.pub-shelf-header', { hasText: targetCategory }).first();
+await targetShelfHeader.scrollIntoViewIfNeeded();
+await targetShelfHeader.evaluate((n) => { n.dataset.stabilityMarker = 'kept'; });
 
-// The search term must be broad, deliberately. Typing the category's own
-// name collapses the list to that single section, which becomes the FIRST
-// section of the redraw, and the original bug lived only in the non-first
-// branch: the focused re-verify proved a full-name variant of this check
-// passed on the buggy code. A single common letter keeps many categories
-// in the result set, so the watched heading stays a non-first section.
+// The search term must be broad, deliberately, so many shelves (including
+// the marked one) stay in the matched set.
 await noRefirePage.locator('#public-root input[type=search]').pressSequentially('a', { delay: 20 });
-let minOpacitySeen = 1;
-const pollUntil = Date.now() + 400;
-while (Date.now() < pollUntil) {
-  const heading = noRefirePage.locator('.cli-category', { hasText: targetCategory }).first();
-  if (await heading.count()) {
-    const opacityNow = Number(await heading.evaluate((n) => getComputedStyle(n).opacity));
-    minOpacitySeen = Math.min(minOpacitySeen, opacityNow);
-  }
-  await noRefirePage.waitForTimeout(20);
-}
-check('homepage: typing into search never dips a visible non-first section below opacity 1',
-  minOpacitySeen >= 0.99, `min=${minOpacitySeen} category="${targetCategory}"`);
+await noRefirePage.waitForTimeout(300);
+const markerAfterSearch = await targetShelfHeader.evaluate((n) => n.dataset.stabilityMarker).catch(() => null);
+check('homepage: typing into search never rebuilds shelf DOM (no per-keystroke section recreation)',
+  markerAfterSearch === 'kept', `marker=${markerAfterSearch} category="${targetCategory}"`);
 
-// Same assertion for the persona-chip redraw path, which the original check
-// set did not cover at all: toggling a pack on and off rebuilds the list
-// both times, and the returning sections must render fully visible.
 await noRefirePage.locator('#public-root input[type=search]').fill('');
 await noRefirePage.waitForTimeout(200);
+
+// Same assertion for the persona-chip filter path: toggling a pack on and
+// off must not rebuild the shelf either.
 const chip = noRefirePage.locator('.pub-persona-chip-row button').first();
-let minOpacityChip = 1;
+let markerAfterChip = 'kept';
 if (await chip.count()) {
   await chip.click();
   await noRefirePage.waitForTimeout(150);
-  await chip.click(); // clear the pack: the full list DOM is rebuilt again
-  const chipPollUntil = Date.now() + 400;
-  while (Date.now() < chipPollUntil) {
-    const heading = noRefirePage.locator('.cli-category', { hasText: targetCategory }).first();
-    if (await heading.count()) {
-      const opacityNow = Number(await heading.evaluate((n) => getComputedStyle(n).opacity));
-      minOpacityChip = Math.min(minOpacityChip, opacityNow);
-    }
-    await noRefirePage.waitForTimeout(20);
-  }
+  await chip.click(); // clear the pack
+  await noRefirePage.waitForTimeout(150);
+  markerAfterChip = await targetShelfHeader.evaluate((n) => n.dataset.stabilityMarker).catch(() => null);
 }
-check('homepage: persona-chip toggle never dips a rebuilt section below opacity 1',
-  minOpacityChip >= 0.99, `min=${minOpacityChip}`);
+check('homepage: persona-chip toggle never rebuilds shelf DOM (no section recreation)',
+  markerAfterChip === 'kept', `marker=${markerAfterChip}`);
 await noRefirePage.close();
 
 const reducedMotionPage = await browser.newPage();
@@ -275,6 +313,179 @@ const reducedMotionClassCount = await reducedMotionPage.locator('.pub-reveal').c
 check('homepage: reduced motion never applies the transform-bearing reveal class', reducedMotionClassCount === 0, `count=${reducedMotionClassCount}`);
 await reducedMotionPage.close();
 
+/* --- Phase 14.1: shelf mechanics (PRD section 16 amended, "compact
+   landing") ---------------------------------------------------------------
+   BUILD-PLAN 14.1's named checks: collapsed page-height budgets at both
+   widths, all 89 cards attached with every shelf collapsed, a single
+   shelf's expand/collapse round trip plus Expand all / Collapse all,
+   aria-expanded truthfulness, 44px shelf headers at 375px, search
+   force-open and restore, a #cat- deep link, and tool id 0 findable both by
+   search and by its own shelf. */
+function slugifyForTest(text) {
+  return text.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+const tool0 = active.find((t) => t.id === 0);
+const tool0Slug = slugifyForTest(tool0.category);
+
+// Height budgets, both widths, all shelves collapsed (the default state on
+// a fresh load, before anything is clicked).
+for (const [width, budget] of [[375, 3200], [1280, 2200]]) {
+  const budgetPage = await browser.newPage({ viewport: { width, height: 900 } });
+  const budgetErrors = [];
+  budgetPage.on('pageerror', (e) => budgetErrors.push(String(e)));
+  budgetPage.on('console', (m) => { if (m.type() === 'error' && !/net::|Failed to load resource/.test(m.text())) budgetErrors.push(m.text()); });
+  await budgetPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await budgetPage.goto(`${base}/`);
+  await budgetPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+  await budgetPage.waitForTimeout(500);
+  const pageHeight = await budgetPage.evaluate(() => document.documentElement.scrollHeight);
+  const collapsedGridCount = await budgetPage.locator('.pub-shelf-grid[hidden]').count();
+  const totalShelfCount = await budgetPage.locator('.pub-shelf').count();
+  check(`shelf: page height at ${width}px is within the ${budget}px budget with all shelves collapsed`,
+    pageHeight <= budget && collapsedGridCount === totalShelfCount,
+    `height=${pageHeight} collapsedGrids=${collapsedGridCount}/${totalShelfCount}`);
+  check(`shelf: no page errors at ${width}px`, budgetErrors.length === 0, budgetErrors.join(' | ').slice(0, 300));
+  await budgetPage.close();
+}
+
+// All 89 active cards present in the DOM with shelves collapsed (the "all X
+// active tools as cards" check at the very top of this file already covers
+// the count; this makes the "collapsed" half explicit).
+const shelfMechPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await shelfMechPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await shelfMechPage.goto(`${base}/`);
+await shelfMechPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+const collapsedCardCount = await shelfMechPage.locator('#public-root .tool-card').count();
+const collapsedVisibleCount = await shelfMechPage.locator('#public-root .tool-card:visible').count();
+check('shelf: all 89 active cards are attached to the DOM with every shelf collapsed',
+  collapsedCardCount === active.length && collapsedVisibleCount === 0,
+  `attached=${collapsedCardCount} visible=${collapsedVisibleCount}`);
+
+// Shelf expand/collapse round trip on a single header, checking
+// aria-expanded truthfulness (the attribute actually matches the grid's
+// real hidden state) at each step.
+const firstShelfHeader = shelfMechPage.locator('.pub-shelf-header').first();
+const firstShelfGridId = await firstShelfHeader.getAttribute('aria-controls');
+await firstShelfHeader.click();
+await shelfMechPage.waitForTimeout(50);
+const afterOpen = await shelfMechPage.evaluate((gridId) => {
+  const grid = document.getElementById(gridId);
+  const header = grid.closest('.pub-shelf').querySelector('.pub-shelf-header');
+  return { hidden: grid.hidden, ariaExpanded: header.getAttribute('aria-expanded') };
+}, firstShelfGridId);
+check('shelf: clicking a header opens its shelf and sets aria-expanded truthfully',
+  afterOpen.hidden === false && afterOpen.ariaExpanded === 'true', JSON.stringify(afterOpen));
+await firstShelfHeader.click();
+await shelfMechPage.waitForTimeout(50);
+const afterClose = await shelfMechPage.evaluate((gridId) => {
+  const grid = document.getElementById(gridId);
+  const header = grid.closest('.pub-shelf').querySelector('.pub-shelf-header');
+  return { hidden: grid.hidden, ariaExpanded: header.getAttribute('aria-expanded') };
+}, firstShelfGridId);
+check('shelf: clicking the same header again closes it and sets aria-expanded truthfully',
+  afterClose.hidden === true && afterClose.ariaExpanded === 'false', JSON.stringify(afterClose));
+
+// Expand all / Collapse all round trip.
+await shelfMechPage.locator('.pub-expand-all').click();
+await shelfMechPage.waitForTimeout(50);
+const stillHiddenAfterExpandAll = await shelfMechPage.locator('.pub-shelf-grid[hidden]').count();
+const labelAfterExpandAll = await shelfMechPage.locator('.pub-expand-all').textContent();
+check('shelf: Expand all opens every shelf',
+  stillHiddenAfterExpandAll === 0 && labelAfterExpandAll === 'Collapse all',
+  `stillHidden=${stillHiddenAfterExpandAll} label="${labelAfterExpandAll}"`);
+await shelfMechPage.locator('.pub-expand-all').click();
+await shelfMechPage.waitForTimeout(50);
+const stillOpenAfterCollapseAll = await shelfMechPage.locator('.pub-shelf-grid:not([hidden])').count();
+const labelAfterCollapseAll = await shelfMechPage.locator('.pub-expand-all').textContent();
+check('shelf: Collapse all round-trips back to fully collapsed',
+  stillOpenAfterCollapseAll === 0 && labelAfterCollapseAll === 'Expand all',
+  `stillOpen=${stillOpenAfterCollapseAll} label="${labelAfterCollapseAll}"`);
+await shelfMechPage.close();
+
+// 44px shelf headers at 375px.
+const shelf375Page = await browser.newPage({ viewport: { width: 375, height: 900 } });
+await shelf375Page.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await shelf375Page.goto(`${base}/`);
+await shelf375Page.waitForSelector('#public-root .tool-card', { state: 'attached' });
+const headerHeights375 = await shelf375Page.locator('.pub-shelf-header').evaluateAll(
+  (nodes) => nodes.map((n) => n.getBoundingClientRect().height));
+check('shelf: every shelf header is at least 44px tall at 375px',
+  headerHeights375.length === 15 && headerHeights375.every((h) => h >= 44), JSON.stringify(headerHeights375));
+await shelf375Page.close();
+
+// Search force-open and restore: searching tool 0's own name opens its
+// shelf (and shows the "N tools match" line), and clearing restores the
+// fully collapsed default. This is also the "tool id 0 found by search"
+// check BUILD-PLAN 14.1 names.
+const searchShelfPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await searchShelfPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await searchShelfPage.goto(`${base}/`);
+await searchShelfPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+await searchShelfPage.fill('#public-root input[type=search]', tool0.name);
+await searchShelfPage.waitForTimeout(150);
+const tool0ShelfOpenDuringSearch = await searchShelfPage.evaluate((slug) => {
+  const section = document.getElementById(`cat-${slug}`);
+  return !section.hidden && !section.querySelector('.pub-shelf-grid').hidden;
+}, tool0Slug);
+const tool0CardVisibleDuringSearch = await searchShelfPage.locator('#public-root .card-grid > li[data-id="0"]').isVisible();
+const matchLineText = await searchShelfPage.locator('.pub-shelf-match-count').textContent();
+check('shelf: searching tool 0\'s name force-opens its shelf and finds tool id 0',
+  tool0ShelfOpenDuringSearch && tool0CardVisibleDuringSearch && /match/.test(matchLineText),
+  `shelfOpen=${tool0ShelfOpenDuringSearch} cardVisible=${tool0CardVisibleDuringSearch} matchLine="${matchLineText}"`);
+await searchShelfPage.fill('#public-root input[type=search]', '');
+await searchShelfPage.waitForTimeout(150);
+const tool0ShelfAfterClear = await searchShelfPage.evaluate((slug) => {
+  const section = document.getElementById(`cat-${slug}`);
+  return { sectionHidden: section.hidden, gridHidden: section.querySelector('.pub-shelf-grid').hidden };
+}, tool0Slug);
+const matchLineHiddenAfterClear = await searchShelfPage.locator('.pub-shelf-match-count').isHidden();
+check('shelf: clearing the search restores the collapsed default',
+  tool0ShelfAfterClear.sectionHidden === false && tool0ShelfAfterClear.gridHidden === true && matchLineHiddenAfterClear,
+  JSON.stringify({ ...tool0ShelfAfterClear, matchLineHidden: matchLineHiddenAfterClear }));
+await searchShelfPage.close();
+
+// #cat-<slug> deep link opens and scrolls to its shelf.
+const deepLinkPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await deepLinkPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await deepLinkPage.goto(`${base}/#cat-${tool0Slug}`);
+await deepLinkPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+await deepLinkPage.waitForTimeout(700); // let the smooth scrollIntoView settle
+const deepLinkResult = await deepLinkPage.evaluate((slug) => {
+  const section = document.getElementById(`cat-${slug}`);
+  const grid = section.querySelector('.pub-shelf-grid');
+  const rect = section.getBoundingClientRect();
+  return { gridHidden: grid.hidden, top: rect.top, nearViewportTop: rect.top >= -50 && rect.top <= 300 };
+}, tool0Slug);
+check('shelf: a #cat- deep link opens and scrolls to its shelf',
+  deepLinkResult.gridHidden === false && deepLinkResult.nearViewportTop,
+  JSON.stringify(deepLinkResult));
+await deepLinkPage.close();
+
+// Tool id 0's judgement chip inside its own shelf: judge it via the
+// fine-pointer quick-judge rail (no deck needed) once its shelf is
+// expanded, then confirm the chip renders in place, still inside that
+// shelf (the "id 0 in a shelf and its judgement chip" check).
+const shelfChipPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await shelfChipPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await shelfChipPage.goto(`${base}/`);
+await shelfChipPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+await shelfChipPage.evaluate(() => localStorage.removeItem('freestack:v1:discover'));
+await shelfChipPage.reload();
+await shelfChipPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+await shelfChipPage.waitForTimeout(400); // let discover.js resolve so the rail actually renders
+await expandAllShelves(shelfChipPage);
+const tool0Li = shelfChipPage.locator('#public-root .card-grid > li[data-id="0"]');
+await tool0Li.scrollIntoViewIfNeeded();
+await tool0Li.hover();
+await tool0Li.locator('.pub-judge-rail-have').click();
+await shelfChipPage.waitForTimeout(200);
+const tool0ChipText = await tool0Li.locator('.pub-judge-chip').textContent().catch(() => '');
+const tool0ChipInsideShelf = await tool0Li.evaluate((li) => li.closest('.pub-shelf') !== null);
+check('shelf: tool id 0 can be judged and its chip renders inside its own shelf',
+  tool0ChipText.trim() === 'Got it' && tool0ChipInsideShelf,
+  `chip="${tool0ChipText}" insideShelf=${tool0ChipInsideShelf}`);
+await shelfChipPage.close();
+
 /* --- Phase 12.2: Discover deck engine (PRD section 17) ---------------------
    js/discover.js is dynamically imported by the Discover entry path's click
    handler (js/public.js), so every check below opens the deck the same way
@@ -284,7 +495,7 @@ await reducedMotionPage.close();
    any special-cased test hook. */
 async function openDiscoverDeck(pg) {
   await pg.goto(`${base}/`);
-  await pg.waitForSelector('#public-root .tool-card');
+  await pg.waitForSelector('#public-root .tool-card', { state: 'attached' });
   await pg.locator('[data-discover-entry]').click();
   await pg.waitForSelector('.discover-card');
 }
@@ -320,7 +531,7 @@ await discoverPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await openDiscoverDeck(discoverPage);
 await clearDiscoverStorage(discoverPage);
 await discoverPage.reload();
-await discoverPage.waitForSelector('#public-root .tool-card');
+await discoverPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await discoverPage.locator('[data-discover-entry]').click();
 await discoverPage.waitForSelector('.discover-card');
 
@@ -332,7 +543,7 @@ check('discover: keyboard-judged tool 0 recorded as have',
   firstDealtId === '0' && decisionsAfterKeyboard['0']?.d === 'have', `firstDealtId=${firstDealtId} decisions=${JSON.stringify(decisionsAfterKeyboard)}`);
 
 await discoverPage.reload();
-await discoverPage.waitForSelector('#public-root .tool-card');
+await discoverPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 const decisionsAfterReload = await discoverPage.evaluate(() => JSON.parse(localStorage.getItem('freestack:v1:discover')).decisions);
 check('discover: tool 0 decision survives a reload', decisionsAfterReload['0']?.d === 'have', JSON.stringify(decisionsAfterReload));
 
@@ -359,7 +570,7 @@ await dragPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await openDiscoverDeck(dragPage);
 await clearDiscoverStorage(dragPage);
 await dragPage.reload();
-await dragPage.waitForSelector('#public-root .tool-card');
+await dragPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await dragPage.locator('[data-discover-entry]').click();
 await dragPage.waitForSelector('.discover-card');
 const idBeforeDrag = await dragPage.locator('.discover-card').getAttribute('data-id');
@@ -394,11 +605,11 @@ async function checkStampLegibility(theme) {
   const pg = await browser.newPage({ viewport: { width: 375, height: 812 } });
   await pg.route(/^(?!.*localhost).*$/, (route) => route.abort());
   await pg.goto(`${base}/`);
-  await pg.waitForSelector('#public-root .tool-card');
+  await pg.waitForSelector('#public-root .tool-card', { state: 'attached' });
   await pg.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
   await clearDiscoverStorage(pg);
   await pg.reload();
-  await pg.waitForSelector('#public-root .tool-card');
+  await pg.waitForSelector('#public-root .tool-card', { state: 'attached' });
   await pg.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
   await pg.locator('[data-discover-entry]').click();
   await pg.waitForSelector('.discover-card');
@@ -448,7 +659,7 @@ await typographyPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await openDiscoverDeck(typographyPage);
 await clearDiscoverStorage(typographyPage);
 await typographyPage.reload();
-await typographyPage.waitForSelector('#public-root .tool-card');
+await typographyPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await typographyPage.locator('[data-discover-entry]').click();
 await typographyPage.waitForSelector('.discover-card');
 const deckDescSize = await typographyPage.locator('.discover-card-desc').evaluate((n) => Number.parseFloat(getComputedStyle(n).fontSize));
@@ -477,7 +688,7 @@ await reducedDiscoverPage.route(/^(?!.*localhost).*$/, (route) => route.abort())
 await openDiscoverDeck(reducedDiscoverPage);
 await clearDiscoverStorage(reducedDiscoverPage);
 await reducedDiscoverPage.reload();
-await reducedDiscoverPage.waitForSelector('#public-root .tool-card');
+await reducedDiscoverPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await reducedDiscoverPage.locator('[data-discover-entry]').click();
 await reducedDiscoverPage.waitForSelector('.discover-card');
 const enterAnimationName = await reducedDiscoverPage.locator('.discover-card').evaluate((n) => getComputedStyle(n).animationName);
@@ -493,7 +704,7 @@ const escPage = await browser.newPage();
 await escPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await seedCoachDoneBeforeLoad(escPage); // otherwise the first Escape only dismisses the coach
 await escPage.goto(`${base}/`);
-await escPage.waitForSelector('#public-root .tool-card');
+await escPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await escPage.locator('[data-discover-entry]').focus();
 await escPage.locator('[data-discover-entry]').click();
 await escPage.waitForSelector('.discover-card');
@@ -510,7 +721,7 @@ await handoffPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await openDiscoverDeck(handoffPage);
 await clearDiscoverStorage(handoffPage);
 await handoffPage.reload();
-await handoffPage.waitForSelector('#public-root .tool-card');
+await handoffPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await handoffPage.locator('[data-discover-entry]').click();
 await handoffPage.waitForSelector('.discover-card');
 // One "want" decision first: with only skips, both resolved lists would be
@@ -551,7 +762,7 @@ const blockedPageErrors = [];
 blockedPage.on('pageerror', (e) => blockedPageErrors.push(String(e)));
 blockedPage.on('console', (m) => { if (m.type() === 'error' && !/net::|Failed to load resource/.test(m.text())) blockedPageErrors.push(m.text()); });
 await blockedPage.goto(`${base}/`);
-await blockedPage.waitForSelector('#public-root .tool-card');
+await blockedPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await blockedPage.locator('[data-discover-entry]').click();
 await blockedPage.waitForSelector('.discover-card');
 check('discover: blocked localStorage still deals a card', (await blockedPage.locator('.discover-card').count()) === 1);
@@ -585,7 +796,7 @@ await doubleJudgePage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await openDiscoverDeck(doubleJudgePage);
 await clearDiscoverStorage(doubleJudgePage);
 await doubleJudgePage.reload();
-await doubleJudgePage.waitForSelector('#public-root .tool-card');
+await doubleJudgePage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await doubleJudgePage.locator('[data-discover-entry]').click();
 await doubleJudgePage.waitForSelector('.discover-card');
 const firstCardId = await doubleJudgePage.locator('.discover-card').getAttribute('data-id');
@@ -651,7 +862,7 @@ const scrollRacePage = await browser.newPage({ viewport: { width: 375, height: 8
 await scrollRacePage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await seedCoachDoneBeforeLoad(scrollRacePage); // otherwise the zero-delay click only dismisses the coach
 await scrollRacePage.goto(`${base}/`, { waitUntil: 'load' });
-await scrollRacePage.waitForSelector('#public-root .tool-card');
+await scrollRacePage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await scrollRacePage.locator('[data-discover-entry]').click();
 await scrollRacePage.waitForSelector('.discover-card');
 await scrollRacePage.locator('.discover-btn-have').click(); // zero delay: the reproduced race window
@@ -691,7 +902,7 @@ async function checkLongestCardFitsOnScreen(viewport) {
   const pg = await browser.newPage({ viewport });
   await pg.route(/^(?!.*localhost).*$/, (route) => route.fulfill({ status: 404, contentType: 'text/plain', body: 'not found' }));
   await pg.goto(`${base}/`);
-  await pg.waitForSelector('#public-root .tool-card');
+  await pg.waitForSelector('#public-root .tool-card', { state: 'attached' });
   await pg.evaluate(async (id) => {
     const mod = await import('/js/discover.js');
     const toolsRes = await fetch('/data/tools.json');
@@ -734,10 +945,10 @@ await checkLongestCardFitsOnScreen({ width: 390, height: 844 });
 const coachFirstPage = await browser.newPage({ viewport: { width: 375, height: 812 } });
 await coachFirstPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await coachFirstPage.goto(`${base}/`);
-await coachFirstPage.waitForSelector('#public-root .tool-card');
+await coachFirstPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await coachFirstPage.evaluate(() => localStorage.removeItem('freestack:v1:discover')); // genuinely first-ever
 await coachFirstPage.reload();
-await coachFirstPage.waitForSelector('#public-root .tool-card');
+await coachFirstPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await coachFirstPage.locator('[data-discover-entry]').click();
 await coachFirstPage.waitForSelector('.discover-card');
 check('discover: the coach overlay appears on a genuinely first-ever deck open',
@@ -801,12 +1012,12 @@ await coachFirstPage.close();
 const coachJudgedPage = await browser.newPage({ viewport: { width: 375, height: 812 } });
 await coachJudgedPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await coachJudgedPage.goto(`${base}/`);
-await coachJudgedPage.waitForSelector('#public-root .tool-card');
+await coachJudgedPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await coachJudgedPage.evaluate(() => localStorage.setItem('freestack:v1:discover', JSON.stringify({
   v: 1, lastVisit: new Date().toISOString(), seenIds: [0], decisions: { 0: { d: 'have', t: Date.now() } },
 })));
 await coachJudgedPage.reload();
-await coachJudgedPage.waitForSelector('#public-root .tool-card');
+await coachJudgedPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await coachJudgedPage.locator('[data-discover-entry]').click();
 await coachJudgedPage.waitForSelector('.discover-card');
 check('discover: the coach overlay does not appear once any judgement already exists',
@@ -817,10 +1028,10 @@ await coachJudgedPage.close();
 const coachTimeoutPage = await browser.newPage({ viewport: { width: 375, height: 812 } });
 await coachTimeoutPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await coachTimeoutPage.goto(`${base}/`);
-await coachTimeoutPage.waitForSelector('#public-root .tool-card');
+await coachTimeoutPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await coachTimeoutPage.evaluate(() => localStorage.removeItem('freestack:v1:discover'));
 await coachTimeoutPage.reload();
-await coachTimeoutPage.waitForSelector('#public-root .tool-card');
+await coachTimeoutPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await coachTimeoutPage.locator('[data-discover-entry]').click();
 await coachTimeoutPage.waitForSelector('.discover-coach');
 await coachTimeoutPage.waitForTimeout(6000);
@@ -856,7 +1067,7 @@ await parityPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await openDiscoverDeck(parityPage);
 await clearDiscoverStorage(parityPage);
 await parityPage.reload();
-await parityPage.waitForSelector('#public-root .tool-card');
+await parityPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await parityPage.locator('[data-discover-entry]').click();
 await parityPage.waitForSelector('.discover-card');
 const parityFirstId = await parityPage.locator('.discover-card').getAttribute('data-id');
@@ -864,6 +1075,9 @@ await parityPage.locator('.discover-panel').press('ArrowLeft'); // have
 await parityPage.waitForTimeout(400);
 await parityPage.locator('.discover-close').click();
 await parityPage.waitForTimeout(300); // let the judgement-parity bootstrap import/decorate settle
+// Phase 14.1 adaptation: the browse card lives inside a collapsed shelf by
+// default; expand every shelf so it can be scrolled to and clicked.
+await expandAllShelves(parityPage);
 
 const parityToolName = await toolNameFor(parityPage, parityFirstId);
 const parityCard = browseCardFor(parityPage, parityToolName);
@@ -887,11 +1101,13 @@ await parityPage.close();
 const finePage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 await finePage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await finePage.goto(`${base}/`);
-await finePage.waitForSelector('#public-root .tool-card');
+await finePage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await finePage.evaluate(() => localStorage.removeItem('freestack:v1:discover'));
 await finePage.reload();
-await finePage.waitForSelector('#public-root .tool-card');
+await finePage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await finePage.waitForTimeout(400); // let the discover.js dynamic import resolve
+// Phase 14.1 adaptation: the first card lives inside a collapsed shelf.
+await expandAllShelves(finePage);
 const fineFirstLi = finePage.locator('#public-root .card-grid > li').first();
 await fineFirstLi.hover();
 const railDisplayFine = await fineFirstLi.locator('.pub-judge-rail').evaluate((n) => getComputedStyle(n).display);
@@ -919,7 +1135,7 @@ const coarseCtx = await browser.newContext({ viewport: { width: 390, height: 844
 const coarsePage = await coarseCtx.newPage();
 await coarsePage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await coarsePage.goto(`${base}/`);
-await coarsePage.waitForSelector('#public-root .tool-card');
+await coarsePage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 const coarseMediaMatches = await coarsePage.evaluate(() => ({
   hoverNone: matchMedia('(hover: none)').matches,
   pointerCoarse: matchMedia('(pointer: coarse)').matches,
@@ -938,13 +1154,15 @@ await parity375.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await openDiscoverDeck(parity375);
 await clearDiscoverStorage(parity375);
 await parity375.reload();
-await parity375.waitForSelector('#public-root .tool-card');
+await parity375.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await parity375.locator('[data-discover-entry]').click();
 await parity375.waitForSelector('.discover-card');
 await parity375.locator('.discover-panel').press('ArrowLeft');
 await parity375.waitForTimeout(400);
 await parity375.locator('.discover-close').click();
 await parity375.waitForTimeout(300);
+// Phase 14.1 adaptation: the browse card lives inside a collapsed shelf.
+await expandAllShelves(parity375);
 const parity375ToolName = await toolNameFor(parity375, '0');
 const parity375Card = browseCardFor(parity375, parity375ToolName);
 await parity375Card.scrollIntoViewIfNeeded();
@@ -958,16 +1176,18 @@ check('parity: every chooser option is at least 44px tall at 375px',
   chooserBoxes375.length === 3 && chooserBoxes375.every((h) => h >= 44), JSON.stringify(chooserBoxes375));
 await parity375.close();
 
-// Reveal-once law extended to this redraw path: opening or acting on the
-// chooser must never dip an already-settled, below-fold section's opacity,
-// the same regression class 12.1's fix round hardened for search/persona
-// redraws.
+// Reveal-once law extended to this redraw path, adapted for Phase 14.1's
+// shelf architecture the same way the earlier no-refire regression was:
+// opening or acting on the chooser must never rebuild a settled shelf's
+// DOM. There is no more per-category opacity reveal to poll (see the
+// no-refire block above); the equivalent honest guard is the same
+// DOM-identity marker check.
 const parityRevealPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 await parityRevealPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await openDiscoverDeck(parityRevealPage);
 await clearDiscoverStorage(parityRevealPage);
 await parityRevealPage.reload();
-await parityRevealPage.waitForSelector('#public-root .tool-card');
+await parityRevealPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await parityRevealPage.waitForTimeout(700); // let the first-screen entrance reveal finish
 await parityRevealPage.locator('[data-discover-entry]').click();
 await parityRevealPage.waitForSelector('.discover-card');
@@ -975,36 +1195,23 @@ await parityRevealPage.locator('.discover-panel').press('ArrowLeft');
 await parityRevealPage.waitForTimeout(400);
 await parityRevealPage.locator('.discover-close').click();
 await parityRevealPage.waitForTimeout(300);
+await expandAllShelves(parityRevealPage);
 const parityCategoryOrder = [];
 for (const t of active) { if (!parityCategoryOrder.includes(t.category)) parityCategoryOrder.push(t.category); }
 const parityTargetCategory = parityCategoryOrder[1] ?? parityCategoryOrder[0];
-const parityHeading = parityRevealPage.locator('.cli-category', { hasText: parityTargetCategory }).first();
+const parityHeading = parityRevealPage.locator('.pub-shelf-header', { hasText: parityTargetCategory }).first();
 await parityHeading.scrollIntoViewIfNeeded();
-await parityRevealPage.waitForTimeout(400);
+await parityHeading.evaluate((n) => { n.dataset.stabilityMarker = 'kept'; });
 const parityToolNameForReveal = await toolNameFor(parityRevealPage, '0');
 const parityRevealCard = browseCardFor(parityRevealPage, parityToolNameForReveal);
 await parityRevealCard.scrollIntoViewIfNeeded();
 await parityRevealCard.locator('.pub-judge-chip').click();
-let parityMinOpacity = 1;
-const parityPollUntil = Date.now() + 500;
-while (Date.now() < parityPollUntil) {
-  if (await parityHeading.count()) {
-    const op = Number(await parityHeading.evaluate((n) => getComputedStyle(n).opacity));
-    parityMinOpacity = Math.min(parityMinOpacity, op);
-  }
-  await parityRevealPage.waitForTimeout(20);
-}
+await parityRevealPage.waitForTimeout(300);
 await parityRevealCard.locator('.pub-judge-chooser button', { hasText: 'Clear' }).click();
-const parityPollUntil2 = Date.now() + 500;
-while (Date.now() < parityPollUntil2) {
-  if (await parityHeading.count()) {
-    const op = Number(await parityHeading.evaluate((n) => getComputedStyle(n).opacity));
-    parityMinOpacity = Math.min(parityMinOpacity, op);
-  }
-  await parityRevealPage.waitForTimeout(20);
-}
-check('parity: opening and acting on the chooser never dips a settled section below opacity 1',
-  parityMinOpacity >= 0.99, `min=${parityMinOpacity} category="${parityTargetCategory}"`);
+await parityRevealPage.waitForTimeout(300);
+const parityMarkerAfter = await parityHeading.evaluate((n) => n.dataset.stabilityMarker).catch(() => null);
+check('parity: opening and acting on the chooser never rebuilds a settled shelf',
+  parityMarkerAfter === 'kept', `marker=${parityMarkerAfter} category="${parityTargetCategory}"`);
 await parityRevealPage.close();
 
 // Counts agree: judge a deck through to completion, change one decision via
@@ -1016,7 +1223,7 @@ await countsPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await openDiscoverDeck(countsPage);
 await clearDiscoverStorage(countsPage);
 await countsPage.reload();
-await countsPage.waitForSelector('#public-root .tool-card');
+await countsPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await countsPage.locator('[data-discover-entry]').click();
 await countsPage.waitForSelector('.discover-card');
 let countsGuard = 0;
@@ -1026,6 +1233,8 @@ while ((await countsPage.locator('.discover-completion').count()) === 0 && count
   countsGuard++;
 }
 await countsPage.waitForSelector('.discover-completion');
+// Phase 14.1 adaptation: the browse card lives inside a collapsed shelf.
+await expandAllShelves(countsPage);
 const decisionsBeforeCountsEdit = await countsPage.evaluate(() => JSON.parse(localStorage.getItem('freestack:v1:discover')).decisions);
 const haveIdToClear = Object.entries(decisionsBeforeCountsEdit).find(([, v]) => v.d === 'have')?.[0];
 const haveCountBefore = Object.values(decisionsBeforeCountsEdit).filter((v) => v.d === 'have').length;
@@ -1054,13 +1263,15 @@ await keyboardPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await openDiscoverDeck(keyboardPage);
 await clearDiscoverStorage(keyboardPage);
 await keyboardPage.reload();
-await keyboardPage.waitForSelector('#public-root .tool-card');
+await keyboardPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await keyboardPage.locator('[data-discover-entry]').click();
 await keyboardPage.waitForSelector('.discover-card');
 await keyboardPage.locator('.discover-panel').press('ArrowLeft');
 await keyboardPage.waitForTimeout(400);
 await keyboardPage.locator('.discover-close').click();
 await keyboardPage.waitForTimeout(300);
+// Phase 14.1 adaptation: the browse card lives inside a collapsed shelf.
+await expandAllShelves(keyboardPage);
 const keyboardToolName = await toolNameFor(keyboardPage, '0');
 const keyboardCard = browseCardFor(keyboardPage, keyboardToolName);
 await keyboardCard.scrollIntoViewIfNeeded();
@@ -1090,13 +1301,15 @@ await outsideClickPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await openDiscoverDeck(outsideClickPage);
 await clearDiscoverStorage(outsideClickPage);
 await outsideClickPage.reload();
-await outsideClickPage.waitForSelector('#public-root .tool-card');
+await outsideClickPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await outsideClickPage.locator('[data-discover-entry]').click();
 await outsideClickPage.waitForSelector('.discover-card');
 await outsideClickPage.locator('.discover-panel').press('ArrowLeft');
 await outsideClickPage.waitForTimeout(400);
 await outsideClickPage.locator('.discover-close').click();
 await outsideClickPage.waitForTimeout(300);
+// Phase 14.1 adaptation: the browse card lives inside a collapsed shelf.
+await expandAllShelves(outsideClickPage);
 const outsideClickToolName = await toolNameFor(outsideClickPage, '0');
 const outsideClickCard = browseCardFor(outsideClickPage, outsideClickToolName);
 await outsideClickCard.scrollIntoViewIfNeeded();
@@ -1121,13 +1334,15 @@ await escapeFromChipPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await openDiscoverDeck(escapeFromChipPage);
 await clearDiscoverStorage(escapeFromChipPage);
 await escapeFromChipPage.reload();
-await escapeFromChipPage.waitForSelector('#public-root .tool-card');
+await escapeFromChipPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await escapeFromChipPage.locator('[data-discover-entry]').click();
 await escapeFromChipPage.waitForSelector('.discover-card');
 await escapeFromChipPage.locator('.discover-panel').press('ArrowLeft');
 await escapeFromChipPage.waitForTimeout(400);
 await escapeFromChipPage.locator('.discover-close').click();
 await escapeFromChipPage.waitForTimeout(300);
+// Phase 14.1 adaptation: the browse card lives inside a collapsed shelf.
+await expandAllShelves(escapeFromChipPage);
 const escapeFromChipToolName = await toolNameFor(escapeFromChipPage, '0');
 const escapeFromChipCard = browseCardFor(escapeFromChipPage, escapeFromChipToolName);
 await escapeFromChipCard.scrollIntoViewIfNeeded();
@@ -1179,8 +1394,10 @@ function cardByName(pg, name) {
 const railOverlapPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 await railOverlapPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await railOverlapPage.goto(`${base}/`);
-await railOverlapPage.waitForSelector('#public-root .tool-card');
+await railOverlapPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await railOverlapPage.waitForTimeout(400); // let discover.js resolve so the rail actually renders
+// Phase 14.1 adaptation: the first card lives inside a collapsed shelf.
+await expandAllShelves(railOverlapPage);
 const railLi = railOverlapPage.locator('#public-root .card-grid > li').first();
 await railLi.hover();
 const firstCardClearance = await railClearance(railLi);
@@ -1195,8 +1412,10 @@ for (const width of [1024, 1280, 1440]) {
   const widthPage = await browser.newPage({ viewport: { width, height: 900 } });
   await widthPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
   await widthPage.goto(`${base}/`);
-  await widthPage.waitForSelector('#public-root .tool-card');
+  await widthPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
   await widthPage.waitForTimeout(400); // settled load
+  // Phase 14.1 adaptation: named cards live inside collapsed shelves.
+  await expandAllShelves(widthPage);
   for (const tool of longestNameTools) {
     const li = cardByName(widthPage, tool.name);
     await li.scrollIntoViewIfNeeded();
@@ -1212,10 +1431,12 @@ for (const width of [1024, 1280, 1440]) {
 const resizePage = await browser.newPage({ viewport: { width: 1024, height: 900 } });
 await resizePage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await resizePage.goto(`${base}/`);
-await resizePage.waitForSelector('#public-root .tool-card');
+await resizePage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await resizePage.waitForTimeout(400);
 await resizePage.setViewportSize({ width: 1280, height: 900 });
 await resizePage.waitForTimeout(150);
+// Phase 14.1 adaptation: named cards live inside collapsed shelves.
+await expandAllShelves(resizePage);
 for (const tool of longestNameTools) {
   const li = cardByName(resizePage, tool.name);
   await li.scrollIntoViewIfNeeded();
@@ -1236,7 +1457,7 @@ discoverBlockedPage.on('console', (m) => { if (m.type() === 'error' && !/net::|F
 await discoverBlockedPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await discoverBlockedPage.route('**/js/discover.js', (route) => route.abort());
 await discoverBlockedPage.goto(`${base}/`);
-await discoverBlockedPage.waitForSelector('#public-root .tool-card');
+await discoverBlockedPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await discoverBlockedPage.waitForTimeout(500); // give the aborted dynamic import time to settle
 check('parity: with js/discover.js blocked, every active card still renders',
   await discoverBlockedPage.locator('#public-root .tool-card').count() === active.length);
