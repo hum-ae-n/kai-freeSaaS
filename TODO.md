@@ -42,6 +42,7 @@ Build state: Phases 0-12 done, verified and merged to `main`. Phase 12 (homepage
 
 ## Nice-to-have / flagged
 
+- [ ] Unconfirmed report (14.2 builder): judging a tool then reloading sometimes left its browse-list chip un-rendered. The 14.2 verifier could not reproduce it in about 15 varied attempts on current HEAD. Watch for it during real use; if anyone reproduces it, capture the exact sequence and hand it to the list-parity owner.
 - [ ] Replace the Lucide-via-CDN icon substitution if a preferred icon system exists (design-system brief caveat; not currently used by Free Stack itself). Category icons in client mode already use hand-copied Lucide paths with no CDN or npm dependency, see BUILD-PLAN 7.11.
 - [ ] Confirm whether a licensed Proxima Nova webfont should be loaded for the wordmark (falls back to Mona Sans/Montserrat today)
 - [ ] Post-v1 ideas parked in PRD §13 still open: API endpoint serving `tools.json` publicly. (Embed mode, also listed there, shipped in Phase 10.11 via `embed.html`.)
