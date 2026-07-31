@@ -29,7 +29,7 @@ jobs:
       - name: Answer Engine and Search Visibility drift gate (PRD section 18)
         run: |
           node scripts/build-seo.mjs
-          git diff --exit-code -- index.html faq.html sitemap.xml llms.txt robots.txt || {
+          git diff --exit-code -- index.html faq.html sitemap.xml llms.txt robots.txt data/faq.json || {
             echo "::error::scripts/build-seo.mjs produced output that differs from the committed artefacts. Run 'node scripts/build-seo.mjs' locally and commit the result." >&2
             exit 1
           }

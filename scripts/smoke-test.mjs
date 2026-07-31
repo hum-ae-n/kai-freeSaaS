@@ -2191,7 +2191,7 @@ check('csp: faq.html boot script is byte identical to index.html (Phase 14.3, no
   // string from tools.json is escaped before it reaches a static file). The
   // same escaping is applied here before searching the raw markup, rather
   // than loosening what the generator itself is required to do.
-  const escapeHtmlForCheck = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const escapeHtmlForCheck = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   const activeToolNames = active.map((t) => t.name);
 
   // Raw fetch, no JS: exactly what a non-rendering crawler receives. Uses
@@ -2333,6 +2333,94 @@ check('csp: faq.html boot script is byte identical to index.html (Phase 14.3, no
     && llmsTxt.includes('/data/tools.json')
     && llmsTxt.includes('/faq.html'));
 
+  /* --- Wave 14.3b: data/faq.json as the single source of truth, and its two
+     runtime surfacing points (homepage FAQ slot in js/public.js, ?tool=
+     permalink Q&A in js/client.js) ------------------------------------- */
+  const faqJsonRes = await fetch(`${base}/data/faq.json`);
+  const faqJsonBody = await faqJsonRes.json();
+  check('aeo: data/faq.json is served and parses with exactly ten site entries and one entry per active tool',
+    faqJsonRes.status === 200
+    && Array.isArray(faqJsonBody.site) && faqJsonBody.site.length === 10
+    && faqJsonBody.tools && Object.keys(faqJsonBody.tools).length === active.length);
+  check('aeo: data/faq.json carries tool 0 under the string key "0" (id law: 0 is a real key)',
+    typeof faqJsonBody.tools['0']?.q === 'string' && typeof faqJsonBody.tools['0']?.a === 'string');
+
+  // Homepage FAQ slot (js/public.js, PRD section 16 item 5): ten native
+  // <details>/<summary> items, text matching data/faq.json byte for byte,
+  // never re-derived at runtime. The FAQ section sits below the shelf band,
+  // so no shelf needs expanding to find it.
+  await page.goto(`${base}/`);
+  await page.waitForSelector('#public-root .tool-card', { state: 'attached' });
+  await page.waitForSelector('.pub-faq-item');
+  const homeFaqQuestions = await page.locator('.pub-faq-summary').allTextContents();
+  const homeFaqAnswers = await page.locator('.pub-faq-answer').allTextContents();
+  check('aeo: homepage FAQ slot renders exactly ten details items matching data/faq.json byte for byte',
+    homeFaqQuestions.length === 10 && homeFaqAnswers.length === 10
+    && faqJsonBody.site.every((entry, i) => entry.q === homeFaqQuestions[i] && entry.a === homeFaqAnswers[i]),
+    `questions=${homeFaqQuestions.length} answers=${homeFaqAnswers.length}`);
+  const homeFaqOpenCount = await page.locator('.pub-faq-item[open]').count();
+  check('aeo: homepage FAQ items are closed by default (content in the DOM regardless, native details/summary)',
+    homeFaqOpenCount === 0);
+  const homeFaqSummaryHeights = await page.locator('.pub-faq-summary').evaluateAll((nodes) => nodes.map((n) => n.getBoundingClientRect().height));
+  check('aeo: homepage FAQ summaries are at least 44px tall', homeFaqSummaryHeights.every((h) => h >= 44), JSON.stringify(homeFaqSummaryHeights));
+
+  // Re-measure the 14.1 fold and page-height budgets now that the FAQ slot
+  // is genuinely visible (collapsed, but no longer `hidden`), rather than
+  // assuming it stays within budget: "they will not, but assert it" per the
+  // coordinator's brief.
+  for (const [width, budget] of [[375, 3200], [1280, 2200]]) {
+    const faqBudgetPage = await browser.newPage({ viewport: { width, height: 900 } });
+    await faqBudgetPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+    await faqBudgetPage.goto(`${base}/`);
+    await faqBudgetPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+    await faqBudgetPage.waitForSelector('.pub-faq-item');
+    await faqBudgetPage.waitForTimeout(300);
+    const faqPageHeight = await faqBudgetPage.evaluate(() => document.documentElement.scrollHeight);
+    check(`aeo: page height at ${width}px is still within the ${budget}px budget with the FAQ slot visible`,
+      faqPageHeight <= budget, `height=${faqPageHeight}`);
+    await faqBudgetPage.close();
+  }
+  const faqFoldPage = await browser.newPage({ viewport: { width: 375, height: 812 } });
+  await faqFoldPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await faqFoldPage.goto(`${base}/`);
+  await faqFoldPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+  await faqFoldPage.waitForSelector('.pub-shelf-header');
+  await faqFoldPage.waitForSelector('.pub-faq-item');
+  await faqFoldPage.waitForTimeout(300);
+  const faqFoldFirstShelfBox = await faqFoldPage.locator('.pub-shelf-header').first().boundingBox();
+  const faqFoldFirstShelfTop = faqFoldFirstShelfBox?.y ?? null;
+  check('aeo: the pinned 880px first-shelf budget is unaffected by the now-visible FAQ slot (which sits below the shelves)',
+    faqFoldFirstShelfTop !== null && faqFoldFirstShelfTop <= 880, `firstShelfHeaderTop=${faqFoldFirstShelfTop}`);
+  await faqFoldPage.close();
+
+  // ?tool= permalink Q&A (js/client.js, PRD section 18 per-tool surfacing):
+  // tool 0 specifically, matching data/faq.json byte for byte, and matching
+  // the static crawler block's own tool-0 text (both trace to the same
+  // data/faq.json, so they can never disagree).
+  const toolFaqPage = await browser.newPage();
+  await toolFaqPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await toolFaqPage.goto(`${base}/?tool=0`);
+  await toolFaqPage.waitForSelector('.cli-tool-faq h2');
+  const toolFaqQ = await toolFaqPage.locator('.cli-tool-faq h2').textContent();
+  const toolFaqA = await toolFaqPage.locator('.cli-tool-faq p').textContent();
+  check('aeo: ?tool=0 permalink renders its question and answer matching data/faq.json byte for byte',
+    toolFaqQ === faqJsonBody.tools['0'].q && toolFaqA === faqJsonBody.tools['0'].a,
+    JSON.stringify({ toolFaqQ, expectedQ: faqJsonBody.tools['0'].q }));
+  check("aeo: the ?tool=0 answer matches the static crawler block's tool-0 text exactly (both trace to data/faq.json)",
+    rawRootHtml.includes(escapeHtmlForCheck(faqJsonBody.tools['0'].a)));
+  await toolFaqPage.close();
+
+  // Scoped strictly to renderSingleTool, per the coordinator's brief:
+  // multi-tool client pages carry no per-tool FAQ section at all.
+  const multiToolFaqPage = await browser.newPage();
+  await multiToolFaqPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await multiToolFaqPage.goto(`${base}/?t=0,2`);
+  await multiToolFaqPage.waitForSelector('.tool-card');
+  const multiToolFaqCount = await multiToolFaqPage.locator('.cli-tool-faq').count();
+  check('aeo: multi-tool client pages carry no .cli-tool-faq section (scoped to the single-tool permalink only)',
+    multiToolFaqCount === 0);
+  await multiToolFaqPage.close();
+
   // Noindex boundaries unmoved: /x, client-mode links and /my keep their
   // JS-injected noindex; why-register.html keeps its static one; faq.html
   // (new this wave) carries none, since it is meant to be indexed. Each of
@@ -2382,7 +2470,12 @@ check('csp: faq.html boot script is byte identical to index.html (Phase 14.3, no
   // authority for gating a real commit, this is the in-suite corroboration
   // that regenerating right now changes nothing already on disk.
   const { execFileSync } = await import('node:child_process');
-  const artefacts = ['index.html', 'faq.html', 'sitemap.xml', 'llms.txt', 'robots.txt'];
+  // 'data/faq.json' (wave 14.3b): the same drift proof now covers the JSON
+  // source of truth every runtime surface fetches, not only the HTML/XML/
+  // text artefacts. .github/workflows/ci.yml's own drift step diffs this
+  // exact path list too, so a real CI run and this in-suite corroboration
+  // can never disagree about what "covered by the drift gate" means.
+  const artefacts = ['index.html', 'faq.html', 'sitemap.xml', 'llms.txt', 'robots.txt', join('data', 'faq.json')];
   const before = Object.fromEntries(await Promise.all(artefacts.map(async (f) => [f, await readFile(join(ROOT, f), 'utf8')])));
   execFileSync(process.execPath, [join(ROOT, 'scripts', 'build-seo.mjs')], { cwd: ROOT });
   const afterFirstRun = Object.fromEntries(await Promise.all(artefacts.map(async (f) => [f, await readFile(join(ROOT, f), 'utf8')])));

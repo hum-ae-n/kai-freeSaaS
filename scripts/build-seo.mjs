@@ -20,6 +20,15 @@
  *     JSON-LD)
  *   - sitemap.xml
  *   - llms.txt
+ *   - data/faq.json (wave 14.3b): { site: [{q,a} x10], tools: {"<id>":
+ *     {q,a}} }, the single source of truth for every Q&A this generator
+ *     derives. The static block above, faq.html's ten Q&As, the homepage
+ *     FAQ slot (js/public.js) and the ?tool= permalink (js/client.js) all
+ *     trace back to this one file: the runtime surfaces fetch it rather
+ *     than re-deriving question/answer text from tools.json themselves, so
+ *     there is exactly one place this logic lives. Covered by the same
+ *     CI drift step as every other artefact here (.github/workflows/ci.yml
+ *     diffs it explicitly by path).
  *
  * Determinism: no timestamps, no randomness, no reliance on file mtimes or
  * process.env. Every date that appears anywhere in the output comes from a
@@ -327,6 +336,31 @@ const FAQ_ITEMS = [
   },
 ];
 
+/* --- data/faq.json (wave 14.3b) ---------------------------------------------
+   The single source of truth every runtime surface fetches rather than
+   re-deriving: the ten site Q&As (same FAQ_ITEMS array as faq.html and its
+   JSON-LD, so the three can never disagree) plus one {q,a} pair per active
+   tool, using the exact same deriveQuestion/deriveAnswer functions that feed
+   the static crawler block, so index.html's static block, the homepage FAQ
+   slot and the ?tool= permalink all read identical words for a given tool.
+   Plain strings, not HTML: this file is consumed by browser JS (el()/
+   textContent), which does its own escaping at render time per the section 7
+   discipline, so double-escaping here would corrupt the text (an "&" would
+   render as "&amp;" literally). Object keys are decimal id strings ("0" is
+   valid, PRD section 4's id law); JavaScript's own enumeration order for
+   integer-like keys is always ascending regardless of insertion order, which
+   keeps this file's output stable without any explicit sort step. */
+function buildFaqData(active) {
+  const tools = {};
+  for (const tool of active) {
+    tools[String(tool.id)] = { q: deriveQuestion(tool), a: deriveAnswer(tool) };
+  }
+  return {
+    site: FAQ_ITEMS.map(({ question, answer }) => ({ q: question, a: answer })),
+    tools,
+  };
+}
+
 /* Byte-identical to index.html's, per netlify.toml's comment: kept identical
    on purpose so the CSP script-src hash already allow-listed for index.html
    covers this page too, without a third hash entry. Do not edit without
@@ -529,13 +563,14 @@ function main() {
   writeFileSync(join(ROOT, 'faq.html'), buildFaqHtml());
   writeFileSync(join(ROOT, 'sitemap.xml'), buildSitemapXml());
   writeFileSync(join(ROOT, 'llms.txt'), buildLlmsTxt(active));
+  writeFileSync(join(ROOT, 'data', 'faq.json'), `${JSON.stringify(buildFaqData(active), null, 2)}\n`);
 
   const robotsPath = join(ROOT, 'robots.txt');
   const rawRobotsTxt = readFileSync(robotsPath, 'utf8');
   writeFileSync(robotsPath, buildRobotsTxt(rawRobotsTxt));
 
   console.log(`build-seo: ${active.length} active tools, ${new Set(active.map((t) => t.category)).size} categories`);
-  console.log('build-seo: wrote index.html, faq.html, sitemap.xml, llms.txt, robots.txt');
+  console.log('build-seo: wrote index.html, faq.html, sitemap.xml, llms.txt, robots.txt, data/faq.json');
 }
 
 main();

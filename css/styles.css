@@ -945,6 +945,22 @@ button { font: inherit; }
 }
 .cli-footer .logo { height: 26px; width: auto; }
 
+/* ?tool= permalink Q&A (PRD section 18 per-tool surfacing, wave 14.3b): a
+   single question/answer pair fetched from data/faq.json by
+   renderSingleTool, hidden until the fetch resolves. Same hairline-divider
+   spacing as .cli-footer just above, since it sits in the same position
+   between the card and the footer. Base BASE-block rules zero out h2/p
+   margins site-wide, so this rule supplies the minimum needed for the pair
+   to read as a distinct block rather than running into the card above and
+   the footer below. */
+.cli-tool-faq {
+  margin-top: var(--s-8);
+  padding-top: var(--s-6);
+  border-top: var(--border);
+}
+.cli-tool-faq h2 { font-size: var(--fs-26); line-height: var(--lh-26); margin-bottom: var(--s-3); }
+.cli-tool-faq p { color: var(--ink-2); }
+
 /* How costs could grow (Batch D, Feature 2): single-series bar chart, no
    legend needed since the section heading already names the series. */
 .cli-cost-growth { margin-top: var(--s-12); }
@@ -1623,6 +1639,75 @@ button { font: inherit; }
 @media (max-width: 768px) {
   .pub-footer a { display: inline-block; padding: 12px 4px; margin: -4px 0; min-height: 44px; box-sizing: border-box; }
 }
+
+/* Homepage FAQ slot (PRD section 16 item 5, filled in wave 14.3b): ten
+   native <details>/<summary> items, one per site Q&A, in the same quiet
+   editorial language as .pub-changelog above (hairline rules, list-style
+   marker on the summary, no panel chrome around the whole section since it
+   sits directly on the page like the shelf band, not boxed like the
+   changelog strip). All colour comes from the existing --ink/--paper-edge
+   tokens, so dark mode is automatic, the same as every other PUBLIC rule.
+   No motion here at all, deliberately: details/summary toggles instantly by
+   native browser behaviour, so there is nothing for the reduced-motion query
+   to guard and nothing added to the motion inventory. */
+.pub-faq { margin-bottom: var(--s-10); }
+/* Same design-system h2 line-height trap .pub-shelf-band-title's own comment
+   documents: fs-21/lh-21 (not the bare h2 default of 44px/50px) keeps this
+   heading in proportion with the shelf band's own section title just above
+   it, and out of the page-height budget the collapsed FAQ items below are
+   already careful with. */
+.pub-faq-heading {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-21);
+  line-height: var(--lh-21);
+  letter-spacing: var(--tr-tight);
+  margin-bottom: var(--s-3);
+}
+/* One column below 768px (matches .pub-entry-grid's own breakpoint), two
+   columns from 768px up: ten 44px-floor rows would otherwise cost roughly
+   480px of collapsed height on every viewport including the ones with the
+   least budget to spare (the 1280px page-height budget is tighter than
+   375px's, 2200px against 3200px, since the two-column card grid already
+   packs more per screenful there). Halving the row count at the width
+   where the budget is tightest is what keeps the FAQ slot inside it without
+   shrinking any individual summary below the 44px floor. */
+.pub-faq-list { display: flex; flex-direction: column; }
+@media (min-width: 768px) {
+  .pub-faq-list { display: grid; grid-template-columns: repeat(2, 1fr); column-gap: var(--s-8); }
+}
+.pub-faq-item { border-top: var(--bw-hair) solid var(--paper-edge); }
+.pub-faq-item:last-child { border-bottom: var(--bw-hair) solid var(--paper-edge); }
+@media (min-width: 768px) {
+  /* In the two-column layout the true DOM :last-child (item 10) only closes
+     the second column; the fifth item is the visual foot of the first
+     column and needs the same closing rule, or that column reads as
+     unterminated. nth-child(5) is safe against the site's own data (the ten
+     canonical Q&As are a fixed, PRD-quoted list, never fewer than ten). */
+  .pub-faq-item:nth-child(5) { border-bottom: var(--bw-hair) solid var(--paper-edge); }
+}
+/* 44px minimum touch target (WCAG 2.5.5 / this site's own floor throughout),
+   pinned the same way the shelf header's own comment describes ("no extra
+   vertical padding on the header... so 15 collapsed shelves stay well inside
+   the page-height budget"): border-box folds the padding into the 44px
+   floor itself rather than stacking on top of it, and the item wrapper
+   above carries no padding of its own, only the hairline divider. The
+   answer paragraph is not measured here at all: a closed <details> renders
+   only its <summary>, per native HTML behaviour, so it costs nothing
+   against the collapsed page height regardless of how long the answer is.
+   list-style-position outside keeps the marker from eating into the text
+   measure the way the default "inside" position would. */
+.pub-faq-summary {
+  cursor: pointer;
+  list-style-position: outside;
+  box-sizing: border-box;
+  min-height: 44px;
+  display: list-item;
+  padding: 10px 0;
+  font-family: var(--font-sans);
+  font-weight: 500;
+}
+.pub-faq-answer { margin-top: var(--s-2); color: var(--ink-2); }
 
 /* Embed mode (Feature 2, Batch I / BUILD-PLAN 10.11): chrome-free, sized to
    sit inside an iframe rather than assume a full browser viewport. */
