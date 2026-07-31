@@ -2345,6 +2345,17 @@ check('csp: faq.html boot script is byte identical to index.html (Phase 14.3, no
   check('aeo: data/faq.json carries tool 0 under the string key "0" (id law: 0 is a real key)',
     typeof faqJsonBody.tools['0']?.q === 'string' && typeof faqJsonBody.tools['0']?.a === 'string');
 
+  // PRD section 18 as amended (31 Jul): answers aim for 40-80 words with
+  // hard bounds of 30-100, because free_limit is quoted verbatim and
+  // truncating it to hit a cosmetic target would cost honesty. The hard
+  // bounds are the tested contract.
+  const faqWordBoundBreaches = Object.entries(faqJsonBody.tools)
+    .map(([id, entry]) => [id, entry.a.trim().split(/\s+/).length])
+    .filter(([, words]) => words < 30 || words > 100);
+  check('aeo: every per-tool answer sits within the 30-100 word hard bounds',
+    faqWordBoundBreaches.length === 0,
+    faqWordBoundBreaches.map(([id, words]) => `${id}:${words}`).join(',') || 'all within bounds');
+
   // Homepage FAQ slot (js/public.js, PRD section 16 item 5): ten native
   // <details>/<summary> items, text matching data/faq.json byte for byte,
   // never re-derived at runtime. The FAQ section sits below the shelf band,

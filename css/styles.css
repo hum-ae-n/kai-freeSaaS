@@ -110,7 +110,7 @@ button { font: inherit; }
    relying on source order never regressing it again. */
 [hidden] { display: none !important; }
 
-:is(a, button, input, select, [tabindex]):focus-visible {
+:is(a, button, input, select, summary, [tabindex]):focus-visible {
   outline: 2px solid var(--oxblood);
   outline-offset: 2px;
 }

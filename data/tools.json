@@ -3901,8 +3901,8 @@
     "when": "Client wanting structured learning beyond platform academies.",
     "last_verified": "2026-07-23",
     "free_limit": "Khan Academy is free forever. Coursera's audit mode gives free access to course content with no certificate; Coursera Plus, needed only for a certificate, is a separate paid subscription from about £47/month.",
-    "paid_from": 0,
-    "scales_with": "none"
+    "paid_from": 47,
+    "scales_with": "features"
   },
   {
     "id": 76,
