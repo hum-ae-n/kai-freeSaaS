@@ -6,7 +6,7 @@ Build state: Phases 0-12 done, verified and merged to `main`. Phase 12 (homepage
 
 Build state: Phase 13 (payments, a first Stripe tip link and a GoCardless audit paylink, provider-agnostic, hosted checkout links only) is specced in `docs/PAYMENTS.md` and gated on Rocky completing provider setup in both dashboards and supplying the live payment link URLs before the small site-side build wave can run. Not started on the codebase side.
 
-Build state: Phase 14 (compact landing with collapsed category shelves, the felt-motion inventory of amended PRD §16, and the answer-engine and search-visibility layer of new PRD §18) is built and verifier-passed wave by wave on branch `claude/read-todo-bk47qb`; close-out is in progress and the branch is not yet merged to `main`. CI now also runs `node scripts/build-seo.mjs` as a drift gate on every push, per the "Adding or editing a tool" workflow in the README. Detail in [BUILD-PLAN.md](BUILD-PLAN.md).
+Build state: Phases 0-12 and 14 done, verified and merged to `main`. Phase 14 (compact landing with collapsed category shelves, the felt-motion inventory of amended PRD §16, and the answer-engine and search-visibility layer of new PRD §18) merged 31 Jul as `e0726ad` via PR 13 on Rocky's word, after a clean Deploy Preview audit; production verified by curl after the deploy (new files byte-identical, headers unchanged, working documents still blocked, noindex boundaries holding). The same PR carried the Phase 13 payments build instructions (`docs/PAYMENTS.md`, documentation only); the payments site build itself stays gated on Rocky's live provider links. CI now also runs `node scripts/build-seo.mjs` as a drift gate on every push, per the "Adding or editing a tool" workflow in the README. Detail in [BUILD-PLAN.md](BUILD-PLAN.md).
 
 ## Deploy (Phase 6)
 
@@ -28,9 +28,14 @@ Build state: Phase 14 (compact landing with collapsed category shelves, the felt
 - [x] **Merge `claude/read-todo-bk47qb` into `main`.** Done 25 Jul as `84f1e0f`, approved by Rocky.
 - [x] **Header checks on the Netlify deploy preview.** Confirmed clean before the merge above (the merge commit records a "deploy-preview header audit clean"), covering `X-Frame-Options: DENY` on `/`, `/index.html` and `/x`, the `/embed.html`-scoped CSP, and `/robots.txt` returning 404 rather than the SPA fallback's 200.
 
-## Merging Phase 12 (in progress)
+## Merging Phase 12 (closed)
 
 - [x] **Merge `claude/read-todo-bk47qb` into `main`.** Done 27 Jul as `03a5ac5` via PR 9 on Rocky's word, after his phone test drove two final improvements (the deck now fits the viewport so the buttons never fall off-screen, and a first-open coach explains the swipe directions). Production verified by curl after the deploy: new modules byte-identical, headers unchanged, working documents still blocked.
+
+## Merging Phase 14 (closed)
+
+- [x] **Merge `claude/read-todo-bk47qb` into `main`.** Done 31 Jul as `e0726ad` via PR 13 on Rocky's word ("do it"). The close-out sweep caught two blockers first: coach dismissal dropped keyboard focus (fixed, two new pre-fix-proven smoke checks, suite now 275), and the documented tool-edit workflow was missing the `build-seo.mjs` step (docs pass landed). Deploy Preview audited by curl and a real browser before merge; production verified after: `faq.html`, `sitemap.xml`, `llms.txt` live with correct content types, files byte-identical apart from Netlify's Pretty URLs rewriting the footer `/faq.html` link to `/faq` (both resolve), CSP unchanged, docs still 404.
+- [ ] **Human eyeball on production** (agents cannot judge feel): the real-device motion checklist from the PR 13 audit comment, now against https://tools.airl.io — shelves, swipe deck coach, dark-mode cross-fade, reduced-motion behaviour.
 
 ## Decisions only Rocky can make
 
