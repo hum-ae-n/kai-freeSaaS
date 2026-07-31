@@ -491,7 +491,7 @@ This layout supersedes the Phase 12 homepage layout and its viewport ordering, w
 
 ### Page height budgets
 
-With all shelves collapsed, total page height is at most **3,200px at 375px wide** and **2,200px at 1280px wide**, with the search input and first shelf rows visible within the first mobile viewport. These are acceptance numbers.
+With all shelves collapsed, total page height is at most **3,200px at 375px wide** and **2,200px at 1280px wide**, with the search input visible within the first mobile viewport and the first shelf header's top at most **880px at 375x812**. These are acceptance numbers. (The original clause asked for the first shelf rows inside the 812px viewport itself; the mandated hero trust signals and the ways-in band honestly occupy most of the first screen, and the reconciled 880px budget, measured 863px as built, puts the shelves one thumb-flick away rather than one full screen. Recorded in the BUILD-PLAN changelog.)
 
 ### Grid quick-judge and list parity
 

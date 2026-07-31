@@ -1081,7 +1081,7 @@ button { font: inherit; }
 
 .pub-header {
   padding: var(--s-10) var(--s-10) var(--s-8);
-  margin-bottom: var(--s-4);
+  margin-bottom: var(--s-3);
   border-top: var(--bw-heavy) solid var(--oxblood);
 }
 .pub-header .logo { height: 40px; width: auto; margin-bottom: var(--s-5); }
@@ -1092,18 +1092,11 @@ button { font: inherit; }
   line-height: 1.02;
   letter-spacing: var(--tr-tight);
 }
-.pub-header .subtitle { margin-top: var(--s-4); color: var(--ink-2); font-size: var(--fs-16); max-width: none; }
+/* Same design-system `p` line-height trap as .pub-hero-trust-item below:
+   the bare `p` rule's 28px line-height (tuned for 18px text) survives a
+   font-size-only override otherwise. */
+.pub-header .subtitle { margin-top: var(--s-4); color: var(--ink-2); font-size: var(--fs-16); line-height: var(--lh-16); max-width: none; }
 .pub-header .trust-line { margin-top: var(--s-2); color: var(--ink-3); font-size: var(--fs-14); max-width: none; }
-
-/* Phase 14.1: holds only the Plain English and theme-toggle buttons now
-   (search moved into the ways-in band below, promoted to first-class). */
-.pub-toolbar {
-  display: flex;
-  gap: var(--s-3);
-  flex-wrap: wrap;
-  align-items: center;
-  margin-bottom: var(--s-6);
-}
 
 /* Search, promoted to first-class (PRD section 16, "Ways-in band"): its own
    full-width row above the entry-path grid, on every viewport, not only
@@ -1119,7 +1112,7 @@ button { font: inherit; }
 .pub-changelog-summary { cursor: pointer; list-style-position: outside; min-height: 24px; display: list-item; }
 .pub-changelog-details > ul { margin-top: var(--s-3); }
 .pub-changelog {
-  margin-bottom: var(--s-6);
+  margin-bottom: var(--s-5);
   padding: var(--s-5) var(--s-6);
 }
 .pub-changelog-list {
@@ -1158,6 +1151,11 @@ button { font: inherit; }
   margin: 0;
   color: var(--ink-2);
   font-size: var(--fs-14);
+  /* design-system's bare `p` selector sets an 18px line-height (28px) that
+     survives this override, the same h2 trap documented twice elsewhere in
+     this block: these are <p> elements, and overriding font-size alone
+     leaves a line-height tuned for text nearly a third larger again. */
+  line-height: var(--lh-14);
   max-width: none;
 }
 .pub-hero-trust-item.trust-line { color: var(--ink-3); }
@@ -1171,7 +1169,7 @@ button { font: inherit; }
    mobile stacks to a single column (Discover naturally leading, since it is
    first in source order and this grid never duplicates the markup per
    breakpoint), 768px and up lays the two out side by side. */
-.pub-entry { margin-bottom: var(--s-6); }
+.pub-entry { margin-bottom: var(--s-5); }
 .pub-entry-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -1190,11 +1188,46 @@ button { font: inherit; }
   flex-direction: column;
   align-items: flex-start;
   gap: var(--s-2);
+  /* A grid item's default min-width is its content's intrinsic size (the
+     same trap as .card-grid > li above): without this, the persona item's
+     un-wrapped chip row grows this item, its grid track and the page itself
+     wide enough to fit all five chips end to end instead of clipping and
+     scrolling internally. */
+  min-width: 0;
 }
-.pub-entry-pitch { max-width: none; color: var(--ink-2); font-size: var(--fs-14); }
+/* Same design-system `p` line-height trap as .pub-hero-trust-item above. */
+.pub-entry-pitch { max-width: none; color: var(--ink-2); font-size: var(--fs-14); line-height: var(--lh-14); }
 .pub-discover-btn { align-self: stretch; justify-content: center; }
 
 .pub-persona-chip-row { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+/* Verifier fix round (page-height budget, PRD section 16 amended, "first
+   shelf rows visible within the first mobile viewport"): below 768px, five
+   packs whose names are long enough to wrap one-per-row cost roughly 220px
+   of height on their own. Presentation only, behaviour identical: a single
+   horizontally scrollable row, momentum touch-scrolling, chips kept at
+   their full 44px height and never shrunk. The trailing mask fade is the
+   "more to scroll" affordance; it only ever clips transparent padding, so
+   no chip content is ever obscured, ellipsis-truncated or unreadable. */
+@media (max-width: 767px) {
+  .pub-persona-chip-row {
+    flex-wrap: nowrap;
+    align-self: stretch;
+    width: 100%;
+    /* A flex item's default min-width is its content's intrinsic size, not
+       0: without this, the un-wrapped row of chips grows the row (and every
+       ancestor up to the page itself) to fit all five end to end instead of
+       clipping and scrolling internally, the same trap documented on
+       .card-grid > li and .cur-toolbar .input elsewhere in this file. */
+    min-width: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    padding-bottom: var(--s-1);
+    mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
+  }
+  .pub-persona-chip-row .pub-persona-chip { flex: none; scroll-snap-align: start; }
+}
 .pub-persona-chip {
   display: inline-flex;
   align-items: center;
@@ -1228,22 +1261,40 @@ button { font: inherit; }
    min-height (no extra vertical padding on the header or the section), so
    15 collapsed shelves stay well inside the page-height budget. */
 .pub-shelf-band { margin-bottom: var(--s-10); }
+/* Verifier fix round: two explicit rows (title+Expand all, then Plain
+   English+theme toggle), not one flex-wrap group of four items. Kept as a
+   pair each, the two rows both fit their own single line down to 375px;
+   left to wrap as one group of four they measured a full two internal
+   wraps at 375px, defeating the "one row folded in, ~92px" saving this fix
+   is meant to realise (PRD section 16 amended, "first shelf rows visible
+   within the first mobile viewport"). */
 .pub-shelf-band-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+}
+.pub-shelf-band-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: var(--s-4);
-  margin-bottom: var(--s-4);
 }
 .pub-shelf-band-title {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: var(--fs-21);
+  /* Same design-system h2 trap the shelf-heading fix above documents: the
+     bare `h2` rule's line-height is a fixed 50px tuned for its 44px font
+     size, and overriding font-size alone here leaves that 50px line-height
+     behind, taller than a 21px line needs by nearly double. */
+  line-height: var(--lh-21);
   letter-spacing: var(--tr-tight);
   color: var(--ink);
 }
-.pub-shelf-match-count { margin: 0 0 var(--s-4); color: var(--ink-2); font-size: var(--fs-14); }
+.pub-shelf-band-controls { display: flex; flex-wrap: wrap; gap: var(--s-3); }
+.pub-shelf-match-count { margin: 0 0 var(--s-4); color: var(--ink-2); font-size: var(--fs-14); line-height: var(--lh-14); }
 
 .pub-shelves { display: flex; flex-direction: column; gap: var(--s-2); }
 .pub-shelf { background: var(--paper); border: var(--border); }
@@ -1294,6 +1345,19 @@ button { font: inherit; }
 .pub-shelf-header[aria-expanded="true"] .pub-shelf-chevron { transform: rotate(180deg); }
 
 .pub-shelf-grid { padding: 0 var(--s-5) var(--s-5); }
+
+/* Verifier fix round: the CLIENT block gives every .tool-card an
+   unconditional "card-in" entrance (Phase 4, unedited, gated only on
+   prefers-reduced-motion: no-preference). Toggling a shelf grid's `hidden`
+   property off is a display:none-to-block transition, which re-triggers a
+   CSS animation on every card inside, every time a shelf opens (including
+   all 15 at once on Expand all): an unlisted motion against the amended
+   section 16's exhaustive inventory, and the old 12.1 values rather than
+   wave 14.2's forthcoming shelf-open stagger. This is a subtraction, scoped
+   to cards inside a public shelf only, so client mode's own entrance
+   (#client-root) is untouched: this selector cannot match there, .pub-shelf
+   only ever exists inside #public-root. */
+.pub-shelf .tool-card { animation: none; }
 
 /* --- motion: reveal (motion inventory item 1, PRD section 16) -------------
    One class pair, chosen in js/public.js before either is ever applied: the
@@ -1910,13 +1974,6 @@ button { font: inherit; }
   /* In a column, the desktop flex-basis 16rem would become height. */
   .linkgen-controls .input { flex: 0 0 auto; }
   .pub-header { padding: var(--s-6) var(--s-5); }
-  /* Phase 14.1: .pub-toolbar now holds only the Plain English and
-     theme-toggle buttons, which both fit comfortably in one row even at
-     375px (search moved to its own always-full-width row above), so unlike
-     the old three-item toolbar this one no longer needs to stack into a
-     column: keeping it a row saves a full line of height, which the
-     page-height budget's "first shelf rows visible within the first mobile
-     viewport" clause needs every bit of. */
   .cli-header { padding: var(--s-6) var(--s-5); }
   .cli-summary { gap: var(--s-6); padding: var(--s-5); }
   .tool-card { padding: var(--s-6); }

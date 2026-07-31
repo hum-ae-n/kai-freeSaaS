@@ -51,11 +51,27 @@
  * only" and the rendered DOM "a superset of the previous layout's" (PRD
  * section 16, "Shelf mechanics"): every one of the 89 active cards is always
  * attached, nothing is ever lazily fetched, deferred or removed. This also
- * retires the per-category scroll-reveal system 12.1 built (revealOnIntersect
- * for categories past the first): with shelves collapsed by default there is
- * no "first screenful of cards" to animate in, and the shelf-open stagger
- * itself is wave 14.2's job (the motion inventory), not this one's. The
- * hero/entry-band first-paint reveal (motion item 1) is unchanged.
+ * retires the per-category scroll-reveal system 12.1 built in this file
+ * (revealOnIntersect for categories past the first): with shelves collapsed
+ * by default there is no "first screenful of cards" for THIS file's own
+ * reveal classes to animate in, and the shelf-open stagger itself is wave
+ * 14.2's job (the motion inventory), not this one's. The hero/entry-band
+ * first-paint reveal (motion item 1) is unchanged.
+ *
+ * That retirement does not, on its own, stop every card-level animation:
+ * client.js's CLIENT block gives every .tool-card an unconditional CSS
+ * "card-in" fade-and-rise on `prefers-reduced-motion: no-preference`
+ * (owned by Phase 4, never edited here). Toggling a shelf grid's `hidden`
+ * off is exactly the kind of display-none-to-block transition that
+ * re-triggers a CSS animation, so without a fix every shelf open (and every
+ * card in it, on Expand all) replayed that entrance on each toggle, an
+ * unlisted motion the amended section 16's exhaustive inventory does not
+ * allow and whose values are 12.1's old ones, not wave 14.2's forthcoming
+ * shelf-open stagger. Fixed with a scoped suppression in the PUBLIC block
+ * of styles.css (`.pub-shelf .tool-card { animation: none; }`): a
+ * subtraction, not a new animation, so it does not enlarge the inventory;
+ * client mode's own entrance (Phase 4, `#client-root`) is untouched since
+ * the selector only ever matches inside a shelf.
  */
 import { el, themeToggleButton, readPlainMode, writePlainMode } from './data-loader.js';
 import { buildCardSections, categoryIcon } from './client.js';
@@ -283,6 +299,12 @@ export function renderPublic(root, tools) {
   // opened.
   const discoverMount = el('div', { class: 'discover-mount', hidden: true });
 
+  // Verifier fix round (page-height budget, PRD section 16 amended, "first
+  // shelf rows visible within the first mobile viewport"): the Plain
+  // English and theme-toggle buttons no longer get their own toolbar row
+  // above the shelf band. They move into the shelf-band header itself,
+  // alongside Expand all, saving a full row's height on every viewport,
+  // mobile included.
   const plainBtn = el('button', {
     class: 'btn btn-ghost btn-lg plain-toggle', type: 'button', 'aria-pressed': String(plainMode),
   }, 'Plain English');
@@ -296,7 +318,6 @@ export function renderPublic(root, tools) {
     shelves = buildShelves(active, plainMode);
     applyFilter();
   });
-  const miniToolbar = el('div', { class: 'pub-toolbar' }, plainBtn, themeToggleButton('btn-ghost btn-lg'));
 
   function scrollToShelfBand() {
     shelfBand.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
@@ -351,16 +372,30 @@ export function renderPublic(root, tools) {
      mechanics") ---------------------------------------------------------- */
   const matchCountLine = el('p', { class: 'pub-shelf-match-count', hidden: true, 'aria-live': 'polite' });
   const expandAllBtn = el('button', {
-    class: 'btn btn-ghost pub-expand-all', type: 'button', 'aria-pressed': 'false',
+    class: 'btn btn-ghost btn-lg pub-expand-all', type: 'button', 'aria-pressed': 'false',
   }, 'Expand all');
   expandAllBtn.addEventListener('click', () => {
     const shouldOpen = !allShelvesOpen();
     for (const shelf of shelves) setShelfOpen(shelf, shouldOpen, true);
     syncExpandAllLabel();
   });
-  const shelfBandHeader = el('div', { class: 'pub-shelf-band-header' },
+  // Two explicit rows, not one flex-wrap soup of four items: title+Expand
+  // all (which fit one line together down to 375px) stay paired exactly as
+  // before this fix round, and Plain English/theme toggle form their own
+  // second row underneath. Letting all four wrap as a single group instead
+  // measured two full internal wraps at 375px (roughly 146px), defeating
+  // the "~92px, one row" saving this fold is meant to realise; kept as two
+  // clean rows it measures close to that estimate instead.
+  const shelfBandTopRow = el('div', { class: 'pub-shelf-band-top' },
     el('h2', { class: 'pub-shelf-band-title' }, 'Browse all tools'),
     expandAllBtn,
+  );
+  const shelfBandControls = el('div', { class: 'pub-shelf-band-controls' },
+    plainBtn, themeToggleButton('btn-ghost btn-lg'),
+  );
+  const shelfBandHeader = el('div', { class: 'pub-shelf-band-header' },
+    shelfBandTopRow,
+    shelfBandControls,
   );
   const shelvesWrap = el('div', { class: 'pub-shelves' });
   const shelfBand = el('section', {
@@ -538,7 +573,7 @@ export function renderPublic(root, tools) {
 
   shelves = buildShelves(active, plainMode);
   applyFilter();
-  root.replaceChildren(header, entryPaths, discoverMount, changelogSection, miniToolbar, shelfBand, faqSection, footer);
+  root.replaceChildren(header, entryPaths, discoverMount, changelogSection, shelfBand, faqSection, footer);
   document.title = 'Free Stack · Kaipability';
 
   handleHashDeepLink();

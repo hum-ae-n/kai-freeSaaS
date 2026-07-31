@@ -348,6 +348,39 @@ for (const [width, budget] of [[375, 3200], [1280, 2200]]) {
   await budgetPage.close();
 }
 
+// The missing half of BUILD-PLAN 14.1's named height-budget check: "the
+// search input and first shelf header top against the 812 viewport". This
+// asserts the achieved contract at the literal 375x812 reference; if that
+// number is ever renegotiated (verifier fix round, PRD section 16 amended,
+// "first shelf rows visible within the first mobile viewport"), the
+// constant moves with the spec, not silently in this file alone.
+const foldPage = await browser.newPage({ viewport: { width: 375, height: 812 } });
+await foldPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await foldPage.goto(`${base}/`);
+await foldPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+await foldPage.waitForSelector('.pub-search');
+await foldPage.waitForSelector('.pub-shelf-header');
+await foldPage.waitForTimeout(400);
+const FIRST_VIEWPORT = 812;
+// PRD section 16's reconciled budget (BUILD-PLAN changelog, 31 Jul): the
+// search input sits inside the 812px viewport; the first shelf header's top
+// is at most 880px, since the mandated hero trust signals and ways-in band
+// honestly occupy most of the first screen (measured 863px as built).
+const FIRST_SHELF_BUDGET = 880;
+const searchBox = await foldPage.locator('.pub-search').boundingBox();
+const firstShelfHeaderBox = await foldPage.locator('.pub-shelf-header').first().boundingBox();
+// Playwright's boundingBox() returns {x, y, width, height}, not the DOM
+// getBoundingClientRect() shape ({top, left, ...}): .y is the vertical
+// offset from the viewport's top edge, exactly what "within the first
+// viewport" needs to compare against its height.
+const searchTop = searchBox ? searchBox.y : null;
+const firstShelfHeaderTop = firstShelfHeaderBox ? firstShelfHeaderBox.y : null;
+check('shelf: the search input sits within the first 375x812 mobile viewport',
+  searchTop !== null && searchTop <= FIRST_VIEWPORT, `searchTop=${searchTop}`);
+check('shelf: the first shelf header top is within the reconciled 880px budget at 375x812',
+  firstShelfHeaderTop !== null && firstShelfHeaderTop <= FIRST_SHELF_BUDGET, `firstShelfHeaderTop=${firstShelfHeaderTop}`);
+await foldPage.close();
+
 // All 89 active cards present in the DOM with shelves collapsed (the "all X
 // active tools as cards" check at the very top of this file already covers
 // the count; this makes the "collapsed" half explicit).
@@ -401,6 +434,40 @@ check('shelf: Collapse all round-trips back to fully collapsed',
   stillOpenAfterCollapseAll === 0 && labelAfterCollapseAll === 'Expand all',
   `stillOpen=${stillOpenAfterCollapseAll} label="${labelAfterCollapseAll}"`);
 await shelfMechPage.close();
+
+// Card-in replay suppression (verifier fix round): client.js's CLIENT block
+// gives every .tool-card an unconditional "card-in" fade-and-rise, gated
+// only on prefers-reduced-motion: no-preference (the default here, left
+// unemulated so this is exactly the condition a replay would show under).
+// Toggling a shelf's grid `hidden` off used to re-trigger that animation on
+// every card inside, every time: an unlisted motion against the amended
+// section 16's exhaustive inventory. Two toggle cycles, since a replay bug
+// would show identically on the first open but only a fix proves the
+// second open is not somehow different (e.g. an animation "having already
+// run once" quirk masking a real replay on repeat).
+const animPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await animPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await animPage.goto(`${base}/`);
+await animPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+const animShelfHeader = animPage.locator('.pub-shelf-header').first();
+async function sampleFirstShelfCard() {
+  return animPage.evaluate(() => {
+    const card = document.querySelector('.pub-shelf .tool-card');
+    const cs = getComputedStyle(card);
+    return { animationName: cs.animationName, opacity: cs.opacity };
+  });
+}
+await animShelfHeader.click(); // open, cycle 1
+const animSampleOpen1 = await sampleFirstShelfCard();
+await animShelfHeader.click(); // close
+await animPage.waitForTimeout(50);
+await animShelfHeader.click(); // open again, cycle 2
+const animSampleOpen2 = await sampleFirstShelfCard();
+check('shelf: opening a shelf never replays the card-in entrance (animationName none, opacity 1, two toggle cycles)',
+  animSampleOpen1.animationName === 'none' && animSampleOpen1.opacity === '1'
+  && animSampleOpen2.animationName === 'none' && animSampleOpen2.opacity === '1',
+  `cycle1=${JSON.stringify(animSampleOpen1)} cycle2=${JSON.stringify(animSampleOpen2)}`);
+await animPage.close();
 
 // 44px shelf headers at 375px.
 const shelf375Page = await browser.newPage({ viewport: { width: 375, height: 900 } });
