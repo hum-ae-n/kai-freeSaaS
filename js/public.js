@@ -424,6 +424,14 @@ export function renderPublic(root, tools) {
     }
     if (discoverLoading) return;
     discoverLoading = true;
+    // The pulse dies here, synchronously at click time, not inside the
+    // View Transition's `finished` callback where the layout hide waits.
+    // The re-verify proved the gap: under heavy load `finished` can land
+    // after the pulse's 900ms animation-delay, and the pulse then fires
+    // over the open deck, the exact competition inventory item 8 bans.
+    // Killing the animation costs the morph nothing (the morph is a view
+    // transition, not this CSS animation), so it need not wait.
+    discoverBtn.classList.add('pub-discover-settled');
     try {
       const mod = await loadDiscoverModule();
       if (!mod) throw new Error('module unavailable');
