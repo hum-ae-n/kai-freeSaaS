@@ -220,6 +220,8 @@ index.html                shell: mount points for the public directory, staff cu
 embed.html                chrome-free entry point for iframe embedding elsewhere (kaipability.com only)
 why-register.html         standalone "Why we built this" awareness page for the My Stack workspace
 faq.html                  generated, static, indexable FAQ page: the ten canonical Q&As plus matching FAQPage JSON-LD
+privacy.html              static, indexable privacy page: what's tracked (nothing), what stays on-device, hosting logs and the favicon proxies, named plainly
+contact.html              static, indexable contact page: info@kaipability.com as the one contact route, plus the kaipability.com and www.airl.io company links
 sitemap.xml               generated; lists only the public, indexable URLs
 llms.txt                  generated; a short description of the site and its trust rules for AI crawlers
 data/tools.json           single source of truth, 98 entries (89 active, 9 archived)

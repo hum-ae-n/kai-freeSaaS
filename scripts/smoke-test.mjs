@@ -573,12 +573,34 @@ async function sampleFirstLi(pg) {
   });
 }
 const staggerHeader = staggerPage.locator('.pub-shelf-header').first();
+/* Sampling computed style after the click raced the animation clock: the
+   first li has no stagger delay, so its whole 300ms transition can start
+   and finish (classes cleaned up and all) inside one slow Playwright
+   round-trip, which made this check flake under CPU load. Instead,
+   instrument the page BEFORE the click: the stagger is a transition, and
+   transitionstart events captured at the document level record exactly
+   which elements genuinely animated, with their class state at that
+   moment, no matter how fast the flight completes. */
+await staggerPage.evaluate(() => {
+  window.__staggerEvidence = { starts: 0, first: null };
+  document.addEventListener('transitionstart', (e) => {
+    const t = e.target;
+    if (!(t instanceof Element) || !t.matches('.pub-shelf .card-grid > li')) return;
+    if (!t.classList.contains('pub-shelf-stagger')) return;
+    window.__staggerEvidence.starts++;
+    if (!window.__staggerEvidence.first) {
+      window.__staggerEvidence.first = { property: e.propertyName, className: t.className };
+    }
+  }, true);
+});
 await staggerHeader.click();
-const staggerMid = await sampleFirstLi(staggerPage);
-check('shelf: the stagger fires under normal motion (mid-flight: pub-shelf-stagger class, opacity below 1, transform carries translateY)',
-  staggerMid.className.includes('pub-shelf-stagger') && !staggerMid.className.includes('reduced')
-  && Number(staggerMid.opacity) < 1 && staggerMid.transform !== 'none',
-  JSON.stringify(staggerMid));
+await staggerPage.waitForTimeout(600);
+const staggerMid = await staggerPage.evaluate(() => window.__staggerEvidence);
+check('shelf: the stagger fires under normal motion (transitionstart evidence: pub-shelf-stagger lis genuinely animated, reduced variant absent)',
+  staggerMid.starts > 0 && staggerMid.first !== null
+  && staggerMid.first.className.includes('pub-shelf-stagger')
+  && !staggerMid.first.className.includes('reduced'),
+  `starts=${staggerMid.starts} first=${JSON.stringify(staggerMid.first)}`);
 await staggerPage.waitForTimeout(500);
 const staggerSettled = await sampleFirstLi(staggerPage);
 check('shelf: the stagger settles to opacity 1, no transform, and cleans up its own class',

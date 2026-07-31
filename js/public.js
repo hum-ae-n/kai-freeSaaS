@@ -715,8 +715,8 @@ export function renderPublic(root, tools) {
       // treatment as the two paragraphs above.
       el('p', { class: 't-meta my-awareness-link-line' },
         'Also free: ', el('a', { href: '/my' }, 'My Stack'),
-        ', a register for tracking who holds which account. ',
-        el('a', { href: '/why-register.html' }, 'Why we built this'),
+        ', a register for tracking who holds which account, and ',
+        el('a', { href: '/why-register.html' }, 'the reasoning behind it'),
         '.',
       ),
       // Good-practice block (PRD section 16 amended, layout item 6, Phase

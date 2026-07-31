@@ -8,6 +8,8 @@ Build state: Phase 13 (payments, a first Stripe tip link and a GoCardless audit 
 
 Build state: Phases 0-12 and 14 done, verified and merged to `main`. Phase 14 (compact landing with collapsed category shelves, the felt-motion inventory of amended PRD §16, and the answer-engine and search-visibility layer of new PRD §18) merged 31 Jul as `e0726ad` via PR 13 on Rocky's word, after a clean Deploy Preview audit; production verified by curl after the deploy (new files byte-identical, headers unchanged, working documents still blocked, noindex boundaries holding). The same PR carried the Phase 13 payments build instructions (`docs/PAYMENTS.md`, documentation only); the payments site build itself stays gated on Rocky's live provider links. CI now also runs `node scripts/build-seo.mjs` as a drift gate on every push, per the "Adding or editing a tool" workflow in the README. Detail in [BUILD-PLAN.md](BUILD-PLAN.md).
 
+Build state: Phase 15 (header nav, good-practice pages, Discover emphasis) in progress. Specced 31 Jul as PRD v1.6 (`c23cd80`). Wave 15.1 built (`0c6e1d7`): the hero utility nav (My Stack, FAQ), the footer good-practice block, the new `privacy.html` and `contact.html` pages, and the bounded Discover button emphasis. Content pass and close-out still pending. Detail in [BUILD-PLAN.md](BUILD-PLAN.md).
+
 ## Deploy (Phase 6)
 
 - [x] Connect this repo to Netlify, confirm auto-deploy on push to `main`
