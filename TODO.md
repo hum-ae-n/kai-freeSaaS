@@ -35,7 +35,7 @@ Build state: Phases 0-12 and 14 done, verified and merged to `main`. Phase 14 (c
 ## Merging Phase 14 (closed)
 
 - [x] **Merge `claude/read-todo-bk47qb` into `main`.** Done 31 Jul as `e0726ad` via PR 13 on Rocky's word ("do it"). The close-out sweep caught two blockers first: coach dismissal dropped keyboard focus (fixed, two new pre-fix-proven smoke checks, suite now 275), and the documented tool-edit workflow was missing the `build-seo.mjs` step (docs pass landed). Deploy Preview audited by curl and a real browser before merge; production verified after: `faq.html`, `sitemap.xml`, `llms.txt` live with correct content types, files byte-identical apart from Netlify's Pretty URLs rewriting the footer `/faq.html` link to `/faq` (both resolve), CSP unchanged, docs still 404.
-- [ ] **Human eyeball on production** (agents cannot judge feel): the real-device motion checklist from the PR 13 audit comment, now against https://tools.airl.io — shelves, swipe deck coach, dark-mode cross-fade, reduced-motion behaviour.
+- [ ] **Human eyeball on production** (agents cannot judge feel): the real-device motion checklist from the PR 13 audit comment, now against https://tools.airl.io: shelves, swipe deck coach, dark-mode cross-fade, reduced-motion behaviour.
 
 ## Decisions only Rocky can make
 
