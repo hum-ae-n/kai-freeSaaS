@@ -1340,6 +1340,13 @@ button { font: inherit; }
   transform: translateX(140%);
 }
 .pub-discover-btn:active { transform: scale(0.97); }
+/* Verifier fix round (PRD section 16 amended, motion inventory item 8's
+   closing clause): js/public.js adds this class the first time it hides
+   the ways-in band, and never removes it, so the pulse can never restart
+   when the band (and this button with it) is later restored. Two classes
+   beats the bare .pub-discover-btn rule above on specificity alone, so
+   source order does not matter here. */
+.pub-discover-btn.pub-discover-settled { animation: none; }
 @media (prefers-reduced-motion: reduce) {
   .pub-discover-btn {
     animation: none;

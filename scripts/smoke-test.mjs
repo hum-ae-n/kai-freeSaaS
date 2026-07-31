@@ -179,13 +179,23 @@ check('homepage: two entry paths present, Discover first',
   && entryPitches[1].toLowerCase().includes('shortlist'),
   entryPitches.join(' | '));
 
-const beforeScrollY = await page.evaluate(() => window.scrollY);
-await page.locator('[data-discover-entry]').click();
-await page.waitForTimeout(300);
-const afterDiscoverScrollY = await page.evaluate(() => window.scrollY);
+// Verifier fix round: opening the real deck now hides the whole ways-in
+// band (including the persona chips the next section clicks and the
+// pulse-animation check further down, both still exercised against the
+// long-lived `page` object below), so this scroll assertion runs on its
+// own throwaway page rather than contaminating that shared one. The deck
+// is left open when this page closes: nothing downstream depends on it.
+const scrollStubPage = await browser.newPage();
+await scrollStubPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await scrollStubPage.goto(`${base}/`);
+await scrollStubPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+const beforeScrollY = await scrollStubPage.evaluate(() => window.scrollY);
+await scrollStubPage.locator('[data-discover-entry]').click();
+await scrollStubPage.waitForTimeout(300);
+const afterDiscoverScrollY = await scrollStubPage.evaluate(() => window.scrollY);
 check('homepage: Discover stub scrolls to the browse list instead of dead-ending',
   afterDiscoverScrollY > beforeScrollY, `before=${beforeScrollY} after=${afterDiscoverScrollY}`);
-await page.evaluate(() => window.scrollTo(0, 0));
+await scrollStubPage.close();
 
 // Phase 14.1 adaptation: with all shelves collapsed by default, ZERO cards
 // are visible before any filter is applied (there is no longer a
@@ -1040,12 +1050,99 @@ await escPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await escPage.locator('[data-discover-entry]').focus();
 await escPage.locator('[data-discover-entry]').click();
 await escPage.waitForSelector('.discover-card');
+// Verifier fix round (PRD section 16 amended, motion inventory item 8's
+// closing clause): while the deck is open the whole ways-in band
+// (`.pub-entry`, search included) must be genuinely hidden, not merely
+// obscured, and Escape must restore it before handing focus back, since a
+// display:none element cannot take focus at all. The hide is deliberately
+// deferred to the deck-open View Transition's `finished` promise (so the
+// morph itself is never disturbed mid-flight), which resolves noticeably
+// after `.discover-card` first appears; waitFor('hidden') polls for that
+// genuinely settled state instead of racing it with an immediate read.
+await escPage.locator('.pub-entry').waitFor({ state: 'hidden' });
+const entryHiddenWhileOpen = await escPage.locator('.pub-entry').isHidden();
 await escPage.locator('.discover-panel').press('Escape');
 await escPage.waitForTimeout(100);
 const focusReturnedToOpener = await escPage.evaluate(() => document.activeElement?.hasAttribute('data-discover-entry'));
+const entryVisibleAfterEscape = await escPage.locator('.pub-entry').isVisible();
 check('discover: Escape closes the deck and restores focus to the opener',
   focusReturnedToOpener === true && (await escPage.locator('.discover-panel').count()) === 0);
+check('discover: the ways-in band is hidden while the deck is open and restored (with focus) after Escape',
+  entryHiddenWhileOpen === true && entryVisibleAfterEscape === true && focusReturnedToOpener === true,
+  `hiddenWhileOpen=${entryHiddenWhileOpen} visibleAfter=${entryVisibleAfterEscape} focusReturned=${focusReturnedToOpener}`);
 await escPage.close();
+
+/* --- Verifier fix round: the deck-open band hide/pulse-suppression pair
+   (PRD section 16 amended, motion inventory item 8's closing clause) ------
+   Proven false on the pre-fix tree at runtime: nothing ever hid .pub-entry
+   when the deck opened, so the Start Discover button (glow and pulse both)
+   sat in the viewport directly above the open deck, and the pulse could
+   genuinely fire while the deck had focus. */
+const hideCheckPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await hideCheckPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await seedCoachDoneBeforeLoad(hideCheckPage);
+await hideCheckPage.goto(`${base}/`);
+await hideCheckPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+await hideCheckPage.locator('[data-discover-entry]').click();
+await hideCheckPage.waitForSelector('.discover-card');
+// Same settled-state wait as escPage above: the hide is deferred to the
+// View Transition's `finished` promise, which resolves after the card
+// itself is already visible.
+await hideCheckPage.locator('.pub-entry').waitFor({ state: 'hidden' });
+const entryDisplayWhileOpen = await hideCheckPage.locator('.pub-entry').evaluate((n) => getComputedStyle(n).display);
+// boundingBox() returns null for a display:none element (Playwright's own
+// contract), which is exactly "has no bounding box" for this check: a
+// button that can still be measured is a button that could still visually
+// compete with the deck, whatever its display value claims.
+const discoverBtnBoxWhileOpen = await hideCheckPage.locator('[data-discover-entry]').boundingBox();
+const panelVisibleWhileOpen = await hideCheckPage.locator('.discover-panel').isVisible();
+check('discover: opening the deck sets the ways-in band to display:none and leaves Start Discover with no bounding box, while the panel is visible',
+  entryDisplayWhileOpen === 'none' && discoverBtnBoxWhileOpen === null && panelVisibleWhileOpen === true,
+  `entryDisplay=${entryDisplayWhileOpen} btnBox=${JSON.stringify(discoverBtnBoxWhileOpen)} panelVisible=${panelVisibleWhileOpen}`);
+await hideCheckPage.close();
+
+// The pulse-while-deck-open race, and the reopen-after-close replay guard.
+// The entry is clicked immediately after load, before the pulse's own
+// 900ms animation-delay has elapsed, with an animationstart listener
+// installed first: on the pre-fix tree the button stayed visible and kept
+// its animation, so the delay would elapse with the deck open and the
+// pulse would genuinely start; a display:none button cannot run a CSS
+// animation at all, which is what this proves once the fix is in place.
+const raceCheckPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await raceCheckPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await seedCoachDoneBeforeLoad(raceCheckPage);
+await raceCheckPage.goto(`${base}/`);
+await raceCheckPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+await raceCheckPage.evaluate(() => {
+  window.__pulseStarted = false;
+  document.querySelector('[data-discover-entry]').addEventListener('animationstart', (e) => {
+    if (e.animationName === 'pub-discover-pulse') window.__pulseStarted = true;
+  });
+});
+await raceCheckPage.locator('[data-discover-entry]').click(); // well before the 900ms delay elapses
+await raceCheckPage.waitForSelector('.discover-card');
+await raceCheckPage.waitForTimeout(1700); // past the 900ms delay and the full 1650ms pulse sequence
+const pulseFiredWhileOpen = await raceCheckPage.evaluate(() => window.__pulseStarted);
+check('discover: the pulse animation never fires on Start Discover while the deck is open (opened before the 900ms delay elapsed)',
+  pulseFiredWhileOpen === false, `pulseFiredWhileOpen=${pulseFiredWhileOpen}`);
+
+// (d) Reopen after close: the band must re-hide, and the same flag (never
+// reset) must still read false, proving the pulse did not replay when
+// display was restored between the two opens.
+await raceCheckPage.locator('.discover-panel').press('Escape');
+await raceCheckPage.waitForTimeout(150);
+const entryVisibleBeforeReopen = await raceCheckPage.locator('.pub-entry').isVisible();
+await raceCheckPage.locator('[data-discover-entry]').click();
+await raceCheckPage.waitForSelector('.discover-card');
+// Same settled-state wait as the checks above, on the reopen this time.
+await raceCheckPage.locator('.pub-entry').waitFor({ state: 'hidden' });
+const entryHiddenOnReopen = await raceCheckPage.locator('.pub-entry').isHidden();
+await raceCheckPage.waitForTimeout(1700);
+const pulseFiredAfterReopen = await raceCheckPage.evaluate(() => window.__pulseStarted);
+check('discover: reopening the deck re-hides the ways-in band, and the pulse does not replay after the earlier restore',
+  entryVisibleBeforeReopen === true && entryHiddenOnReopen === true && pulseFiredAfterReopen === false,
+  `entryVisibleBeforeReopen=${entryVisibleBeforeReopen} entryHiddenOnReopen=${entryHiddenOnReopen} pulseFiredAfterReopen=${pulseFiredAfterReopen}`);
+await raceCheckPage.close();
 
 // Completion hand-off: have= always present (even empty), skip never travels.
 const handoffPage = await browser.newPage();
