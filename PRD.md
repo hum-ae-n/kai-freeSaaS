@@ -2,8 +2,8 @@
 
 **Project:** `free-stack`
 **Owner:** Kaipability Ltd (Rocky Verma)
-**Version:** 1.4
-**Date:** 22 July 2026 (v1.0: 14 July 2026; v1.4: 26 July 2026)
+**Version:** 1.5
+**Date:** 30 July 2026 (v1.0: 14 July 2026; v1.5: 30 July 2026)
 **Build tool:** Claude Code from this PRD
 **Deploy target:** Netlify via GitHub
 
@@ -464,24 +464,34 @@ When converting or extending the dataset, ensure every entry has: at least 2 alt
 
 The root path `/` remains the public, read-only, indexable directory established in Phase 10.12, redesigned for the first-time visitor. Two jobs, in order: earn trust in the first screenful, then offer three ways in. The Phase 10.12 "one CTA" description is superseded by the entry paths below; everything else from that decision (read-only, indexable, no summary bar, no cost chart, curator stays at `/x`) still binds.
 
-### Layout
+### Layout: compact landing
 
-1. **Hero** (editorial, text-led, no imagery carousel, no metric inflation):
-   - Title and strapline as today.
-   - Three trust signals, all verifiable: the live tool count computed from the fetched `tools.json` active set (never hard-coded, never rounded up), the no-affiliates line ("No affiliates, no sponsors, no paid placement."), and the curator identity ("Curated by Kaipability Ltd" with the existing link).
-   - Hero copy holds the §10 honesty bar. No superlatives the data cannot back.
+This layout supersedes the Phase 12 homepage layout and its viewport ordering, which measured roughly 92,000px tall at 375px with no tool visible at the fold. The fix is collapse, never removal: **every active tool's card is built and attached to the DOM at load, exactly as before.** Top to bottom, one order at every viewport:
 
-2. **Entry paths**, three, equal visual weight:
-   - **Discover**: starts a Discover deck (§17).
-   - **Persona packs**: the five packs from `data/presets.json`, rendered as chips. Choosing one seeds a deck with that pack's ids (§17); it does not navigate away.
-   - **Browse all**: jumps to the full list below.
+1. **Hero**, tightened but unchanged in content: logo, title, strapline, the three verifiable trust signals (runtime tool count, no-affiliates line, curator identity).
+2. **Ways-in band**, replacing the three equal entry cards:
+   - **Search, promoted to first-class**: the existing search input moves here, full width below 768px, placeholder count-bearing ("Search 89 tools: invoicing, design, CRM…", count computed at runtime, never hard-coded).
+   - **Discover entry**: button plus one-line pitch, behaviour unchanged (§17).
+   - **Persona chips**: behaviour unchanged.
+   - The "Browse all" entry card is retired; its job passes to the shelves plus an **Expand all / Collapse all** toggle on the shelf-band header.
+3. **Discover mount and changelog strip**, as today.
+4. **Category shelves**: one `section` per category. Each collapsed shelf is a single row whose header is a real `<button>` (44px minimum) carrying the category icon, name, count ("AI Assistants · 6 tools"), a muted one-line scent of tool names truncated with an ellipsis, and a chevron. `aria-expanded` on the button, `aria-controls` naming the grid. Expanding reveals that category's full card grid.
+5. **FAQ section**: the section 18 question-led content, as native `<details>`/`<summary>` items in the changelog strip's visual language. `<details>` content is in the DOM whether open or not.
+6. **Footer**, unchanged and now reachable.
 
-3. **Browse list**: the existing category-grouped card directory, with judgement parity (below).
+### Shelf mechanics
 
-### Ordering by viewport
+- Collapse is CSS only (`display: none` on the closed grid). Nothing is lazily fetched, deferred or removed; the rendered DOM is a superset of the previous layout's.
+- The card renderer (`js/client.js`) is untouched; the shelf wrapper is applied around its output.
+- **Search**: filtering force-opens every shelf containing a match, hides shelves with none, and shows a "N tools match" line. Clearing restores the collapsed state. Persona chips use the same mechanic.
+- **Expand all / Collapse all** round-trips, so no capability against the old layout is lost.
+- **Deep links**: `#cat-<slug>` opens and scrolls to its shelf. The `?tool=ID` permalink is unchanged.
+- Shelf open state is transient per page load: no persistence, no new storage keys.
+- Tool id 0 must survive search, shelf grouping and judgement parity; the section 4 id laws apply throughout.
 
-- **Below 768px**: condensed hero, then the Discover deck entry leading the page (the deck, or its start affordance, renders before the browse list), then the list. A phone visitor meets the deck first.
-- **768px and above**: hero, entry paths, then the browse list with grid quick-judge. The deck opens on demand from the Discover entry path, as an inline panel above the list, never a modal. Focus moves into the deck on open; Escape closes it and returns focus to the opener.
+### Page height budgets
+
+With all shelves collapsed, total page height is at most **3,200px at 375px wide** and **2,200px at 1280px wide**, with the search input visible within the first mobile viewport and the first shelf header's top at most **880px at 375x812**. These are acceptance numbers. (The original clause asked for the first shelf rows inside the 812px viewport itself; the mandated hero trust signals and the ways-in band honestly occupy most of the first screen, and the reconciled 880px budget, measured 863px as built, puts the shelves one thumb-flick away rather than one full screen. Recorded in the BUILD-PLAN changelog.)
 
 ### Grid quick-judge and list parity
 
@@ -493,15 +503,26 @@ Judgement state (§17) is not deck-private. On the browse list:
 
 ### Motion inventory
 
-This list is exhaustive. Any motion not named here is banned on the public surface (no parallax, no looping or ambient motion, no autoplaying anything):
+This list is exhaustive. Any motion not named here is banned on the public surface: no parallax, no looping or ambient motion, no scroll-linked effects, no autoplaying anything. The budget moves from unseen entrances to user-initiated responses. Two tokens land in `design-system/colors_and_type.css`:
 
-1. Staggered first-paint reveal of the hero and entry paths, 60-80ms per item, capped at the first screenful.
-2. Once-only reveals of list sections via `IntersectionObserver`, disconnecting after firing.
-3. Hover lift on cards, hover-capable devices only.
-4. Deck card physics per §17.
-5. The existing client-mode motion (Phase 7.6) is unchanged.
+```css
+--ease-swift:  cubic-bezier(0.22, 1, 0.36, 1);    /* entrances and responses */
+--ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* small elements under ~200px only */
+```
 
-Implementation constraints: CSS transitions and transforms only, driven by pointer events; no `requestAnimationFrame` animation loop; no animation library. Under `prefers-reduced-motion: reduce`, every item above degrades to instant opacity changes: no translation, no rotation, no stagger, and deck cards snap off and snap back without travel.
+`--ease-swift` is the entrance and response curve; the calm `--ease-out` stays for colour and border micro-transitions; `--ease-spring` never applies to any element larger than roughly 200px.
+
+1. **First-paint stagger, hero and ways-in band**: `translateY(18px)` to 0 with fade, 480ms, `--ease-swift`, 80ms per item, capped at the first screenful. Reduced motion: opacity only, no stagger.
+2. **Shelf expansion stagger** (the showpiece): on shelf open (header, Expand all, or search/persona auto-open), cards fade and travel `translateY(14px)` to 0, 300ms, `--ease-swift`, 45ms stagger capped at the first six cards; later cards appear settled. Reduced motion: opacity only, 120ms, no stagger, no translate.
+3. **View Transitions on filter and expand-all** (progressive enhancement, no polyfill): the filter redraw and the expand/collapse-all toggle run inside `document.startViewTransition()` only when the function exists and reduced motion is off; otherwise the callback runs directly, keeping today's hard cut. Debounced so only settled keystrokes transition.
+4. **Deck-open morph**: the Discover entry carries `view-transition-name: discover-panel` before mount; inside the guarded transition the panel takes the same name, so the entry morphs into the deck. `::view-transition-group(discover-panel)` runs 380ms on `--ease-swift`. Focus moves into the panel after the transition's `finished` promise. Fallback (no support, or reduced motion): today's mount and scroll, unchanged.
+5. **Judged-chip pop**: only a fresh judgement (the setDecision path, never load-time redecoration) marks the chip `.is-new`, keyframed `scale(0.85)` to 1 with fade, 220ms, `--ease-spring`, `transform-origin` left. Reduced motion: instant.
+6. **Theme-toggle cross-fade**: the theme attribute swap runs in the same guarded View Transition helper, giving a roughly 250ms full-page cross-fade. Unsupported or reduced motion: instant swap as today.
+7. **Hover lift and focus**: cards lift `translateY(-3px)` with a border-colour shift to oxblood, 180ms, `--ease-swift`, hover-capable devices only. Site-wide `:focus-visible`: 2px oxblood outline, 2px offset, zero duration (focus never lags). Reduced motion: colour change only, no translate.
+
+Deck card physics (§17) and the client-mode motion (Phase 7.6) stay in force alongside this inventory, unchanged.
+
+Implementation constraints: CSS transitions, CSS transforms and the browser-native View Transitions API only, always feature-detected; no `requestAnimationFrame` animation loop; no animation library. Under `prefers-reduced-motion: reduce`, every item above degrades to an instant or opacity-only change: no translation, no rotation, no scale, no stagger, no view transition.
 
 ### Platform and security
 
@@ -609,3 +630,108 @@ The completion card (and any equivalent affordance built from stored judgements)
 8. With localStorage blocked, a deck still deals and completes in-session without console errors.
 9. "Open these in My Stack" emits `from=` and `have=` per this section, including the always-emitted `have=` marker and the 512-character cap; no `skip` id ever appears in the URL.
 10. Reduced motion: no card translates or rotates at any point in the deck lifecycle.
+
+---
+
+## 18. Answer Engine and Search Visibility
+
+The public directory is rendered client-side from `data/tools.json`. Googlebot renders JavaScript; the AI answer engines (GPTBot, ClaudeBot, PerplexityBot) do not, so to them the site is a title tag and a loading message. This section makes the directory exist in raw HTML, honestly and without a build step: every artefact is a committed static file generated dev-time.
+
+### The generator: `scripts/build-seo.mjs`
+
+A dev-time Node script, same category as `validate-data.mjs` and permitted under the same scripts/ exception to the no-Node law. It reads `data/tools.json`, `data/presets.json` and `data/category-intros.json` (a new small file of one-sentence question-led category intros, so `tools.json` stays schema-pure) and emits or refreshes: the static block in `index.html`, `faq.html`, `sitemap.xml` and `llms.txt`. Output is deterministic and diffable. It escapes every string from `tools.json` when emitting HTML (untrusted data, §7 security rules) and uses the §4 id discipline (`!== undefined`, never truthiness).
+
+**CI drift gate**: `ci.yml` runs the generator and fails if any generated artefact differs byte-for-byte from what is committed. The committed files can therefore never go stale against `tools.json`.
+
+### Static crawler content block in `index.html`
+
+The generator writes real HTML between marker comments (`<!-- seo-static:start -->` / `<!-- seo-static:end -->`) inside `<div id="static-root">`: hero copy, the trust lines (live tool count, the no-affiliates line verbatim, curator identity), each category as an `<h2>` with its question-led intro and a plain list of tool names with one-sentence descriptions and free-limit summaries, and a link to `/faq.html`. Public-directory content only: nothing from `/x`, `/my` or client mode.
+
+`js/data-loader.js` hides `#static-root` when an app surface mounts, so JS users see exactly the rendered page. Non-JS crawlers and noscript readers get the full directory as text, and a fetch failure now leaves readable content instead of a blank page.
+
+### Static `/faq.html`
+
+A real, indexable HTML page (the `why-register.html` mould, minus the noindex) containing the ten Q&As below as visible `<h2>`/`<p>` content, linked from the footer and the static block, carrying matching FAQPage JSON-LD. **The following copy is canonical.** Free-limit and value figures derive from `tools.json` as of 30 July 2026; the generator keeps figure-bearing sentences synchronised so they cannot drift.
+
+**Q1. What software stack is free for a new founder?**
+A genuinely free day-one stack: a free AI assistant (Claude, ChatGPT or Gemini), Canva Free for design, Unsplash or Pexels for images, Google Business Profile so customers can find you, WhatsApp Business for customer contact, Bitwarden Free as a password manager and Google Drive for files. All are free tiers with published limits, not trials. This directory lists each one with its real limits and alternatives.
+
+**Q2. What is the best free accounting software for a UK small business?**
+Two credible options. Wave Accounting is free indefinitely for invoicing and manual bookkeeping, though automatic bank feeds sit in its paid tier. FreeAgent, a full UK accounting package, is free while you hold an active Mettle or NatWest business account. Which suits you depends on your bank; both are listed here with their exact free-tier edges.
+
+**Q3. How much would this software cost if I paid for it?**
+The 89 active tools in this directory represent roughly £11,600 a year in commercial-equivalent value. That figure is deliberately conservative: it is what you would pay a commercial provider for the same capability, never the tool's own paid-tier price, and never inflated. Every tool shows its individual value and a last-verified date so you can challenge the numbers.
+
+**Q4. Is there a free CRM good enough for a small business?**
+Yes. HubSpot CRM Free supports up to 2 users and around 1,000 contacts, free forever, with HubSpot branding on some assets. Zoho's free ecosystem gives a CRM for up to 3 users plus free booking, invoicing and forms tools. Both limits are real edges you should know before committing, and both entries here list alternatives.
+
+**Q5. What free email marketing tools actually work?**
+MailerLite Free gives 250 subscribers and 2,500 emails a month, the most generous mainstream free tier. Mailchimp Free allows 250 contacts and 500 emails a month, and Brevo takes a different approach with daily send limits. For a small list, any of the three does the job; the caps above are where each one starts charging.
+
+**Q6. What can I use instead of Photoshop for free?**
+GIMP is free, open source and permanently free with no paid tier. Photopea runs a Photoshop-like editor in the browser, free with ads, and opens PSD files. For template-based design rather than photo editing, Canva Free and Adobe Express Free cover most small-business needs. None of these is a trial; all are listed here with their limits.
+
+**Q7. Do these free tools stay free, or is there a catch?**
+Every entry states in plain English what the free tier genuinely includes and exactly where it stops: the user limit, the storage cap or the feature gate. Each tool carries a last-verified date. When a tool stops being free or stops being good, it is archived and marked as no longer recommended, pointing at its alternatives, never silently deleted.
+
+**Q8. Does this directory earn commission on the tools it lists?**
+No. There are no affiliate links, no sponsorships and no paid placements anywhere in this directory. Every link pays Kaipability nothing when you click it or sign up, and removing a tool costs nothing either. Tools are listed on merit, used on real client work, and every one carries at least two alternatives so you are never funnelled to a single vendor.
+
+**Q9. What free tools help a local shop get found online?**
+Start with Google Business Profile, free forever and the single biggest factor in local search visibility. Add Bing Places for Business, Meta Business Suite for managing Facebook and Instagram, and WhatsApp Business for customer messaging. All four are permanently free products, not trials, and each is listed here with setup training links.
+
+**Q10. What free security tools should a small business start with?**
+Bitwarden Free gives unlimited passwords across unlimited devices, including a free two-person sharing option. Have I Been Pwned checks whether your email addresses appear in known data breaches, free for individual lookups. Google Password Checkup flags reused or compromised passwords at no cost. These three cover the basics before you spend anything on security.
+
+### Per-tool questions (Rocky's 30 Jul direction: every tool carries one)
+
+Every active tool gets a question-shaped entry, because "Is [tool] free for a small business?" is the exact phrasing people and answer engines use, 89 times over, and the honest answers already exist in the dataset. Rules:
+
+- **Derived at generation time, never hand-maintained by default.** `scripts/build-seo.mjs` composes each tool's question and answer mechanically from existing fields: the question from the tool's name ("Is Canva Free actually free for a small business?" pattern, with sensible variants for grouped names), the answer assembled from `free_limit` (verbatim where present), `description`, `paid_from` ("paid plans from £N/month") and up to two alternatives by name. Answers aim for 40-80 words with hard bounds of 30-100 (source fields vary in length and truncating verbatim free_limit text to hit a cosmetic target would cost honesty; the smoke suite enforces the hard bounds), standing alone, section 10 honesty throughout. A tool without `free_limit` gets the description-led variant, never an invented claim.
+- **An optional hand-written override may be added to the schema later** (an `faq` field, section 4) if generated phrasing reads awkwardly for specific tools; until then generation keeps maintenance at zero, the same bet as the rest of the site.
+- **Where it surfaces.** (1) In each tool's entry inside the static crawler content block, as a heading-and-paragraph pair, so non-JS crawlers get the question-led text. (2) On the `?tool=` permalink view, rendered visibly to humans in the same words, keeping parity between what engines read and what people see. (3) NOT in the FAQPage JSON-LD: an 89-item FAQPage is spam-shaped; the ten site-level questions remain the only FAQPage payload, and per-tool questions live as ordinary marked-up text.
+- The drift gate covers these like everything else the generator emits: regenerating against the current `tools.json` must be byte-identical to what is committed.
+
+### Title and meta description
+
+The generator maintains these in `index.html`, keeping the count live:
+
+- Title: `Free software for UK small businesses: 89 curated tools | Free Stack by Kaipability`
+- Meta description: `A free, curated directory of 89 genuinely free software tools for UK small businesses: accounting, CRM, design, marketing and security. No affiliate links, no sponsors. Every tool lists its real free-tier limits and alternatives.`
+
+The OG tags are unchanged: they serve the shared client link, a different audience.
+
+### `sitemap.xml`, `robots.txt`, `llms.txt`
+
+- `sitemap.xml` lists `/`, `/faq.html`, and `/how-we-choose.html` once published. It deliberately excludes `/my`, `/x`, `/embed.html`, `/why-register.html` and every parameterised URL.
+- `robots.txt` gains one line: `Sitemap: https://tools.airl.io/sitemap.xml`. Nothing is disallowed; a disallow line for `/x` would advertise the path (Phase 10.12 law).
+- `llms.txt`: a short markdown file describing the site and its trust rules, pointing at `/data/tools.json` (the full machine-readable dataset), `/faq.html` and, once live, `/how-we-choose.html`. Honest assessment, recorded so nobody oversells it later: crawler pickup is thin and Google does not support it; it ships because the payload already exists and costs near zero. A cheap bet, not a strategy.
+
+### JSON-LD
+
+Injected statically by the generator, never at runtime (AI crawlers would not see runtime injection):
+
+- `index.html` head: `Organization` (Kaipability Ltd), `WebSite` (Free Stack, tools.airl.io) and an `ItemList` of active tools (name, description), mirroring the visible static block.
+- `faq.html`: `FAQPage` built from the same source strings as the visible copy, so markup and page text can never disagree.
+
+Honest note: Google retired FAQ rich results in May 2026 and its ItemList carousel never covered software directories, so **no Google SERP feature is expected from any of this markup**. The consumers are Bingbot, PerplexityBot and RAG crawlers, for whom valid schema.org vocabulary is entity clarity; Google confirms leaving FAQPage in place causes no harm. The visible text is the asset, the markup a low-cost mirror.
+
+### Smoke-gate exclusion for JSON-LD
+
+`scripts/smoke-test.mjs`'s CSP hash-drift gate hashes every inline `<script>` without `src=` and requires it in the `netlify.toml` allow-list; a JSON-LD block would trip it. The gate's `extractInlineScripts` therefore skips `type="application/ld+json"`. This is legitimate, not a loosening: CSP treats such blocks as non-executable data blocks, `script-src` never applies to them, so there is no hash to allow-list and nothing for the gate to protect. The exclusion carries a comment citing this reasoning and a changelog row.
+
+### Noindex boundaries (must not move)
+
+`/x`, client-mode links and `/my` keep their JS-injected noindex exactly as now; `why-register.html` keeps its static noindex; the `/docs/*` and root `.md` 404 rules stay. The static block and sitemap expose public-directory content only. Nothing in this section may weaken any of these.
+
+### Acceptance criteria
+
+1. `curl` of the deployed `/` (no JavaScript) returns HTML containing every active tool's name, the category headings, the trust lines and a link to `/faq.html`.
+2. With JavaScript on, `#static-root` is hidden once the app mounts and the rendered page is visually identical to a build without the block; with fetch blocked, the static content remains readable.
+3. `/faq.html` serves the ten canonical Q&As as visible text, indexable, with FAQPage JSON-LD whose strings match the visible copy exactly.
+4. `sitemap.xml` lists only `/`, `/faq.html` and (once published) `/how-we-choose.html`; `robots.txt` carries the Sitemap line and no disallow for `/x`.
+5. Running `scripts/build-seo.mjs` twice produces byte-identical output; CI fails on any drift between generated artefacts and `tools.json`.
+6. The title and meta description carry the live active count; the OG tag set is unchanged.
+7. The smoke suite passes with JSON-LD present: the hash gate skips `application/ld+json` and still fails on any executable inline script missing from the CSP.
+8. All noindex boundaries above verified unchanged on the Deploy Preview.
+9. All generated copy holds house style: British English, no em dashes, honesty rules of §10, no Cyber Essentials claims.

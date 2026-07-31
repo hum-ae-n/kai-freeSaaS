@@ -110,7 +110,7 @@ button { font: inherit; }
    relying on source order never regressing it again. */
 [hidden] { display: none !important; }
 
-:is(a, button, input, select, [tabindex]):focus-visible {
+:is(a, button, input, select, summary, [tabindex]):focus-visible {
   outline: 2px solid var(--oxblood);
   outline-offset: 2px;
 }
@@ -250,6 +250,20 @@ button { font: inherit; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* Wave 14.2 (PRD section 16 amended, motion inventory, closing clause: "no
+   view transition" under reduced motion): the universal selector above
+   cannot reach the ::view-transition tree the browser generates outside the
+   normal DOM for an active View Transition, since js/data-loader.js's
+   withViewTransition() helper already never starts one under reduced
+   motion, this is a defensive second guard, exactly the same belt-and-braces
+   posture every other item in the inventory takes (JS decides, CSS confirms
+   it behind the same query). */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) {
+    animation-duration: 0.01ms !important;
+  }
 }
 
 /* Screen-only chrome (print/share controls) is hidden in @media print below
@@ -931,6 +945,22 @@ button { font: inherit; }
 }
 .cli-footer .logo { height: 26px; width: auto; }
 
+/* ?tool= permalink Q&A (PRD section 18 per-tool surfacing, wave 14.3b): a
+   single question/answer pair fetched from data/faq.json by
+   renderSingleTool, hidden until the fetch resolves. Same hairline-divider
+   spacing as .cli-footer just above, since it sits in the same position
+   between the card and the footer. Base BASE-block rules zero out h2/p
+   margins site-wide, so this rule supplies the minimum needed for the pair
+   to read as a distinct block rather than running into the card above and
+   the footer below. */
+.cli-tool-faq {
+  margin-top: var(--s-8);
+  padding-top: var(--s-6);
+  border-top: var(--border);
+}
+.cli-tool-faq h2 { font-size: var(--fs-26); line-height: var(--lh-26); margin-bottom: var(--s-3); }
+.cli-tool-faq p { color: var(--ink-2); }
+
 /* How costs could grow (Batch D, Feature 2): single-series bar chart, no
    legend needed since the section heading already names the series. */
 .cli-cost-growth { margin-top: var(--s-12); }
@@ -1063,10 +1093,15 @@ button { font: inherit; }
 
 /* === PUBLIC ================================================================= */
 /* Public/staff split (BUILD-PLAN 10.12, Batch I): the read-only, indexable
-   directory at root. Shares .cli-category/.card-grid/.tool-card from the
-   CLIENT block above (the same card renderer, checklist toggle suppressed)
-   rather than a parallel set of card styles; this block covers only the
-   page-level chrome that is unique to the public view. */
+   directory at root. Shares .card-grid/.tool-card from the CLIENT block
+   above (the same card renderer, checklist toggle suppressed) rather than a
+   parallel set of card styles; this block covers only the page-level chrome
+   that is unique to the public view. Since Phase 14.1 (PRD section 16
+   amended, "compact landing") the flat list is 15 collapsed category
+   shelves; client.js's own .cli-category heading is no longer used here at
+   all (js/public.js discards it in favour of the shelf's own button
+   header), though .card-grid/.tool-card/.cli-category-icon are still
+   shared, per the file banner above. */
 
 #public-root {
   max-width: 960px;
@@ -1076,10 +1111,10 @@ button { font: inherit; }
 
 .pub-header {
   padding: var(--s-10) var(--s-10) var(--s-8);
-  margin-bottom: var(--s-6);
+  margin-bottom: var(--s-3);
   border-top: var(--bw-heavy) solid var(--oxblood);
 }
-.pub-header .logo { height: 40px; width: auto; margin-bottom: var(--s-8); }
+.pub-header .logo { height: 40px; width: auto; margin-bottom: var(--s-5); }
 .pub-header h1 {
   font-family: var(--font-display);
   font-weight: 900;
@@ -1087,19 +1122,18 @@ button { font: inherit; }
   line-height: 1.02;
   letter-spacing: var(--tr-tight);
 }
-.pub-header .subtitle { margin-top: var(--s-4); color: var(--ink-2); font-size: var(--fs-16); max-width: none; }
+/* Same design-system `p` line-height trap as .pub-hero-trust-item below:
+   the bare `p` rule's 28px line-height (tuned for 18px text) survives a
+   font-size-only override otherwise. */
+.pub-header .subtitle { margin-top: var(--s-4); color: var(--ink-2); font-size: var(--fs-16); line-height: var(--lh-16); max-width: none; }
 .pub-header .trust-line { margin-top: var(--s-2); color: var(--ink-3); font-size: var(--fs-14); max-width: none; }
 
-.pub-toolbar {
-  display: flex;
-  gap: var(--s-3);
-  flex-wrap: wrap;
-  align-items: center;
-  margin-bottom: var(--s-8);
-}
-/* Grows to fill the row on desktop; the mobile block below resets this to
-   flex: 0 0 auto, the same trap documented there for .cur-toolbar/.linkgen. */
-.pub-search { flex: 1 1 20rem; min-width: 0; }
+/* Search, promoted to first-class (PRD section 16, "Ways-in band"): its own
+   full-width row above the entry-path grid, on every viewport, not only
+   below 768px (the PRD's floor, not a ceiling: there is no reason to shrink
+   it back down again once there is room to spare). */
+.pub-search-row { margin-bottom: var(--s-5); }
+.pub-search { width: 100%; min-width: 0; }
 
 /* Recently updated strip (Feature 3, Batch I): quiet, editorial, hairline
    rules between entries. Archived entries get no extra treatment at all:
@@ -1108,7 +1142,7 @@ button { font: inherit; }
 .pub-changelog-summary { cursor: pointer; list-style-position: outside; min-height: 24px; display: list-item; }
 .pub-changelog-details > ul { margin-top: var(--s-3); }
 .pub-changelog {
-  margin-bottom: var(--s-10);
+  margin-bottom: var(--s-5);
   padding: var(--s-5) var(--s-6);
 }
 .pub-changelog-list {
@@ -1147,48 +1181,105 @@ button { font: inherit; }
   margin: 0;
   color: var(--ink-2);
   font-size: var(--fs-14);
+  /* design-system's bare `p` selector sets an 18px line-height (28px) that
+     survives this override, the same h2 trap documented twice elsewhere in
+     this block: these are <p> elements, and overriding font-size alone
+     leaves a line-height tuned for text nearly a third larger again. */
+  line-height: var(--lh-14);
   max-width: none;
 }
 .pub-hero-trust-item.trust-line { color: var(--ink-3); }
 .pub-hero-count strong { color: var(--ink); font-family: var(--font-sans); }
 
-/* --- entry paths (Phase 12.1, PRD section 16) ------------------------------
-   Three equal-weight cards: Discover (a stub this wave, wired to scroll
-   only, see js/public.js), persona packs, browse all. One shared grid for
-   every viewport: mobile stacks to a single column (Discover naturally
-   leading, since it is first in source order and this grid never
-   duplicates the markup per breakpoint), 768px and up lays the three out
-   side by side. */
-.pub-entry { margin-bottom: var(--s-10); }
+/* --- entry paths (Phase 12.1, PRD section 16; Phase 14.1 amends this to two
+   items) -------------------------------------------------------------------
+   Discover and persona packs, equal weight. The "Browse all" entry card
+   (Phase 12.1) is retired: its job passes to the shelf band below plus its
+   own Expand all / Collapse all toggle. One shared grid for every viewport:
+   mobile stacks to a single column (Discover naturally leading, since it is
+   first in source order and this grid never duplicates the markup per
+   breakpoint), 768px and up lays the two out side by side. */
+.pub-entry { margin-bottom: var(--s-5); }
 .pub-entry-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--s-4);
 }
 @media (min-width: 768px) {
-  .pub-entry-grid { grid-template-columns: repeat(3, 1fr); }
+  .pub-entry-grid { grid-template-columns: repeat(2, 1fr); }
 }
+/* No panel chrome (padding/background/border): PRD section 16 describes the
+   Discover entry as "button plus one-line pitch" and the persona entry as
+   just its chips, not a padded card, and the compact landing's page-height
+   budget (particularly "first shelf rows visible within the first mobile
+   viewport") depends on the ways-in band actually being lean. */
 .pub-entry-item {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: var(--s-3);
-  padding: var(--s-6);
-  background: var(--paper-2);
-  border: var(--border);
+  gap: var(--s-2);
+  /* A grid item's default min-width is its content's intrinsic size (the
+     same trap as .card-grid > li above): without this, the persona item's
+     un-wrapped chip row grows this item, its grid track and the page itself
+     wide enough to fit all five chips end to end instead of clipping and
+     scrolling internally. */
+  min-width: 0;
 }
-.pub-entry-item h2 {
-  font-family: var(--font-sans);
-  font-weight: 500;
-  font-size: var(--fs-21);
-  line-height: var(--lh-21);
-  letter-spacing: var(--tr-tight);
-  color: var(--ink);
+/* Same design-system `p` line-height trap as .pub-hero-trust-item above. */
+.pub-entry-pitch { max-width: none; color: var(--ink-2); font-size: var(--fs-14); line-height: var(--lh-14); }
+.pub-discover-btn { align-self: stretch; justify-content: center; }
+
+/* --- motion: deck-open morph (motion inventory item 4, PRD section 16
+   amended) -------------------------------------------------------------
+   js/public.js toggles this one class between the Discover button (before
+   the guarded transition captures its "old" state) and the mounted
+   .discover-panel (inside the transition's callback, before the "new"
+   state is captured), never on both elements at once: that shared name is
+   what tells the browser to morph the old box into the new one rather than
+   simple cross-fading them independently. The group's own duration and
+   easing is set on the generated pseudo-element, not on either real
+   element, since ::view-transition-group only exists for the duration of
+   an active transition. The reduced-motion guard for this whole pseudo-
+   element family already lives in the COMPONENTS block above (JS never
+   starts a transition under reduced motion in the first place; this is the
+   belt-and-braces CSS confirmation, not a second, item-specific one). */
+.pub-vt-discover { view-transition-name: discover-panel; }
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-group(discover-panel) {
+    animation-duration: 380ms;
+    animation-timing-function: var(--ease-swift);
+  }
 }
-.pub-entry-item .t-small { max-width: none; }
-.pub-discover-btn, .pub-browse-btn { align-self: stretch; justify-content: center; }
 
 .pub-persona-chip-row { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+/* Verifier fix round (page-height budget, PRD section 16 amended, "first
+   shelf rows visible within the first mobile viewport"): below 768px, five
+   packs whose names are long enough to wrap one-per-row cost roughly 220px
+   of height on their own. Presentation only, behaviour identical: a single
+   horizontally scrollable row, momentum touch-scrolling, chips kept at
+   their full 44px height and never shrunk. The trailing mask fade is the
+   "more to scroll" affordance; it only ever clips transparent padding, so
+   no chip content is ever obscured, ellipsis-truncated or unreadable. */
+@media (max-width: 767px) {
+  .pub-persona-chip-row {
+    flex-wrap: nowrap;
+    align-self: stretch;
+    width: 100%;
+    /* A flex item's default min-width is its content's intrinsic size, not
+       0: without this, the un-wrapped row of chips grows the row (and every
+       ancestor up to the page itself) to fit all five end to end instead of
+       clipping and scrolling internally, the same trap documented on
+       .card-grid > li and .cur-toolbar .input elsewhere in this file. */
+    min-width: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    padding-bottom: var(--s-1);
+    mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
+  }
+  .pub-persona-chip-row .pub-persona-chip { flex: none; scroll-snap-align: start; }
+}
 .pub-persona-chip {
   display: inline-flex;
   align-items: center;
@@ -1212,10 +1303,128 @@ button { font: inherit; }
   color: var(--oxblood-deep);
 }
 
-/* --- motion: reveal (motion inventory items 1 and 2, PRD section 16) ------
-   Two classes, chosen in js/public.js before either is ever applied: the
+/* --- category shelves (Phase 14.1, PRD section 16 amended, "compact
+   landing", "Category shelves" and "Shelf mechanics") ------------------
+   One <section> per category, a single 44px header row when collapsed.
+   Collapse is CSS only: js/public.js toggles the grid's `hidden` IDL
+   property, which the BASE block's `[hidden] { display: none !important; }`
+   rule already turns into the closed state, so no dedicated display rule is
+   needed here at all. Row height is pinned to exactly the button's own
+   min-height (no extra vertical padding on the header or the section), so
+   15 collapsed shelves stay well inside the page-height budget. */
+.pub-shelf-band { margin-bottom: var(--s-10); }
+/* Verifier fix round: two explicit rows (title+Expand all, then Plain
+   English+theme toggle), not one flex-wrap group of four items. Kept as a
+   pair each, the two rows both fit their own single line down to 375px;
+   left to wrap as one group of four they measured a full two internal
+   wraps at 375px, defeating the "one row folded in, ~92px" saving this fix
+   is meant to realise (PRD section 16 amended, "first shelf rows visible
+   within the first mobile viewport"). */
+.pub-shelf-band-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+}
+.pub-shelf-band-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--s-4);
+}
+.pub-shelf-band-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-21);
+  /* Same design-system h2 trap the shelf-heading fix above documents: the
+     bare `h2` rule's line-height is a fixed 50px tuned for its 44px font
+     size, and overriding font-size alone here leaves that 50px line-height
+     behind, taller than a 21px line needs by nearly double. */
+  line-height: var(--lh-21);
+  letter-spacing: var(--tr-tight);
+  color: var(--ink);
+}
+.pub-shelf-band-controls { display: flex; flex-wrap: wrap; gap: var(--s-3); }
+.pub-shelf-match-count { margin: 0 0 var(--s-4); color: var(--ink-2); font-size: var(--fs-14); line-height: var(--lh-14); }
+
+.pub-shelves { display: flex; flex-direction: column; gap: var(--s-2); }
+.pub-shelf { background: var(--paper); border: var(--border); }
+/* design-system/colors_and_type.css sets a bare `h2` selector to 44px with a
+   tall line-height (its own heading scale); this wraps a 44px-minimum
+   *button*, not a page heading, and BASE's `button { font: inherit; }` would
+   otherwise pull that whole 44px/line-height pair down onto the button,
+   nearly doubling every collapsed shelf row's height. Reset here, in the
+   PUBLIC block, rather than touching the frozen design-system file. */
+.pub-shelf-heading { margin: 0; font-size: var(--fs-16); line-height: 1; letter-spacing: normal; }
+.pub-shelf-header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  min-height: 44px;
+  padding: 0 var(--s-5);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-sans);
+  color: var(--ink);
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.pub-shelf-header:hover { background: var(--paper-2); }
+.pub-shelf-header .cli-category-icon { flex: none; color: var(--oxblood); }
+.pub-shelf-name { flex: none; font-weight: 500; font-size: var(--fs-16); }
+.pub-shelf-count { flex: none; color: var(--ink-3); font-size: var(--fs-14); }
+/* The "scent": a muted, single-line, ellipsis-truncated list of the
+   category's own tool names, so a collapsed row still hints at what is
+   inside it. min-width: 0 is required for a flex child to actually shrink
+   and truncate rather than pushing the row wider (the same trap the
+   card-grid comment above documents for grid tracks). */
+.pub-shelf-scent {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-3);
+  font-size: var(--fs-14);
+}
+.pub-shelf-chevron { flex: none; color: var(--ink-3); }
+/* A static state flip keyed off aria-expanded, not an animation: this wave
+   introduces no new animation styles, the shelf-open stagger itself is wave
+   14.2's (PRD section 16 motion inventory item 2). */
+.pub-shelf-header[aria-expanded="true"] .pub-shelf-chevron { transform: rotate(180deg); }
+
+.pub-shelf-grid { padding: 0 var(--s-5) var(--s-5); }
+
+/* Verifier fix round: the CLIENT block gives every .tool-card an
+   unconditional "card-in" entrance (Phase 4, unedited, gated only on
+   prefers-reduced-motion: no-preference). Toggling a shelf grid's `hidden`
+   property off is a display:none-to-block transition, which re-triggers a
+   CSS animation on every card inside, every time a shelf opens (including
+   all 15 at once on Expand all): an unlisted motion against the amended
+   section 16's exhaustive inventory, and the old 12.1 values rather than
+   wave 14.2's forthcoming shelf-open stagger. This is a subtraction, scoped
+   to cards inside a public shelf only, so client mode's own entrance
+   (#client-root) is untouched: this selector cannot match there, .pub-shelf
+   only ever exists inside #public-root.
+
+   Wave 14.2: this subtraction stays exactly as is, per the phase brief
+   ("the suppression of the old card-in stays"). The new shelf-open stagger
+   (motion inventory item 2, see .pub-shelf-stagger below) is a fully
+   separate mechanism, applied to the <li> wrapper rather than .tool-card,
+   under its own JS-chosen, transient class: the two do not conflict, since
+   this rule only ever silences the OLD, always-on @keyframes animation. */
+.pub-shelf .tool-card { animation: none; }
+
+/* --- motion: reveal (motion inventory item 1, PRD section 16) -------------
+   One class pair, chosen in js/public.js before either is ever applied: the
    transform-bearing one for a normal-motion visitor, the opacity-only one
-   for prefers-reduced-motion. The media query below is a second, CSS-only
+   for prefers-reduced-motion. Scoped since Phase 14.1 to the hero and the
+   two ways-in entry items only: the per-category card reveal Phase 12.1
+   built here is retired along with the flat list it revealed (see the
+   js/public.js file banner). The media query below is a second, CSS-only
    guard on top of that JS choice, per the phase brief: if the transform
    class ever landed on a reduced-motion visitor by mistake, this still
    strips the transform out of the transition entirely, not just its
@@ -1223,10 +1432,13 @@ button { font: inherit; }
    only shortens durations, it does not remove transform from the property
    list, so a dedicated override here is needed for the two classes below to
    ever measure as opacity-only). */
+/* Wave 14.2 recalibration: translateY(18px), 480ms, --ease-swift, per the
+   amended spec's exact item 1 values (previously translateY(10px)/360ms/
+   --ease-out from Phase 12.1, imperceptible per Rocky's 29 Jul direction). */
 .pub-reveal {
   opacity: 0;
-  transform: translateY(10px);
-  transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out);
+  transform: translateY(18px);
+  transition: opacity 480ms var(--ease-swift), transform 480ms var(--ease-swift);
 }
 .pub-reveal.is-in { opacity: 1; transform: translateY(0); }
 .pub-reveal-reduced {
@@ -1239,31 +1451,73 @@ button { font: inherit; }
   .pub-reveal.is-in { transform: none; }
 }
 
-/* --- motion: hover lift (motion inventory item 3, PRD section 16) ---------
+/* --- motion: shelf-expansion stagger (motion inventory item 2, "the
+   showpiece", PRD section 16 amended) ---------------------------------
+   js/public.js's staggerShelfCards applies one of these two classes (never
+   both) to the first six <li> cards of a shelf grid the instant it opens,
+   the same JS-chooses/CSS-confirms split as .pub-reveal above. Repeatable,
+   unlike .pub-reveal: cleanup after the transition removes the class again,
+   so the same shelf staggers again on its next open, not only its first. */
+.pub-shelf-stagger {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 300ms var(--ease-swift), transform 300ms var(--ease-swift);
+}
+.pub-shelf-stagger.is-in { opacity: 1; transform: translateY(0); }
+.pub-shelf-stagger-reduced {
+  opacity: 0;
+  transition: opacity 120ms var(--ease-swift);
+}
+.pub-shelf-stagger-reduced.is-in { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .pub-shelf-stagger { transition: opacity 120ms var(--ease-swift); transform: none; }
+  .pub-shelf-stagger.is-in { transform: none; }
+}
+
+/* --- motion: hover lift and focus (motion inventory item 7, PRD section 16
+   amended) -----------------------------------------------------------
    Scoped to #public-root rather than editing the CLIENT block's .tool-card
-   rule above (owned by Phase 4): additive rules only, the existing
-   border-hover behaviour there is untouched and simply layers with this.
-   The lift is set on the card-grid's <li> wrapper, not on .tool-card
-   itself: the CLIENT block's own entrance keyframes (card-in, "both" fill
-   mode) never release their hold on .tool-card's transform property once
-   they finish, which silently defeats any later hover-triggered transition
-   on that same element and property (verified in isolation: identical
-   rules on a plain element transition correctly, the same rules on an
-   element also carrying a "both" fill-mode animation on transform do not).
-   The <li> carries no such animation and, with no padding or border of its
-   own, occupies exactly the same box as the card inside it, so the lift
-   reads identically to the reader while sidestepping the conflict rather
-   than touching Phase 4's file. Hover-capable devices only; reduced motion
-   drops the translate but keeps the shadow as a static, non-moving
-   affordance. */
+   rule above (owned by Phase 4): additive/overriding rules only, layered on
+   top rather than touching that file. The lift itself is set on the
+   card-grid's <li> wrapper, not on .tool-card: the CLIENT block's own
+   entrance keyframes (card-in, "both" fill mode) never release their hold
+   on .tool-card's transform property once they finish, which silently
+   defeats any later hover-triggered transition on that same element and
+   property (verified in isolation: identical rules on a plain element
+   transition correctly, the same rules on an element also carrying a "both"
+   fill-mode animation on transform do not). The <li> carries no such
+   animation and, with no padding or border of its own, occupies exactly the
+   same box as the card inside it, so the lift reads identically to the
+   reader while sidestepping the conflict.
+
+   The border-colour half targets .tool-card itself (that is where the
+   border lives), overriding the CLIENT block's own hover rule (which shifts
+   to --ink-3) via an ID-anchored selector rather than editing that file,
+   the same technique this block already used before this wave.
+
+   Wave 14.2 recalibration to the amended spec's exact values: translateY
+   was -2px with a box-shadow swap (Phase 12.1); it is now -3px with a
+   border-colour shift to oxblood, 180ms, --ease-swift, no shadow term at
+   all (the inventory names only the two effects below). Reduced motion:
+   "colour change only, no translate", so the border shift is deliberately
+   NOT dropped under reduced motion, only the translate is.
+
+   Site-wide :focus-visible (2px oxblood outline, 2px offset, zero
+   duration) is the BASE block's existing `:is(a, button, input, select,
+   [tabindex]):focus-visible` rule: outline carries no transition anywhere
+   in this file, so focus never lags, satisfying this item's other half
+   with no new rule needed here. */
 @media (hover: hover) {
   #public-root .card-grid > li {
-    transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
+    transition: transform 180ms var(--ease-swift);
   }
-  #public-root .card-grid > li:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); }
+  #public-root .card-grid > li:hover { transform: translateY(-3px); }
+  #public-root .tool-card { transition: border-color 180ms var(--ease-swift); }
+  #public-root .card-grid > li:hover .tool-card { border-color: var(--oxblood); }
 }
 @media (hover: hover) and (prefers-reduced-motion: reduce) {
-  #public-root .card-grid > li:hover { transform: none; box-shadow: var(--shadow-1); }
+  #public-root .card-grid > li:hover { transform: none; }
+  #public-root .card-grid > li:hover .tool-card { border-color: var(--oxblood); }
 }
 
 /* --- judgement parity (Phase 12.3, PRD section 16, "Grid quick-judge and
@@ -1349,6 +1603,27 @@ button { font: inherit; }
   cursor: pointer;
 }
 .pub-judge-chip:hover { background: var(--oxblood); color: var(--paper); }
+
+/* --- motion: judged-chip pop (motion inventory item 5, PRD section 16
+   amended) -------------------------------------------------------------
+   js/public.js only ever adds .is-new to a chip rendering a decision the
+   reader just made this instant (discover.js's wasFreshlyDecided, consumed
+   once), never one merely re-rendered from stored state. --ease-spring is
+   reserved for small elements only, per the inventory's own note; a pill
+   chip comfortably qualifies. No fill-mode: the keyframe's own 100% state
+   (scale(1), opacity 1) already equals the chip's unstyled resting style,
+   so there is nothing to hold onto once the animation ends. */
+@keyframes pub-judge-chip-pop {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1); }
+}
+.pub-judge-chip.is-new {
+  transform-origin: left;
+  animation: pub-judge-chip-pop 220ms var(--ease-spring);
+}
+@media (prefers-reduced-motion: reduce) {
+  .pub-judge-chip.is-new { animation: none; }
+}
 .pub-judge-chooser {
   display: flex;
   flex-wrap: wrap;
@@ -1364,6 +1639,75 @@ button { font: inherit; }
 @media (max-width: 768px) {
   .pub-footer a { display: inline-block; padding: 12px 4px; margin: -4px 0; min-height: 44px; box-sizing: border-box; }
 }
+
+/* Homepage FAQ slot (PRD section 16 item 5, filled in wave 14.3b): ten
+   native <details>/<summary> items, one per site Q&A, in the same quiet
+   editorial language as .pub-changelog above (hairline rules, list-style
+   marker on the summary, no panel chrome around the whole section since it
+   sits directly on the page like the shelf band, not boxed like the
+   changelog strip). All colour comes from the existing --ink/--paper-edge
+   tokens, so dark mode is automatic, the same as every other PUBLIC rule.
+   No motion here at all, deliberately: details/summary toggles instantly by
+   native browser behaviour, so there is nothing for the reduced-motion query
+   to guard and nothing added to the motion inventory. */
+.pub-faq { margin-bottom: var(--s-10); }
+/* Same design-system h2 line-height trap .pub-shelf-band-title's own comment
+   documents: fs-21/lh-21 (not the bare h2 default of 44px/50px) keeps this
+   heading in proportion with the shelf band's own section title just above
+   it, and out of the page-height budget the collapsed FAQ items below are
+   already careful with. */
+.pub-faq-heading {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-21);
+  line-height: var(--lh-21);
+  letter-spacing: var(--tr-tight);
+  margin-bottom: var(--s-3);
+}
+/* One column below 768px (matches .pub-entry-grid's own breakpoint), two
+   columns from 768px up: ten 44px-floor rows would otherwise cost roughly
+   480px of collapsed height on every viewport including the ones with the
+   least budget to spare (the 1280px page-height budget is tighter than
+   375px's, 2200px against 3200px, since the two-column card grid already
+   packs more per screenful there). Halving the row count at the width
+   where the budget is tightest is what keeps the FAQ slot inside it without
+   shrinking any individual summary below the 44px floor. */
+.pub-faq-list { display: flex; flex-direction: column; }
+@media (min-width: 768px) {
+  .pub-faq-list { display: grid; grid-template-columns: repeat(2, 1fr); column-gap: var(--s-8); }
+}
+.pub-faq-item { border-top: var(--bw-hair) solid var(--paper-edge); }
+.pub-faq-item:last-child { border-bottom: var(--bw-hair) solid var(--paper-edge); }
+@media (min-width: 768px) {
+  /* In the two-column layout the true DOM :last-child (item 10) only closes
+     the second column; the fifth item is the visual foot of the first
+     column and needs the same closing rule, or that column reads as
+     unterminated. nth-child(5) is safe against the site's own data (the ten
+     canonical Q&As are a fixed, PRD-quoted list, never fewer than ten). */
+  .pub-faq-item:nth-child(5) { border-bottom: var(--bw-hair) solid var(--paper-edge); }
+}
+/* 44px minimum touch target (WCAG 2.5.5 / this site's own floor throughout),
+   pinned the same way the shelf header's own comment describes ("no extra
+   vertical padding on the header... so 15 collapsed shelves stay well inside
+   the page-height budget"): border-box folds the padding into the 44px
+   floor itself rather than stacking on top of it, and the item wrapper
+   above carries no padding of its own, only the hairline divider. The
+   answer paragraph is not measured here at all: a closed <details> renders
+   only its <summary>, per native HTML behaviour, so it costs nothing
+   against the collapsed page height regardless of how long the answer is.
+   list-style-position outside keeps the marker from eating into the text
+   measure the way the default "inside" position would. */
+.pub-faq-summary {
+  cursor: pointer;
+  list-style-position: outside;
+  box-sizing: border-box;
+  min-height: 44px;
+  display: list-item;
+  padding: 10px 0;
+  font-family: var(--font-sans);
+  font-weight: 500;
+}
+.pub-faq-answer { margin-top: var(--s-2); color: var(--ink-2); }
 
 /* Embed mode (Feature 2, Batch I / BUILD-PLAN 10.11): chrome-free, sized to
    sit inside an iframe rather than assume a full browser viewport. */
@@ -1388,7 +1732,16 @@ button { font: inherit; }
    from the shared custom properties, so dark mode (the :root[data-theme]
    overrides in DARK MODE above) applies with no extra rules here. */
 
-.discover-mount { margin-bottom: var(--s-8); }
+/* Wave 14.2: overflow-anchor: none opts this whole subtree out of the
+   browser's scroll anchoring heuristic. The deck swaps its card (a
+   different height each time) on every judgement, right at the scroll
+   position js/public.js's deck-open morph just settled on; without this,
+   scroll anchoring reads that swap as content changing near the anchor
+   point and silently adjusts scrollY to compensate, which is exactly the
+   sort of scroll-linked effect the motion inventory bans and, measured
+   during this wave's build, could carry the freshly dealt card off-screen
+   the instant a judgement landed. */
+.discover-mount { margin-bottom: var(--s-8); overflow-anchor: none; }
 
 .discover-panel {
   background: var(--paper-2);
@@ -1824,10 +2177,6 @@ button { font: inherit; }
   /* In a column, the desktop flex-basis 16rem would become height. */
   .linkgen-controls .input { flex: 0 0 auto; }
   .pub-header { padding: var(--s-6) var(--s-5); }
-  .pub-toolbar { flex-direction: column; align-items: stretch; }
-  /* Same trap as .cur-toolbar/.linkgen-controls above: in a column, the
-     desktop flex-basis 20rem would become height, not width. */
-  .pub-search { width: 100%; flex: 0 0 auto; }
   .cli-header { padding: var(--s-6) var(--s-5); }
   .cli-summary { gap: var(--s-6); padding: var(--s-5); }
   .tool-card { padding: var(--s-6); }

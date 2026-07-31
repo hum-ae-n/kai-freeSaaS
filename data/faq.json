@@ -1,0 +1,402 @@
+{
+  "site": [
+    {
+      "q": "What software stack is free for a new founder?",
+      "a": "A genuinely free day-one stack: a free AI assistant (Claude, ChatGPT or Gemini), Canva Free for design, Unsplash or Pexels for images, Google Business Profile so customers can find you, WhatsApp Business for customer contact, Bitwarden Free as a password manager and Google Drive for files. All are free tiers with published limits, not trials. This directory lists each one with its real limits and alternatives."
+    },
+    {
+      "q": "What is the best free accounting software for a UK small business?",
+      "a": "Two credible options. Wave Accounting is free indefinitely for invoicing and manual bookkeeping, though automatic bank feeds sit in its paid tier. FreeAgent, a full UK accounting package, is free while you hold an active Mettle or NatWest business account. Which suits you depends on your bank; both are listed here with their exact free-tier edges."
+    },
+    {
+      "q": "How much would this software cost if I paid for it?",
+      "a": "The 89 active tools in this directory represent roughly £11,600 a year in commercial-equivalent value. That figure is deliberately conservative: it is what you would pay a commercial provider for the same capability, never the tool's own paid-tier price, and never inflated. Every tool shows its individual value and a last-verified date so you can challenge the numbers."
+    },
+    {
+      "q": "Is there a free CRM good enough for a small business?",
+      "a": "Yes. HubSpot CRM Free supports up to 2 users and around 1,000 contacts, free forever, with HubSpot branding on some assets. Zoho's free ecosystem gives a CRM for up to 3 users plus free booking, invoicing and forms tools. Both limits are real edges you should know before committing, and both entries here list alternatives."
+    },
+    {
+      "q": "What free email marketing tools actually work?",
+      "a": "MailerLite Free gives 250 subscribers and 2,500 emails a month, the most generous mainstream free tier. Mailchimp Free allows 250 contacts and 500 emails a month, and Brevo takes a different approach with daily send limits. For a small list, any of the three does the job; the caps above are where each one starts charging."
+    },
+    {
+      "q": "What can I use instead of Photoshop for free?",
+      "a": "GIMP is free, open source and permanently free with no paid tier. Photopea runs a Photoshop-like editor in the browser, free with ads, and opens PSD files. For template-based design rather than photo editing, Canva Free and Adobe Express Free cover most small-business needs. None of these is a trial; all are listed here with their limits."
+    },
+    {
+      "q": "Do these free tools stay free, or is there a catch?",
+      "a": "Every entry states in plain English what the free tier genuinely includes and exactly where it stops: the user limit, the storage cap or the feature gate. Each tool carries a last-verified date. When a tool stops being free or stops being good, it is archived and marked as no longer recommended, pointing at its alternatives, never silently deleted."
+    },
+    {
+      "q": "Does this directory earn commission on the tools it lists?",
+      "a": "No. There are no affiliate links, no sponsorships and no paid placements anywhere in this directory. Every link pays Kaipability nothing when you click it or sign up, and removing a tool costs nothing either. Tools are listed on merit, used on real client work, and every one carries at least two alternatives so you are never funnelled to a single vendor."
+    },
+    {
+      "q": "What free tools help a local shop get found online?",
+      "a": "Start with Google Business Profile, free forever and the single biggest factor in local search visibility. Add Bing Places for Business, Meta Business Suite for managing Facebook and Instagram, and WhatsApp Business for customer messaging. All four are permanently free products, not trials, and each is listed here with setup training links."
+    },
+    {
+      "q": "What free security tools should a small business start with?",
+      "a": "Bitwarden Free gives unlimited passwords across unlimited devices, including a free two-person sharing option. Have I Been Pwned checks whether your email addresses appear in known data breaches, free for individual lookups. Google Password Checkup flags reused or compromised passwords at no cost. These three cover the basics before you spend anything on security."
+    }
+  ],
+  "tools": {
+    "0": {
+      "q": "Are Claude Free / ChatGPT Free / Gemini free for a small business?",
+      "a": "Each provider gives a daily message allowance on an older or smaller model with no memory of past chats between sessions; the roughly £16/month Pro/Plus tier per provider removes the daily cap and unlocks the top model. AI writing, research, content drafting, business planning. Free tiers sufficient for most SME needs. Using more than one gives a second opinion on important drafts. Paid plans start from £16 a month. Alternatives include Claude and Perplexity."
+    },
+    "1": {
+      "q": "Is Microsoft Copilot Chat actually free for a small business?",
+      "a": "Unlimited free chat at copilot.microsoft.com and in Bing/Edge, no sign-in required; the in-tenant Microsoft 365 Copilot add-on that keeps prompts inside the business's own data is a separate paid product, not counted here. Free AI chat via Bing/Edge. If M365 subscriber, in-app Copilot keeps data in tenant but is a separate paid add-on (~£15-18/user/month), not counted as free value. Paid plans start from £15 a month. Alternatives include Claude Free and ChatGPT Free."
+    },
+    "2": {
+      "q": "Is Canva Free actually free for a small business?",
+      "a": "250,000+ templates, 5GB storage and 50 AI credits a month at no cost; Pro adds the brand kit, background remover and hundreds more AI credits for about £12/month. Professional design for social graphics, presentations, flyers, branded documents. Templates make it accessible. Substantial free capability. Paid plans start from £12 a month. Alternatives include Adobe Express Free and Figma Free."
+    },
+    "3": {
+      "q": "Is Adobe Express Free actually free for a small business?",
+      "a": "100,000 templates, 5GB storage and 25 AI credits a month free; Premium (about £8/month) unlocks the full 200-million-asset stock library, more fonts and video background removal. Comparable to Canva. Slightly more polished output for professional documents. Worth comparing both. Free tier generous. Paid plans start from £8 a month. Alternatives include Canva Free and Figma Free."
+    },
+    "4": {
+      "q": "Is GIMP actually free for a small business?",
+      "a": "Free forever, open source, every feature and every release at no cost. Open-source image editor. Professional-grade alternative to Adobe Photoshop. Layers, masks, filters. Steeper learning curve than Canva but unlimited capability. There is no paid tier to outgrow. Alternatives include Photopea and Krita."
+    },
+    "5": {
+      "q": "Is Photopea.com actually free for a small business?",
+      "a": "The full editor is free forever, supported by ads; Premium (about £4/month) removes the ads and adds extra cloud storage. Free browser-based Photoshop alternative. Opens PSD files, layers, masks. No install needed. Lower learning curve than GIMP if already familiar with Photoshop/Affinity. Paid plans start from £4 a month. Alternatives include GIMP and Krita."
+    },
+    "6": {
+      "q": "Are Unsplash / Pexels / Pixabay free for a small business?",
+      "a": "Unlimited free downloads across all three libraries, no paid tier for standard use. Free stock photography and video. High quality, no attribution required (check individual licences). Essential for website, social media, marketing materials. There is no paid tier to outgrow. Alternatives include Unsplash and Openverse."
+    },
+    "7": {
+      "q": "Is Stock Music & Fonts actually free for a small business?",
+      "a": "Free forever: the YouTube Audio Library and Google Fonts have no paid tier. YouTube Audio Library, Uppbeat (uppbeat.io), Pixabay Music for royalty-free tracks. Google Fonts for web typography. Essential components of professional content at zero cost. There is no paid tier to outgrow. Alternatives include YouTube Audio Library and Google Fonts."
+    },
+    "8": {
+      "q": "Are Remove.bg / Cleanup.Pictures free for a small business?",
+      "a": "Remove.bg: 1 free HD download plus low-res previews a month. Cleanup.Pictures: a limited number of free edits a month. Paid credits for either start at about £7/month. Instant AI background removal (Remove.bg) and object removal from photos (Cleanup.Pictures). One-click fixes for common image problems. Free tiers limited but functional. Paid plans start from £7 a month. Alternatives include Remove.bg and Cleanup.Pictures."
+    },
+    "9": {
+      "q": "Are TinyPNG / Squoosh free for a small business?",
+      "a": "TinyPNG's web tool is capped at 20 images a month before it asks you to pay; Squoosh (Google's own tool) runs entirely in the browser and is free forever with no cap. Compress images for website without visible quality loss. Faster site = better Google ranking. Also reduces email attachment sizes. Squoosh is Google's own tool. Paid plans start from £2 a month. Alternatives include TinyPNG and Squoosh."
+    },
+    "10": {
+      "q": "Are Vectorizer.ai / Coolors.co free for a small business?",
+      "a": "Vectorizer.ai gives a few free low-res preview conversions before requiring paid credits; Coolors' colour palette extraction is free forever. Vectorizer: convert low-res logos to scalable vectors for printing. Coolors: extract exact hex/RGB from customer logos for brand matching. Niche but solves real problems. Paid plans start from £8 a month. Alternatives include Vectorizer.ai and Coolors."
+    },
+    "11": {
+      "q": "Is Placeit by Envato actually free for a small business?",
+      "a": "A small selection of mockups are free to download; unlimited downloads across the full template library need a subscription, cheapest on an annual plan at about £6/month. Show customers how designs look on actual garments/products before printing. T-shirt mockups, hoodies, caps. Essential for website product images. Some free, premium £7.95/download. Paid plans start from £6 a month. Alternatives include Smartmockups and Printful Mockup Generator."
+    },
+    "12": {
+      "q": "Is YouTube Studio actually free for a small business?",
+      "a": "Free forever, no paid tier: hosting, distribution and analytics all included. Free video hosting, distribution, analytics. No hosting cost. SEO benefits from Google ownership. Tutorials, testimonials, product demos, CPD. There is no paid tier to outgrow. Alternatives include Vimeo Basic and TikTok."
+    },
+    "13": {
+      "q": "Is CapCut actually free for a small business?",
+      "a": "The free tier exports with a watermark; Standard (about £8/month) removes the watermark at 1080p, Pro adds 4K and the full AI toolkit. Mobile and desktop video editing with trending templates. Quick Reels, TikToks, social clips. Auto-captions, music, highlights. Low learning curve. Paid plans start from £8 a month. Alternatives include InShot Free and Shotcut."
+    },
+    "14": {
+      "q": "Is DaVinci Resolve actually free for a small business?",
+      "a": "The free version is fully featured (editing, colour grading, Fairlight audio, Fusion VFX) with no watermark or time limit. Studio is a one-off £233 purchase, not a subscription, adding AI tools and advanced formats. Professional-grade video editing, completely free. Industry-standard colour grading. Rivals Premiere Pro. Steeper learning curve but unlimited capability. There is no paid tier to outgrow. Alternatives include Shotcut and Kdenlive."
+    },
+    "15": {
+      "q": "Is OBS Studio actually free for a small business?",
+      "a": "Free forever, open source, no paid tier. Open-source streaming and screen recording. Professional quality. Live streaming to YouTube/Facebook. Screen recording for tutorials and onboarding videos. There is no paid tier to outgrow. Alternatives include Loom Free and ShareX."
+    },
+    "16": {
+      "q": "Is Loom Free actually free for a small business?",
+      "a": "25 videos per member with a 5-minute cap each; Business (about £14/seat/month) removes the video count and time limits and adds 4K export. Screen recording with face overlay. Record client onboarding, tutorials, walkthroughs. Simpler than OBS. Free tier: 25 videos, 5 min each. Paid plans start from £14 a month. Alternatives include OBS Studio and ShareX."
+    },
+    "17": {
+      "q": "Are Opus Clip / Video Repurposing free for a small business?",
+      "a": "Opus Clip: 60 processing minutes a month, watermarked exports that expire after 3 days. Descript: 1 hour of transcription a month, 720p export, watermarked. Opus Clip's Starter plan (about £12/month) is the cheaper route to watermark-free exports. Turn one long video/podcast into multiple social clips. AI finds highlight moments. Directly serves podcast-to-social workflows. Paid plans start from £12 a month. Alternatives include Opus Clip and Descript."
+    },
+    "18": {
+      "q": "Is Audacity actually free for a small business?",
+      "a": "Free forever, open source, no paid tier. Open-source audio editor. Podcast editing, voiceover cleanup, noise removal, audio file conversion. Professional results at zero cost. There is no paid tier to outgrow. Alternatives include Ocenaudio and Adobe Audition."
+    },
+    "19": {
+      "q": "Is GoPro Quik actually free for a small business?",
+      "a": "The free app gives basic auto-edits; the Quik/GoPro subscription (from about £2/month) adds extra filters, music tracks and cloud backup. Basic GoPro footage organisation and highlight reel generation. Auto-edits for social clips from action footage. Paid plans start from £2 a month. Alternatives include CapCut and DaVinci Resolve."
+    },
+    "20": {
+      "q": "Is Microsoft Clipchamp actually free for a small business?",
+      "a": "Free at 1080p with basic cuts and transitions, included with any Microsoft account; standalone Premium (or bundled with Microsoft 365) adds 4K export and the full stock library for about £9/month. Simple video editing included in M365. Social clips, basic cuts, transitions. Already owned if M365 subscriber. Paid plans start from £9 a month. Alternatives include CapCut and InShot."
+    },
+    "21": {
+      "q": "Is Google Analytics 4 actually free for a small business?",
+      "a": "Free forever for the traffic volumes any small business generates, no paid tier; GA4 360 is priced for organisations far larger than an SME. Website analytics. Visitor behaviour, traffic sources, conversions. Free and should be on every business website. Takes 10 minutes to set up. There is no paid tier to outgrow. Alternatives include Matomo and Plausible."
+    },
+    "22": {
+      "q": "Is Microsoft Clarity actually free for a small business?",
+      "a": "Free forever, unlimited traffic, no paid tier. Free session recordings and heatmaps. See what visitors actually do. Complements GA4. Unlimited traffic, no cap. Equivalent paid: Hotjar ~£32/month. There is no paid tier to outgrow. Alternatives include Hotjar Free and Matomo."
+    },
+    "23": {
+      "q": "Is Google Search Console actually free for a small business?",
+      "a": "Free forever, no paid tier. SEO monitoring. Which search queries bring visitors, indexing status, technical issues. Essential for understanding how Google sees the site. There is no paid tier to outgrow. Alternatives include Bing Webmaster Tools and Ahrefs Webmaster Tools."
+    },
+    "24": {
+      "q": "Is Bing Webmaster Tools actually free for a small business?",
+      "a": "Free forever, no paid tier. Bing/Copilot search visibility. ~15-20% UK search share. Often overlooked. Can import from Search Console. Also feeds Microsoft Copilot answers. There is no paid tier to outgrow. Alternatives include Google Search Console and Ahrefs Webmaster Tools."
+    },
+    "25": {
+      "q": "Are Google PageSpeed Insights / Lighthouse free for a small business?",
+      "a": "Free forever, no paid tier. Free website speed and performance testing. Core Web Vitals. Lighthouse (built into Chrome DevTools) for deeper audits. SEO ranking factor. There is no paid tier to outgrow. Alternatives include GTmetrix and WebPageTest."
+    },
+    "26": {
+      "q": "Is Google Tag Manager actually free for a small business?",
+      "a": "Free forever for standard use, no paid tier for a small business. Streamlines tracking setup. Add GA4, Clarity, Facebook Pixel without touching website code. Reduces developer dependency for marketing tracking. There is no paid tier to outgrow. Alternatives include Segment Free and Matomo Tag Manager."
+    },
+    "27": {
+      "q": "Is Google Looker Studio actually free for a small business?",
+      "a": "Unlimited free reports and data sources; Looker Studio Pro (about £7/user/project/month) adds team workspaces, more scheduled deliveries and Gemini AI. Free dashboarding. Pull GA4, Search Console, Sheets data into visual reports. Auto-updating. Professional client reporting at no cost. Paid plans start from £7 a month. Alternatives include Metabase and Grafana."
+    },
+    "28": {
+      "q": "Are Schema.org / Merkle Schema Generator free for a small business?",
+      "a": "Free forever: an open standard plus a free generator tool, no paid tier. Structured data markup for rich search results (star ratings, FAQs, events). Free industry standard. Equivalent paid: Schema App ~£100/month. There is no paid tier to outgrow. Alternatives include Schema.org reference and Rank Math."
+    },
+    "29": {
+      "q": "Is Hotjar Free actually free for a small business?",
+      "a": "200,000 sessions and 10,000 recordings a month free; paid Observe plans, needed only once daily session caps are exceeded, start at about £31/month. Heatmaps and basic session recordings. More limited than Clarity (capped sessions) but well-established. Useful if client prefers Hotjar's interface. Paid plans start from £31 a month. Alternatives include Microsoft Clarity and Matomo."
+    },
+    "30": {
+      "q": "Is Google Trends actually free for a small business?",
+      "a": "Free forever, no paid tier. Seasonal demand patterns, keyword trends, market intelligence. Free. Content planning, understanding when to push which services. There is no paid tier to outgrow. Alternatives include Ubersuggest and AnswerThePublic."
+    },
+    "31": {
+      "q": "Is Google Ads Keyword Planner actually free for a small business?",
+      "a": "Free forever with a free Google Ads account, no ad spend required, no paid tier. Free keyword research even without running ads. Search volume, competition, content ideas. Requires Google Ads account (free to create, no spend needed). There is no paid tier to outgrow. Alternatives include Ubersuggest and Ahrefs Webmaster Tools."
+    },
+    "32": {
+      "q": "Is AnswerThePublic actually free for a small business?",
+      "a": "3 searches a day free; the paid Individual plan (about £12/month) removes the daily cap and adds CSV export. Keyword visualisation. Shows questions people ask about topics. Content ideation. 3 searches/day on free tier. Good for blog/FAQ planning. Paid plans start from £12 a month. Alternatives include Google Trends and AlsoAsked."
+    },
+    "33": {
+      "q": "Is Ubersuggest actually free for a small business?",
+      "a": "A handful of free searches a day; the paid Individual plan (about £9/month) removes the daily cap. Free SEO tool. Keyword research, competitor analysis. Limited daily queries but useful for initial research before committing to SEMrush/Ahrefs. Paid plans start from £9 a month. Alternatives include Google Keyword Planner and AnswerThePublic."
+    },
+    "34": {
+      "q": "Is Google Alerts actually free for a small business?",
+      "a": "Free forever, no paid tier. Free monitoring. Track competitor mentions, industry news, client company updates. Email alerts for any search term. Basic media monitoring at zero cost. There is no paid tier to outgrow. Alternatives include Talkwalker Alerts and Hootsuite."
+    },
+    "35": {
+      "q": "Are Google Scholar / ResearchGate free for a small business?",
+      "a": "Free forever for individual researchers, no paid tier. Free academic search (Scholar) and networking/publishing (ResearchGate). Essential for academic writing, CPD research, evidence-based practice. There is no paid tier to outgrow. Alternatives include Google Scholar and CORE."
+    },
+    "36": {
+      "q": "Is Google Business Profile actually free for a small business?",
+      "a": "Free forever, no paid tier. Free listing in Google Search and Maps. Reviews, hours, photos, posts. Highest-impact free tool for any business with a local or physical presence. There is no paid tier to outgrow. Alternatives include Bing Places and Apple Business Connect."
+    },
+    "37": {
+      "q": "Is Bing Places for Business actually free for a small business?",
+      "a": "Free forever, no paid tier. Free Bing search listing. ~15-20% UK search share. Can import from Google Business Profile. Often overlooked, worth 5 minutes. There is no paid tier to outgrow. Alternatives include Apple Business Connect and Google Business Profile."
+    },
+    "38": {
+      "q": "Is Meta Business Suite actually free for a small business?",
+      "a": "Free forever, no paid tier; running paid Meta ads is a separate product and spend, not part of this tool. Free management for Facebook and Instagram. Schedule posts, analytics, messages, automated replies, appointment booking integration. Essential for social-active businesses. There is no paid tier to outgrow. Alternatives include Buffer Free and Mixpost."
+    },
+    "39": {
+      "q": "Is LinkedIn (free profile) actually free for a small business?",
+      "a": "The free profile and posting are enough for most SMEs; Premium Career (about £24/month) adds who's-viewed-your-profile and LinkedIn Learning, rarely essential for basic visibility. Professional networking, credibility, B2B visibility. Free profile sufficient for most. Regular posting more valuable than Premium for most SMEs. Paid plans start from £24 a month. Alternatives include Bark and Alignable."
+    },
+    "40": {
+      "q": "Are Buffer Free / Social Scheduler free for a small business?",
+      "a": "3 channels, 10 scheduled posts queued per channel; paid Essentials removes the queue cap, billed per connected channel from about £5/month. Schedule posts across 3 channels, 10 posts queued. Free tier below paid Metricool/Hootsuite. Good trial before committing. Paid plans start from £5 a month. Alternatives include Meta Business Suite and Mixpost."
+    },
+    "41": {
+      "q": "Is Reddit (AEO channel) actually free for a small business?",
+      "a": "Free forever, no paid tier for posting and participating. AI-native discoverability. Genuine, non-marketing contributions answering questions seed AEO pickup by Claude, ChatGPT, Perplexity. Not a broadcast channel; a credibility channel. There is no paid tier to outgrow. Alternatives include Quora and LinkedIn."
+    },
+    "42": {
+      "q": "Is Link-in-Bio tools actually free for a small business?",
+      "a": "Unlimited links and basic themes free forever on all three; paid plans (from about £6/month) add custom domains and reduce or remove the platform's commission on digital product sales. Single link page for Instagram/TikTok bio. Multiple links to website, booking, shop, socials. Free tiers on all major platforms. Paid plans start from £6 a month. Alternatives include Linktree and Bio Site."
+    },
+    "43": {
+      "q": "Are MailerLite Free / Mailchimp Free / Brevo Free free for a small business?",
+      "a": "MailerLite: 250 subscribers, 2,500 emails a month. Mailchimp: 250 contacts, 500 emails a month. Brevo: unlimited contacts, 300 emails a day (about 9,000/month), the most generous of the three. All three free tiers have shrunk noticeably in the last two years. Email newsletters and automation. Free tiers: MailerLite (1,000 subscribers), Mailchimp (500 contacts), Brevo (300 emails/day). Landing pages, forms, basic automation. Paid plans start from £7 a month. Alternatives include MailerLite and Mailchimp."
+    },
+    "44": {
+      "q": "Is HubSpot CRM Free actually free for a small business?",
+      "a": "Free forever for up to 2 users and around 1,000 contacts, with 'Powered by HubSpot' branding on every email and form; Starter (about £16/month) removes the branding and the seat cap. Free CRM, unlimited contacts. Pipeline, email integration, customer tracking. Generous free tier. Scalable. Paid plans start from £16 a month. Alternatives include Capsule CRM Free and SuiteCRM."
+    },
+    "45": {
+      "q": "Is Zoho Free Ecosystem actually free for a small business?",
+      "a": "Free CRM for up to 3 users plus Bookings, Mail, Invoice, Writer, Meeting and Forms, all at no cost; CRM Standard, needed beyond 3 users or for more automation, starts at about £16/user/month. Independent ecosystem: CRM (3 users), Bookings, Mail, Invoice, Writer, Meeting, Forms, all at zero cost. Genuine alternative to Google/Microsoft stacks, not just a CRM. Paid plans start from £16 a month. Alternatives include HubSpot Free and Capsule CRM."
+    },
+    "46": {
+      "q": "Are Substack / Medium Free free for a small business?",
+      "a": "Free forever to publish on either platform; Substack takes a 10% cut only once and if you charge for subscriptions, with no monthly fee either way. Free newsletter/article publishing. Build subscriber list, share expertise. Substack: newsletter focus. Medium: existing readership. No cost until monetisation. There is no paid tier to outgrow. Alternatives include Substack and LinkedIn Articles."
+    },
+    "47": {
+      "q": "Is WhatsApp Business actually free for a small business?",
+      "a": "Free forever for the app itself; the WhatsApp Business Platform (API), needed only once volume requires third-party integration, is billed per conversation instead. Upgrade from personal WhatsApp. Quick replies for FAQs, product catalogue, away messages, business profile. Customers contact you the same way. Free. There is no paid tier to outgrow. Alternatives include WhatsApp Business and Facebook Messenger."
+    },
+    "48": {
+      "q": "Are Calendly Free / Scheduling free for a small business?",
+      "a": "1 event type and 1 calendar connection free forever; Standard (about £9/month) removes the event-type cap and adds reminders and integrations. Online appointment scheduling. One event type on free tier. Eliminates email back-and-forth for booking. Paid plans start from £9 a month. Alternatives include Calendly and Cal.com."
+    },
+    "49": {
+      "q": "Are Notion Free / Trello Free free for a small business?",
+      "a": "Notion: unlimited pages but 7-day version history and a 5MB upload cap. Trello: unlimited cards but capped at 10 boards and 250 automation runs a month. Trello Standard is the cheaper upgrade route at about £5/user/month. Project management and organisation. Notion: notes, wikis, databases. Trello: visual Kanban boards (Quote → Printing → Shipped). Both generous free tiers. Paid plans start from £5 a month. Alternatives include Notion and Trello."
+    },
+    "50": {
+      "q": "Are Zapier Free / Make.com Free / Apple Shortcuts free for a small business?",
+      "a": "Zapier: 100 tasks a month, two-step Zaps only. Make: 1,000 operations a month, 2 active scenarios. Apple Shortcuts: free forever, no limit. Make's Core plan is the cheaper upgrade route at about £8/month. Automation glue. Connect apps: new form submission → add to spreadsheet → send email. Zapier free: 100 tasks/month. Make free: 1,000 ops/month. Apple Shortcuts for phone workflows. Paid plans start from £8 a month. Alternatives include Zapier Free and n8n."
+    },
+    "51": {
+      "q": "Is E-Signing Free Tiers actually free for a small business?",
+      "a": "SignWell: 3 documents a month free. Zoho Sign: 5 envelopes a month free. Paid plans removing the document cap start at about £6/month. Digital signatures for contracts, engagement letters, consent forms. SignWell, Dokobit, Adobe Fill & Sign. Enough volume for a sole practitioner. Paid plans start from £6 a month. Alternatives include SignWell Free and Zoho Sign."
+    },
+    "52": {
+      "q": "Is QR Code Generation actually free for a small business?",
+      "a": "Static QR codes are free forever and never expire; paid plans are only needed for dynamic, trackable codes with scan analytics, which most small businesses don't require. Unlimited free QR codes. Link to booking pages, menus, feedback forms, product provenance pages. SVG export for print/CNC. Takes 30 seconds. There is no paid tier to outgrow. Alternatives include QR Code Generator and QRCode Monkey."
+    },
+    "53": {
+      "q": "Is Hemingway Editor actually free for a small business?",
+      "a": "The web editor is free forever with no limits; the optional desktop app is a one-off £16 purchase, not a subscription. Free writing clarity tool. Improves readability. Highlights complex sentences, passive voice, adverbs. Simpler alternative to Grammarly. Web-based, no install. There is no paid tier to outgrow. Alternatives include Hemingway and LanguageTool."
+    },
+    "54": {
+      "q": "Is Phone Recording + Transcription actually free for a small business?",
+      "a": "Apple Voice Memos and Google Recorder are free forever, built into the phone. Otter.ai gives 300 free transcription minutes a month; Otter Pro (about £13/month) raises this to 1,200 minutes. Apple Voice Memos, Google Recorder. Record meetings, site visits, client briefs. On-device transcription on newer phones. Pair with AI for notes/summaries. Paid plans start from £13 a month. Alternatives include Google Recorder and Otter.ai Free."
+    },
+    "55": {
+      "q": "Is Gmail Business Features actually free for a small business?",
+      "a": "Free forever, no paid tier: these are features already included in any Google account. Already available. Templates, scheduling, smart compose, filters, labels. Often underused. Can significantly improve email efficiency without any new tools. There is no paid tier to outgrow. Alternatives include Outlook and Thunderbird."
+    },
+    "56": {
+      "q": "Are Zoom Basic / Google Meet free for a small business?",
+      "a": "Zoom: unlimited one-to-one calls, 40-minute cap on group calls. Google Meet: 60-minute cap on group calls. Zoom Pro (about £13/month) removes the group time cap. Free video conferencing. Zoom: 40-min group cap, unlimited 1:1. Google Meet: 60-min limit, no account needed for guests. Both screen share and record. Paid plans start from £13 a month. Alternatives include Zoom and Google Meet."
+    },
+    "57": {
+      "q": "Is Spond actually free for a small business?",
+      "a": "Free forever for organising, messaging and attendance tracking; only a 2.5% + 20p transaction fee applies when collecting payments through the app. Staff/volunteer coordination and group comms. Popular with sports clubs, community groups, HAF providers. Event management, attendance tracking, subgroups. There is no paid tier to outgrow. Alternatives include Spond and Doodle."
+    },
+    "58": {
+      "q": "Is Microsoft Teams actually free for a small business?",
+      "a": "Free forever for internal chat and meetings, whether used standalone or included with Microsoft 365. Already available with M365. Meeting transcription, screen sharing, chat, channels. Could replace some WhatsApp usage for structured internal comms. There is no paid tier to outgrow. Alternatives include Slack Free and Rocket.Chat."
+    },
+    "59": {
+      "q": "Is Wave Accounting actually free for a small business?",
+      "a": "Free forever for invoicing and manual bookkeeping; automatic bank transaction imports and collaborator access now require the paid Pro plan, about £13/month. Free invoicing, accounting, receipt scanning. Bank connections, financial reports. Suitable for sole traders and micro-businesses. Paid plans start from £13 a month. Alternatives include Akaunting and FreeAgent."
+    },
+    "60": {
+      "q": "Are FreeAgent Free via Mettle / Tide Free free for a small business?",
+      "a": "FreeAgent is free indefinitely with an active Mettle or NatWest business account (at least one transaction a month); Tide's free account has no monthly fee either. Tide's paid Smart plan, needed for more transfers and features, starts at about £12/month. Bank-linked accounting at no cost. FreeAgent free with Mettle or NatWest business accounts. Tide offers free invoicing and expense management. Replaces manual Excel returns. Paid plans start from £12 a month. Alternatives include FreeAgent via Mettle and Xero."
+    },
+    "62": {
+      "q": "Is Bitwarden Free actually free for a small business?",
+      "a": "Unlimited passwords and devices free forever for individuals, including a free 2-person shared organisation; sharing across a team of 3 or more costs about £3/user/month. Free, open-source password manager. Unlimited passwords, sync across devices. Eliminates weak/reused passwords. Implement immediately. Paid plans start from £3 a month. Alternatives include KeePassXC and 1Password."
+    },
+    "63": {
+      "q": "Is Have I Been Pwned actually free for a small business?",
+      "a": "Free forever for checking individual email addresses; a paid subscription is only needed for automated, domain-wide monitoring. Free data breach monitoring. Check business email addresses against known breaches. Check now, then periodically. Takes 30 seconds. There is no paid tier to outgrow. Alternatives include Mozilla Monitor and Google Password Checkup."
+    },
+    "64": {
+      "q": "Is Google Password Checkup actually free for a small business?",
+      "a": "Free forever, built into Chrome and any Google account, no paid tier. Checks saved passwords against known breach databases. Quick 5-minute security audit. Built into Chrome. Complements HIBP. There is no paid tier to outgrow. Alternatives include Have I Been Pwned and Bitwarden."
+    },
+    "67": {
+      "q": "Are Google Drive / Workspace Free free for a small business?",
+      "a": "15GB free storage per Google account; Google One's cheapest paid tier (100GB, needed once files outgrow the free allowance) is about £2/month. 15GB free. Docs, Sheets, Slides, Forms. Shareable, collaborative. Available with any Google account. Includes Google Slides for presentations. Paid plans start from £2 a month. Alternatives include OneDrive and Dropbox."
+    },
+    "68": {
+      "q": "Are OneDrive / Microsoft 365 Included free for a small business?",
+      "a": "1TB included at no extra cost with any Microsoft 365 subscription, nothing further to pay for storage itself. 1TB cloud storage included with M365. Auto-backup, file sharing, versioning. Already paid for if M365 subscriber. Needs enabling and configuring. There is no paid tier to outgrow. Alternatives include Google Drive and Dropbox."
+    },
+    "69": {
+      "q": "Are Microsoft Lists / Planner free for a small business?",
+      "a": "Included at no extra cost with any Microsoft 365 subscription. Task management and databases included in M365. Lists replaces spreadsheet-as-database. Planner for Kanban boards. Syncs with Teams. There is no paid tier to outgrow. Alternatives include Trello and Notion."
+    },
+    "70": {
+      "q": "Is Microsoft Bookings actually free for a small business?",
+      "a": "Included at no extra cost with any Microsoft 365 subscription. Online booking included in M365. Clients self-book. Syncs Outlook. Already paid for if subscriber. There is no paid tier to outgrow. Alternatives include Calendly and Cal.com."
+    },
+    "71": {
+      "q": "Is Microsoft Forms + QR Codes actually free for a small business?",
+      "a": "Included at no extra cost with any Microsoft 365 subscription. Surveys, feedback, consent capture. Data in M365 tenant. QR codes for physical-to-digital touchpoints. There is no paid tier to outgrow. Alternatives include Google Forms and Tally."
+    },
+    "74": {
+      "q": "Is Free Training Academies actually free for a small business?",
+      "a": "Free forever: every academy listed (HubSpot Academy, Meta Blueprint, Google Skillshop, Digital Garage, Xero U, SEMrush Academy) is self-serve at no cost, regardless of whether the underlying product is paid. Structured free upskilling. HubSpot Academy (CRM, marketing), Meta Blueprint (social), Google Skillshop & Digital Garage (analytics, ads, digital), Xero U (accounting), SEMrush Academy (SEO). There is no paid tier to outgrow. Alternatives include HubSpot Academy and Meta Blueprint."
+    },
+    "75": {
+      "q": "Are Coursera / Khan Academy (audit mode) free for a small business?",
+      "a": "Khan Academy is free forever. Coursera's audit mode gives free access to course content with no certificate; Coursera Plus, needed only for a certificate, is a separate paid subscription from about £47/month. Audit versions of professional courses available without certification cost. Khan Academy fully free. Business, economics, marketing, data, coding. Paid plans start from £47 a month. Alternatives include Coursera and edX."
+    },
+    "79": {
+      "q": "Is Shopify Dawn Theme + Shopify Learn actually free for a small business?",
+      "a": "The Dawn theme and Shopify Learn courses are free, but Shopify itself has no free storefront tier: the cheapest plan able to run a full Dawn-themed store is Basic, about £31/month. Free premium theme + comprehensive e-commerce education covering setup, photography, marketing, fulfilment. Dawn is fast, accessible, customisable. Paid plans start from £31 a month. Alternatives include WooCommerce and Ecwid."
+    },
+    "80": {
+      "q": "Is Amazon Seller Central actually free for a small business?",
+      "a": "Individual plan: no monthly fee, 99p per item sold, suits under about 40 sales a month. Professional plan, better value above that volume, is about £32/month flat. Secondary marketplace for digital guides, branded merch. Higher margins than Printful for some products. No seller account cost until listing. Paid plans start from £32 a month. Alternatives include Etsy and eBay."
+    },
+    "81": {
+      "q": "Is Printful POD Integration actually free for a small business?",
+      "a": "Free forever with no monthly fee, paying only for products as customers order them; the optional Growth plan (about £20/month) adds product and shipping discounts once volume justifies it. Low-risk print-on-demand merchandise. No inventory. Integrates with Shopify, Etsy, WooCommerce. Test brand appetite before committing to stock. Paid plans start from £20 a month. Alternatives include Printify and Gelato."
+    },
+    "82": {
+      "q": "Are Sketchup Free / Go free for a small business?",
+      "a": "The free web version is licensed for personal, non-commercial use only, so a paying client's project isn't covered by it; SketchUp Go, needed for any commercial work, is about £16/month. Entry-level 3D CAD for visualisations. Garden designs, room layouts, construction planning. Free web version, Go for iPad. Paid plans start from £16 a month. Alternatives include Tinkercad and Blender."
+    },
+    "84": {
+      "q": "Is PostHog actually free for a small business?",
+      "a": "1 million analytics events, 5,000 session recordings and 1 million feature-flag requests a month free, resetting monthly; beyond that it's metered per event, typically a few pounds a month for a small site, rather than a fixed subscription tier. Product analytics, session replay, feature flags, A/B testing. Open source. Generous free tier. For tech businesses building software products. Paid plans start from £5 a month. Alternatives include Mixpanel and Matomo."
+    },
+    "85": {
+      "q": "Is GitHub Free actually free for a small business?",
+      "a": "Unlimited public and private repositories, 2,000 GitHub Actions minutes a month on private repos (unlimited on public repos), 500MB of package storage. Cloud hosting for source code with unlimited public and private repositories, pull requests, issue tracking, and 2,000 minutes a month of GitHub Actions for automated testing and deployment. The default home for a codebase at almost every software business, from a solo developer to a small team. Paid plans start from £3 a month. Alternatives include GitLab and Gitea."
+    },
+    "86": {
+      "q": "Is Vercel Hobby actually free for a small business?",
+      "a": "100GB bandwidth, 1 million function invocations and 100 build minutes a month, for non-commercial projects only. Free hosting for websites and web apps built with modern frameworks such as Next.js, with automatic deployment straight from a GitHub repository. Vercel's terms restrict the free Hobby tier to personal, non-commercial projects, so a paying client's live site needs the paid Pro plan. Paid plans start from £16 a month. Alternatives include Netlify and Cloudflare Pages."
+    },
+    "87": {
+      "q": "Is Netlify Free actually free for a small business?",
+      "a": "300 credits a month covering deploys, bandwidth, compute and requests. Commercial projects are allowed. Free hosting and deployment for static sites and web apps, with commercial use explicitly permitted, unlike some rival platforms. Automatic builds from GitHub, serverless functions and a global CDN, all covered by a monthly credit allowance. Paid plans start from £16 a month. Alternatives include Vercel and Cloudflare Pages."
+    },
+    "88": {
+      "q": "Is Cloudflare Free actually free for a small business?",
+      "a": "Unlimited bandwidth and DDoS mitigation, up to 1,000 DNS records, 5 page rules and 500 Cloudflare Pages builds a month. A free content delivery network, DNS host and basic web application firewall that sits in front of a website to speed it up and absorb attacks. Includes Cloudflare Pages for static site hosting. Used by a large share of the web, from personal blogs to enterprise sites. Paid plans start from £16 a month. Alternatives include Fastly and AWS CloudFront."
+    },
+    "89": {
+      "q": "Is Hugging Face actually free for a small business?",
+      "a": "Free access to over 2 million models and 500,000 datasets, 100GB of private storage, and community GPU access for Spaces demos. The largest public library of open-source AI models and datasets, plus free hosting for small AI demos called Spaces. Useful for a business experimenting with AI features before committing to a paid API. Paid plans start from £7 a month. Alternatives include Ollama and Kaggle Models."
+    },
+    "90": {
+      "q": "Is Supabase Free actually free for a small business?",
+      "a": "500MB database, 1GB file storage, 50,000 monthly active users and unlimited API requests, across up to 2 active projects. Free projects pause after a week of inactivity. An open-source backend for apps: a hosted Postgres database, user authentication, file storage and instant APIs generated automatically from the database schema. The open-source alternative to Google Firebase, with no lock-in since the underlying database is standard Postgres. Paid plans start from £20 a month. Alternatives include Firebase and PocketBase."
+    },
+    "91": {
+      "q": "Are VS Code / VSCodium free for a small business?",
+      "a": "Free forever, no paid tier. All features and the extension marketplace are included at no cost (VSCodium uses the open Open VSX registry instead of Microsoft's marketplace). The most widely used code editor, free with a huge extension marketplace covering every programming language. VSCodium is the same editor rebuilt from the open-source code without Microsoft's telemetry and branding, for anyone who wants a fully open-source build. There is no paid tier to outgrow. Alternatives include JetBrains IDEs and Neovim."
+    },
+    "92": {
+      "q": "Is Google Colab Free actually free for a small business?",
+      "a": "Free GPU/TPU access with session limits (around 12 hours) on a rotating pool of hardware shared with other free users, so availability varies. Free Jupyter notebooks in the browser with access to a shared GPU, for running Python data science and machine learning code without installing anything locally. Handy for testing an AI or data idea before investing in dedicated infrastructure. Paid plans start from £9 a month. Alternatives include Kaggle Notebooks and JupyterLab."
+    },
+    "93": {
+      "q": "Is Render Free actually free for a small business?",
+      "a": "750 instance hours a month per workspace on free web services, which spin down after 15 minutes of inactivity. Free hosting for backend web services, static sites, cron jobs and small databases, deployed straight from a GitHub repository. Free web services sleep after 15 minutes without traffic and take about a minute to wake, so it suits demos and internal tools better than a client-facing production site. Paid plans start from £6 a month. Alternatives include Fly.io and Coolify."
+    },
+    "94": {
+      "q": "Is Docker Personal actually free for a small business?",
+      "a": "Free for individuals, students, and businesses under 250 employees and under $10 million annual revenue. 1 private repository and 40 authenticated pulls an hour on Docker Hub. Packages an application and everything it needs to run into a portable container, so it behaves the same on a developer's laptop, a test server and in production. Docker Desktop Personal is free for individuals and for small businesses with under 250 employees and under $10 million in annual revenue, which covers the overwhelming majority of Free Stack clients. Paid plans start from £7 a month. Alternatives include Podman and Rancher Desktop."
+    },
+    "95": {
+      "q": "Is Postman Free actually free for a small business?",
+      "a": "One user only, 25 collection runs a month and 1,000 mock server requests a month. A graphical tool for building, testing and documenting API calls, widely used when integrating two systems together. Since March 2026 the free plan has been limited to a single user, so it now suits a solo developer better than a team. Paid plans start from £11 a month. Alternatives include Bruno and Insomnia."
+    },
+    "96": {
+      "q": "Is Slack Free actually free for a small business?",
+      "a": "90 days of searchable message history, 10 app integrations, and one-to-one voice/video huddles only. Team messaging with channels, direct messages and app integrations, replacing scattered email threads for day-to-day internal chat. The free plan keeps the last 90 days of messages and files searchable. Paid plans start from £6 a month. Alternatives include Microsoft Teams and Mattermost."
+    },
+    "97": {
+      "q": "Is Airtable Free actually free for a small business?",
+      "a": "Unlimited bases with up to 1,000 records each, 1GB of attachments per base, 5 editors per workspace and 100 automation runs a month. A spreadsheet that behaves like a database, with custom views, linked records and simple automations. Good for tracking customers, inventory or projects without building a bespoke system. Paid plans start from £16 a month. Alternatives include Google Sheets and Baserow."
+    }
+  }
+}

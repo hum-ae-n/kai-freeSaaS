@@ -1,0 +1,20 @@
+# Free Stack by Kaipability
+
+> A free, curated directory of 89 genuinely free software tools for UK small businesses. No affiliate links, no sponsored placements, no paid tiers to unlock a listing.
+
+Kaipability Ltd maintains this directory from real client work. Every tool lists its true free-tier limits, at least two alternatives (including open source or self-hosted where they exist), and training resources.
+
+## Trust rules
+
+- No affiliate links, no sponsorships, no paid placements anywhere in this directory.
+- Every tool carries at least two alternatives with live URLs.
+- Free-tier limits and last-verified dates are stated honestly, never inflated.
+
+## Resources
+
+- Full machine-readable dataset: https://tools.airl.io/data/tools.json
+- Frequently asked questions: https://tools.airl.io/faq.html
+
+## Note on this file
+
+Crawler pickup of llms.txt is thin and Google does not support it. This file ships because the payload above already exists elsewhere on the site and costs near zero to publish; it is a cheap bet, not a strategy.

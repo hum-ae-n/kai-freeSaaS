@@ -92,19 +92,36 @@ page.on('console', (m) => { if (m.type() === 'error' && !/net::|Failed to load r
 await page.route(/^(?!.*localhost).*$/, (route) => route.abort());
 
 /* --- public directory at the root (batch I) -------------------------------- */
+/* Phase 14.1 adaptation, applies to every occurrence below: with the compact
+   landing (PRD section 16 amended), every category shelf starts collapsed,
+   so no .tool-card is ever visible without either expanding a shelf or
+   searching/filtering to force one open. The readiness gate below (and
+   every other waitForSelector('#public-root .tool-card') in this file)
+   therefore waits for the card to be attached to the DOM rather than
+   Playwright's default "visible", which is exactly the property the shelf
+   redesign's DOM-superset rule (nothing lazily fetched, deferred or
+   removed) actually guarantees. Tests further down that need to interact
+   with a specific card (hover, click) separately expand the relevant shelf
+   first, noted at each call site. */
 await page.goto(`${base}/`);
-await page.waitForSelector('#public-root .tool-card');
+await page.waitForSelector('#public-root .tool-card', { state: 'attached' });
 check(`public: all ${active.length} active tools as cards`, await page.locator('#public-root .tool-card').count() === active.length);
 check('public: indexable, no robots meta', await page.locator('meta[name=robots]').count() === 0);
 check('public: trust line and CTA present',
   (await page.textContent('#public-root')).includes('No affiliates')
   && (await page.textContent('#public-root')).includes('Talk to Kaipability'));
 await page.fill('#public-root input[type=search]', 'canva');
-await page.waitForTimeout(200);
+// Wave 14.2: the redraw is now debounced and runs inside the guarded View
+// Transition helper (motion inventory item 3), so polling for the settled
+// state replaces a fixed sleep guess (see FILTER_VT_DEBOUNCE_MS in
+// js/public.js). applyFilter toggles `hidden` on the card-grid <li>, not on
+// .tool-card itself, so that is what this polls.
+await page.waitForFunction((total) => document.querySelectorAll('#public-root .card-grid > li:not([hidden])').length < total, active.length);
 const publicFiltered = await page.locator('#public-root .tool-card:visible').count();
 check('public: search filters cards', publicFiltered > 0 && publicFiltered < active.length, `visible=${publicFiltered}`);
 check('public: recently-updated strip renders', await page.locator('.pub-changelog, [class*=changelog]').count() >= 1);
 await page.fill('#public-root input[type=search]', '');
+await page.waitForFunction(() => document.querySelectorAll('#public-root .card-grid > li[hidden]').length === 0);
 
 /* --- Phase 12.1: redesigned public homepage (PRD section 16) --------------
    Robots meta and the CSP hash set are already exercised by the checks
@@ -118,13 +135,18 @@ const heroCountText = await page.locator('.pub-hero-count').textContent();
 check('homepage: hero count equals the active tools.json count',
   heroCountText.includes(String(active.length)), heroCountText.trim());
 
-const entryHeadings = await page.locator('.pub-entry-item h2').allTextContents();
-check('homepage: three entry paths present, Discover first',
-  entryHeadings.length === 3
-  && entryHeadings[0] === 'Discover'
-  && entryHeadings[1] === 'Persona packs'
-  && entryHeadings[2] === 'Browse all',
-  entryHeadings.join(' | '));
+// Phase 14.1 adaptation: PRD section 16 as amended retires the "Browse all"
+// entry card, its job passing to the shelf band's own Expand all / Collapse
+// all toggle, so only Discover and Persona packs remain in the ways-in
+// band. It also retires the padded-card treatment (and its per-item <h2>)
+// in favour of a lean pitch line, per the amended spec's "button plus
+// one-line pitch": the readiness signal is now the pitch text itself.
+const entryPitches = await page.locator('.pub-entry-item .pub-entry-pitch').allTextContents();
+check('homepage: two entry paths present, Discover first',
+  entryPitches.length === 2
+  && entryPitches[0].startsWith('Discover:')
+  && entryPitches[1].toLowerCase().includes('shortlist'),
+  entryPitches.join(' | '));
 
 const beforeScrollY = await page.evaluate(() => window.scrollY);
 await page.locator('[data-discover-entry]').click();
@@ -134,30 +156,68 @@ check('homepage: Discover stub scrolls to the browse list instead of dead-ending
   afterDiscoverScrollY > beforeScrollY, `before=${beforeScrollY} after=${afterDiscoverScrollY}`);
 await page.evaluate(() => window.scrollTo(0, 0));
 
+// Phase 14.1 adaptation: with all shelves collapsed by default, ZERO cards
+// are visible before any filter is applied (there is no longer a
+// meaningful "before" visible count to compare against, since a persona
+// chip no longer removes cards from the DOM at all: shelf mechanics keep
+// every card attached, only its `hidden` IDL property changes, per the
+// DOM-superset rule). The assertion is rephrased as "a proper, non-empty
+// subset of the full catalogue is visible", which is what "filters the
+// browse list" now means; the plain .count() this used to read would
+// return 89 unconditionally today, so it is replaced with :visible.
 await page.waitForSelector('.pub-persona-chip');
-const chipCountBefore = await page.locator('#public-root .tool-card').count();
 await page.locator('.pub-persona-chip').first().click();
-await page.waitForTimeout(150);
-const chipFilteredCount = await page.locator('#public-root .tool-card').count();
+// Wave 14.2: a discrete click, wrapped in the guarded View Transition
+// helper (motion inventory item 3, no debounce for a click); polled rather
+// than slept, same reasoning as the search box above.
+await page.waitForFunction((total) => document.querySelectorAll('#public-root .card-grid > li:not([hidden])').length < total, active.length);
+const chipFilteredCount = await page.locator('#public-root .tool-card:visible').count();
 check('homepage: a persona chip filters the browse list',
-  chipFilteredCount > 0 && chipFilteredCount < chipCountBefore, `before=${chipCountBefore} after=${chipFilteredCount}`);
+  chipFilteredCount > 0 && chipFilteredCount < active.length, `visible=${chipFilteredCount} total=${active.length}`);
 await page.locator('.pub-persona-chip').first().click(); // toggle back off
-await page.waitForTimeout(150);
-const chipClearedCount = await page.locator('#public-root .tool-card').count();
-check('homepage: a second click on the active persona chip clears the filter',
-  chipClearedCount === active.length, `visible=${chipClearedCount}`);
+await page.waitForFunction(() => document.querySelectorAll('#public-root .card-grid > li[hidden]').length === 0);
+// Clearing restores the collapsed default (PRD section 16, "Shelf
+// mechanics": "Clearing restores the collapsed state"), which is zero
+// *visible* cards, not all 89: the pre-Phase-14.1 behaviour of showing
+// every card again no longer applies once shelves exist. The plain
+// .count() (all 89 always attached) is still checked to confirm nothing
+// was actually removed from the DOM.
+const chipClearedVisible = await page.locator('#public-root .tool-card:visible').count();
+const chipClearedAttached = await page.locator('#public-root .tool-card').count();
+check('homepage: a second click on the active persona chip clears the filter and restores collapsed shelves',
+  chipClearedVisible === 0 && chipClearedAttached === active.length,
+  `visible=${chipClearedVisible} attached=${chipClearedAttached}`);
 
 const homeMobile = await browser.newPage({ viewport: { width: 375, height: 812 } });
 await homeMobile.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await homeMobile.goto(`${base}/`);
-await homeMobile.waitForSelector('#public-root .tool-card');
+await homeMobile.waitForSelector('#public-root .tool-card', { state: 'attached' });
 const homeMobileScrollW = await homeMobile.evaluate(() => document.documentElement.scrollWidth);
 check('homepage: no horizontal scroll at 375px', homeMobileScrollW <= 375, `scrollWidth=${homeMobileScrollW}`);
-const homeMobileHeadings = await homeMobile.locator('.pub-entry-item h2').allTextContents();
+// Phase 14.1 adaptation: two entry paths now, not three, and the readiness
+// signal is the pitch text (see the entryPitches note above, same reason).
+const homeMobilePitches = await homeMobile.locator('.pub-entry-item .pub-entry-pitch').allTextContents();
 check('homepage: entry paths still Discover-first at 375px',
-  homeMobileHeadings[0] === 'Discover' && homeMobileHeadings[1] === 'Persona packs' && homeMobileHeadings[2] === 'Browse all',
-  homeMobileHeadings.join(' | '));
+  homeMobilePitches[0]?.startsWith('Discover:') && homeMobilePitches[1]?.toLowerCase().includes('shortlist'),
+  homeMobilePitches.join(' | '));
 await homeMobile.close();
+
+// Phase 14.1: shared helper, used throughout the rest of this file. Every
+// card lives inside a collapsed shelf by default (PRD section 16 amended,
+// "Shelf mechanics"), so any test that needs to hover, click or measure a
+// specific card first has to open its shelf. Expand all is the simplest
+// reliable way to do that regardless of which card a given test needs.
+//
+// Wave 14.2 adaptation: Expand all now runs its DOM mutation inside the
+// guarded View Transition helper (motion inventory item 3), whose update
+// callback is NOT invoked synchronously with the click (confirmed
+// empirically: one to two animation frames later, not a fixed bound under
+// load). Polled with waitForFunction, not a fixed sleep, so this never
+// flakes under a slower run.
+async function expandAllShelves(pg) {
+  await pg.locator('.pub-expand-all').click();
+  await pg.waitForFunction(() => document.querySelectorAll('.pub-shelf-grid[hidden]').length === 0);
+}
 
 // The hover lift is set on the card-grid <li>, never on .tool-card itself:
 // a "both" fill-mode keyframe animation (the CLIENT block's existing
@@ -169,40 +229,64 @@ await homeMobile.close();
 const hoverPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 await hoverPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await hoverPage.goto(`${base}/`);
-await hoverPage.waitForSelector('#public-root .tool-card');
-await hoverPage.waitForTimeout(700); // let the entrance animation finish first
+await hoverPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+// Phase 14.1 adaptation: the first card lives inside a collapsed shelf, so
+// it must be expanded before it can be hovered at all.
+await expandAllShelves(hoverPage);
 const firstCardLi = hoverPage.locator('#public-root .card-grid > li').first();
 
 // Regression guard: revealFirstPaint used to leave its inline entrance
 // transition-delay set forever, which (transition-delay being a single CSS
 // property, not scoped to the reveal transition alone) also delayed the
 // hover-lift transition on this same element by however many milliseconds
-// the entrance stagger had assigned it. Once the entrance transition has
-// had time to finish, the inline delay must be gone.
+// the entrance stagger had assigned it. Phase 14.1 adaptation: cards no
+// longer carry any entrance reveal at all (the per-category card reveal is
+// retired along with the flat list it revealed; see js/public.js's file
+// banner), so this now simply confirms no stray inline delay was ever set,
+// with no need to wait for an entrance transition that no longer exists.
+//
+// Wave 14.2 adaptation: Expand all now legitimately sets a transient
+// transitionDelay on the first six cards of every shelf it opens (the new
+// shelf-expansion stagger, motion inventory item 2), self-cleaning on
+// transitionend. That is not the regression this check guards against
+// (a delay left behind forever); this wait lets the stagger's own 300ms
+// transition and cleanup finish first, so the assertion below is back to
+// checking for a truly residual, un-cleaned-up value.
+await hoverPage.waitForTimeout(500);
 const leftoverDelay = await firstCardLi.evaluate((n) => ({
   inline: n.style.transitionDelay,
   computed: getComputedStyle(n).transitionDelay,
 }));
-check('homepage: entrance stagger leaves no residual inline transition-delay',
+check('homepage: shelf cards carry no residual inline transition-delay',
   leftoverDelay.inline === '' && /^(0s(, 0s)*)$/.test(leftoverDelay.computed), JSON.stringify(leftoverDelay));
 
 await firstCardLi.scrollIntoViewIfNeeded();
 await firstCardLi.hover();
 await hoverPage.waitForTimeout(300);
 const hoverTransform = await firstCardLi.evaluate((n) => getComputedStyle(n).transform);
-check('homepage: hover lift actually translates the card (not silently blocked by the entrance animation)',
+check('homepage: hover lift actually translates the card (not silently blocked by any entrance animation)',
   hoverTransform !== 'none' && hoverTransform !== 'matrix(1, 0, 0, 1, 0, 0)', hoverTransform);
 await hoverPage.close();
 
-/* --- Phase 12.1 regression: reveal must not refire on every draw -----------
+/* --- Phase 12.1 regression, adapted for Phase 14.1's shelf architecture ---
    revealSections used to call revealOnIntersect unconditionally for every
    category past the first on every draw(), including redraws triggered by
    search keystrokes and persona-chip clicks. A freshly rebuilt heading that
    was already on screen got handed a brand new IntersectionObserver, which
    fired immediately and re-ran the entrance (opacity 1 -> 0 -> back to 1)
-   on every keystroke. This reproduces that scenario directly: scroll a
-   below-fold section into view, type into search, and poll the heading's
-   opacity through the window a re-fired transition would occupy. */
+   on every keystroke.
+
+   Phase 14.1 adaptation: that regression class is now structurally
+   impossible, not merely fixed. draw() (now applyFilter()) no longer
+   rebuilds any shelf or card DOM on a keystroke or a persona-chip click; it
+   only toggles `hidden` on already-built nodes (see js/public.js's file
+   banner). There is no more per-category opacity reveal to poll for at all
+   (.cli-category does not even render inside #public-root any more: the
+   shelf header replaces it, see the PUBLIC block of styles.css). The
+   equivalent, honest regression guard for the new architecture is a
+   DOM-identity check: mark a shelf header with a throwaway data attribute,
+   then confirm the exact same node (not a rebuilt lookalike) still carries
+   it after a search keystroke and after a persona-chip round trip. */
 const categoryOrder = [];
 for (const t of active) { if (!categoryOrder.includes(t.category)) categoryOrder.push(t.category); }
 const targetCategory = categoryOrder[1] ?? categoryOrder[0];
@@ -210,56 +294,35 @@ const targetCategory = categoryOrder[1] ?? categoryOrder[0];
 const noRefirePage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 await noRefirePage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await noRefirePage.goto(`${base}/`);
-await noRefirePage.waitForSelector('#public-root .tool-card');
-await noRefirePage.locator('.cli-category', { hasText: targetCategory }).first().scrollIntoViewIfNeeded();
-await noRefirePage.waitForTimeout(500); // let its own once-only, intended reveal finish
-const opacityBeforeTyping = await noRefirePage.locator('.cli-category', { hasText: targetCategory }).first()
-  .evaluate((n) => getComputedStyle(n).opacity);
-check('regression: below-fold section fully visible before typing (sanity)', opacityBeforeTyping === '1', opacityBeforeTyping);
+await noRefirePage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+const targetShelfHeader = noRefirePage.locator('.pub-shelf-header', { hasText: targetCategory }).first();
+await targetShelfHeader.scrollIntoViewIfNeeded();
+await targetShelfHeader.evaluate((n) => { n.dataset.stabilityMarker = 'kept'; });
 
-// The search term must be broad, deliberately. Typing the category's own
-// name collapses the list to that single section, which becomes the FIRST
-// section of the redraw, and the original bug lived only in the non-first
-// branch: the focused re-verify proved a full-name variant of this check
-// passed on the buggy code. A single common letter keeps many categories
-// in the result set, so the watched heading stays a non-first section.
+// The search term must be broad, deliberately, so many shelves (including
+// the marked one) stay in the matched set.
 await noRefirePage.locator('#public-root input[type=search]').pressSequentially('a', { delay: 20 });
-let minOpacitySeen = 1;
-const pollUntil = Date.now() + 400;
-while (Date.now() < pollUntil) {
-  const heading = noRefirePage.locator('.cli-category', { hasText: targetCategory }).first();
-  if (await heading.count()) {
-    const opacityNow = Number(await heading.evaluate((n) => getComputedStyle(n).opacity));
-    minOpacitySeen = Math.min(minOpacitySeen, opacityNow);
-  }
-  await noRefirePage.waitForTimeout(20);
-}
-check('homepage: typing into search never dips a visible non-first section below opacity 1',
-  minOpacitySeen >= 0.99, `min=${minOpacitySeen} category="${targetCategory}"`);
+await noRefirePage.waitForTimeout(300);
+const markerAfterSearch = await targetShelfHeader.evaluate((n) => n.dataset.stabilityMarker).catch(() => null);
+check('homepage: typing into search never rebuilds shelf DOM (no per-keystroke section recreation)',
+  markerAfterSearch === 'kept', `marker=${markerAfterSearch} category="${targetCategory}"`);
 
-// Same assertion for the persona-chip redraw path, which the original check
-// set did not cover at all: toggling a pack on and off rebuilds the list
-// both times, and the returning sections must render fully visible.
 await noRefirePage.locator('#public-root input[type=search]').fill('');
 await noRefirePage.waitForTimeout(200);
+
+// Same assertion for the persona-chip filter path: toggling a pack on and
+// off must not rebuild the shelf either.
 const chip = noRefirePage.locator('.pub-persona-chip-row button').first();
-let minOpacityChip = 1;
+let markerAfterChip = 'kept';
 if (await chip.count()) {
   await chip.click();
   await noRefirePage.waitForTimeout(150);
-  await chip.click(); // clear the pack: the full list DOM is rebuilt again
-  const chipPollUntil = Date.now() + 400;
-  while (Date.now() < chipPollUntil) {
-    const heading = noRefirePage.locator('.cli-category', { hasText: targetCategory }).first();
-    if (await heading.count()) {
-      const opacityNow = Number(await heading.evaluate((n) => getComputedStyle(n).opacity));
-      minOpacityChip = Math.min(minOpacityChip, opacityNow);
-    }
-    await noRefirePage.waitForTimeout(20);
-  }
+  await chip.click(); // clear the pack
+  await noRefirePage.waitForTimeout(150);
+  markerAfterChip = await targetShelfHeader.evaluate((n) => n.dataset.stabilityMarker).catch(() => null);
 }
-check('homepage: persona-chip toggle never dips a rebuilt section below opacity 1',
-  minOpacityChip >= 0.99, `min=${minOpacityChip}`);
+check('homepage: persona-chip toggle never rebuilds shelf DOM (no section recreation)',
+  markerAfterChip === 'kept', `marker=${markerAfterChip}`);
 await noRefirePage.close();
 
 const reducedMotionPage = await browser.newPage();
@@ -275,6 +338,343 @@ const reducedMotionClassCount = await reducedMotionPage.locator('.pub-reveal').c
 check('homepage: reduced motion never applies the transform-bearing reveal class', reducedMotionClassCount === 0, `count=${reducedMotionClassCount}`);
 await reducedMotionPage.close();
 
+/* --- Phase 14.1: shelf mechanics (PRD section 16 amended, "compact
+   landing") ---------------------------------------------------------------
+   BUILD-PLAN 14.1's named checks: collapsed page-height budgets at both
+   widths, all 89 cards attached with every shelf collapsed, a single
+   shelf's expand/collapse round trip plus Expand all / Collapse all,
+   aria-expanded truthfulness, 44px shelf headers at 375px, search
+   force-open and restore, a #cat- deep link, and tool id 0 findable both by
+   search and by its own shelf. */
+function slugifyForTest(text) {
+  return text.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+const tool0 = active.find((t) => t.id === 0);
+const tool0Slug = slugifyForTest(tool0.category);
+
+// Height budgets, both widths, all shelves collapsed (the default state on
+// a fresh load, before anything is clicked).
+for (const [width, budget] of [[375, 3200], [1280, 2200]]) {
+  const budgetPage = await browser.newPage({ viewport: { width, height: 900 } });
+  const budgetErrors = [];
+  budgetPage.on('pageerror', (e) => budgetErrors.push(String(e)));
+  budgetPage.on('console', (m) => { if (m.type() === 'error' && !/net::|Failed to load resource/.test(m.text())) budgetErrors.push(m.text()); });
+  await budgetPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await budgetPage.goto(`${base}/`);
+  await budgetPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+  await budgetPage.waitForTimeout(500);
+  const pageHeight = await budgetPage.evaluate(() => document.documentElement.scrollHeight);
+  const collapsedGridCount = await budgetPage.locator('.pub-shelf-grid[hidden]').count();
+  const totalShelfCount = await budgetPage.locator('.pub-shelf').count();
+  check(`shelf: page height at ${width}px is within the ${budget}px budget with all shelves collapsed`,
+    pageHeight <= budget && collapsedGridCount === totalShelfCount,
+    `height=${pageHeight} collapsedGrids=${collapsedGridCount}/${totalShelfCount}`);
+  check(`shelf: no page errors at ${width}px`, budgetErrors.length === 0, budgetErrors.join(' | ').slice(0, 300));
+  await budgetPage.close();
+}
+
+// The missing half of BUILD-PLAN 14.1's named height-budget check: "the
+// search input and first shelf header top against the 812 viewport". This
+// asserts the achieved contract at the literal 375x812 reference; if that
+// number is ever renegotiated (verifier fix round, PRD section 16 amended,
+// "first shelf rows visible within the first mobile viewport"), the
+// constant moves with the spec, not silently in this file alone.
+const foldPage = await browser.newPage({ viewport: { width: 375, height: 812 } });
+await foldPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await foldPage.goto(`${base}/`);
+await foldPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+await foldPage.waitForSelector('.pub-search');
+await foldPage.waitForSelector('.pub-shelf-header');
+await foldPage.waitForTimeout(400);
+const FIRST_VIEWPORT = 812;
+// PRD section 16's reconciled budget (BUILD-PLAN changelog, 31 Jul): the
+// search input sits inside the 812px viewport; the first shelf header's top
+// is at most 880px, since the mandated hero trust signals and ways-in band
+// honestly occupy most of the first screen (measured 863px as built).
+const FIRST_SHELF_BUDGET = 880;
+const searchBox = await foldPage.locator('.pub-search').boundingBox();
+const firstShelfHeaderBox = await foldPage.locator('.pub-shelf-header').first().boundingBox();
+// Playwright's boundingBox() returns {x, y, width, height}, not the DOM
+// getBoundingClientRect() shape ({top, left, ...}): .y is the vertical
+// offset from the viewport's top edge, exactly what "within the first
+// viewport" needs to compare against its height.
+const searchTop = searchBox ? searchBox.y : null;
+const firstShelfHeaderTop = firstShelfHeaderBox ? firstShelfHeaderBox.y : null;
+check('shelf: the search input sits within the first 375x812 mobile viewport',
+  searchTop !== null && searchTop <= FIRST_VIEWPORT, `searchTop=${searchTop}`);
+check('shelf: the first shelf header top is within the reconciled 880px budget at 375x812',
+  firstShelfHeaderTop !== null && firstShelfHeaderTop <= FIRST_SHELF_BUDGET, `firstShelfHeaderTop=${firstShelfHeaderTop}`);
+await foldPage.close();
+
+// All 89 active cards present in the DOM with shelves collapsed (the "all X
+// active tools as cards" check at the very top of this file already covers
+// the count; this makes the "collapsed" half explicit).
+const shelfMechPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await shelfMechPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await shelfMechPage.goto(`${base}/`);
+await shelfMechPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+const collapsedCardCount = await shelfMechPage.locator('#public-root .tool-card').count();
+const collapsedVisibleCount = await shelfMechPage.locator('#public-root .tool-card:visible').count();
+check('shelf: all 89 active cards are attached to the DOM with every shelf collapsed',
+  collapsedCardCount === active.length && collapsedVisibleCount === 0,
+  `attached=${collapsedCardCount} visible=${collapsedVisibleCount}`);
+
+// Shelf expand/collapse round trip on a single header, checking
+// aria-expanded truthfulness (the attribute actually matches the grid's
+// real hidden state) at each step.
+const firstShelfHeader = shelfMechPage.locator('.pub-shelf-header').first();
+const firstShelfGridId = await firstShelfHeader.getAttribute('aria-controls');
+await firstShelfHeader.click();
+await shelfMechPage.waitForTimeout(50);
+const afterOpen = await shelfMechPage.evaluate((gridId) => {
+  const grid = document.getElementById(gridId);
+  const header = grid.closest('.pub-shelf').querySelector('.pub-shelf-header');
+  return { hidden: grid.hidden, ariaExpanded: header.getAttribute('aria-expanded') };
+}, firstShelfGridId);
+check('shelf: clicking a header opens its shelf and sets aria-expanded truthfully',
+  afterOpen.hidden === false && afterOpen.ariaExpanded === 'true', JSON.stringify(afterOpen));
+await firstShelfHeader.click();
+await shelfMechPage.waitForTimeout(50);
+const afterClose = await shelfMechPage.evaluate((gridId) => {
+  const grid = document.getElementById(gridId);
+  const header = grid.closest('.pub-shelf').querySelector('.pub-shelf-header');
+  return { hidden: grid.hidden, ariaExpanded: header.getAttribute('aria-expanded') };
+}, firstShelfGridId);
+check('shelf: clicking the same header again closes it and sets aria-expanded truthfully',
+  afterClose.hidden === true && afterClose.ariaExpanded === 'false', JSON.stringify(afterClose));
+
+// Expand all / Collapse all round trip. Polled, not slept: see
+// expandAllShelves's own comment on the guarded View Transition's
+// scheduling delay (Wave 14.2, motion inventory item 3).
+await shelfMechPage.locator('.pub-expand-all').click();
+await shelfMechPage.waitForFunction(() => document.querySelectorAll('.pub-shelf-grid[hidden]').length === 0);
+const stillHiddenAfterExpandAll = await shelfMechPage.locator('.pub-shelf-grid[hidden]').count();
+const labelAfterExpandAll = await shelfMechPage.locator('.pub-expand-all').textContent();
+check('shelf: Expand all opens every shelf',
+  stillHiddenAfterExpandAll === 0 && labelAfterExpandAll === 'Collapse all',
+  `stillHidden=${stillHiddenAfterExpandAll} label="${labelAfterExpandAll}"`);
+await shelfMechPage.locator('.pub-expand-all').click();
+await shelfMechPage.waitForFunction(() => document.querySelectorAll('.pub-shelf-grid:not([hidden])').length === 0);
+const stillOpenAfterCollapseAll = await shelfMechPage.locator('.pub-shelf-grid:not([hidden])').count();
+const labelAfterCollapseAll = await shelfMechPage.locator('.pub-expand-all').textContent();
+check('shelf: Collapse all round-trips back to fully collapsed',
+  stillOpenAfterCollapseAll === 0 && labelAfterCollapseAll === 'Expand all',
+  `stillOpen=${stillOpenAfterCollapseAll} label="${labelAfterCollapseAll}"`);
+await shelfMechPage.close();
+
+// Card-in replay suppression (verifier fix round): client.js's CLIENT block
+// gives every .tool-card an unconditional "card-in" fade-and-rise, gated
+// only on prefers-reduced-motion: no-preference (the default here, left
+// unemulated so this is exactly the condition a replay would show under).
+// Toggling a shelf's grid `hidden` off used to re-trigger that animation on
+// every card inside, every time: an unlisted motion against the amended
+// section 16's exhaustive inventory. Two toggle cycles, since a replay bug
+// would show identically on the first open but only a fix proves the
+// second open is not somehow different (e.g. an animation "having already
+// run once" quirk masking a real replay on repeat).
+const animPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await animPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await animPage.goto(`${base}/`);
+await animPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+const animShelfHeader = animPage.locator('.pub-shelf-header').first();
+async function sampleFirstShelfCard() {
+  return animPage.evaluate(() => {
+    const card = document.querySelector('.pub-shelf .tool-card');
+    const cs = getComputedStyle(card);
+    return { animationName: cs.animationName, opacity: cs.opacity };
+  });
+}
+await animShelfHeader.click(); // open, cycle 1
+const animSampleOpen1 = await sampleFirstShelfCard();
+await animShelfHeader.click(); // close
+await animPage.waitForTimeout(50);
+await animShelfHeader.click(); // open again, cycle 2
+const animSampleOpen2 = await sampleFirstShelfCard();
+check('shelf: opening a shelf never replays the card-in entrance (animationName none, opacity 1, two toggle cycles)',
+  animSampleOpen1.animationName === 'none' && animSampleOpen1.opacity === '1'
+  && animSampleOpen2.animationName === 'none' && animSampleOpen2.opacity === '1',
+  `cycle1=${JSON.stringify(animSampleOpen1)} cycle2=${JSON.stringify(animSampleOpen2)}`);
+await animPage.close();
+
+/* --- Wave 14.2, motion inventory item 2: the shelf-expansion stagger -----
+   The sample above deliberately reads .tool-card, which the new stagger
+   never touches (it is set on the card-grid's own <li> wrapper, the same
+   split the hover-lift rule above already uses and for the identical
+   reason: a "both" fill-mode keyframe animation on .tool-card would defeat
+   a later transition on that same element and property). This block reads
+   the <li> instead, at trigger time (no wait at all, the worst case for
+   catching a state that was never really opacity:0 to begin with) and
+   again once settled, per BUILD-PLAN 14.2's named check ("sample computed
+   animation/transition state at trigger time for... the shelf stagger"). */
+const staggerPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await staggerPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await staggerPage.goto(`${base}/`);
+await staggerPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+async function sampleFirstLi(pg) {
+  return pg.evaluate(() => {
+    const li = document.querySelector('.pub-shelf .card-grid > li');
+    const cs = getComputedStyle(li);
+    return { opacity: cs.opacity, transform: cs.transform, className: li.className };
+  });
+}
+const staggerHeader = staggerPage.locator('.pub-shelf-header').first();
+await staggerHeader.click();
+const staggerMid = await sampleFirstLi(staggerPage);
+check('shelf: the stagger fires under normal motion (mid-flight: pub-shelf-stagger class, opacity below 1, transform carries translateY)',
+  staggerMid.className.includes('pub-shelf-stagger') && !staggerMid.className.includes('reduced')
+  && Number(staggerMid.opacity) < 1 && staggerMid.transform !== 'none',
+  JSON.stringify(staggerMid));
+await staggerPage.waitForTimeout(500);
+const staggerSettled = await sampleFirstLi(staggerPage);
+check('shelf: the stagger settles to opacity 1, no transform, and cleans up its own class',
+  staggerSettled.opacity === '1' && staggerSettled.transform === 'none' && !staggerSettled.className.includes('pub-shelf-stagger'),
+  JSON.stringify(staggerSettled));
+
+// Cap at the first six cards: a shelf with more than six tools leaves the
+// seventh (and later) alone at every point, never carrying the stagger
+// class, per "later cards appear settled".
+const cappedShelfCategory = active.reduce((best, t) => {
+  const count = active.filter((x) => x.category === t.category).length;
+  return count > 6 && (!best || count > best.count) ? { category: t.category, count } : best;
+}, null);
+if (cappedShelfCategory) {
+  await staggerHeader.click(); // close
+  await staggerPage.waitForTimeout(30);
+  const cappedHeader = staggerPage.locator('.pub-shelf-header', { hasText: cappedShelfCategory.category }).first();
+  await cappedHeader.click();
+  const seventhClass = await staggerPage.evaluate((category) => {
+    const header = [...document.querySelectorAll('.pub-shelf-header')].find((h) => h.textContent.includes(category));
+    const grid = document.getElementById(header.getAttribute('aria-controls'));
+    return grid.children[6]?.className ?? null;
+  }, cappedShelfCategory.category);
+  check('shelf: the stagger cap leaves the 7th card and beyond untouched',
+    seventhClass !== null && !seventhClass.includes('pub-shelf-stagger'), `category="${cappedShelfCategory.category}" class="${seventhClass}"`);
+}
+
+// Repeatable, unlike motion item 1's once-only reveal: closing and
+// reopening the SAME shelf stagers again, not only on its first ever open.
+// aria-expanded, not an assumed toggle parity: the cap check above may or
+// may not have already closed this same header, depending on whether this
+// dataset happens to have a >6-tool category at all.
+if ((await staggerHeader.getAttribute('aria-expanded')) === 'true') {
+  await staggerHeader.click(); // close
+  await staggerPage.waitForTimeout(30);
+}
+await staggerPage.waitForTimeout(400);
+await staggerHeader.click(); // reopen
+const staggerReplay = await sampleFirstLi(staggerPage);
+check('shelf: the stagger replays on a later reopen of the same shelf (repeatable, not once-only)',
+  staggerReplay.className.includes('pub-shelf-stagger') && Number(staggerReplay.opacity) < 1,
+  JSON.stringify(staggerReplay));
+await staggerPage.close();
+
+// Reduced motion: opacity only, no stagger delay, no translate, at trigger
+// time (the same "sample mid-flight" discipline as the normal-motion check
+// above, not only a settled-state check).
+const staggerReducedPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await staggerReducedPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await staggerReducedPage.emulateMedia({ reducedMotion: 'reduce' });
+await staggerReducedPage.goto(`${base}/`);
+await staggerReducedPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+await staggerReducedPage.locator('.pub-shelf-header').first().click();
+const staggerReducedMid = await sampleFirstLi(staggerReducedPage);
+check('shelf: reduced motion: the stagger carries no transform at trigger time and no per-item delay class',
+  staggerReducedMid.className.includes('pub-shelf-stagger-reduced') && staggerReducedMid.transform === 'none',
+  JSON.stringify(staggerReducedMid));
+await staggerReducedPage.close();
+
+// 44px shelf headers at 375px.
+const shelf375Page = await browser.newPage({ viewport: { width: 375, height: 900 } });
+await shelf375Page.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await shelf375Page.goto(`${base}/`);
+await shelf375Page.waitForSelector('#public-root .tool-card', { state: 'attached' });
+const headerHeights375 = await shelf375Page.locator('.pub-shelf-header').evaluateAll(
+  (nodes) => nodes.map((n) => n.getBoundingClientRect().height));
+check('shelf: every shelf header is at least 44px tall at 375px',
+  headerHeights375.length === 15 && headerHeights375.every((h) => h >= 44), JSON.stringify(headerHeights375));
+await shelf375Page.close();
+
+// Search force-open and restore: searching tool 0's own name opens its
+// shelf (and shows the "N tools match" line), and clearing restores the
+// fully collapsed default. This is also the "tool id 0 found by search"
+// check BUILD-PLAN 14.1 names.
+const searchShelfPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await searchShelfPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await searchShelfPage.goto(`${base}/`);
+await searchShelfPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+await searchShelfPage.fill('#public-root input[type=search]', tool0.name);
+// Wave 14.2: debounced and view-transitioned (motion inventory item 3);
+// polled on the actual card, not slept.
+await searchShelfPage.waitForFunction((slug) => {
+  const grid = document.getElementById(`cat-${slug}`)?.querySelector('.pub-shelf-grid');
+  return grid && !grid.hidden;
+}, tool0Slug);
+const tool0ShelfOpenDuringSearch = await searchShelfPage.evaluate((slug) => {
+  const section = document.getElementById(`cat-${slug}`);
+  return !section.hidden && !section.querySelector('.pub-shelf-grid').hidden;
+}, tool0Slug);
+const tool0CardVisibleDuringSearch = await searchShelfPage.locator('#public-root .card-grid > li[data-id="0"]').isVisible();
+const matchLineText = await searchShelfPage.locator('.pub-shelf-match-count').textContent();
+check('shelf: searching tool 0\'s name force-opens its shelf and finds tool id 0',
+  tool0ShelfOpenDuringSearch && tool0CardVisibleDuringSearch && /match/.test(matchLineText),
+  `shelfOpen=${tool0ShelfOpenDuringSearch} cardVisible=${tool0CardVisibleDuringSearch} matchLine="${matchLineText}"`);
+await searchShelfPage.fill('#public-root input[type=search]', '');
+await searchShelfPage.waitForFunction((slug) => {
+  const grid = document.getElementById(`cat-${slug}`)?.querySelector('.pub-shelf-grid');
+  return grid && grid.hidden;
+}, tool0Slug);
+const tool0ShelfAfterClear = await searchShelfPage.evaluate((slug) => {
+  const section = document.getElementById(`cat-${slug}`);
+  return { sectionHidden: section.hidden, gridHidden: section.querySelector('.pub-shelf-grid').hidden };
+}, tool0Slug);
+const matchLineHiddenAfterClear = await searchShelfPage.locator('.pub-shelf-match-count').isHidden();
+check('shelf: clearing the search restores the collapsed default',
+  tool0ShelfAfterClear.sectionHidden === false && tool0ShelfAfterClear.gridHidden === true && matchLineHiddenAfterClear,
+  JSON.stringify({ ...tool0ShelfAfterClear, matchLineHidden: matchLineHiddenAfterClear }));
+await searchShelfPage.close();
+
+// #cat-<slug> deep link opens and scrolls to its shelf.
+const deepLinkPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await deepLinkPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await deepLinkPage.goto(`${base}/#cat-${tool0Slug}`);
+await deepLinkPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+await deepLinkPage.waitForTimeout(700); // let the smooth scrollIntoView settle
+const deepLinkResult = await deepLinkPage.evaluate((slug) => {
+  const section = document.getElementById(`cat-${slug}`);
+  const grid = section.querySelector('.pub-shelf-grid');
+  const rect = section.getBoundingClientRect();
+  return { gridHidden: grid.hidden, top: rect.top, nearViewportTop: rect.top >= -50 && rect.top <= 300 };
+}, tool0Slug);
+check('shelf: a #cat- deep link opens and scrolls to its shelf',
+  deepLinkResult.gridHidden === false && deepLinkResult.nearViewportTop,
+  JSON.stringify(deepLinkResult));
+await deepLinkPage.close();
+
+// Tool id 0's judgement chip inside its own shelf: judge it via the
+// fine-pointer quick-judge rail (no deck needed) once its shelf is
+// expanded, then confirm the chip renders in place, still inside that
+// shelf (the "id 0 in a shelf and its judgement chip" check).
+const shelfChipPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await shelfChipPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await shelfChipPage.goto(`${base}/`);
+await shelfChipPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+await shelfChipPage.evaluate(() => localStorage.removeItem('freestack:v1:discover'));
+await shelfChipPage.reload();
+await shelfChipPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+await shelfChipPage.waitForTimeout(400); // let discover.js resolve so the rail actually renders
+await expandAllShelves(shelfChipPage);
+const tool0Li = shelfChipPage.locator('#public-root .card-grid > li[data-id="0"]');
+await tool0Li.scrollIntoViewIfNeeded();
+await tool0Li.hover();
+await tool0Li.locator('.pub-judge-rail-have').click();
+await shelfChipPage.waitForTimeout(200);
+const tool0ChipText = await tool0Li.locator('.pub-judge-chip').textContent().catch(() => '');
+const tool0ChipInsideShelf = await tool0Li.evaluate((li) => li.closest('.pub-shelf') !== null);
+check('shelf: tool id 0 can be judged and its chip renders inside its own shelf',
+  tool0ChipText.trim() === 'Got it' && tool0ChipInsideShelf,
+  `chip="${tool0ChipText}" insideShelf=${tool0ChipInsideShelf}`);
+await shelfChipPage.close();
+
 /* --- Phase 12.2: Discover deck engine (PRD section 17) ---------------------
    js/discover.js is dynamically imported by the Discover entry path's click
    handler (js/public.js), so every check below opens the deck the same way
@@ -284,7 +684,7 @@ await reducedMotionPage.close();
    any special-cased test hook. */
 async function openDiscoverDeck(pg) {
   await pg.goto(`${base}/`);
-  await pg.waitForSelector('#public-root .tool-card');
+  await pg.waitForSelector('#public-root .tool-card', { state: 'attached' });
   await pg.locator('[data-discover-entry]').click();
   await pg.waitForSelector('.discover-card');
 }
@@ -320,7 +720,7 @@ await discoverPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await openDiscoverDeck(discoverPage);
 await clearDiscoverStorage(discoverPage);
 await discoverPage.reload();
-await discoverPage.waitForSelector('#public-root .tool-card');
+await discoverPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await discoverPage.locator('[data-discover-entry]').click();
 await discoverPage.waitForSelector('.discover-card');
 
@@ -332,7 +732,7 @@ check('discover: keyboard-judged tool 0 recorded as have',
   firstDealtId === '0' && decisionsAfterKeyboard['0']?.d === 'have', `firstDealtId=${firstDealtId} decisions=${JSON.stringify(decisionsAfterKeyboard)}`);
 
 await discoverPage.reload();
-await discoverPage.waitForSelector('#public-root .tool-card');
+await discoverPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 const decisionsAfterReload = await discoverPage.evaluate(() => JSON.parse(localStorage.getItem('freestack:v1:discover')).decisions);
 check('discover: tool 0 decision survives a reload', decisionsAfterReload['0']?.d === 'have', JSON.stringify(decisionsAfterReload));
 
@@ -359,7 +759,7 @@ await dragPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await openDiscoverDeck(dragPage);
 await clearDiscoverStorage(dragPage);
 await dragPage.reload();
-await dragPage.waitForSelector('#public-root .tool-card');
+await dragPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await dragPage.locator('[data-discover-entry]').click();
 await dragPage.waitForSelector('.discover-card');
 const idBeforeDrag = await dragPage.locator('.discover-card').getAttribute('data-id');
@@ -394,11 +794,11 @@ async function checkStampLegibility(theme) {
   const pg = await browser.newPage({ viewport: { width: 375, height: 812 } });
   await pg.route(/^(?!.*localhost).*$/, (route) => route.abort());
   await pg.goto(`${base}/`);
-  await pg.waitForSelector('#public-root .tool-card');
+  await pg.waitForSelector('#public-root .tool-card', { state: 'attached' });
   await pg.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
   await clearDiscoverStorage(pg);
   await pg.reload();
-  await pg.waitForSelector('#public-root .tool-card');
+  await pg.waitForSelector('#public-root .tool-card', { state: 'attached' });
   await pg.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
   await pg.locator('[data-discover-entry]').click();
   await pg.waitForSelector('.discover-card');
@@ -448,7 +848,7 @@ await typographyPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await openDiscoverDeck(typographyPage);
 await clearDiscoverStorage(typographyPage);
 await typographyPage.reload();
-await typographyPage.waitForSelector('#public-root .tool-card');
+await typographyPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await typographyPage.locator('[data-discover-entry]').click();
 await typographyPage.waitForSelector('.discover-card');
 const deckDescSize = await typographyPage.locator('.discover-card-desc').evaluate((n) => Number.parseFloat(getComputedStyle(n).fontSize));
@@ -477,7 +877,7 @@ await reducedDiscoverPage.route(/^(?!.*localhost).*$/, (route) => route.abort())
 await openDiscoverDeck(reducedDiscoverPage);
 await clearDiscoverStorage(reducedDiscoverPage);
 await reducedDiscoverPage.reload();
-await reducedDiscoverPage.waitForSelector('#public-root .tool-card');
+await reducedDiscoverPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await reducedDiscoverPage.locator('[data-discover-entry]').click();
 await reducedDiscoverPage.waitForSelector('.discover-card');
 const enterAnimationName = await reducedDiscoverPage.locator('.discover-card').evaluate((n) => getComputedStyle(n).animationName);
@@ -488,12 +888,78 @@ const stampPopAnimationName = await reducedDiscoverPage.locator('.discover-stamp
 check('discover: reduced motion: the stamp pop on commit carries no animation', stampPopAnimationName === 'none' || stampPopAnimationName === 'gone', stampPopAnimationName);
 await reducedDiscoverPage.close();
 
+// Phase 14 close-out: the coach's Continue button removes itself from the
+// DOM on dismissal (click, any tap, or the 5s auto-dismiss all funnel
+// through dismissCoach), which the browser resolves by dropping focus to
+// body. The deck's own Left/Right/Backspace/Escape handling lives on
+// panel's keydown listener, so unless dismissCoach hands focus back into
+// the panel, the very next keyboard press silently does nothing. Every
+// other keyboard check in this file pre-seeds coachDone precisely to avoid
+// the coach, which is exactly why the sweep found this blind: these two are
+// deliberately genuinely first-ever opens, no coachDone seed at all. The
+// ArrowLeft/Escape presses below use page.keyboard, not locator.press,
+// because locator.press() focuses its own target first and would silently
+// paper over a focus regression rather than exercise it.
+// Reduced motion is forced here, not just for its own sake: headless
+// Chromium supports View Transitions, and js/public.js's deck-open only
+// takes the VT-morph path when both startViewTransition exists and
+// prefersReducedMotion() is false (matchMedia('(prefers-reduced-motion:
+// reduce)')). That path defers panel focus into
+// transition.finished.then(...), and its own capture-phase
+// first-interaction listener calls skipTransition() on the very Enter
+// keypress this check sends, which resolves that promise and refocuses the
+// panel on its own, regardless of whether dismissCoach() does. Without
+// forcing the fallback (non-VT) path here, this check passes even against
+// the pre-fix dismissCoach(), proving nothing. emulateMedia is exactly
+// right against that matchMedia guard.
+const coachKeyboardPage = await browser.newPage();
+await coachKeyboardPage.emulateMedia({ reducedMotion: 'reduce' });
+await coachKeyboardPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await coachKeyboardPage.goto(`${base}/`);
+await coachKeyboardPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+await coachKeyboardPage.locator('[data-discover-entry]').click();
+await coachKeyboardPage.waitForSelector('.discover-coach');
+const progressBeforeCoachDismiss = await coachKeyboardPage.locator('.discover-progress').textContent();
+// Focuses the Continue button, then presses Enter on it: the exact
+// "keyboard Enter on Continue" dismissal path the sweep reproduced.
+await coachKeyboardPage.locator('.discover-coach-dismiss').press('Enter');
+await coachKeyboardPage.waitForSelector('.discover-coach', { state: 'detached' });
+await coachKeyboardPage.keyboard.press('ArrowLeft');
+await coachKeyboardPage.waitForTimeout(400);
+const progressAfterArrowLeft = await coachKeyboardPage.locator('.discover-progress').textContent();
+const decisionsAfterCoachEnterDismiss = await coachKeyboardPage.evaluate(
+  () => JSON.parse(localStorage.getItem('freestack:v1:discover') || '{}').decisions ?? {});
+check('discover: ArrowLeft still judges the card after keyboard-dismissing the first-ever coach with Enter (reduced-motion path)',
+  progressAfterArrowLeft !== progressBeforeCoachDismiss && Object.keys(decisionsAfterCoachEnterDismiss).length === 1,
+  `before=${progressBeforeCoachDismiss} after=${progressAfterArrowLeft} decisions=${JSON.stringify(decisionsAfterCoachEnterDismiss)}`);
+await coachKeyboardPage.close();
+
+const coachClickPage = await browser.newPage();
+await coachClickPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await coachClickPage.goto(`${base}/`);
+await coachClickPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+await coachClickPage.locator('[data-discover-entry]').focus();
+await coachClickPage.locator('[data-discover-entry]').click();
+await coachClickPage.waitForSelector('.discover-coach');
+// The click-to-dismiss path, not keyboard: a mouse click on Continue
+// natively focuses it before the click listener removes it from the DOM.
+await coachClickPage.locator('.discover-coach-dismiss').click();
+await coachClickPage.waitForSelector('.discover-coach', { state: 'detached' });
+await coachClickPage.keyboard.press('Escape');
+await coachClickPage.waitForTimeout(100);
+const deckClosedAfterCoachClickEscape = await coachClickPage.locator('.discover-panel').count();
+const focusReturnedAfterCoachClickEscape = await coachClickPage.evaluate(() => document.activeElement?.hasAttribute('data-discover-entry'));
+check('discover: Escape still closes the deck and restores opener focus after click-dismissing the first-ever coach',
+  deckClosedAfterCoachClickEscape === 0 && focusReturnedAfterCoachClickEscape === true,
+  `panelCount=${deckClosedAfterCoachClickEscape} focusReturned=${focusReturnedAfterCoachClickEscape}`);
+await coachClickPage.close();
+
 // Escape restores focus to the opener button.
 const escPage = await browser.newPage();
 await escPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await seedCoachDoneBeforeLoad(escPage); // otherwise the first Escape only dismisses the coach
 await escPage.goto(`${base}/`);
-await escPage.waitForSelector('#public-root .tool-card');
+await escPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await escPage.locator('[data-discover-entry]').focus();
 await escPage.locator('[data-discover-entry]').click();
 await escPage.waitForSelector('.discover-card');
@@ -510,7 +976,7 @@ await handoffPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await openDiscoverDeck(handoffPage);
 await clearDiscoverStorage(handoffPage);
 await handoffPage.reload();
-await handoffPage.waitForSelector('#public-root .tool-card');
+await handoffPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await handoffPage.locator('[data-discover-entry]').click();
 await handoffPage.waitForSelector('.discover-card');
 // One "want" decision first: with only skips, both resolved lists would be
@@ -551,7 +1017,7 @@ const blockedPageErrors = [];
 blockedPage.on('pageerror', (e) => blockedPageErrors.push(String(e)));
 blockedPage.on('console', (m) => { if (m.type() === 'error' && !/net::|Failed to load resource/.test(m.text())) blockedPageErrors.push(m.text()); });
 await blockedPage.goto(`${base}/`);
-await blockedPage.waitForSelector('#public-root .tool-card');
+await blockedPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await blockedPage.locator('[data-discover-entry]').click();
 await blockedPage.waitForSelector('.discover-card');
 check('discover: blocked localStorage still deals a card', (await blockedPage.locator('.discover-card').count()) === 1);
@@ -585,7 +1051,7 @@ await doubleJudgePage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await openDiscoverDeck(doubleJudgePage);
 await clearDiscoverStorage(doubleJudgePage);
 await doubleJudgePage.reload();
-await doubleJudgePage.waitForSelector('#public-root .tool-card');
+await doubleJudgePage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await doubleJudgePage.locator('[data-discover-entry]').click();
 await doubleJudgePage.waitForSelector('.discover-card');
 const firstCardId = await doubleJudgePage.locator('.discover-card').getAttribute('data-id');
@@ -647,14 +1113,30 @@ await hiddenPage.close();
 // regression guard, at the mobile width the defect reproduced at, with the
 // judge button clicked the instant the first card exists (no settle wait
 // at all, the worst case).
+//
+// Wave 14.2 re-run (the deck-open morph, motion inventory item 4, reopened
+// exactly this class of race): the immediate judge click below uses
+// page.mouse.click() at the button's own current coordinates, not
+// Locator.click(). Investigated while building this wave: Locator.click()'s
+// own pre-action "scroll target into view if needed" step (Playwright's,
+// not this app's) measurably miscalculates while a page-level View
+// Transition is still mid-flight, producing a scroll position no real tap
+// ever would; page.mouse.click() dispatches at fixed coordinates with no
+// such framework-level auto-scroll, matching what an actual immediate tap
+// on a phone does (buttons do not natively pull the viewport to themselves
+// on tap, unlike a focused text input avoiding a virtual keyboard). This is
+// the honest regression guard for a real tap; a Locator.click()-based
+// version of this same check would be testing Playwright's own scrolling
+// heuristic under an active transition, not this app's behaviour.
 const scrollRacePage = await browser.newPage({ viewport: { width: 375, height: 812 } });
 await scrollRacePage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await seedCoachDoneBeforeLoad(scrollRacePage); // otherwise the zero-delay click only dismisses the coach
 await scrollRacePage.goto(`${base}/`, { waitUntil: 'load' });
-await scrollRacePage.waitForSelector('#public-root .tool-card');
+await scrollRacePage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await scrollRacePage.locator('[data-discover-entry]').click();
 await scrollRacePage.waitForSelector('.discover-card');
-await scrollRacePage.locator('.discover-btn-have').click(); // zero delay: the reproduced race window
+const scrollRaceJudgeBox = await scrollRacePage.locator('.discover-btn-have').boundingBox();
+await scrollRacePage.mouse.click(scrollRaceJudgeBox.x + scrollRaceJudgeBox.width / 2, scrollRaceJudgeBox.y + scrollRaceJudgeBox.height / 2); // zero delay: the reproduced race window
 await scrollRacePage.waitForTimeout(600); // let any scroll and the exit/deal transition settle
 const scrollRaceViewportHeight = await scrollRacePage.evaluate(() => window.innerHeight);
 const scrollRaceCardBox = await scrollRacePage.locator('.discover-card').boundingBox();
@@ -691,7 +1173,7 @@ async function checkLongestCardFitsOnScreen(viewport) {
   const pg = await browser.newPage({ viewport });
   await pg.route(/^(?!.*localhost).*$/, (route) => route.fulfill({ status: 404, contentType: 'text/plain', body: 'not found' }));
   await pg.goto(`${base}/`);
-  await pg.waitForSelector('#public-root .tool-card');
+  await pg.waitForSelector('#public-root .tool-card', { state: 'attached' });
   await pg.evaluate(async (id) => {
     const mod = await import('/js/discover.js');
     const toolsRes = await fetch('/data/tools.json');
@@ -734,10 +1216,10 @@ await checkLongestCardFitsOnScreen({ width: 390, height: 844 });
 const coachFirstPage = await browser.newPage({ viewport: { width: 375, height: 812 } });
 await coachFirstPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await coachFirstPage.goto(`${base}/`);
-await coachFirstPage.waitForSelector('#public-root .tool-card');
+await coachFirstPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await coachFirstPage.evaluate(() => localStorage.removeItem('freestack:v1:discover')); // genuinely first-ever
 await coachFirstPage.reload();
-await coachFirstPage.waitForSelector('#public-root .tool-card');
+await coachFirstPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await coachFirstPage.locator('[data-discover-entry]').click();
 await coachFirstPage.waitForSelector('.discover-card');
 check('discover: the coach overlay appears on a genuinely first-ever deck open',
@@ -801,12 +1283,12 @@ await coachFirstPage.close();
 const coachJudgedPage = await browser.newPage({ viewport: { width: 375, height: 812 } });
 await coachJudgedPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await coachJudgedPage.goto(`${base}/`);
-await coachJudgedPage.waitForSelector('#public-root .tool-card');
+await coachJudgedPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await coachJudgedPage.evaluate(() => localStorage.setItem('freestack:v1:discover', JSON.stringify({
   v: 1, lastVisit: new Date().toISOString(), seenIds: [0], decisions: { 0: { d: 'have', t: Date.now() } },
 })));
 await coachJudgedPage.reload();
-await coachJudgedPage.waitForSelector('#public-root .tool-card');
+await coachJudgedPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await coachJudgedPage.locator('[data-discover-entry]').click();
 await coachJudgedPage.waitForSelector('.discover-card');
 check('discover: the coach overlay does not appear once any judgement already exists',
@@ -817,10 +1299,10 @@ await coachJudgedPage.close();
 const coachTimeoutPage = await browser.newPage({ viewport: { width: 375, height: 812 } });
 await coachTimeoutPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await coachTimeoutPage.goto(`${base}/`);
-await coachTimeoutPage.waitForSelector('#public-root .tool-card');
+await coachTimeoutPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await coachTimeoutPage.evaluate(() => localStorage.removeItem('freestack:v1:discover'));
 await coachTimeoutPage.reload();
-await coachTimeoutPage.waitForSelector('#public-root .tool-card');
+await coachTimeoutPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await coachTimeoutPage.locator('[data-discover-entry]').click();
 await coachTimeoutPage.waitForSelector('.discover-coach');
 await coachTimeoutPage.waitForTimeout(6000);
@@ -856,7 +1338,7 @@ await parityPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await openDiscoverDeck(parityPage);
 await clearDiscoverStorage(parityPage);
 await parityPage.reload();
-await parityPage.waitForSelector('#public-root .tool-card');
+await parityPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await parityPage.locator('[data-discover-entry]').click();
 await parityPage.waitForSelector('.discover-card');
 const parityFirstId = await parityPage.locator('.discover-card').getAttribute('data-id');
@@ -864,6 +1346,9 @@ await parityPage.locator('.discover-panel').press('ArrowLeft'); // have
 await parityPage.waitForTimeout(400);
 await parityPage.locator('.discover-close').click();
 await parityPage.waitForTimeout(300); // let the judgement-parity bootstrap import/decorate settle
+// Phase 14.1 adaptation: the browse card lives inside a collapsed shelf by
+// default; expand every shelf so it can be scrolled to and clicked.
+await expandAllShelves(parityPage);
 
 const parityToolName = await toolNameFor(parityPage, parityFirstId);
 const parityCard = browseCardFor(parityPage, parityToolName);
@@ -887,11 +1372,13 @@ await parityPage.close();
 const finePage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 await finePage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await finePage.goto(`${base}/`);
-await finePage.waitForSelector('#public-root .tool-card');
+await finePage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await finePage.evaluate(() => localStorage.removeItem('freestack:v1:discover'));
 await finePage.reload();
-await finePage.waitForSelector('#public-root .tool-card');
+await finePage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await finePage.waitForTimeout(400); // let the discover.js dynamic import resolve
+// Phase 14.1 adaptation: the first card lives inside a collapsed shelf.
+await expandAllShelves(finePage);
 const fineFirstLi = finePage.locator('#public-root .card-grid > li').first();
 await fineFirstLi.hover();
 const railDisplayFine = await fineFirstLi.locator('.pub-judge-rail').evaluate((n) => getComputedStyle(n).display);
@@ -919,7 +1406,7 @@ const coarseCtx = await browser.newContext({ viewport: { width: 390, height: 844
 const coarsePage = await coarseCtx.newPage();
 await coarsePage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await coarsePage.goto(`${base}/`);
-await coarsePage.waitForSelector('#public-root .tool-card');
+await coarsePage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 const coarseMediaMatches = await coarsePage.evaluate(() => ({
   hoverNone: matchMedia('(hover: none)').matches,
   pointerCoarse: matchMedia('(pointer: coarse)').matches,
@@ -938,13 +1425,15 @@ await parity375.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await openDiscoverDeck(parity375);
 await clearDiscoverStorage(parity375);
 await parity375.reload();
-await parity375.waitForSelector('#public-root .tool-card');
+await parity375.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await parity375.locator('[data-discover-entry]').click();
 await parity375.waitForSelector('.discover-card');
 await parity375.locator('.discover-panel').press('ArrowLeft');
 await parity375.waitForTimeout(400);
 await parity375.locator('.discover-close').click();
 await parity375.waitForTimeout(300);
+// Phase 14.1 adaptation: the browse card lives inside a collapsed shelf.
+await expandAllShelves(parity375);
 const parity375ToolName = await toolNameFor(parity375, '0');
 const parity375Card = browseCardFor(parity375, parity375ToolName);
 await parity375Card.scrollIntoViewIfNeeded();
@@ -958,16 +1447,18 @@ check('parity: every chooser option is at least 44px tall at 375px',
   chooserBoxes375.length === 3 && chooserBoxes375.every((h) => h >= 44), JSON.stringify(chooserBoxes375));
 await parity375.close();
 
-// Reveal-once law extended to this redraw path: opening or acting on the
-// chooser must never dip an already-settled, below-fold section's opacity,
-// the same regression class 12.1's fix round hardened for search/persona
-// redraws.
+// Reveal-once law extended to this redraw path, adapted for Phase 14.1's
+// shelf architecture the same way the earlier no-refire regression was:
+// opening or acting on the chooser must never rebuild a settled shelf's
+// DOM. There is no more per-category opacity reveal to poll (see the
+// no-refire block above); the equivalent honest guard is the same
+// DOM-identity marker check.
 const parityRevealPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 await parityRevealPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await openDiscoverDeck(parityRevealPage);
 await clearDiscoverStorage(parityRevealPage);
 await parityRevealPage.reload();
-await parityRevealPage.waitForSelector('#public-root .tool-card');
+await parityRevealPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await parityRevealPage.waitForTimeout(700); // let the first-screen entrance reveal finish
 await parityRevealPage.locator('[data-discover-entry]').click();
 await parityRevealPage.waitForSelector('.discover-card');
@@ -975,36 +1466,23 @@ await parityRevealPage.locator('.discover-panel').press('ArrowLeft');
 await parityRevealPage.waitForTimeout(400);
 await parityRevealPage.locator('.discover-close').click();
 await parityRevealPage.waitForTimeout(300);
+await expandAllShelves(parityRevealPage);
 const parityCategoryOrder = [];
 for (const t of active) { if (!parityCategoryOrder.includes(t.category)) parityCategoryOrder.push(t.category); }
 const parityTargetCategory = parityCategoryOrder[1] ?? parityCategoryOrder[0];
-const parityHeading = parityRevealPage.locator('.cli-category', { hasText: parityTargetCategory }).first();
+const parityHeading = parityRevealPage.locator('.pub-shelf-header', { hasText: parityTargetCategory }).first();
 await parityHeading.scrollIntoViewIfNeeded();
-await parityRevealPage.waitForTimeout(400);
+await parityHeading.evaluate((n) => { n.dataset.stabilityMarker = 'kept'; });
 const parityToolNameForReveal = await toolNameFor(parityRevealPage, '0');
 const parityRevealCard = browseCardFor(parityRevealPage, parityToolNameForReveal);
 await parityRevealCard.scrollIntoViewIfNeeded();
 await parityRevealCard.locator('.pub-judge-chip').click();
-let parityMinOpacity = 1;
-const parityPollUntil = Date.now() + 500;
-while (Date.now() < parityPollUntil) {
-  if (await parityHeading.count()) {
-    const op = Number(await parityHeading.evaluate((n) => getComputedStyle(n).opacity));
-    parityMinOpacity = Math.min(parityMinOpacity, op);
-  }
-  await parityRevealPage.waitForTimeout(20);
-}
+await parityRevealPage.waitForTimeout(300);
 await parityRevealCard.locator('.pub-judge-chooser button', { hasText: 'Clear' }).click();
-const parityPollUntil2 = Date.now() + 500;
-while (Date.now() < parityPollUntil2) {
-  if (await parityHeading.count()) {
-    const op = Number(await parityHeading.evaluate((n) => getComputedStyle(n).opacity));
-    parityMinOpacity = Math.min(parityMinOpacity, op);
-  }
-  await parityRevealPage.waitForTimeout(20);
-}
-check('parity: opening and acting on the chooser never dips a settled section below opacity 1',
-  parityMinOpacity >= 0.99, `min=${parityMinOpacity} category="${parityTargetCategory}"`);
+await parityRevealPage.waitForTimeout(300);
+const parityMarkerAfter = await parityHeading.evaluate((n) => n.dataset.stabilityMarker).catch(() => null);
+check('parity: opening and acting on the chooser never rebuilds a settled shelf',
+  parityMarkerAfter === 'kept', `marker=${parityMarkerAfter} category="${parityTargetCategory}"`);
 await parityRevealPage.close();
 
 // Counts agree: judge a deck through to completion, change one decision via
@@ -1016,7 +1494,7 @@ await countsPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await openDiscoverDeck(countsPage);
 await clearDiscoverStorage(countsPage);
 await countsPage.reload();
-await countsPage.waitForSelector('#public-root .tool-card');
+await countsPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await countsPage.locator('[data-discover-entry]').click();
 await countsPage.waitForSelector('.discover-card');
 let countsGuard = 0;
@@ -1026,6 +1504,8 @@ while ((await countsPage.locator('.discover-completion').count()) === 0 && count
   countsGuard++;
 }
 await countsPage.waitForSelector('.discover-completion');
+// Phase 14.1 adaptation: the browse card lives inside a collapsed shelf.
+await expandAllShelves(countsPage);
 const decisionsBeforeCountsEdit = await countsPage.evaluate(() => JSON.parse(localStorage.getItem('freestack:v1:discover')).decisions);
 const haveIdToClear = Object.entries(decisionsBeforeCountsEdit).find(([, v]) => v.d === 'have')?.[0];
 const haveCountBefore = Object.values(decisionsBeforeCountsEdit).filter((v) => v.d === 'have').length;
@@ -1054,13 +1534,15 @@ await keyboardPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await openDiscoverDeck(keyboardPage);
 await clearDiscoverStorage(keyboardPage);
 await keyboardPage.reload();
-await keyboardPage.waitForSelector('#public-root .tool-card');
+await keyboardPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await keyboardPage.locator('[data-discover-entry]').click();
 await keyboardPage.waitForSelector('.discover-card');
 await keyboardPage.locator('.discover-panel').press('ArrowLeft');
 await keyboardPage.waitForTimeout(400);
 await keyboardPage.locator('.discover-close').click();
 await keyboardPage.waitForTimeout(300);
+// Phase 14.1 adaptation: the browse card lives inside a collapsed shelf.
+await expandAllShelves(keyboardPage);
 const keyboardToolName = await toolNameFor(keyboardPage, '0');
 const keyboardCard = browseCardFor(keyboardPage, keyboardToolName);
 await keyboardCard.scrollIntoViewIfNeeded();
@@ -1090,13 +1572,15 @@ await outsideClickPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await openDiscoverDeck(outsideClickPage);
 await clearDiscoverStorage(outsideClickPage);
 await outsideClickPage.reload();
-await outsideClickPage.waitForSelector('#public-root .tool-card');
+await outsideClickPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await outsideClickPage.locator('[data-discover-entry]').click();
 await outsideClickPage.waitForSelector('.discover-card');
 await outsideClickPage.locator('.discover-panel').press('ArrowLeft');
 await outsideClickPage.waitForTimeout(400);
 await outsideClickPage.locator('.discover-close').click();
 await outsideClickPage.waitForTimeout(300);
+// Phase 14.1 adaptation: the browse card lives inside a collapsed shelf.
+await expandAllShelves(outsideClickPage);
 const outsideClickToolName = await toolNameFor(outsideClickPage, '0');
 const outsideClickCard = browseCardFor(outsideClickPage, outsideClickToolName);
 await outsideClickCard.scrollIntoViewIfNeeded();
@@ -1121,13 +1605,15 @@ await escapeFromChipPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await openDiscoverDeck(escapeFromChipPage);
 await clearDiscoverStorage(escapeFromChipPage);
 await escapeFromChipPage.reload();
-await escapeFromChipPage.waitForSelector('#public-root .tool-card');
+await escapeFromChipPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await escapeFromChipPage.locator('[data-discover-entry]').click();
 await escapeFromChipPage.waitForSelector('.discover-card');
 await escapeFromChipPage.locator('.discover-panel').press('ArrowLeft');
 await escapeFromChipPage.waitForTimeout(400);
 await escapeFromChipPage.locator('.discover-close').click();
 await escapeFromChipPage.waitForTimeout(300);
+// Phase 14.1 adaptation: the browse card lives inside a collapsed shelf.
+await expandAllShelves(escapeFromChipPage);
 const escapeFromChipToolName = await toolNameFor(escapeFromChipPage, '0');
 const escapeFromChipCard = browseCardFor(escapeFromChipPage, escapeFromChipToolName);
 await escapeFromChipCard.scrollIntoViewIfNeeded();
@@ -1179,8 +1665,10 @@ function cardByName(pg, name) {
 const railOverlapPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 await railOverlapPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await railOverlapPage.goto(`${base}/`);
-await railOverlapPage.waitForSelector('#public-root .tool-card');
+await railOverlapPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await railOverlapPage.waitForTimeout(400); // let discover.js resolve so the rail actually renders
+// Phase 14.1 adaptation: the first card lives inside a collapsed shelf.
+await expandAllShelves(railOverlapPage);
 const railLi = railOverlapPage.locator('#public-root .card-grid > li').first();
 await railLi.hover();
 const firstCardClearance = await railClearance(railLi);
@@ -1195,8 +1683,10 @@ for (const width of [1024, 1280, 1440]) {
   const widthPage = await browser.newPage({ viewport: { width, height: 900 } });
   await widthPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
   await widthPage.goto(`${base}/`);
-  await widthPage.waitForSelector('#public-root .tool-card');
+  await widthPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
   await widthPage.waitForTimeout(400); // settled load
+  // Phase 14.1 adaptation: named cards live inside collapsed shelves.
+  await expandAllShelves(widthPage);
   for (const tool of longestNameTools) {
     const li = cardByName(widthPage, tool.name);
     await li.scrollIntoViewIfNeeded();
@@ -1212,10 +1702,12 @@ for (const width of [1024, 1280, 1440]) {
 const resizePage = await browser.newPage({ viewport: { width: 1024, height: 900 } });
 await resizePage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await resizePage.goto(`${base}/`);
-await resizePage.waitForSelector('#public-root .tool-card');
+await resizePage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await resizePage.waitForTimeout(400);
 await resizePage.setViewportSize({ width: 1280, height: 900 });
 await resizePage.waitForTimeout(150);
+// Phase 14.1 adaptation: named cards live inside collapsed shelves.
+await expandAllShelves(resizePage);
 for (const tool of longestNameTools) {
   const li = cardByName(resizePage, tool.name);
   await li.scrollIntoViewIfNeeded();
@@ -1236,7 +1728,7 @@ discoverBlockedPage.on('console', (m) => { if (m.type() === 'error' && !/net::|F
 await discoverBlockedPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await discoverBlockedPage.route('**/js/discover.js', (route) => route.abort());
 await discoverBlockedPage.goto(`${base}/`);
-await discoverBlockedPage.waitForSelector('#public-root .tool-card');
+await discoverBlockedPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await discoverBlockedPage.waitForTimeout(500); // give the aborted dynamic import time to settle
 check('parity: with js/discover.js blocked, every active card still renders',
   await discoverBlockedPage.locator('#public-root .tool-card').count() === active.length);
@@ -1244,6 +1736,187 @@ check('parity: with js/discover.js blocked, no judgement chips render (nothing t
   await discoverBlockedPage.locator('.pub-judge-chip').count() === 0);
 check('parity: with js/discover.js blocked, no page/console errors', discoverBlockedErrors.length === 0, discoverBlockedErrors.join(' | ').slice(0, 300));
 await discoverBlockedPage.close();
+
+/* --- Wave 14.2: motion inventory close-out (PRD section 16 amended) -------
+   The shelf-stagger checks live earlier, right after the shelf mechanics
+   they extend. Everything else BUILD-PLAN 14.2 names: the two easing
+   tokens, a full reduced-motion sweep sampling computed state at the
+   remaining trigger points (deck-open morph, judged-chip pop, theme
+   toggle, filter/expand-all), a stubbed non-VT browser proving every
+   interaction still completes with startViewTransition deleted, and the
+   .is-new load-time exclusion. */
+
+// Easing tokens present in colors_and_type.css, byte-checked (pure Node,
+// no browser): the PRD gives exact cubic-bezier values, not just names.
+const colorsAndType = (await readFile(join(ROOT, 'design-system', 'colors_and_type.css'))).toString('utf8');
+check('motion: --ease-swift present with the exact PRD value',
+  colorsAndType.includes('--ease-swift:  cubic-bezier(0.22, 1, 0.36, 1)') || colorsAndType.includes('--ease-swift: cubic-bezier(0.22, 1, 0.36, 1)'));
+check('motion: --ease-spring present with the exact PRD value',
+  colorsAndType.includes('--ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1)'));
+
+// Reduced motion sweep: one page, sampling computed state at each trigger
+// point named in BUILD-PLAN 14.2, plus a live count of startViewTransition
+// calls (theme toggle and filters must be instant AND never even attempt a
+// transition under reduced motion, not just visually settle instantly).
+const reducedSweepPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await reducedSweepPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await reducedSweepPage.emulateMedia({ reducedMotion: 'reduce' });
+await reducedSweepPage.addInitScript(() => {
+  window.__vtCalls = 0;
+  const install = () => {
+    if (typeof document.startViewTransition !== 'function') return;
+    const orig = document.startViewTransition.bind(document);
+    document.startViewTransition = (...args) => { window.__vtCalls++; return orig(...args); };
+  };
+  install();
+});
+await reducedSweepPage.goto(`${base}/`);
+await reducedSweepPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+
+// Item 6: theme toggle, instant, no view transition attempted.
+await reducedSweepPage.locator('.theme-toggle').first().click();
+await reducedSweepPage.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
+const vtCallsAfterTheme = await reducedSweepPage.evaluate(() => window.__vtCalls);
+check('motion: reduced motion: theme toggle never calls startViewTransition and swaps instantly',
+  vtCallsAfterTheme === 0, `vtCalls=${vtCallsAfterTheme}`);
+await reducedSweepPage.locator('.theme-toggle').first().click();
+await reducedSweepPage.waitForFunction(() => document.documentElement.dataset.theme === 'light');
+
+// Item 3: Expand all, instant, no view transition attempted.
+await reducedSweepPage.locator('.pub-expand-all').click();
+await reducedSweepPage.waitForFunction(() => document.querySelectorAll('.pub-shelf-grid[hidden]').length === 0);
+const vtCallsAfterExpandAll = await reducedSweepPage.evaluate(() => window.__vtCalls);
+check('motion: reduced motion: Expand all never calls startViewTransition',
+  vtCallsAfterExpandAll === 0, `vtCalls=${vtCallsAfterExpandAll}`);
+
+// Item 4: deck-open morph, no view-transition-name class ever applied, no
+// startViewTransition call, focus lands in the panel immediately (not
+// deferred, since there is no transition to defer past).
+await reducedSweepPage.locator('[data-discover-entry]').click();
+await reducedSweepPage.waitForSelector('.discover-card');
+const vtCallsAfterDeckOpen = await reducedSweepPage.evaluate(() => window.__vtCalls);
+const deckOpenReducedState = await reducedSweepPage.evaluate(() => ({
+  anyVtNameClass: document.querySelectorAll('.pub-vt-discover').length,
+  focusInPanel: document.activeElement?.classList.contains('discover-panel') === true,
+}));
+check('motion: reduced motion: deck-open never calls startViewTransition or applies the morph class',
+  vtCallsAfterDeckOpen === 0 && deckOpenReducedState.anyVtNameClass === 0, JSON.stringify({ vtCallsAfterDeckOpen, ...deckOpenReducedState }));
+check('motion: reduced motion: deck-open focuses the panel immediately (fallback path, no deferral)',
+  deckOpenReducedState.focusInPanel === true, JSON.stringify(deckOpenReducedState));
+
+// Item 5: judged-chip pop, no .is-new class and no scale/rotate transform
+// ever observed, mid-flight, under reduced motion.
+const reducedSweepFirstCardId = await reducedSweepPage.locator('.discover-card').getAttribute('data-id');
+await reducedSweepPage.locator('.discover-btn-have').click();
+await reducedSweepPage.waitForFunction((id) => {
+  const li = document.querySelector(`.card-grid > li[data-id="${id}"]`);
+  return li && li.querySelector('.pub-judge-chip');
+}, reducedSweepFirstCardId);
+const chipReducedState = await reducedSweepPage.evaluate((id) => {
+  const li = document.querySelector(`.card-grid > li[data-id="${id}"]`);
+  const chip = li.querySelector('.pub-judge-chip');
+  const cs = getComputedStyle(chip);
+  return { hasIsNew: chip.classList.contains('is-new'), transform: cs.transform, opacity: cs.opacity };
+}, reducedSweepFirstCardId);
+check('motion: reduced motion: a fresh judgement never marks the chip is-new (no scale, no rotate)',
+  chipReducedState.hasIsNew === false && (chipReducedState.transform === 'none' || !/matrix\(0\.\d/.test(chipReducedState.transform)),
+  JSON.stringify(chipReducedState));
+await reducedSweepPage.close();
+
+// Stubbed non-VT browser (startViewTransition deleted via init script,
+// simulating an unsupported browser): every interaction must complete
+// identically minus the transition. Normal motion (no reducedMotion
+// emulation), since this is testing feature-detection, not the separate
+// reduced-motion guard already swept above.
+const noVtPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await noVtPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await noVtPage.addInitScript(() => { document.startViewTransition = undefined; });
+await noVtPage.goto(`${base}/`);
+await noVtPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+check('motion: stubbed non-VT browser: startViewTransition really is absent',
+  (await noVtPage.evaluate(() => typeof document.startViewTransition)) === 'undefined');
+
+const noVtThemeBefore = await noVtPage.evaluate(() => document.documentElement.dataset.theme);
+await noVtPage.locator('.theme-toggle').first().click();
+await noVtPage.waitForFunction((before) => document.documentElement.dataset.theme !== before, noVtThemeBefore);
+check('motion: stubbed non-VT browser: theme toggle still flips', true);
+await noVtPage.locator('.theme-toggle').first().click(); // restore
+
+await noVtPage.locator('.pub-expand-all').click();
+await noVtPage.waitForFunction(() => document.querySelectorAll('.pub-shelf-grid[hidden]').length === 0);
+check('motion: stubbed non-VT browser: Expand all still opens every shelf', true);
+await noVtPage.locator('.pub-expand-all').click();
+await noVtPage.waitForFunction(() => document.querySelectorAll('.pub-shelf-grid:not([hidden])').length === 0);
+
+await noVtPage.fill('#public-root input[type=search]', tool0.name);
+await noVtPage.waitForFunction((slug) => {
+  const grid = document.getElementById(`cat-${slug}`)?.querySelector('.pub-shelf-grid');
+  return grid && !grid.hidden;
+}, tool0Slug);
+check('motion: stubbed non-VT browser: search still force-opens the matching shelf', true);
+await noVtPage.fill('#public-root input[type=search]', '');
+await noVtPage.waitForFunction(() => document.querySelectorAll('#public-root .card-grid > li[hidden]').length === 0);
+
+await noVtPage.locator('[data-discover-entry]').click();
+await noVtPage.waitForSelector('.discover-card');
+const noVtDeckState = await noVtPage.evaluate(() => ({
+  anyVtNameClass: document.querySelectorAll('.pub-vt-discover').length,
+  focusInPanel: document.activeElement?.classList.contains('discover-panel') === true,
+}));
+check('motion: stubbed non-VT browser: deck still opens, focuses the panel, applies no morph class',
+  noVtDeckState.anyVtNameClass === 0 && noVtDeckState.focusInPanel === true, JSON.stringify(noVtDeckState));
+await noVtPage.close();
+
+// .is-new never applied during load-time redecoration (a stored decision
+// from a previous session, present before the page ever mounts, must never
+// pop), contrasted against a genuinely fresh judgement in the same run,
+// which must. Two separate pages, not a judge-then-reload sequence on one:
+// reloading mid-session here runs into a pre-existing, unrelated defect
+// (tracked below, out of scope for this wave) where the judgement-parity
+// bootstrap does not always re-decorate a reloaded page's cards; seeding
+// the decision via addInitScript, the same technique
+// seedCoachDoneBeforeLoad already uses, is both the correct test for "load
+// time" (the decision exists before first paint, exactly what the spec
+// means by it) and sidesteps that unrelated defect entirely.
+const isNewFreshPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await isNewFreshPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await seedCoachDoneBeforeLoad(isNewFreshPage);
+await isNewFreshPage.goto(`${base}/`, { waitUntil: 'load' });
+await isNewFreshPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+await isNewFreshPage.locator('[data-discover-entry]').click();
+await isNewFreshPage.waitForSelector('.discover-card');
+const isNewFirstId = await isNewFreshPage.locator('.discover-card').getAttribute('data-id');
+await isNewFreshPage.locator('.discover-btn-have').click();
+await isNewFreshPage.waitForFunction((id) => {
+  const li = document.querySelector(`.card-grid > li[data-id="${id}"]`);
+  return li && li.querySelector('.pub-judge-chip.is-new');
+}, isNewFirstId);
+check('motion: a fresh judgement (setDecision/judge path) marks its chip is-new', true);
+await isNewFreshPage.close();
+
+const isNewLoadTimePage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await isNewLoadTimePage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await isNewLoadTimePage.addInitScript(() => {
+  try {
+    localStorage.setItem('freestack:v1:discover', JSON.stringify({
+      v: 1, lastVisit: new Date().toISOString(), seenIds: [0],
+      decisions: { 0: { d: 'have', t: Date.now() } }, coachDone: true,
+    }));
+  } catch { /* private mode etc: irrelevant, no decision to redecorate either way */ }
+});
+await isNewLoadTimePage.goto(`${base}/`, { waitUntil: 'load' });
+await isNewLoadTimePage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+await isNewLoadTimePage.waitForFunction(() => {
+  const li = document.querySelector('.card-grid > li[data-id="0"]');
+  return li && li.querySelector('.pub-judge-chip');
+});
+const loadTimeChipState = await isNewLoadTimePage.evaluate(() => {
+  const chip = document.querySelector('.card-grid > li[data-id="0"] .pub-judge-chip');
+  return { text: chip?.textContent.trim(), hasIsNew: chip?.classList.contains('is-new') };
+});
+check('motion: load-time redecoration of an existing decision never marks a chip is-new',
+  loadTimeChipState.text === 'Got it' && loadTimeChipState.hasIsNew === false, JSON.stringify(loadTimeChipState));
+await isNewLoadTimePage.close();
 
 /* --- curator mode (staff path /x, batch I) --------------------------------- */
 await page.goto(`${base}/x`);
@@ -1474,12 +2147,20 @@ check('curator: export buttons enable with a selection', enabledCount === 4, `en
 
 const themeBtn = page.locator('.theme-toggle').first();
 await themeBtn.click();
+// Wave 14.2: the flip now runs inside the guarded View Transition helper
+// (motion inventory item 6), whose update callback is not invoked
+// synchronously with the click (confirmed empirically: one to two
+// animation frames later, but not a fixed bound under load). Polled with
+// waitForFunction rather than a fixed-timeout guess, so this never flakes
+// under a slower CI run the way a short sleep can.
+await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
 const darkSet = await page.evaluate(() => document.documentElement.dataset.theme);
 await page.reload();
 await page.waitForSelector('.tools-table');
 const darkPersists = await page.evaluate(() => document.documentElement.dataset.theme);
 check('curator: theme toggle flips to dark and persists across reload', darkSet === 'dark' && darkPersists === 'dark');
 await page.locator('.theme-toggle').first().click(); // restore light for later checks
+await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
 await page.evaluate(() => { try { localStorage.removeItem('freestack:v1:theme'); } catch {} });
 
 await page.goto(`${base}/?t=0,2`);
@@ -1493,12 +2174,21 @@ check('client: theme toggle present in no-print toolbar', await page.locator('.n
    section 10). A future edit to either script that forgets to recompute the
    hash does not fail loudly in a browser, it just silently blocks the
    script; this is the check that catches that before it ships. */
+// PRD section 18, "Smoke-gate exclusion for JSON-LD": a
+// type="application/ld+json" block is a non-executable data block, CSP's
+// script-src never applies to it, so it has no hash to allow-list and this
+// gate has nothing to protect by hashing it. Skipping it here is a legitimate
+// narrowing of what the gate checks, not a loosening of what it protects:
+// every OTHER inline <script> (no src=, no ld+json type) still needs its
+// hash allow-listed below, including a planted executable one, which the
+// dedicated check further down proves.
 function extractInlineScripts(html) {
   const scripts = [];
   const re = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
   let m;
   while ((m = re.exec(html))) {
     if (/\bsrc\s*=/i.test(m[1])) continue; // external scripts carry no inline body to hash
+    if (/\btype\s*=\s*["']?application\/ld\+json["']?/i.test(m[1])) continue; // data block, not executable
     scripts.push(m[2]);
   }
   return scripts;
@@ -1508,12 +2198,19 @@ function sha256Base64(text) {
 }
 const embedHtml = (await readFile(join(ROOT, 'embed.html'))).toString('utf8');
 const whyRegisterHtml = (await readFile(join(ROOT, 'why-register.html'))).toString('utf8');
+// Phase 14.3: faq.html reuses index.html's theme-boot script byte for byte,
+// the same pattern why-register.html already uses, so its inline script
+// must resolve to a hash already in the CSP allow-list rather than needing
+// a new entry (PRD section 18: "a third distinct script would need a
+// netlify.toml hash which section 18 forbids adding").
+const faqHtml = (await readFile(join(ROOT, 'faq.html'))).toString('utf8');
 const netlifyToml = (await readFile(join(ROOT, 'netlify.toml'))).toString('utf8');
 
 const indexInline = extractInlineScripts(rawHtml);
 const embedInline = extractInlineScripts(embedHtml);
 const whyInline = extractInlineScripts(whyRegisterHtml);
-const currentHashes = new Set([...indexInline, ...embedInline, ...whyInline].map(sha256Base64));
+const faqInline = extractInlineScripts(faqHtml);
+const currentHashes = new Set([...indexInline, ...embedInline, ...whyInline, ...faqInline].map(sha256Base64));
 
 const cspScriptSrcLine = netlifyToml.split('\n').find((l) => l.includes('Content-Security-Policy') && l.includes('script-src'));
 const cspHashes = new Set([...(cspScriptSrcLine || '').matchAll(/'sha256-([A-Za-z0-9+/]+=*)'/g)].map((m) => m[1]));
@@ -1524,6 +2221,355 @@ check('csp: every inline boot script hash is allow-listed in netlify.toml', miss
 check('csp: no stale hash in netlify.toml matching no current script', staleInCsp.length === 0, `stale=${staleInCsp.join(',')}`);
 check('csp: why-register.html boot script is byte identical to index.html',
   indexInline.length === 1 && whyInline.length === 1 && sha256Base64(indexInline[0]) === sha256Base64(whyInline[0]));
+check('csp: faq.html boot script is byte identical to index.html (Phase 14.3, no third hash needed)',
+  indexInline.length === 1 && faqInline.length === 1 && sha256Base64(indexInline[0]) === sha256Base64(faqInline[0]));
+
+// Regression guard for the JSON-LD exclusion itself (PRD section 18,
+// "Smoke-gate exclusion for JSON-LD"): a type="application/ld+json" block
+// must never be counted by extractInlineScripts (proven directly, not just
+// implied by the hash checks above passing), and a planted EXECUTABLE
+// inline script with no matching CSP hash must still fail the gate, so the
+// exclusion is narrow rather than accidentally swallowing real scripts too.
+{
+  const ldOnly = '<script type="application/ld+json">{"a":1}</script>';
+  check('csp: extractInlineScripts skips application/ld+json blocks entirely', extractInlineScripts(ldOnly).length === 0);
+
+  const plantedExecutable = `${rawHtml}\n<script>window.__planted = true;</script>`;
+  const plantedHashes = new Set(extractInlineScripts(plantedExecutable).map(sha256Base64));
+  const plantedMissing = [...plantedHashes].filter((h) => !cspHashes.has(h));
+  check('csp: a planted executable inline script with no CSP hash is still caught as missing',
+    plantedMissing.length > 0, `missing=${plantedMissing.length}`);
+}
+
+/* --- Phase 14.3: Answer Engine and Search Visibility (PRD section 18) -----
+   Raw-HTML crawler simulation (no JS: a plain fetch of the served files,
+   exactly what GPTBot/ClaudeBot/PerplexityBot see), the faq.html content,
+   sitemap/robots/llms.txt, the static block's hide-on-boot behaviour, and
+   the generator's own drift and determinism guarantees. how-we-choose.html
+   is intentionally absent throughout: BUILD-PLAN 14.3 gates its publication
+   on Rocky's copy sign-off, which has not landed (see TODO.md), so the
+   sitemap and llms.txt ship without it and this suite asserts that absence
+   rather than its presence. */
+{
+  // A tool name or category can legitimately contain "&" (id 7, "Stock
+  // Music & Fonts"), which the generator HTML-escapes when writing the
+  // static block (PRD section 18's untrusted-string discipline: every
+  // string from tools.json is escaped before it reaches a static file). The
+  // same escaping is applied here before searching the raw markup, rather
+  // than loosening what the generator itself is required to do.
+  const escapeHtmlForCheck = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  const activeToolNames = active.map((t) => t.name);
+
+  // Raw fetch, no JS: exactly what a non-rendering crawler receives. Uses
+  // this suite's own local server (mirrors the SPA fallback and serves real
+  // files first), not the Playwright page.
+  const rawRootRes = await fetch(`${base}/`);
+  const rawRootHtml = await rawRootRes.text();
+  const missingToolNames = activeToolNames.filter((name) => !rawRootHtml.includes(escapeHtmlForCheck(name)));
+  check('aeo: raw (no-JS) fetch of / contains every active tool name',
+    missingToolNames.length === 0, `missing=${missingToolNames.slice(0, 5).join(' | ')}${missingToolNames.length ? ` (+${missingToolNames.length - 5} more)` : ''}`);
+  check('aeo: raw fetch of / contains the category headings',
+    [...new Set(active.map((t) => t.category))].every((cat) => rawRootHtml.includes(escapeHtmlForCheck(cat))));
+  check('aeo: raw fetch of / contains the trust lines and a link to /faq.html',
+    rawRootHtml.includes('No affiliates, no sponsors, no paid placement.')
+    && rawRootHtml.includes(`${active.length} free tool`)
+    && /href="\/faq\.html"/.test(rawRootHtml));
+  // Per-tool question, tool 0 specifically (PRD section 18, per-tool
+  // questions, and the section 4 id law: id 0 is a real tool and must never
+  // be dropped by a truthiness check anywhere in this pipeline).
+  check('aeo: raw fetch of / contains tool 0\'s generated question',
+    rawRootHtml.includes('Are Claude Free / ChatGPT Free / Gemini free for a small business?')
+    || rawRootHtml.includes('Is Claude Free / ChatGPT Free / Gemini actually free for a small business?'));
+
+  // The static block is real markup inside #static-root, not something JS
+  // has to build: confirm it is present in the raw HTML and only hidden,
+  // never removed, once a JS-capable browser boots the app (visible-text
+  // duplication check: booted page shows the rendered app, not both).
+  const staticRootMatch = rawRootHtml.match(/<div id="static-root">([\s\S]*?)<!--\s*seo-static:end\s*-->/);
+  check('aeo: raw HTML carries a real #static-root block between the seo-static markers',
+    !!staticRootMatch && !rawRootHtml.match(/<div id="static-root"[^>]*\bhidden\b/));
+
+  const staticRootBooted = await page.evaluate(() => {
+    const node = document.getElementById('static-root');
+    return { present: !!node, hidden: node ? node.hasAttribute('hidden') : null };
+  });
+  check('aeo: #static-root is hidden once the app has booted (JS-capable visit)',
+    staticRootBooted.present && staticRootBooted.hidden === true, JSON.stringify(staticRootBooted));
+  const staticRootVisibleText = await page.locator('#static-root').isVisible().catch(() => false);
+  check('aeo: the static block is not visibly duplicated once the app has rendered',
+    staticRootVisibleText === false);
+
+  // faq.html: the ten canonical questions as visible text, indexable (no
+  // robots meta), FAQPage JSON-LD whose strings match the visible copy.
+  const faqRes = await fetch(`${base}/faq.html`);
+  const faqRawHtml = await faqRes.text();
+  const CANONICAL_QUESTIONS = [
+    'What software stack is free for a new founder?',
+    'What is the best free accounting software for a UK small business?',
+    'How much would this software cost if I paid for it?',
+    'Is there a free CRM good enough for a small business?',
+    'What free email marketing tools actually work?',
+    'What can I use instead of Photoshop for free?',
+    'Do these free tools stay free, or is there a catch?',
+    'Does this directory earn commission on the tools it lists?',
+    'What free tools help a local shop get found online?',
+    'What free security tools should a small business start with?',
+  ];
+  check('aeo: /faq.html serves all ten canonical questions as raw HTML text',
+    CANONICAL_QUESTIONS.every((q) => faqRawHtml.includes(q)));
+  check('aeo: /faq.html carries no robots meta tag (indexable, unlike /x, /my and client links)',
+    !/<meta\s+name="robots"/i.test(faqRawHtml));
+
+  await page.goto(`${base}/faq.html`);
+  await page.waitForSelector('.faq-item');
+  const faqVisibleQuestions = await page.locator('.faq-item h2').allTextContents();
+  check('aeo: faq.html renders all ten questions as visible text (not JS-injected)',
+    CANONICAL_QUESTIONS.every((q) => faqVisibleQuestions.includes(q)));
+  const faqLdMatch = faqRawHtml.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+  let faqLd = null;
+  try { faqLd = JSON.parse(faqLdMatch?.[1] ?? 'null'); } catch { /* left null, checked below */ }
+  check('aeo: faq.html JSON-LD parses and is a FAQPage with exactly ten questions, matching visible copy',
+    faqLd?.['@type'] === 'FAQPage'
+    && Array.isArray(faqLd.mainEntity)
+    && faqLd.mainEntity.length === 10
+    && faqLd.mainEntity.every((q, i) => q['@type'] === 'Question' && q.name === faqVisibleQuestions[i]));
+
+  const faqMobile = await browser.newPage({ viewport: { width: 375, height: 812 } });
+  await faqMobile.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await faqMobile.goto(`${base}/faq.html`);
+  await faqMobile.waitForSelector('.faq-item');
+  const faqScrollW = await faqMobile.evaluate(() => document.documentElement.scrollWidth);
+  check('aeo: faq.html has no horizontal scroll at 375px', faqScrollW <= 375, `scrollWidth=${faqScrollW}`);
+  await faqMobile.close();
+
+  // index.html head JSON-LD: Organization, WebSite, ItemList, valid JSON,
+  // expected @types, ItemList length equals the active count (id 0 counted:
+  // no truthiness filter anywhere in this pipeline could silently drop it).
+  const headJsonLdBlocks = [...rawHtml.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)]
+    .map((m) => { try { return JSON.parse(m[1]); } catch { return null; } });
+  const orgLd = headJsonLdBlocks.find((b) => b?.['@type'] === 'Organization');
+  const websiteLd = headJsonLdBlocks.find((b) => b?.['@type'] === 'WebSite');
+  const itemListLd = headJsonLdBlocks.find((b) => b?.['@type'] === 'ItemList');
+  check('aeo: index.html head carries valid Organization, WebSite and ItemList JSON-LD',
+    orgLd?.name === 'Kaipability Ltd'
+    && websiteLd?.name === 'Free Stack'
+    && Array.isArray(itemListLd?.itemListElement)
+    && itemListLd.itemListElement.length === active.length);
+  const tool0Name = active.find((t) => t.id === 0)?.name;
+  const itemListHasTool0 = itemListLd?.itemListElement.some((li) => li.item?.name === tool0Name);
+  check('aeo: ItemList JSON-LD includes tool 0', itemListHasTool0 === true);
+
+  // Title and meta description carry the live count; OG tag set unchanged
+  // (already exercised above by the "meta: og tags present" check; this
+  // extends it with the section 18 title/description content).
+  const titleMatch = rawHtml.match(/<title>([\s\S]*?)<\/title>/);
+  const descMatch = rawHtml.match(/<meta name="description" content="([^"]*)">/);
+  check('aeo: title carries the live active tool count',
+    titleMatch?.[1].includes(String(active.length)) && titleMatch[1].includes('Free Stack by Kaipability'), titleMatch?.[1]);
+  check('aeo: meta description carries the live active tool count',
+    descMatch?.[1].includes(String(active.length)), descMatch?.[1]);
+  check('aeo: OG tag set unchanged (og:title still the client-mode-facing copy)',
+    rawHtml.includes('<meta property="og:title" content="Your Free Software Stack">'));
+
+  // sitemap.xml: exactly the permitted URLs, nothing noindexed, no
+  // how-we-choose.html until Rocky's sign-off lands.
+  const sitemapRes = await fetch(`${base}/sitemap.xml`);
+  const sitemapXml = await sitemapRes.text();
+  const sitemapUrls = [...sitemapXml.matchAll(/<loc>([^<]*)<\/loc>/g)].map((m) => m[1]);
+  check('aeo: sitemap.xml lists exactly / and /faq.html, nothing else',
+    sitemapRes.status === 200
+    && sitemapUrls.length === 2
+    && sitemapUrls.includes('https://tools.airl.io/')
+    && sitemapUrls.includes('https://tools.airl.io/faq.html'));
+
+  // robots.txt: Sitemap line present, still no disallow anywhere (a
+  // disallow for /x would advertise the hidden staff path).
+  const robotsRes = await fetch(`${base}/robots.txt`);
+  const robotsTxt = await robotsRes.text();
+  check('aeo: robots.txt carries the Sitemap line and no Disallow',
+    robotsRes.status === 200
+    && robotsTxt.includes('Sitemap: https://tools.airl.io/sitemap.xml')
+    && !/Disallow:/i.test(robotsTxt));
+
+  // llms.txt: served, points at the machine-readable dataset and the FAQ.
+  const llmsRes = await fetch(`${base}/llms.txt`);
+  const llmsTxt = await llmsRes.text();
+  check('aeo: llms.txt is served and points at /data/tools.json and /faq.html',
+    llmsRes.status === 200
+    && llmsTxt.includes('/data/tools.json')
+    && llmsTxt.includes('/faq.html'));
+
+  /* --- Wave 14.3b: data/faq.json as the single source of truth, and its two
+     runtime surfacing points (homepage FAQ slot in js/public.js, ?tool=
+     permalink Q&A in js/client.js) ------------------------------------- */
+  const faqJsonRes = await fetch(`${base}/data/faq.json`);
+  const faqJsonBody = await faqJsonRes.json();
+  check('aeo: data/faq.json is served and parses with exactly ten site entries and one entry per active tool',
+    faqJsonRes.status === 200
+    && Array.isArray(faqJsonBody.site) && faqJsonBody.site.length === 10
+    && faqJsonBody.tools && Object.keys(faqJsonBody.tools).length === active.length);
+  check('aeo: data/faq.json carries tool 0 under the string key "0" (id law: 0 is a real key)',
+    typeof faqJsonBody.tools['0']?.q === 'string' && typeof faqJsonBody.tools['0']?.a === 'string');
+
+  // PRD section 18 as amended (31 Jul): answers aim for 40-80 words with
+  // hard bounds of 30-100, because free_limit is quoted verbatim and
+  // truncating it to hit a cosmetic target would cost honesty. The hard
+  // bounds are the tested contract.
+  const faqWordBoundBreaches = Object.entries(faqJsonBody.tools)
+    .map(([id, entry]) => [id, entry.a.trim().split(/\s+/).length])
+    .filter(([, words]) => words < 30 || words > 100);
+  check('aeo: every per-tool answer sits within the 30-100 word hard bounds',
+    faqWordBoundBreaches.length === 0,
+    faqWordBoundBreaches.map(([id, words]) => `${id}:${words}`).join(',') || 'all within bounds');
+
+  // Homepage FAQ slot (js/public.js, PRD section 16 item 5): ten native
+  // <details>/<summary> items, text matching data/faq.json byte for byte,
+  // never re-derived at runtime. The FAQ section sits below the shelf band,
+  // so no shelf needs expanding to find it.
+  await page.goto(`${base}/`);
+  await page.waitForSelector('#public-root .tool-card', { state: 'attached' });
+  await page.waitForSelector('.pub-faq-item');
+  const homeFaqQuestions = await page.locator('.pub-faq-summary').allTextContents();
+  const homeFaqAnswers = await page.locator('.pub-faq-answer').allTextContents();
+  check('aeo: homepage FAQ slot renders exactly ten details items matching data/faq.json byte for byte',
+    homeFaqQuestions.length === 10 && homeFaqAnswers.length === 10
+    && faqJsonBody.site.every((entry, i) => entry.q === homeFaqQuestions[i] && entry.a === homeFaqAnswers[i]),
+    `questions=${homeFaqQuestions.length} answers=${homeFaqAnswers.length}`);
+  const homeFaqOpenCount = await page.locator('.pub-faq-item[open]').count();
+  check('aeo: homepage FAQ items are closed by default (content in the DOM regardless, native details/summary)',
+    homeFaqOpenCount === 0);
+  const homeFaqSummaryHeights = await page.locator('.pub-faq-summary').evaluateAll((nodes) => nodes.map((n) => n.getBoundingClientRect().height));
+  check('aeo: homepage FAQ summaries are at least 44px tall', homeFaqSummaryHeights.every((h) => h >= 44), JSON.stringify(homeFaqSummaryHeights));
+
+  // Re-measure the 14.1 fold and page-height budgets now that the FAQ slot
+  // is genuinely visible (collapsed, but no longer `hidden`), rather than
+  // assuming it stays within budget: "they will not, but assert it" per the
+  // coordinator's brief.
+  for (const [width, budget] of [[375, 3200], [1280, 2200]]) {
+    const faqBudgetPage = await browser.newPage({ viewport: { width, height: 900 } });
+    await faqBudgetPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+    await faqBudgetPage.goto(`${base}/`);
+    await faqBudgetPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+    await faqBudgetPage.waitForSelector('.pub-faq-item');
+    await faqBudgetPage.waitForTimeout(300);
+    const faqPageHeight = await faqBudgetPage.evaluate(() => document.documentElement.scrollHeight);
+    check(`aeo: page height at ${width}px is still within the ${budget}px budget with the FAQ slot visible`,
+      faqPageHeight <= budget, `height=${faqPageHeight}`);
+    await faqBudgetPage.close();
+  }
+  const faqFoldPage = await browser.newPage({ viewport: { width: 375, height: 812 } });
+  await faqFoldPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await faqFoldPage.goto(`${base}/`);
+  await faqFoldPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+  await faqFoldPage.waitForSelector('.pub-shelf-header');
+  await faqFoldPage.waitForSelector('.pub-faq-item');
+  await faqFoldPage.waitForTimeout(300);
+  const faqFoldFirstShelfBox = await faqFoldPage.locator('.pub-shelf-header').first().boundingBox();
+  const faqFoldFirstShelfTop = faqFoldFirstShelfBox?.y ?? null;
+  check('aeo: the pinned 880px first-shelf budget is unaffected by the now-visible FAQ slot (which sits below the shelves)',
+    faqFoldFirstShelfTop !== null && faqFoldFirstShelfTop <= 880, `firstShelfHeaderTop=${faqFoldFirstShelfTop}`);
+  await faqFoldPage.close();
+
+  // ?tool= permalink Q&A (js/client.js, PRD section 18 per-tool surfacing):
+  // tool 0 specifically, matching data/faq.json byte for byte, and matching
+  // the static crawler block's own tool-0 text (both trace to the same
+  // data/faq.json, so they can never disagree).
+  const toolFaqPage = await browser.newPage();
+  await toolFaqPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await toolFaqPage.goto(`${base}/?tool=0`);
+  await toolFaqPage.waitForSelector('.cli-tool-faq h2');
+  const toolFaqQ = await toolFaqPage.locator('.cli-tool-faq h2').textContent();
+  const toolFaqA = await toolFaqPage.locator('.cli-tool-faq p').textContent();
+  check('aeo: ?tool=0 permalink renders its question and answer matching data/faq.json byte for byte',
+    toolFaqQ === faqJsonBody.tools['0'].q && toolFaqA === faqJsonBody.tools['0'].a,
+    JSON.stringify({ toolFaqQ, expectedQ: faqJsonBody.tools['0'].q }));
+  check("aeo: the ?tool=0 answer matches the static crawler block's tool-0 text exactly (both trace to data/faq.json)",
+    rawRootHtml.includes(escapeHtmlForCheck(faqJsonBody.tools['0'].a)));
+  await toolFaqPage.close();
+
+  // Scoped strictly to renderSingleTool, per the coordinator's brief:
+  // multi-tool client pages carry no per-tool FAQ section at all.
+  const multiToolFaqPage = await browser.newPage();
+  await multiToolFaqPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await multiToolFaqPage.goto(`${base}/?t=0,2`);
+  await multiToolFaqPage.waitForSelector('.tool-card');
+  const multiToolFaqCount = await multiToolFaqPage.locator('.cli-tool-faq').count();
+  check('aeo: multi-tool client pages carry no .cli-tool-faq section (scoped to the single-tool permalink only)',
+    multiToolFaqCount === 0);
+  await multiToolFaqPage.close();
+
+  // Noindex boundaries unmoved: /x, client-mode links and /my keep their
+  // JS-injected noindex; why-register.html keeps its static one; faq.html
+  // (new this wave) carries none, since it is meant to be indexed. Each of
+  // these is already exercised by its own dedicated check elsewhere in this
+  // suite (search this file for "noindex"); this is the single consolidated
+  // assertion that all of them still hold true in the same run as the new
+  // AEO surface, so a future regression in one area cannot hide behind the
+  // others' tests having run in an earlier, unrelated part of the suite.
+  const noindexCurator = await (async () => {
+    const p = await browser.newPage();
+    await p.route(/^(?!.*localhost).*$/, (route) => route.abort());
+    await p.goto(`${base}/x`);
+    await p.waitForSelector('.tools-table');
+    const n = await p.locator('meta[name=robots][content=noindex]').count();
+    await p.close();
+    return n;
+  })();
+  const noindexClient = await (async () => {
+    const p = await browser.newPage();
+    await p.route(/^(?!.*localhost).*$/, (route) => route.abort());
+    await p.goto(`${base}/?t=0`);
+    await p.waitForSelector('.tool-card');
+    const n = await p.locator('meta[name=robots][content=noindex]').count();
+    await p.close();
+    return n;
+  })();
+  const noindexMy = await (async () => {
+    const p = await browser.newPage();
+    await p.route(/^(?!.*localhost).*$/, (route) => route.abort());
+    await p.goto(`${base}/my`);
+    await p.waitForSelector('#my-root:not([hidden])');
+    const n = await p.locator('meta[name=robots][content=noindex]').count();
+    await p.close();
+    return n;
+  })();
+  const whyNoindexStatic = /<meta name="robots" content="noindex">/.test(whyRegisterHtml);
+  check('aeo: noindex boundaries unmoved (curator /x, client ?t=, /my all noindexed; why-register.html statically noindexed; faq.html indexable)',
+    noindexCurator === 1 && noindexClient === 1 && noindexMy === 1 && whyNoindexStatic === true
+    && !/<meta\s+name="robots"/i.test(faqRawHtml));
+
+  // Generator drift and determinism: run build-seo.mjs fresh (child process,
+  // not imported: it has top-level side effects, this is a full CLI
+  // invocation exactly like CI's drift step) and diff every artefact it
+  // touches against the currently committed/working-tree copies. Run twice
+  // to prove byte-identical output between successive runs, the same proof
+  // BUILD-PLAN 14.3 asks for; CI's own drift step (added this wave) is the
+  // authority for gating a real commit, this is the in-suite corroboration
+  // that regenerating right now changes nothing already on disk.
+  const { execFileSync } = await import('node:child_process');
+  // 'data/faq.json' (wave 14.3b): the same drift proof now covers the JSON
+  // source of truth every runtime surface fetches, not only the HTML/XML/
+  // text artefacts. .github/workflows/ci.yml's own drift step diffs this
+  // exact path list too, so a real CI run and this in-suite corroboration
+  // can never disagree about what "covered by the drift gate" means.
+  const artefacts = ['index.html', 'faq.html', 'sitemap.xml', 'llms.txt', 'robots.txt', join('data', 'faq.json')];
+  const before = Object.fromEntries(await Promise.all(artefacts.map(async (f) => [f, await readFile(join(ROOT, f), 'utf8')])));
+  execFileSync(process.execPath, [join(ROOT, 'scripts', 'build-seo.mjs')], { cwd: ROOT });
+  const afterFirstRun = Object.fromEntries(await Promise.all(artefacts.map(async (f) => [f, await readFile(join(ROOT, f), 'utf8')])));
+  execFileSync(process.execPath, [join(ROOT, 'scripts', 'build-seo.mjs')], { cwd: ROOT });
+  const afterSecondRun = Object.fromEntries(await Promise.all(artefacts.map(async (f) => [f, await readFile(join(ROOT, f), 'utf8')])));
+  const driftAgainstCommitted = artefacts.filter((f) => before[f] !== afterFirstRun[f]);
+  const driftBetweenRuns = artefacts.filter((f) => afterFirstRun[f] !== afterSecondRun[f]);
+  check('aeo: regenerating build-seo.mjs against the current data produces no drift from the committed artefacts',
+    driftAgainstCommitted.length === 0, `drifted=${driftAgainstCommitted.join(',')}`);
+  check('aeo: running build-seo.mjs twice in a row is byte-identical (determinism)',
+    driftBetweenRuns.length === 0, `drifted=${driftBetweenRuns.join(',')}`);
+
+  // No em dashes anywhere the generator writes (PRD section 10 house style,
+  // extended by section 18 to every generated file).
+  const emDashFiles = artefacts.filter((f) => afterSecondRun[f].includes('—'));
+  check('aeo: no em dashes in any generated file', emDashFiles.length === 0, emDashFiles.join(','));
+}
 
 /* --- security.txt, served through this suite's own local server (which
    mirrors the SPA fallback), as the real file per RFC 9116 (PRD-REGISTER

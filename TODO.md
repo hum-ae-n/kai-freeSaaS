@@ -4,6 +4,10 @@ Open items as of 27 July 2026. Build state: Phases 0-11 done, verified and merge
 
 Build state: Phases 0-12 done, verified and merged to `main`. Phase 12 (homepage redesign, Discover deck with first-open coach, planned account status, batch add, sign-up generator, reading-copy exports) merged 27 Jul as `03a5ac5` via PR 9. Detail in [BUILD-PLAN.md](BUILD-PLAN.md); run `node scripts/validate-data.mjs` and `node scripts/smoke-test.mjs` before any push (a push to `main` is a production release, and CI now runs both automatically on every push and PR).
 
+Build state: Phase 13 (payments, a first Stripe tip link and a GoCardless audit paylink, provider-agnostic, hosted checkout links only) is specced in `docs/PAYMENTS.md` and gated on Rocky completing provider setup in both dashboards and supplying the live payment link URLs before the small site-side build wave can run. Not started on the codebase side.
+
+Build state: Phase 14 (compact landing with collapsed category shelves, the felt-motion inventory of amended PRD §16, and the answer-engine and search-visibility layer of new PRD §18) is built and verifier-passed wave by wave on branch `claude/read-todo-bk47qb`; close-out is in progress and the branch is not yet merged to `main`. CI now also runs `node scripts/build-seo.mjs` as a drift gate on every push, per the "Adding or editing a tool" workflow in the README. Detail in [BUILD-PLAN.md](BUILD-PLAN.md).
+
 ## Deploy (Phase 6)
 
 - [x] Connect this repo to Netlify, confirm auto-deploy on push to `main`
@@ -42,6 +46,7 @@ Build state: Phases 0-12 done, verified and merged to `main`. Phase 12 (homepage
 
 ## Nice-to-have / flagged
 
+- [ ] Unconfirmed report (14.2 builder): judging a tool then reloading sometimes left its browse-list chip un-rendered. The 14.2 verifier could not reproduce it in about 15 varied attempts on current HEAD. Watch for it during real use; if anyone reproduces it, capture the exact sequence and hand it to the list-parity owner.
 - [ ] Replace the Lucide-via-CDN icon substitution if a preferred icon system exists (design-system brief caveat; not currently used by Free Stack itself). Category icons in client mode already use hand-copied Lucide paths with no CDN or npm dependency, see BUILD-PLAN 7.11.
 - [ ] Confirm whether a licensed Proxima Nova webfont should be loaded for the wordmark (falls back to Mona Sans/Montserrat today)
 - [ ] Post-v1 ideas parked in PRD §13 still open: API endpoint serving `tools.json` publicly. (Embed mode, also listed there, shipped in Phase 10.11 via `embed.html`.)

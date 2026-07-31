@@ -8,7 +8,7 @@ A curated directory of free and freemium software for small business, by [Kaipab
 
 One page, four surfaces:
 
-- **Public directory** (`/`): the open, indexable catalogue of every active tool. A first-time visitor gets three equal-weight ways in: a short Discover deck to swipe or click through (see "Discover deck" below), the same persona packs curator mode uses, or just browsing the full list. It is safe to link from anywhere, including kaipability.com, and there is no admin interface here, just the tools, a "recently updated" strip, and one call to action to talk to Kaipability.
+- **Public directory** (`/`): the open, indexable catalogue of every active tool. A first-time visitor gets three equal-weight ways in: a short Discover deck to swipe or click through (see "Discover deck" below), the same persona packs curator mode uses, or just browsing the full list, now a compact landing rather than one long scroll: each category is a collapsed shelf, a single row you tap to reveal that category's cards, and searching or picking a persona chip opens the matching shelves for you. A "Frequently asked questions" page lives at `/faq.html`, and a static, JavaScript-free block of the same directory content sits behind the interactive page, so an AI crawler or a visitor with JavaScript blocked still gets real content instead of a loading message (see "Answer engine and search visibility" below). It is safe to link from anywhere, including kaipability.com, and there is no admin interface here, just the tools, a "recently updated" strip, and one call to action to talk to Kaipability.
 - **Staff curator** (`/x`): the working cockpit, hidden from search engines and not linked from anywhere public. Filter, search, tick the tools relevant to a client, jump in with a "Start here" need chip or a persona starter pack, then generate a shareable client link or export the selection directly. Visiting `/x` once marks that device as staff, which is what makes "Open in curator" appear on client pages later (see "URL schema" below).
 - **Client mode** (`/?t=0,2,5&client=Acme+Ltd`): a clean, branded, read-only page showing only the selected tools. Cards show what the free tier covers and what it costs to outgrow it. The client can print it, save it as a PDF, share it, and tick off each tool as they set it up. Client links always point at the root path, `/`, never at `/x`, so a link a client already has keeps working exactly as before.
 - **My Stack workspace** (`/my`): a free account register for whichever tools a business actually adopts, tracking who owns each account, which email or login opened it, and what needs closing when someone leaves. It is a register, not a password manager: there is no password field anywhere in it. Accounts can be added one at a time or in a batch (several services sharing one identity, owner and 2FA method, entered once); a **planned** status covers a service the business means to sign up for but hasn't yet, and a sign-up to-do generator turns a shortlist of those into a printable, copyable checklist. The workspace is local-first, meaning the browser holds a working copy, but the file you export when you finish setup is the copy that actually lasts, since browsers (Safari especially) can clear their own storage without warning; CSV, text and print/PDF reading copies are also available from the Backup screen, but only that exported file can ever be imported back in. Linked from client pages and the public directory, never indexed. Full spec in [PRD-REGISTER.md](PRD-REGISTER.md).
@@ -69,7 +69,12 @@ The link generator builds `t`, `client`, `note` and, if ticked, `plain` for you,
    node scripts/validate-data.mjs
    ```
    Exit 0 or it doesn't ship.
-6. Push. Netlify deploys `main` automatically: **a push is a production release.**
+6. Regenerate the SEO artefacts:
+   ```bash
+   node scripts/build-seo.mjs
+   ```
+   This rewrites `index.html`'s static crawler block, title, meta description and JSON-LD, plus `faq.html`, `sitemap.xml`, `llms.txt`, `robots.txt`'s Sitemap line and `data/faq.json`, all mechanically derived from `data/tools.json`, because the copy an AI crawler or the FAQ page reads has to live in a committed file rather than a runtime fetch, and CI runs this same generator on every push and fails the build if its output differs from what you committed (PRD §18).
+7. Commit everything, including the files the generator just touched, and push. Netlify deploys `main` automatically: **a push is a production release.**
 
 ## Start here: need chips and starter packs
 
@@ -180,13 +185,25 @@ The deck's completion screen offers "Open these in My Stack", which hands both l
 node scripts/changelog.mjs
 ```
 
+## Answer engine and search visibility
+
+The public directory renders from `data/tools.json` in the browser, but AI crawlers (GPTBot, ClaudeBot, PerplexityBot and the like) execute no JavaScript, so without help they would see nothing but a loading message. `scripts/build-seo.mjs` generates, from `data/tools.json`, `data/presets.json` and `data/category-intros.json`, a set of committed static files that make the directory's real content readable without JavaScript: the crawler-readable block inside `index.html`'s `<div id="static-root">` (hidden again once the interactive app mounts), the title tag, meta description and JSON-LD, the standalone `faq.html` page with its ten canonical questions, `sitemap.xml`, `llms.txt`, the `Sitemap:` line in `robots.txt`, and `data/faq.json`, the one file every runtime FAQ surface (the homepage FAQ slot and the `?tool=` permalink) fetches from rather than each deriving its own wording. Every active tool also gets a generated question-and-answer pair ("Is [tool] free for a small business?"), assembled honestly from its own `free_limit`, `description`, `paid_from` and alternatives, never invented.
+
+Run it whenever `data/tools.json`, `data/presets.json` or `data/category-intros.json` changes (see "Adding or editing a tool" above):
+
+```bash
+node scripts/build-seo.mjs
+```
+
+CI runs the same command and fails the build if the result differs from what's committed, so none of these files can quietly go stale. Full spec in PRD §18.
+
 ## Deploy
 
 Static hosting via Netlify, configured in `netlify.toml` (SPA redirect + security headers, no build command). Connect the GitHub repo to Netlify, set the custom domain if wanted, done.
 
-**CI:** a GitHub Actions workflow (`.github/workflows/ci.yml`) runs the data validator and a headless-browser smoke test on every push to `main` and on every pull request. It installs Playwright itself in a temporary location for the run; this does not add Playwright, or anything else, as a dependency of the site.
+**CI:** a GitHub Actions workflow (`.github/workflows/ci.yml`) runs the data validator, the My Stack register crypto vectors, the Answer Engine and Search Visibility drift gate (regenerating the SEO artefacts with `scripts/build-seo.mjs` and failing the build if the result differs from what's committed) and the smoke suite on every push to `main` and on every pull request. It installs Playwright itself in a temporary location for the run; this does not add Playwright, or anything else, as a dependency of the site.
 
-**Smoke test:** `scripts/smoke-test.mjs` is a single headless-Chromium suite, currently 168 checks, covering the public directory (including the Discover deck and its judgement parity with the browse list), the staff curator, client mode (including the `?tool=` permalink and Plain English mode), embed mode, the My Stack workspace, exports, dark mode and the XSS/empty-state edge cases. It runs its own tiny local HTTP server rather than relying on `python3 -m http.server`, specifically so it can mirror Netlify's SPA fallback (any path that isn't a real file, `/x` above all, serves `index.html`); that behaviour isn't something the plain static server used for manual local testing reproduces. Run it locally with:
+**Smoke test:** `scripts/smoke-test.mjs`, the smoke suite, is a single headless-Chromium suite covering the public directory (including the Discover deck, its judgement parity with the browse list, and the compact landing's collapsed shelves and search/persona auto-open), the staff curator, client mode (including the `?tool=` permalink and Plain English mode), embed mode, the My Stack workspace, exports, dark mode, the Answer Engine and Search Visibility artefacts (the static crawler block, `faq.html`, the CSP hash set with JSON-LD present) and the XSS/empty-state edge cases. It runs its own tiny local HTTP server rather than relying on `python3 -m http.server`, specifically so it can mirror Netlify's SPA fallback (any path that isn't a real file, `/x` above all, serves `index.html`); that behaviour isn't something the plain static server used for manual local testing reproduces. Run it locally with:
 
 ```bash
 PLAYWRIGHT_DIR=/path/to/a/playwright/install node scripts/smoke-test.mjs
@@ -199,11 +216,16 @@ A scheduled sweep re-checks every tool's links and the fifteen stalest pricing c
 ## Repo map
 
 ```
-index.html                shell: mount points for the public directory, staff curator, client mode and the My Stack workspace, social preview meta
+index.html                shell: mount points for the public directory, staff curator, client mode and the My Stack workspace, social preview meta, plus the generated static crawler block and JSON-LD between marker comments (see "Answer engine and search visibility" below)
 embed.html                chrome-free entry point for iframe embedding elsewhere (kaipability.com only)
 why-register.html         standalone "Why we built this" awareness page for the My Stack workspace
+faq.html                  generated, static, indexable FAQ page: the ten canonical Q&As plus matching FAQPage JSON-LD
+sitemap.xml               generated; lists only the public, indexable URLs
+llms.txt                  generated; a short description of the site and its trust rules for AI crawlers
 data/tools.json           single source of truth, 98 entries (89 active, 9 archived)
 data/presets.json         starter-pack chips shown above the curator filters and, since Phase 12, the same persona packs on the public homepage
+data/category-intros.json hand-edited, one-sentence question-led intro per category, read by scripts/build-seo.mjs into the static block
+data/faq.json             generated by scripts/build-seo.mjs: the ten site-level Q&As plus one generated question and answer per active tool, fetched at runtime by the homepage FAQ slot and the `?tool=` permalink so every surface reads identical wording
 data/changelog.json       generated by scripts/changelog.mjs, feeds the public "recently updated" strip
 css/styles.css            design tokens + components + all four surfaces (see DESIGN-SYSTEM.md)
 js/data-loader.js         fetch, URL parsing, routing (public / staff curator / client / My Stack), shared helpers, favicon fallback
@@ -215,10 +237,12 @@ js/qr.js                  self-generated QR code for the client-mode print block
 js/my/                    the My Stack workspace at /my: store.js (the only module touching storage), crypto.js, workspace.js (the app shell and screens), risks.js, templates.js, sample.js, copy.js, why-register.js. See PRD-REGISTER.md
 scripts/validate-data.mjs data schema gate
 scripts/register-vectors.mjs known-answer crypto test vectors for js/my/crypto.js, a CI gate alongside the validator
+scripts/build-seo.mjs     regenerates index.html's static block/title/meta/JSON-LD, faq.html, sitemap.xml, llms.txt, robots.txt and data/faq.json from data/tools.json; CI fails the build on any drift
 scripts/smoke-test.mjs    headless-browser check of all four surfaces
 scripts/changelog.mjs     regenerates data/changelog.json from git history
 scripts/og-card.html      source for assets/og-image.png, screenshotted by hand
 assets/og-image.png       social preview image (Slack/WhatsApp/iMessage link previews)
 docs/how-we-choose.md     draft copy on selection criteria, pending Rocky's sign-off (see TODO.md)
-.github/workflows/ci.yml  runs the validator and smoke test on push and PR
+docs/PAYMENTS.md          provider-agnostic build instructions for Phase 13 payment links, gated on Rocky's provider setup
+.github/workflows/ci.yml  runs the validator, the register crypto vectors, the SEO drift gate and the smoke suite on push and PR
 ```

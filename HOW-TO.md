@@ -64,7 +64,8 @@ The Backup screen also offers CSV, plain-text and print/PDF **reading copies** o
 
 ## Keeping the directory honest
 
-- **Adding or editing tools**: edit `data/tools.json`, run `node scripts/validate-data.mjs`, push. CI re-runs the validator and the browser test suite on every push; a push to `main` is a production release. Full field guidance in the README.
+- **Adding or editing tools**: edit `data/tools.json`, run `node scripts/validate-data.mjs`, then `node scripts/build-seo.mjs` to regenerate the FAQ page, the per-tool questions and the other crawler-facing files from the new data, then commit everything and push. CI re-runs the validator, the register crypto vectors, the same generator (failing the build if what you committed doesn't match a fresh run) and the smoke suite on every push; a push to `main` is a production release. Full field guidance in the README.
+- **The FAQ page and the per-tool questions are generated, not written.** `/faq.html`, the "Is [tool] free for a small business?" line under every tool on the homepage and on its `?tool=` link, `sitemap.xml` and `llms.txt` are all built by `scripts/build-seo.mjs` from `data/tools.json` (plus the ten site-level questions, agreed wording in PRD §18). If an answer reads wrong, fix the tool's `free_limit` or `description` in the data and re-run the generator: editing the generated files directly gets overwritten, and CI blocks the push anyway.
 - **Never delete a tool or reuse an id.** Retire with `"archived": true`. Old client links depend on ids forever.
 - **`value`, `free_limit` and `byo` carry the honesty bar**: numbers a sceptical reader would accept, free-tier descriptions that match reality, build-your-own advice only where DIY is genuinely sensible.
 - **`last_verified`**: update it whenever you re-check a tool. Clients see it, and a stale date is more honest than no date.

@@ -1,4 +1,5 @@
-# CI gate: the same two checks BUILD-LOOP requires before any push.
+# CI gate: the checks BUILD-LOOP requires before any push (data validation
+# and the browser smoke suite), plus the PRD section 18 generator drift gate.
 # Netlify deploys every push to main, so main must never receive a commit
 # that has not passed these. Playwright is installed here only; the site
 # itself keeps zero npm dependencies.
@@ -24,6 +25,14 @@ jobs:
 
       - name: My Stack register crypto test vectors (PRD-REGISTER section 7)
         run: node scripts/register-vectors.mjs
+
+      - name: Answer Engine and Search Visibility drift gate (PRD section 18)
+        run: |
+          node scripts/build-seo.mjs
+          git diff --exit-code -- index.html faq.html sitemap.xml llms.txt robots.txt data/faq.json || {
+            echo "::error::scripts/build-seo.mjs produced output that differs from the committed artefacts. Run 'node scripts/build-seo.mjs' locally and commit the result." >&2
+            exit 1
+          }
 
       - name: Install Playwright (dev-time only, not a site dependency)
         run: |
