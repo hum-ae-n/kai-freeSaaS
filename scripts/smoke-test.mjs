@@ -900,7 +900,20 @@ await reducedDiscoverPage.close();
 // ArrowLeft/Escape presses below use page.keyboard, not locator.press,
 // because locator.press() focuses its own target first and would silently
 // paper over a focus regression rather than exercise it.
+// Reduced motion is forced here, not just for its own sake: headless
+// Chromium supports View Transitions, and js/public.js's deck-open only
+// takes the VT-morph path when both startViewTransition exists and
+// prefersReducedMotion() is false (matchMedia('(prefers-reduced-motion:
+// reduce)')). That path defers panel focus into
+// transition.finished.then(...), and its own capture-phase
+// first-interaction listener calls skipTransition() on the very Enter
+// keypress this check sends, which resolves that promise and refocuses the
+// panel on its own, regardless of whether dismissCoach() does. Without
+// forcing the fallback (non-VT) path here, this check passes even against
+// the pre-fix dismissCoach(), proving nothing. emulateMedia is exactly
+// right against that matchMedia guard.
 const coachKeyboardPage = await browser.newPage();
+await coachKeyboardPage.emulateMedia({ reducedMotion: 'reduce' });
 await coachKeyboardPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await coachKeyboardPage.goto(`${base}/`);
 await coachKeyboardPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
@@ -916,7 +929,7 @@ await coachKeyboardPage.waitForTimeout(400);
 const progressAfterArrowLeft = await coachKeyboardPage.locator('.discover-progress').textContent();
 const decisionsAfterCoachEnterDismiss = await coachKeyboardPage.evaluate(
   () => JSON.parse(localStorage.getItem('freestack:v1:discover') || '{}').decisions ?? {});
-check('discover: ArrowLeft still judges the card after keyboard-dismissing the first-ever coach with Enter',
+check('discover: ArrowLeft still judges the card after keyboard-dismissing the first-ever coach with Enter (reduced-motion path)',
   progressAfterArrowLeft !== progressBeforeCoachDismiss && Object.keys(decisionsAfterCoachEnterDismiss).length === 1,
   `before=${progressBeforeCoachDismiss} after=${progressAfterArrowLeft} decisions=${JSON.stringify(decisionsAfterCoachEnterDismiss)}`);
 await coachKeyboardPage.close();
