@@ -2108,12 +2108,21 @@ check('client: theme toggle present in no-print toolbar', await page.locator('.n
    section 10). A future edit to either script that forgets to recompute the
    hash does not fail loudly in a browser, it just silently blocks the
    script; this is the check that catches that before it ships. */
+// PRD section 18, "Smoke-gate exclusion for JSON-LD": a
+// type="application/ld+json" block is a non-executable data block, CSP's
+// script-src never applies to it, so it has no hash to allow-list and this
+// gate has nothing to protect by hashing it. Skipping it here is a legitimate
+// narrowing of what the gate checks, not a loosening of what it protects:
+// every OTHER inline <script> (no src=, no ld+json type) still needs its
+// hash allow-listed below, including a planted executable one, which the
+// dedicated check further down proves.
 function extractInlineScripts(html) {
   const scripts = [];
   const re = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
   let m;
   while ((m = re.exec(html))) {
     if (/\bsrc\s*=/i.test(m[1])) continue; // external scripts carry no inline body to hash
+    if (/\btype\s*=\s*["']?application\/ld\+json["']?/i.test(m[1])) continue; // data block, not executable
     scripts.push(m[2]);
   }
   return scripts;
@@ -2123,12 +2132,19 @@ function sha256Base64(text) {
 }
 const embedHtml = (await readFile(join(ROOT, 'embed.html'))).toString('utf8');
 const whyRegisterHtml = (await readFile(join(ROOT, 'why-register.html'))).toString('utf8');
+// Phase 14.3: faq.html reuses index.html's theme-boot script byte for byte,
+// the same pattern why-register.html already uses, so its inline script
+// must resolve to a hash already in the CSP allow-list rather than needing
+// a new entry (PRD section 18: "a third distinct script would need a
+// netlify.toml hash which section 18 forbids adding").
+const faqHtml = (await readFile(join(ROOT, 'faq.html'))).toString('utf8');
 const netlifyToml = (await readFile(join(ROOT, 'netlify.toml'))).toString('utf8');
 
 const indexInline = extractInlineScripts(rawHtml);
 const embedInline = extractInlineScripts(embedHtml);
 const whyInline = extractInlineScripts(whyRegisterHtml);
-const currentHashes = new Set([...indexInline, ...embedInline, ...whyInline].map(sha256Base64));
+const faqInline = extractInlineScripts(faqHtml);
+const currentHashes = new Set([...indexInline, ...embedInline, ...whyInline, ...faqInline].map(sha256Base64));
 
 const cspScriptSrcLine = netlifyToml.split('\n').find((l) => l.includes('Content-Security-Policy') && l.includes('script-src'));
 const cspHashes = new Set([...(cspScriptSrcLine || '').matchAll(/'sha256-([A-Za-z0-9+/]+=*)'/g)].map((m) => m[1]));
@@ -2139,6 +2155,251 @@ check('csp: every inline boot script hash is allow-listed in netlify.toml', miss
 check('csp: no stale hash in netlify.toml matching no current script', staleInCsp.length === 0, `stale=${staleInCsp.join(',')}`);
 check('csp: why-register.html boot script is byte identical to index.html',
   indexInline.length === 1 && whyInline.length === 1 && sha256Base64(indexInline[0]) === sha256Base64(whyInline[0]));
+check('csp: faq.html boot script is byte identical to index.html (Phase 14.3, no third hash needed)',
+  indexInline.length === 1 && faqInline.length === 1 && sha256Base64(indexInline[0]) === sha256Base64(faqInline[0]));
+
+// Regression guard for the JSON-LD exclusion itself (PRD section 18,
+// "Smoke-gate exclusion for JSON-LD"): a type="application/ld+json" block
+// must never be counted by extractInlineScripts (proven directly, not just
+// implied by the hash checks above passing), and a planted EXECUTABLE
+// inline script with no matching CSP hash must still fail the gate, so the
+// exclusion is narrow rather than accidentally swallowing real scripts too.
+{
+  const ldOnly = '<script type="application/ld+json">{"a":1}</script>';
+  check('csp: extractInlineScripts skips application/ld+json blocks entirely', extractInlineScripts(ldOnly).length === 0);
+
+  const plantedExecutable = `${rawHtml}\n<script>window.__planted = true;</script>`;
+  const plantedHashes = new Set(extractInlineScripts(plantedExecutable).map(sha256Base64));
+  const plantedMissing = [...plantedHashes].filter((h) => !cspHashes.has(h));
+  check('csp: a planted executable inline script with no CSP hash is still caught as missing',
+    plantedMissing.length > 0, `missing=${plantedMissing.length}`);
+}
+
+/* --- Phase 14.3: Answer Engine and Search Visibility (PRD section 18) -----
+   Raw-HTML crawler simulation (no JS: a plain fetch of the served files,
+   exactly what GPTBot/ClaudeBot/PerplexityBot see), the faq.html content,
+   sitemap/robots/llms.txt, the static block's hide-on-boot behaviour, and
+   the generator's own drift and determinism guarantees. how-we-choose.html
+   is intentionally absent throughout: BUILD-PLAN 14.3 gates its publication
+   on Rocky's copy sign-off, which has not landed (see TODO.md), so the
+   sitemap and llms.txt ship without it and this suite asserts that absence
+   rather than its presence. */
+{
+  // A tool name or category can legitimately contain "&" (id 7, "Stock
+  // Music & Fonts"), which the generator HTML-escapes when writing the
+  // static block (PRD section 18's untrusted-string discipline: every
+  // string from tools.json is escaped before it reaches a static file). The
+  // same escaping is applied here before searching the raw markup, rather
+  // than loosening what the generator itself is required to do.
+  const escapeHtmlForCheck = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const activeToolNames = active.map((t) => t.name);
+
+  // Raw fetch, no JS: exactly what a non-rendering crawler receives. Uses
+  // this suite's own local server (mirrors the SPA fallback and serves real
+  // files first), not the Playwright page.
+  const rawRootRes = await fetch(`${base}/`);
+  const rawRootHtml = await rawRootRes.text();
+  const missingToolNames = activeToolNames.filter((name) => !rawRootHtml.includes(escapeHtmlForCheck(name)));
+  check('aeo: raw (no-JS) fetch of / contains every active tool name',
+    missingToolNames.length === 0, `missing=${missingToolNames.slice(0, 5).join(' | ')}${missingToolNames.length ? ` (+${missingToolNames.length - 5} more)` : ''}`);
+  check('aeo: raw fetch of / contains the category headings',
+    [...new Set(active.map((t) => t.category))].every((cat) => rawRootHtml.includes(escapeHtmlForCheck(cat))));
+  check('aeo: raw fetch of / contains the trust lines and a link to /faq.html',
+    rawRootHtml.includes('No affiliates, no sponsors, no paid placement.')
+    && rawRootHtml.includes(`${active.length} free tool`)
+    && /href="\/faq\.html"/.test(rawRootHtml));
+  // Per-tool question, tool 0 specifically (PRD section 18, per-tool
+  // questions, and the section 4 id law: id 0 is a real tool and must never
+  // be dropped by a truthiness check anywhere in this pipeline).
+  check('aeo: raw fetch of / contains tool 0\'s generated question',
+    rawRootHtml.includes('Are Claude Free / ChatGPT Free / Gemini free for a small business?')
+    || rawRootHtml.includes('Is Claude Free / ChatGPT Free / Gemini actually free for a small business?'));
+
+  // The static block is real markup inside #static-root, not something JS
+  // has to build: confirm it is present in the raw HTML and only hidden,
+  // never removed, once a JS-capable browser boots the app (visible-text
+  // duplication check: booted page shows the rendered app, not both).
+  const staticRootMatch = rawRootHtml.match(/<div id="static-root">([\s\S]*?)<!--\s*seo-static:end\s*-->/);
+  check('aeo: raw HTML carries a real #static-root block between the seo-static markers',
+    !!staticRootMatch && !rawRootHtml.match(/<div id="static-root"[^>]*\bhidden\b/));
+
+  const staticRootBooted = await page.evaluate(() => {
+    const node = document.getElementById('static-root');
+    return { present: !!node, hidden: node ? node.hasAttribute('hidden') : null };
+  });
+  check('aeo: #static-root is hidden once the app has booted (JS-capable visit)',
+    staticRootBooted.present && staticRootBooted.hidden === true, JSON.stringify(staticRootBooted));
+  const staticRootVisibleText = await page.locator('#static-root').isVisible().catch(() => false);
+  check('aeo: the static block is not visibly duplicated once the app has rendered',
+    staticRootVisibleText === false);
+
+  // faq.html: the ten canonical questions as visible text, indexable (no
+  // robots meta), FAQPage JSON-LD whose strings match the visible copy.
+  const faqRes = await fetch(`${base}/faq.html`);
+  const faqRawHtml = await faqRes.text();
+  const CANONICAL_QUESTIONS = [
+    'What software stack is free for a new founder?',
+    'What is the best free accounting software for a UK small business?',
+    'How much would this software cost if I paid for it?',
+    'Is there a free CRM good enough for a small business?',
+    'What free email marketing tools actually work?',
+    'What can I use instead of Photoshop for free?',
+    'Do these free tools stay free, or is there a catch?',
+    'Does this directory earn commission on the tools it lists?',
+    'What free tools help a local shop get found online?',
+    'What free security tools should a small business start with?',
+  ];
+  check('aeo: /faq.html serves all ten canonical questions as raw HTML text',
+    CANONICAL_QUESTIONS.every((q) => faqRawHtml.includes(q)));
+  check('aeo: /faq.html carries no robots meta tag (indexable, unlike /x, /my and client links)',
+    !/<meta\s+name="robots"/i.test(faqRawHtml));
+
+  await page.goto(`${base}/faq.html`);
+  await page.waitForSelector('.faq-item');
+  const faqVisibleQuestions = await page.locator('.faq-item h2').allTextContents();
+  check('aeo: faq.html renders all ten questions as visible text (not JS-injected)',
+    CANONICAL_QUESTIONS.every((q) => faqVisibleQuestions.includes(q)));
+  const faqLdMatch = faqRawHtml.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+  let faqLd = null;
+  try { faqLd = JSON.parse(faqLdMatch?.[1] ?? 'null'); } catch { /* left null, checked below */ }
+  check('aeo: faq.html JSON-LD parses and is a FAQPage with exactly ten questions, matching visible copy',
+    faqLd?.['@type'] === 'FAQPage'
+    && Array.isArray(faqLd.mainEntity)
+    && faqLd.mainEntity.length === 10
+    && faqLd.mainEntity.every((q, i) => q['@type'] === 'Question' && q.name === faqVisibleQuestions[i]));
+
+  const faqMobile = await browser.newPage({ viewport: { width: 375, height: 812 } });
+  await faqMobile.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await faqMobile.goto(`${base}/faq.html`);
+  await faqMobile.waitForSelector('.faq-item');
+  const faqScrollW = await faqMobile.evaluate(() => document.documentElement.scrollWidth);
+  check('aeo: faq.html has no horizontal scroll at 375px', faqScrollW <= 375, `scrollWidth=${faqScrollW}`);
+  await faqMobile.close();
+
+  // index.html head JSON-LD: Organization, WebSite, ItemList, valid JSON,
+  // expected @types, ItemList length equals the active count (id 0 counted:
+  // no truthiness filter anywhere in this pipeline could silently drop it).
+  const headJsonLdBlocks = [...rawHtml.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)]
+    .map((m) => { try { return JSON.parse(m[1]); } catch { return null; } });
+  const orgLd = headJsonLdBlocks.find((b) => b?.['@type'] === 'Organization');
+  const websiteLd = headJsonLdBlocks.find((b) => b?.['@type'] === 'WebSite');
+  const itemListLd = headJsonLdBlocks.find((b) => b?.['@type'] === 'ItemList');
+  check('aeo: index.html head carries valid Organization, WebSite and ItemList JSON-LD',
+    orgLd?.name === 'Kaipability Ltd'
+    && websiteLd?.name === 'Free Stack'
+    && Array.isArray(itemListLd?.itemListElement)
+    && itemListLd.itemListElement.length === active.length);
+  const tool0Name = active.find((t) => t.id === 0)?.name;
+  const itemListHasTool0 = itemListLd?.itemListElement.some((li) => li.item?.name === tool0Name);
+  check('aeo: ItemList JSON-LD includes tool 0', itemListHasTool0 === true);
+
+  // Title and meta description carry the live count; OG tag set unchanged
+  // (already exercised above by the "meta: og tags present" check; this
+  // extends it with the section 18 title/description content).
+  const titleMatch = rawHtml.match(/<title>([\s\S]*?)<\/title>/);
+  const descMatch = rawHtml.match(/<meta name="description" content="([^"]*)">/);
+  check('aeo: title carries the live active tool count',
+    titleMatch?.[1].includes(String(active.length)) && titleMatch[1].includes('Free Stack by Kaipability'), titleMatch?.[1]);
+  check('aeo: meta description carries the live active tool count',
+    descMatch?.[1].includes(String(active.length)), descMatch?.[1]);
+  check('aeo: OG tag set unchanged (og:title still the client-mode-facing copy)',
+    rawHtml.includes('<meta property="og:title" content="Your Free Software Stack">'));
+
+  // sitemap.xml: exactly the permitted URLs, nothing noindexed, no
+  // how-we-choose.html until Rocky's sign-off lands.
+  const sitemapRes = await fetch(`${base}/sitemap.xml`);
+  const sitemapXml = await sitemapRes.text();
+  const sitemapUrls = [...sitemapXml.matchAll(/<loc>([^<]*)<\/loc>/g)].map((m) => m[1]);
+  check('aeo: sitemap.xml lists exactly / and /faq.html, nothing else',
+    sitemapRes.status === 200
+    && sitemapUrls.length === 2
+    && sitemapUrls.includes('https://tools.airl.io/')
+    && sitemapUrls.includes('https://tools.airl.io/faq.html'));
+
+  // robots.txt: Sitemap line present, still no disallow anywhere (a
+  // disallow for /x would advertise the hidden staff path).
+  const robotsRes = await fetch(`${base}/robots.txt`);
+  const robotsTxt = await robotsRes.text();
+  check('aeo: robots.txt carries the Sitemap line and no Disallow',
+    robotsRes.status === 200
+    && robotsTxt.includes('Sitemap: https://tools.airl.io/sitemap.xml')
+    && !/Disallow:/i.test(robotsTxt));
+
+  // llms.txt: served, points at the machine-readable dataset and the FAQ.
+  const llmsRes = await fetch(`${base}/llms.txt`);
+  const llmsTxt = await llmsRes.text();
+  check('aeo: llms.txt is served and points at /data/tools.json and /faq.html',
+    llmsRes.status === 200
+    && llmsTxt.includes('/data/tools.json')
+    && llmsTxt.includes('/faq.html'));
+
+  // Noindex boundaries unmoved: /x, client-mode links and /my keep their
+  // JS-injected noindex; why-register.html keeps its static one; faq.html
+  // (new this wave) carries none, since it is meant to be indexed. Each of
+  // these is already exercised by its own dedicated check elsewhere in this
+  // suite (search this file for "noindex"); this is the single consolidated
+  // assertion that all of them still hold true in the same run as the new
+  // AEO surface, so a future regression in one area cannot hide behind the
+  // others' tests having run in an earlier, unrelated part of the suite.
+  const noindexCurator = await (async () => {
+    const p = await browser.newPage();
+    await p.route(/^(?!.*localhost).*$/, (route) => route.abort());
+    await p.goto(`${base}/x`);
+    await p.waitForSelector('.tools-table');
+    const n = await p.locator('meta[name=robots][content=noindex]').count();
+    await p.close();
+    return n;
+  })();
+  const noindexClient = await (async () => {
+    const p = await browser.newPage();
+    await p.route(/^(?!.*localhost).*$/, (route) => route.abort());
+    await p.goto(`${base}/?t=0`);
+    await p.waitForSelector('.tool-card');
+    const n = await p.locator('meta[name=robots][content=noindex]').count();
+    await p.close();
+    return n;
+  })();
+  const noindexMy = await (async () => {
+    const p = await browser.newPage();
+    await p.route(/^(?!.*localhost).*$/, (route) => route.abort());
+    await p.goto(`${base}/my`);
+    await p.waitForSelector('#my-root:not([hidden])');
+    const n = await p.locator('meta[name=robots][content=noindex]').count();
+    await p.close();
+    return n;
+  })();
+  const whyNoindexStatic = /<meta name="robots" content="noindex">/.test(whyRegisterHtml);
+  check('aeo: noindex boundaries unmoved (curator /x, client ?t=, /my all noindexed; why-register.html statically noindexed; faq.html indexable)',
+    noindexCurator === 1 && noindexClient === 1 && noindexMy === 1 && whyNoindexStatic === true
+    && !/<meta\s+name="robots"/i.test(faqRawHtml));
+
+  // Generator drift and determinism: run build-seo.mjs fresh (child process,
+  // not imported: it has top-level side effects, this is a full CLI
+  // invocation exactly like CI's drift step) and diff every artefact it
+  // touches against the currently committed/working-tree copies. Run twice
+  // to prove byte-identical output between successive runs, the same proof
+  // BUILD-PLAN 14.3 asks for; CI's own drift step (added this wave) is the
+  // authority for gating a real commit, this is the in-suite corroboration
+  // that regenerating right now changes nothing already on disk.
+  const { execFileSync } = await import('node:child_process');
+  const artefacts = ['index.html', 'faq.html', 'sitemap.xml', 'llms.txt', 'robots.txt'];
+  const before = Object.fromEntries(await Promise.all(artefacts.map(async (f) => [f, await readFile(join(ROOT, f), 'utf8')])));
+  execFileSync(process.execPath, [join(ROOT, 'scripts', 'build-seo.mjs')], { cwd: ROOT });
+  const afterFirstRun = Object.fromEntries(await Promise.all(artefacts.map(async (f) => [f, await readFile(join(ROOT, f), 'utf8')])));
+  execFileSync(process.execPath, [join(ROOT, 'scripts', 'build-seo.mjs')], { cwd: ROOT });
+  const afterSecondRun = Object.fromEntries(await Promise.all(artefacts.map(async (f) => [f, await readFile(join(ROOT, f), 'utf8')])));
+  const driftAgainstCommitted = artefacts.filter((f) => before[f] !== afterFirstRun[f]);
+  const driftBetweenRuns = artefacts.filter((f) => afterFirstRun[f] !== afterSecondRun[f]);
+  check('aeo: regenerating build-seo.mjs against the current data produces no drift from the committed artefacts',
+    driftAgainstCommitted.length === 0, `drifted=${driftAgainstCommitted.join(',')}`);
+  check('aeo: running build-seo.mjs twice in a row is byte-identical (determinism)',
+    driftBetweenRuns.length === 0, `drifted=${driftBetweenRuns.join(',')}`);
+
+  // No em dashes anywhere the generator writes (PRD section 10 house style,
+  // extended by section 18 to every generated file).
+  const emDashFiles = artefacts.filter((f) => afterSecondRun[f].includes('—'));
+  check('aeo: no em dashes in any generated file', emDashFiles.length === 0, emDashFiles.join(','));
+}
 
 /* --- security.txt, served through this suite's own local server (which
    mirrors the SPA fallback), as the real file per RFC 9116 (PRD-REGISTER

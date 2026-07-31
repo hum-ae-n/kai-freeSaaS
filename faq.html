@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Frequently asked questions · Free Stack by Kaipability</title>
+  <meta name="description" content="Answers to the questions people and AI assistants ask most about free software for UK small businesses: cost, CRM, accounting, security and whether the free tiers stay free.">
+  <link rel="canonical" href="https://tools.airl.io/faq.html">
+  <link rel="icon" type="image/png" href="design-system/assets/kaipability-mark.png">
+
+  <!-- No-flash-of-wrong-theme boot script, byte-identical to index.html's:
+       kept identical on purpose so the CSP script-src hash already
+       allow-listed for index.html's boot script covers this page too,
+       without a second hash entry in netlify.toml (why-register.html does
+       the same). If this ever needs to diverge from index.html's copy, it
+       must get its own hash there. -->
+  <script>
+    try {
+      var t = localStorage.getItem('freestack:v1:theme');
+      if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="css/styles.css">
+
+  <!-- Page-specific layout only: colours, type and spacing tokens all come
+       from design-system/colors_and_type.css via css/styles.css, unedited
+       by this generator. style-src already allows 'unsafe-inline' in
+       netlify.toml's CSP (PRD-REGISTER section 10), so this inline block
+       needs no hash entry and changes the CSP value not at all. -->
+  <style>
+    .faq-wrap { max-width: var(--content-max); margin: 0 auto; padding: var(--s-8) var(--s-6) var(--s-24); }
+    .faq-back { font-size: var(--fs-14); display: inline-block; margin-bottom: var(--s-6); }
+    .faq-header { padding: var(--s-8) var(--s-6); margin-bottom: var(--s-10); }
+    .faq-header .logo { height: 32px; width: auto; margin-bottom: var(--s-6); display: block; }
+    .faq-items { display: flex; flex-direction: column; gap: var(--s-10); max-width: var(--measure); }
+    .faq-item h2 { font-size: var(--fs-34); line-height: var(--lh-34); margin-bottom: var(--s-3); }
+    .faq-footer { display: flex; align-items: center; gap: var(--s-4); flex-wrap: wrap; padding-top: var(--s-8); margin-top: var(--s-16); border-top: var(--border); }
+    .faq-footer .logo { height: 26px; width: auto; }
+  </style>
+</head>
+<body>
+  <noscript>
+    <div class="app-message">This page needs no JavaScript to read, but the theme toggle and site chrome need it enabled.</div>
+  </noscript>
+
+  <div class="faq-wrap">
+    <a class="faq-back" href="/">&larr; Free Stack</a>
+    <header class="panel faq-header">
+      <img class="logo" src="design-system/assets/kaipability-logo-lockup.png" alt="Kaipability">
+      <p class="eyebrow">Free Stack</p>
+      <h1>Frequently asked questions</h1>
+      <p class="t-lede">What people, and the AI assistants they ask, want to know about free software for UK small businesses.</p>
+    </header>
+    <div class="faq-items">
+    <article class="faq-item">
+      <h2>What software stack is free for a new founder?</h2>
+      <p>A genuinely free day-one stack: a free AI assistant (Claude, ChatGPT or Gemini), Canva Free for design, Unsplash or Pexels for images, Google Business Profile so customers can find you, WhatsApp Business for customer contact, Bitwarden Free as a password manager and Google Drive for files. All are free tiers with published limits, not trials. This directory lists each one with its real limits and alternatives.</p>
+    </article>
+    <article class="faq-item">
+      <h2>What is the best free accounting software for a UK small business?</h2>
+      <p>Two credible options. Wave Accounting is free indefinitely for invoicing and manual bookkeeping, though automatic bank feeds sit in its paid tier. FreeAgent, a full UK accounting package, is free while you hold an active Mettle or NatWest business account. Which suits you depends on your bank; both are listed here with their exact free-tier edges.</p>
+    </article>
+    <article class="faq-item">
+      <h2>How much would this software cost if I paid for it?</h2>
+      <p>The 89 active tools in this directory represent roughly £11,600 a year in commercial-equivalent value. That figure is deliberately conservative: it is what you would pay a commercial provider for the same capability, never the tool&#39;s own paid-tier price, and never inflated. Every tool shows its individual value and a last-verified date so you can challenge the numbers.</p>
+    </article>
+    <article class="faq-item">
+      <h2>Is there a free CRM good enough for a small business?</h2>
+      <p>Yes. HubSpot CRM Free supports up to 2 users and around 1,000 contacts, free forever, with HubSpot branding on some assets. Zoho&#39;s free ecosystem gives a CRM for up to 3 users plus free booking, invoicing and forms tools. Both limits are real edges you should know before committing, and both entries here list alternatives.</p>
+    </article>
+    <article class="faq-item">
+      <h2>What free email marketing tools actually work?</h2>
+      <p>MailerLite Free gives 250 subscribers and 2,500 emails a month, the most generous mainstream free tier. Mailchimp Free allows 250 contacts and 500 emails a month, and Brevo takes a different approach with daily send limits. For a small list, any of the three does the job; the caps above are where each one starts charging.</p>
+    </article>
+    <article class="faq-item">
+      <h2>What can I use instead of Photoshop for free?</h2>
+      <p>GIMP is free, open source and permanently free with no paid tier. Photopea runs a Photoshop-like editor in the browser, free with ads, and opens PSD files. For template-based design rather than photo editing, Canva Free and Adobe Express Free cover most small-business needs. None of these is a trial; all are listed here with their limits.</p>
+    </article>
+    <article class="faq-item">
+      <h2>Do these free tools stay free, or is there a catch?</h2>
+      <p>Every entry states in plain English what the free tier genuinely includes and exactly where it stops: the user limit, the storage cap or the feature gate. Each tool carries a last-verified date. When a tool stops being free or stops being good, it is archived and marked as no longer recommended, pointing at its alternatives, never silently deleted.</p>
+    </article>
+    <article class="faq-item">
+      <h2>Does this directory earn commission on the tools it lists?</h2>
+      <p>No. There are no affiliate links, no sponsorships and no paid placements anywhere in this directory. Every link pays Kaipability nothing when you click it or sign up, and removing a tool costs nothing either. Tools are listed on merit, used on real client work, and every one carries at least two alternatives so you are never funnelled to a single vendor.</p>
+    </article>
+    <article class="faq-item">
+      <h2>What free tools help a local shop get found online?</h2>
+      <p>Start with Google Business Profile, free forever and the single biggest factor in local search visibility. Add Bing Places for Business, Meta Business Suite for managing Facebook and Instagram, and WhatsApp Business for customer messaging. All four are permanently free products, not trials, and each is listed here with setup training links.</p>
+    </article>
+    <article class="faq-item">
+      <h2>What free security tools should a small business start with?</h2>
+      <p>Bitwarden Free gives unlimited passwords across unlimited devices, including a free two-person sharing option. Have I Been Pwned checks whether your email addresses appear in known data breaches, free for individual lookups. Google Password Checkup flags reused or compromised passwords at no cost. These three cover the basics before you spend anything on security.</p>
+    </article>
+    </div>
+    <footer class="faq-footer">
+      <img class="logo" src="design-system/assets/kaipability-logo-lockup.png" alt="">
+      <span class="t-meta">Curated by Kaipability Ltd. No affiliate links, no sponsored placements.</span>
+    </footer>
+  </div>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What software stack is free for a new founder?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "A genuinely free day-one stack: a free AI assistant (Claude, ChatGPT or Gemini), Canva Free for design, Unsplash or Pexels for images, Google Business Profile so customers can find you, WhatsApp Business for customer contact, Bitwarden Free as a password manager and Google Drive for files. All are free tiers with published limits, not trials. This directory lists each one with its real limits and alternatives."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is the best free accounting software for a UK small business?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Two credible options. Wave Accounting is free indefinitely for invoicing and manual bookkeeping, though automatic bank feeds sit in its paid tier. FreeAgent, a full UK accounting package, is free while you hold an active Mettle or NatWest business account. Which suits you depends on your bank; both are listed here with their exact free-tier edges."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How much would this software cost if I paid for it?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The 89 active tools in this directory represent roughly £11,600 a year in commercial-equivalent value. That figure is deliberately conservative: it is what you would pay a commercial provider for the same capability, never the tool's own paid-tier price, and never inflated. Every tool shows its individual value and a last-verified date so you can challenge the numbers."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is there a free CRM good enough for a small business?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. HubSpot CRM Free supports up to 2 users and around 1,000 contacts, free forever, with HubSpot branding on some assets. Zoho's free ecosystem gives a CRM for up to 3 users plus free booking, invoicing and forms tools. Both limits are real edges you should know before committing, and both entries here list alternatives."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What free email marketing tools actually work?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "MailerLite Free gives 250 subscribers and 2,500 emails a month, the most generous mainstream free tier. Mailchimp Free allows 250 contacts and 500 emails a month, and Brevo takes a different approach with daily send limits. For a small list, any of the three does the job; the caps above are where each one starts charging."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What can I use instead of Photoshop for free?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "GIMP is free, open source and permanently free with no paid tier. Photopea runs a Photoshop-like editor in the browser, free with ads, and opens PSD files. For template-based design rather than photo editing, Canva Free and Adobe Express Free cover most small-business needs. None of these is a trial; all are listed here with their limits."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Do these free tools stay free, or is there a catch?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Every entry states in plain English what the free tier genuinely includes and exactly where it stops: the user limit, the storage cap or the feature gate. Each tool carries a last-verified date. When a tool stops being free or stops being good, it is archived and marked as no longer recommended, pointing at its alternatives, never silently deleted."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does this directory earn commission on the tools it lists?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. There are no affiliate links, no sponsorships and no paid placements anywhere in this directory. Every link pays Kaipability nothing when you click it or sign up, and removing a tool costs nothing either. Tools are listed on merit, used on real client work, and every one carries at least two alternatives so you are never funnelled to a single vendor."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What free tools help a local shop get found online?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Start with Google Business Profile, free forever and the single biggest factor in local search visibility. Add Bing Places for Business, Meta Business Suite for managing Facebook and Instagram, and WhatsApp Business for customer messaging. All four are permanently free products, not trials, and each is listed here with setup training links."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What free security tools should a small business start with?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Bitwarden Free gives unlimited passwords across unlimited devices, including a free two-person sharing option. Have I Been Pwned checks whether your email addresses appear in known data breaches, free for individual lookups. Google Password Checkup flags reused or compromised passwords at no cost. These three cover the basics before you spend anything on security."
+      }
+    }
+  ]
+}
+</script>
+</body>
+</html>

@@ -375,6 +375,18 @@ async function boot() {
   const selection = parseSelection(params.get('t'), tools);
   loading.remove();
 
+  // Answer Engine and Search Visibility (PRD section 18): #static-root holds
+  // the generated crawler content block (scripts/build-seo.mjs), real HTML
+  // that a non-JS crawler reads directly. Once we reach this point the fetch
+  // has succeeded and some app surface is about to mount below, so the
+  // static block has done its job and is hidden so a JS reader sees only the
+  // rendered app, never both. A fetch failure returns before this line, per
+  // the catch block above, so the static content stays visible exactly when
+  // it is needed most: as the fallback for a broken app. Optional chaining
+  // since embed.html's thin entry never calls boot() at all (see the guard
+  // at the bottom of this file) and carries no #static-root of its own.
+  document.getElementById('static-root')?.setAttribute('hidden', '');
+
   // ?print=1 is added only by the curator's "Save as PDF" export button
   // (Batch E), never by Generate link / Share / Copy. A plain '1' check,
   // not a truthiness check on the param itself, since a present-but-empty
