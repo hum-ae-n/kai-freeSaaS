@@ -751,6 +751,18 @@ export function openDiscoverDeck(options) {
     // session, never a broken deck.
     state.coachDone = true;
     writeState(state);
+    // Phase 14 close-out: the Continue button (or, for the any-tap and
+    // 5s-timeout paths, whichever element last held focus) can be the node
+    // that dismissal just removed from the DOM, in which case the browser
+    // drops focus to body. The deck's own Left/Right/Backspace/Escape
+    // handling lives on panel's keydown listener, so once focus is on body
+    // none of those keys reach it any more until a pointer click happens to
+    // land back inside the panel. All three dismissal paths (explicit
+    // Continue click, any other tap or click within the overlay, and the 5s
+    // auto-dismiss) funnel through this one function, so returning focus to
+    // the panel here, same preventScroll discipline as the initial mount
+    // focus above, keeps the keyboard contract alive after every path.
+    panel.focus({ preventScroll: true });
   }
 
   function showCoachIfNeeded() {

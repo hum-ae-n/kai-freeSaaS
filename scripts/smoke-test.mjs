@@ -888,6 +888,59 @@ const stampPopAnimationName = await reducedDiscoverPage.locator('.discover-stamp
 check('discover: reduced motion: the stamp pop on commit carries no animation', stampPopAnimationName === 'none' || stampPopAnimationName === 'gone', stampPopAnimationName);
 await reducedDiscoverPage.close();
 
+// Phase 14 close-out: the coach's Continue button removes itself from the
+// DOM on dismissal (click, any tap, or the 5s auto-dismiss all funnel
+// through dismissCoach), which the browser resolves by dropping focus to
+// body. The deck's own Left/Right/Backspace/Escape handling lives on
+// panel's keydown listener, so unless dismissCoach hands focus back into
+// the panel, the very next keyboard press silently does nothing. Every
+// other keyboard check in this file pre-seeds coachDone precisely to avoid
+// the coach, which is exactly why the sweep found this blind: these two are
+// deliberately genuinely first-ever opens, no coachDone seed at all. The
+// ArrowLeft/Escape presses below use page.keyboard, not locator.press,
+// because locator.press() focuses its own target first and would silently
+// paper over a focus regression rather than exercise it.
+const coachKeyboardPage = await browser.newPage();
+await coachKeyboardPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await coachKeyboardPage.goto(`${base}/`);
+await coachKeyboardPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+await coachKeyboardPage.locator('[data-discover-entry]').click();
+await coachKeyboardPage.waitForSelector('.discover-coach');
+const progressBeforeCoachDismiss = await coachKeyboardPage.locator('.discover-progress').textContent();
+// Focuses the Continue button, then presses Enter on it: the exact
+// "keyboard Enter on Continue" dismissal path the sweep reproduced.
+await coachKeyboardPage.locator('.discover-coach-dismiss').press('Enter');
+await coachKeyboardPage.waitForSelector('.discover-coach', { state: 'detached' });
+await coachKeyboardPage.keyboard.press('ArrowLeft');
+await coachKeyboardPage.waitForTimeout(400);
+const progressAfterArrowLeft = await coachKeyboardPage.locator('.discover-progress').textContent();
+const decisionsAfterCoachEnterDismiss = await coachKeyboardPage.evaluate(
+  () => JSON.parse(localStorage.getItem('freestack:v1:discover') || '{}').decisions ?? {});
+check('discover: ArrowLeft still judges the card after keyboard-dismissing the first-ever coach with Enter',
+  progressAfterArrowLeft !== progressBeforeCoachDismiss && Object.keys(decisionsAfterCoachEnterDismiss).length === 1,
+  `before=${progressBeforeCoachDismiss} after=${progressAfterArrowLeft} decisions=${JSON.stringify(decisionsAfterCoachEnterDismiss)}`);
+await coachKeyboardPage.close();
+
+const coachClickPage = await browser.newPage();
+await coachClickPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await coachClickPage.goto(`${base}/`);
+await coachClickPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+await coachClickPage.locator('[data-discover-entry]').focus();
+await coachClickPage.locator('[data-discover-entry]').click();
+await coachClickPage.waitForSelector('.discover-coach');
+// The click-to-dismiss path, not keyboard: a mouse click on Continue
+// natively focuses it before the click listener removes it from the DOM.
+await coachClickPage.locator('.discover-coach-dismiss').click();
+await coachClickPage.waitForSelector('.discover-coach', { state: 'detached' });
+await coachClickPage.keyboard.press('Escape');
+await coachClickPage.waitForTimeout(100);
+const deckClosedAfterCoachClickEscape = await coachClickPage.locator('.discover-panel').count();
+const focusReturnedAfterCoachClickEscape = await coachClickPage.evaluate(() => document.activeElement?.hasAttribute('data-discover-entry'));
+check('discover: Escape still closes the deck and restores opener focus after click-dismissing the first-ever coach',
+  deckClosedAfterCoachClickEscape === 0 && focusReturnedAfterCoachClickEscape === true,
+  `panelCount=${deckClosedAfterCoachClickEscape} focusReturned=${focusReturnedAfterCoachClickEscape}`);
+await coachClickPage.close();
+
 // Escape restores focus to the opener button.
 const escPage = await browser.newPage();
 await escPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
