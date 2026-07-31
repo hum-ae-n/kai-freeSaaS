@@ -2,8 +2,8 @@
 
 **Project:** `free-stack`
 **Owner:** Kaipability Ltd (Rocky Verma)
-**Version:** 1.5
-**Date:** 30 July 2026 (v1.0: 14 July 2026; v1.5: 30 July 2026)
+**Version:** 1.6
+**Date:** 31 July 2026 (v1.0: 14 July 2026; v1.5: 30 July 2026; v1.6: 31 July 2026)
 **Build tool:** Claude Code from this PRD
 **Deploy target:** Netlify via GitHub
 
@@ -468,7 +468,7 @@ The root path `/` remains the public, read-only, indexable directory established
 
 This layout supersedes the Phase 12 homepage layout and its viewport ordering, which measured roughly 92,000px tall at 375px with no tool visible at the fold. The fix is collapse, never removal: **every active tool's card is built and attached to the DOM at load, exactly as before.** Top to bottom, one order at every viewport:
 
-1. **Hero**, tightened but unchanged in content: logo, title, strapline, the three verifiable trust signals (runtime tool count, no-affiliates line, curator identity).
+1. **Hero**, tightened but unchanged in content: logo, title, strapline, the three verifiable trust signals (runtime tool count, no-affiliates line, curator identity). Phase 15 adds a **utility nav** pinned to the hero panel's top corner: quiet links to **My Stack** (`/my`) and **FAQ** (`/faq.html`), each a 44px minimum target. The nav overlays the panel's existing padding (absolute positioning within the hero), so it adds no vertical height at 375px and the 880px first-shelf budget below is untouched. It is part of the hero's first-paint stagger, never a separate animation.
 2. **Ways-in band**, replacing the three equal entry cards:
    - **Search, promoted to first-class**: the existing search input moves here, full width below 768px, placeholder count-bearing ("Search 89 tools: invoicing, design, CRM…", count computed at runtime, never hard-coded).
    - **Discover entry**: button plus one-line pitch, behaviour unchanged (§17).
@@ -477,7 +477,10 @@ This layout supersedes the Phase 12 homepage layout and its viewport ordering, w
 3. **Discover mount and changelog strip**, as today.
 4. **Category shelves**: one `section` per category. Each collapsed shelf is a single row whose header is a real `<button>` (44px minimum) carrying the category icon, name, count ("AI Assistants · 6 tools"), a muted one-line scent of tool names truncated with an ellipsis, and a chevron. `aria-expanded` on the button, `aria-controls` naming the grid. Expanding reveals that category's full card grid.
 5. **FAQ section**: the section 18 question-led content, as native `<details>`/`<summary>` items in the changelog strip's visual language. `<details>` content is in the DOM whether open or not.
-6. **Footer**, unchanged and now reachable.
+6. **Footer**, now reachable and, since Phase 15, carrying the site's good-practice block alongside the existing curator identity, Kaipability CTA and My Stack lines:
+   - A **legal and practice line**: links to **Privacy** (`/privacy.html`), **Contact** (`/contact.html`), **FAQ** (`/faq.html`) and **Why we built My Stack** (`/why-register.html`).
+   - A **company identity line**: "Kaipability Ltd, registered in England and Wales, Company No. 15772934", with outbound links to `https://kaipability.com` and to the AIRL framework at `https://www.airl.io`, both under the standard external-link rules.
+   - `privacy.html` and `contact.html` are static pages in the `why-register.html` mould (same head, the byte-identical theme-boot inline script so the CSP hash set never changes), indexable, listed in `sitemap.xml` by `scripts/build-seo.mjs`, and linked from the client-mode and workspace footers wherever those already link `why-register.html`. The privacy page tells the truth of §10 and the register laws: no analytics, no cookies, no accounts, device-only storage, the hosting provider's brief standard access logs, and the per-tool favicon proxy requests, named plainly. The contact page carries `info@kaipability.com` and the two outbound company links.
 
 ### Shelf mechanics
 
@@ -519,6 +522,7 @@ This list is exhaustive. Any motion not named here is banned on the public surfa
 5. **Judged-chip pop**: only a fresh judgement (the setDecision path, never load-time redecoration) marks the chip `.is-new`, keyframed `scale(0.85)` to 1 with fade, 220ms, `--ease-spring`, `transform-origin` left. Reduced motion: instant.
 6. **Theme-toggle cross-fade**: the theme attribute swap runs in the same guarded View Transition helper, giving a roughly 250ms full-page cross-fade. Unsupported or reduced motion: instant swap as today.
 7. **Hover lift and focus**: cards lift `translateY(-3px)` with a border-colour shift to oxblood, 180ms, `--ease-swift`, hover-capable devices only. Site-wide `:focus-visible`: 2px oxblood outline, 2px offset, zero duration (focus never lags). Reduced motion: colour change only, no translate.
+8. **Discover button emphasis** (Phase 15): the Start Discover button earns a bounded attention sequence. After the first-paint stagger settles, the button runs exactly two gentle pulses (scale 1 to 1.04 and back, roughly 450ms each on `--ease-spring`, the button being well under the 200px spring ceiling, with a soft glow swell in the brand colour) about 1.2s apart, then rests. At most two pulses per page load: this is a bounded sequence, not the looping or ambient motion this section bans, and it never runs again without a reload. On hover or focus, a sheen sweep (a light gradient highlight translating across the face, roughly 550ms, `--ease-swift`) plus a spring scale to 1.03; on press, scale to 0.97. While the deck is open the button is hidden with the rest of the ways-in band, so the sequence can never compete with the deck. Reduced motion: no pulse, no sheen, no scale; colour and shadow response only.
 
 Deck card physics (§17) and the client-mode motion (Phase 7.6) stay in force alongside this inventory, unchanged.
 
@@ -703,7 +707,7 @@ The OG tags are unchanged: they serve the shared client link, a different audien
 
 ### `sitemap.xml`, `robots.txt`, `llms.txt`
 
-- `sitemap.xml` lists `/`, `/faq.html`, and `/how-we-choose.html` once published. It deliberately excludes `/my`, `/x`, `/embed.html`, `/why-register.html` and every parameterised URL.
+- `sitemap.xml` lists `/`, `/faq.html`, `/privacy.html` and `/contact.html` (both since Phase 15), and `/how-we-choose.html` once published. It deliberately excludes `/my`, `/x`, `/embed.html`, `/why-register.html` and every parameterised URL.
 - `robots.txt` gains one line: `Sitemap: https://tools.airl.io/sitemap.xml`. Nothing is disallowed; a disallow line for `/x` would advertise the path (Phase 10.12 law).
 - `llms.txt`: a short markdown file describing the site and its trust rules, pointing at `/data/tools.json` (the full machine-readable dataset), `/faq.html` and, once live, `/how-we-choose.html`. Honest assessment, recorded so nobody oversells it later: crawler pickup is thin and Google does not support it; it ships because the payload already exists and costs near zero. A cheap bet, not a strategy.
 

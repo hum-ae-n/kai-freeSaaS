@@ -304,6 +304,17 @@ Rocky's 29 Jul direction: the huge scrolling opening page does not work, the ani
 
 ---
 
+## Phase 15: Header nav, good-practice pages, Discover emphasis (Rocky, 31 Jul: "my stack link should be on top menu bar... better footer privacy statement and other good practice pages like contact us page links to www.airl.io and www.kaipability.com... Discover mode button also needs stronger animations")
+
+Spec: PRD section 16 amended 31 Jul (hero utility nav, footer good-practice block, motion inventory item 8). Company facts gleaned from www.airl.io: Kaipability Ltd, registered in England and Wales, Company No. 15772934, contact info@kaipability.com; airl.io is the AIRL (AI Readiness Level) framework site, also Kaipability's.
+
+- [ ] 15.0 Spec. Owner: main thread. PRD section 16 layout items 1 and 6, motion inventory item 8 (bounded two-pulse Discover emphasis, sheen on hover, spring press; explicitly not looping or ambient), section 18 sitemap clause gains privacy.html and contact.html. This block and the changelog rows below.
+- [ ] 15.1 Wave A, structure and motion. Owner: **builder**. Files: `js/public.js`, PUBLIC block of `css/styles.css`, `privacy.html` (new), `contact.html` (new), `scripts/build-seo.mjs` (sitemap and llms.txt lists only), `sitemap.xml`/`llms.txt` (regenerated), `js/client.js` and `js/my/workspace.js` only at the existing footer-link integration points, `scripts/smoke-test.mjs`. Hero utility nav (My Stack, FAQ; zero added height at 375px, 44px targets, part of the first-paint stagger); footer legal/practice line (Privacy, Contact, FAQ, Why we built My Stack) and company identity line with kaipability.com and www.airl.io outbound links; Discover button emphasis per inventory item 8; the two static pages in the why-register.html mould with the byte-identical theme-boot script, indexable, truthful per the amended PRD clause. Smoke checks: nav present with 44px targets and first-shelf budget still at most 880px; both pages serve locally with the shared theme-boot hash and no new inline scripts; sitemap lists exactly /, faq.html, privacy.html, contact.html; footer links carry correct rel; emphasis animation absent under reduced motion; pulse count bounded (animation-iteration-count never infinite anywhere on the button).
+- [ ] 15.2 Content pass. Owner: **content-editor**. Privacy and contact copy at the section 10 honesty bar (device-only storage, no analytics, hosting provider access logs without naming the provider, favicon proxy requests named plainly, no password language anywhere); README repo map rows for the two pages; TODO banner.
+- [ ] 15.3 Close-out. Owner: main thread, gated by **verifier**. Full smoke, budgets, reduced motion hand-driven on the emphasis sequence, both themes, 375px; Deploy Preview checks on the PR (new pages' content types, CSP on the new paths, sitemap drift gate green); Rocky's merge word.
+
+---
+
 ## Open spec questions
 
 Raised by the PRD review and not yet resolved. Each needs an answer before the phase that depends on it closes.
@@ -321,6 +332,7 @@ Record deliberate deviations from the PRD here so the spec and the build stay re
 
 | Date | Change | Reason |
 |------|--------|--------|
+| 2026-07-31 | PRD v1.6 (Phase 15): section 16 hero gains a utility nav (My Stack, FAQ; zero added height so the 880px budget stands), the footer gains a legal/practice line (privacy.html, contact.html, both new and indexable) and a company identity line (Kaipability Ltd, Company No. 15772934, links to kaipability.com and www.airl.io), motion inventory gains item 8 (bounded two-pulse Discover button emphasis with hover sheen and spring press), section 18 sitemap clause adds the two new pages | Rocky's 31 Jul direction: My Stack on the top menu bar, a proper footer privacy statement and contact page linking the two company sites, stronger Discover button animation. The emphasis is specified as a bounded sequence because the inventory's ban on looping and ambient motion stays in force |
 | 2026-07-22 | Added optional `notes` field to the section 4 schema | The `{name, url}` shape had nowhere to put non linkable caveats, so 165 of them were parked in `alternatives` and `training` with empty URLs, which would render as dead links |
 | 2026-07-22 | PRD v1.2: added section 7 Security subsection (textContent / escaping rule for URL params and data) | Client name from `?client=` rendered via innerHTML would be an XSS vector on a branded domain |
 | 2026-07-22 | PRD v1.2: section 8 favicon fallback made real (delegated error listener, DuckDuckGo then Google then hide) | Spec named Google as fallback but the snippet only hid the image, so the fallback never ran |
