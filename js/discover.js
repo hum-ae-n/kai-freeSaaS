@@ -149,6 +149,25 @@ export function subscribe(fn) {
   return () => subscribers.delete(fn);
 }
 
+/* --- fresh judgement marker (Wave 14.2, PRD section 16 amended, motion
+   inventory item 5, "Judged-chip pop") ---------------------------------
+   A tiny, module-private, single-slot marker: set immediately before
+   notify() fires for a decision that was just now recorded (the browse
+   list's setDecision, or the deck's own judge()), and read-and-cleared by
+   the very next call to wasFreshlyDecided(id) from js/public.js's chip
+   builder. Any OTHER redecoration pass, load-time or otherwise (page
+   mount, an unrelated id's notify, a persona-filter redraw), finds nothing
+   to read: never load-time redecoration, per the spec's own exclusion, and
+   a fresh id is consumed exactly once regardless of how many subscribers
+   happen to be registered. Deliberately in-memory only, never persisted:
+   a reload has nothing "just judged" to pop for. */
+let freshDecisionId = null;
+export function wasFreshlyDecided(id) {
+  if (freshDecisionId !== id) return false;
+  freshDecisionId = null;
+  return true;
+}
+
 /** Current decision for a tool id, or null when unjudged. Read API for the
     browse list's state chip and corner controls. Number.isInteger, never a
     truthiness test, so tool id 0 is never mistaken for "no id given". */
@@ -166,6 +185,7 @@ export function setDecision(id, decision) {
   if (!Number.isInteger(id) || (decision !== 'have' && decision !== 'want')) return;
   const state = getSharedState();
   recordDecision(state, id, decision);
+  freshDecisionId = id; // motion inventory item 5: this id's next chip render may pop
   notify();
 }
 
@@ -614,9 +634,21 @@ function buildCard(tool) {
  *   by any route (Escape, the close button, or "Browse all").
  * @param {() => void} [options.onBrowseAll] - called after close when the
  *   reader chooses "Browse all" from the completion or empty-deck screen.
+ * @param {boolean} [options.deferFocus] - Wave 14.2, motion inventory item 4
+ *   ("Deck-open morph"): when true, this function does not call
+ *   panel.focus() itself. js/public.js sets this only when it is about to
+ *   mount inside a guarded View Transition, whose spec requires focus to
+ *   move into the panel after the transition's `finished` promise rather
+ *   than at mount time; every other caller (and every fallback path) keeps
+ *   the default, unchanged behaviour below.
+ * @returns {HTMLElement} the mounted .discover-panel element, so a caller
+ *   coordinating the deck-open morph can hold a direct reference rather
+ *   than re-querying the container (which could otherwise pick up a later,
+ *   different panel if the reader closes and reopens before this caller's
+ *   own deferred focus callback runs).
  */
 export function openDiscoverDeck(options) {
-  const { tools, container, opener, seed = { type: 'default' }, onClose, onBrowseAll } = options;
+  const { tools, container, opener, seed = { type: 'default' }, onClose, onBrowseAll, deferFocus = false } = options;
   // The shared, page-lifetime state object (Phase 12.3): reads anywhere in
   // this closure stay live, since setDecision/clearDecision called from the
   // browse list mutate this exact same object's properties rather than
@@ -816,6 +848,11 @@ export function openDiscoverDeck(options) {
     const card = stage.querySelector('.discover-card');
     session.lastJudged = { id, decision, index: session.index };
     recordDecision(state, id, decision);
+    // Motion inventory item 5: a deck judgement is exactly as "fresh" as a
+    // browse-list one; skip carries no browse-list chip at all, so marking
+    // it here is harmless (buildJudgeChipWrap has nothing to pop for skip)
+    // but kept precise anyway.
+    if (decision !== 'skip') freshDecisionId = id;
     notify(); // a card judged here must reach the browse list's chip too
     session.index += 1;
     undoBtn.hidden = false;
@@ -969,7 +1006,12 @@ export function openDiscoverDeck(options) {
   // pixels off-screen at the exact moment a reader judges it. Panel focus
   // here exists for keyboard reachability and the aria-live announcements,
   // not to reposition the page, so it must never scroll on its own.
-  panel.focus({ preventScroll: true });
+  // deferFocus (Wave 14.2, motion inventory item 4): the guarded View
+  // Transition morph caller moves focus itself, after its own
+  // transition.finished promise settles; every other path (including this
+  // one whenever VT is unsupported or reduced motion applies) keeps
+  // focusing here, at mount time, exactly as before.
+  if (!deferFocus) panel.focus({ preventScroll: true });
   if (session.order.length) {
     dealCurrent();
     // Checked once, right here, never re-checked on later cards in this
@@ -981,4 +1023,5 @@ export function openDiscoverDeck(options) {
   } else {
     showEmptyState();
   }
+  return panel;
 }

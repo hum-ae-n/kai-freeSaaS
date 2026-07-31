@@ -73,7 +73,7 @@
  * client mode's own entrance (Phase 4, `#client-root`) is untouched since
  * the selector only ever matches inside a shelf.
  */
-import { el, themeToggleButton, readPlainMode, writePlainMode } from './data-loader.js';
+import { el, themeToggleButton, readPlainMode, writePlainMode, withViewTransition } from './data-loader.js';
 import { buildCardSections, categoryIcon } from './client.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -119,7 +119,7 @@ function prefersReducedMotion() {
   return matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-const STAGGER_MS = 70; // within the PRD's 60-80ms band
+const STAGGER_MS = 80; // Wave 14.2 recalibration: "80ms per item" (PRD section 16 amended, motion item 1)
 const FIRST_SCREEN_CAP = 6; // "capped at the first screenful" (PRD section 16)
 
 /** First-paint reveal: fires once, immediately, with a per-item delay. Used
@@ -148,7 +148,42 @@ function revealFirstPaint(node, index, reduced) {
   // backgrounded tab) keeps the stagger scoped to the entrance only.
   const clearDelay = () => { node.style.transitionDelay = ''; };
   node.addEventListener('transitionend', clearDelay, { once: true });
-  setTimeout(clearDelay, delayMs + 500);
+  setTimeout(clearDelay, delayMs + 600); // fallback buffer covers the 480ms entrance itself
+}
+
+/* --- motion: shelf-expansion stagger (motion inventory item 2, "the
+   showpiece") -------------------------------------------------------------
+   Fires exactly once per genuine closed-to-open transition, from a single
+   choke point inside setShelfOpen below, so every trigger the spec names
+   (a shelf header, Expand all, and search/persona force-open) is covered by
+   construction and an already-open shelf is never re-animated by a later
+   filter redraw. The first six cards in the shelf's own grid travel
+   translateY(14px) to 0 with a fade, 45ms apart; any card past that cap is
+   left alone; "later cards appear settled" per the spec is the natural
+   result of never touching them at all, not a separate rule. Class-based,
+   not left permanently set: cleanup after the transition (or its timeout
+   fallback) lets the very same nodes animate again the next time their
+   shelf opens, which a "reveal once" pattern like motion item 1's would not
+   allow. */
+const SHELF_STAGGER_MS = 45;
+const SHELF_STAGGER_CAP = 6;
+function staggerShelfCards(grid, reduced) {
+  const cards = [...grid.children].slice(0, SHELF_STAGGER_CAP);
+  for (const [index, li] of cards.entries()) {
+    const cls = reduced ? 'pub-shelf-stagger-reduced' : 'pub-shelf-stagger';
+    li.classList.add(cls);
+    if (!reduced) li.style.transitionDelay = `${index * SHELF_STAGGER_MS}ms`;
+    // Same two-frame reasoning as revealFirstPaint above: the opacity:0 (and,
+    // for normal motion, translateY(14px)) starting state must actually
+    // paint before the is-in class flips the transition's end state.
+    requestAnimationFrame(() => requestAnimationFrame(() => li.classList.add('is-in')));
+    const cleanup = () => {
+      li.classList.remove(cls, 'is-in');
+      li.style.transitionDelay = '';
+    };
+    li.addEventListener('transitionend', cleanup, { once: true });
+    setTimeout(cleanup, (reduced ? 120 : 300) + index * SHELF_STAGGER_MS + 400);
+  }
 }
 
 /** Category name to a URL-safe fragment for the `#cat-<slug>` deep link and
@@ -261,9 +296,20 @@ export function renderPublic(root, tools) {
     placeholder: `Search ${active.length} tool${active.length === 1 ? '' : 's'}: invoicing, design, CRM…`,
     'aria-label': 'Search the directory',
   });
+  // Motion inventory item 3 ("View Transitions on filter and expand-all"):
+  // the actual redraw is debounced so only a settled keystroke transitions,
+  // never every keypress. FILTER_VT_DEBOUNCE_MS is well under the smoke
+  // suite's tightest post-filter wait (150ms) even once the View Transition
+  // API's own scheduling (observed empirically at one to two animation
+  // frames) is added on top; a reduced-motion or VT-unsupported visitor
+  // still gets exactly this debounced timing, just without the crossfade
+  // (withViewTransition's own guard runs the callback directly for them).
+  const FILTER_VT_DEBOUNCE_MS = 60;
+  let filterDebounceTimer = null;
   searchInput.addEventListener('input', () => {
     searchTerm = searchInput.value.trim().toLowerCase();
-    applyFilter();
+    clearTimeout(filterDebounceTimer);
+    filterDebounceTimer = setTimeout(() => withViewTransition(applyFilter), FILTER_VT_DEBOUNCE_MS);
   });
   const searchRow = el('div', { class: 'pub-search-row' }, searchInput);
 
@@ -337,19 +383,96 @@ export function renderPublic(root, tools) {
       if (!mod) throw new Error('module unavailable');
       const { openDiscoverDeck } = mod;
       discoverOpen = true;
-      openDiscoverDeck({
+      // A currently active persona chip seeds the deck with that pack's
+      // ids (PRD section 17); otherwise the deck falls back to its own
+      // default mix. activePersonaIds is a Set, never an array filtered
+      // with .filter(Boolean), so tool id 0 survives untouched.
+      const seed = activePersonaIds ? { type: 'persona', ids: [...activePersonaIds] } : { type: 'default' };
+      const openOptions = {
         tools,
         container: discoverMount,
         opener: discoverBtn,
-        // A currently active persona chip seeds the deck with that pack's
-        // ids (PRD section 17); otherwise the deck falls back to its own
-        // default mix. activePersonaIds is a Set, never an array filtered
-        // with .filter(Boolean), so tool id 0 survives untouched.
-        seed: activePersonaIds ? { type: 'persona', ids: [...activePersonaIds] } : { type: 'default' },
+        seed,
         onClose: () => { discoverOpen = false; },
         onBrowseAll: () => { discoverOpen = false; scrollToShelfBand(); },
-      });
-      discoverMount.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+      };
+      // Motion inventory item 4 ("Deck-open morph"): guarded the same way as
+      // every other item, feature-detected and off under reduced motion.
+      // canMorph mirrors withViewTransition's own guard exactly (duplicated,
+      // not imported, since this branch also needs to know the outcome
+      // BEFORE calling it, to decide whether to set up the view-transition
+      // name and defer focus at all).
+      const canMorph = typeof document.startViewTransition === 'function' && !prefersReducedMotion();
+      if (canMorph) {
+        // "The Discover entry carries view-transition-name: discover-panel
+        // before mount": added to the button just before capture, removed
+        // from it (and given to the panel instead) inside the callback, so
+        // the two elements never carry the same view-transition-name at
+        // once (the browser requires that name to be unique at each
+        // capture).
+        discoverBtn.classList.add('pub-vt-discover');
+        let panelRef = null;
+        const transition = withViewTransition(() => {
+          panelRef = openDiscoverDeck({ ...openOptions, deferFocus: true });
+          discoverBtn.classList.remove('pub-vt-discover');
+          if (panelRef) panelRef.classList.add('pub-vt-discover');
+          // The scroll happens here, inside the callback, against the
+          // ALREADY-FILLED panel, not before it: scrolling an empty
+          // discoverMount into view and then inserting 500+ px of content
+          // into it a frame later measurably triggers the browser's own
+          // scroll anchoring (it treats the freshly inserted content, which
+          // lands right at the anchor point, as something to compensate
+          // for), landing the page hundreds of pixels further down than
+          // intended. Scrolling once, against final geometry, in the same
+          // synchronous step that builds that geometry, never gives
+          // anchoring anything to react to. 'auto' (instant), never
+          // 'smooth': an animated scroll racing the transition's own
+          // 380ms group animation is exactly the kind of scroll-linked
+          // effect the inventory bans.
+          discoverMount.scrollIntoView({ behavior: 'auto', block: 'start' });
+        });
+        // "Focus moves into the panel after the transition's finished
+        // promise": isConnected guards the case where the reader has
+        // already closed (or replaced) the panel before this settles, so a
+        // stale reference is never focused back into a page that has moved
+        // on. Caught, not left to reject unhandled: a skipped transition
+        // (closed mid-flight) still resolves `finished`, but nothing here
+        // depends on that distinction.
+        let transitionSettled = !transition;
+        transition?.finished.then(() => {
+          transitionSettled = true;
+          if (panelRef && panelRef.isConnected) panelRef.focus({ preventScroll: true });
+        }).catch(() => { transitionSettled = true; });
+        // Fast-first-tap regression, reopened by the morph itself: a pointer
+        // interaction with the deck (the judge buttons above all) while
+        // this page-level transition is still active moves native focus to
+        // the clicked button as an ordinary side effect of clicking it, and
+        // measured while building this wave, Chromium's own scroll-into-view
+        // math for that native focus miscalculates against the transition's
+        // still-active geometry, overshooting by several hundred pixels and
+        // carrying the freshly dealt next card off-screen exactly the way
+        // the Phase 12 close-out's original race did. skipTransition() ends
+        // the transition immediately (still resolving `finished` normally,
+        // so the deferred focus above still runs); calling it from a
+        // capture-phase listener on the mount, ahead of the button's own
+        // default focus action for the very same event, is what makes the
+        // native scroll-into-view run against final, settled geometry
+        // instead. Deck internals (js/discover.js's judge/button handling)
+        // are never touched: this only ever reacts to the interaction from
+        // the outside, once, before the deck's own listeners see it.
+        const settleTransitionOnFirstInteraction = () => {
+          if (!transitionSettled) transition?.skipTransition?.();
+        };
+        discoverMount.addEventListener('pointerdown', settleTransitionOnFirstInteraction, { capture: true, once: true });
+        discoverMount.addEventListener('keydown', settleTransitionOnFirstInteraction, { capture: true, once: true });
+      } else {
+        // Fallback: today's mount and scroll, unchanged. openDiscoverDeck
+        // focuses the panel itself (deferFocus defaults to false), and the
+        // existing preventScroll discipline inside it is what already
+        // guards the fast-first-tap race documented there.
+        openDiscoverDeck(openOptions);
+        discoverMount.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+      }
     } catch (cause) {
       // js/discover.js failing to load must never dead-end the directory:
       // fall back to the original stub behaviour (PRD section 16,
@@ -376,8 +499,13 @@ export function renderPublic(root, tools) {
   }, 'Expand all');
   expandAllBtn.addEventListener('click', () => {
     const shouldOpen = !allShelvesOpen();
-    for (const shelf of shelves) setShelfOpen(shelf, shouldOpen, true);
-    syncExpandAllLabel();
+    // Motion inventory item 3: a discrete, already-settled action, so this
+    // runs inside the guarded transition directly, no debounce needed (that
+    // is reserved for the search box's rapid keystrokes above).
+    withViewTransition(() => {
+      for (const shelf of shelves) setShelfOpen(shelf, shouldOpen, true);
+      syncExpandAllLabel();
+    });
   });
   // Two explicit rows, not one flex-wrap soup of four items: title+Expand
   // all (which fit one line together down to 375px) stay paired exactly as
@@ -416,9 +544,18 @@ export function renderPublic(root, tools) {
       not overwrite the manually-chosen state that clearing the filter later
       restores. */
   function setShelfOpen(shelf, open, manual) {
+    const wasClosed = shelf.grid.hidden;
     shelf.grid.hidden = !open;
     shelf.headerBtn.setAttribute('aria-expanded', String(open));
     if (manual) shelf.manualOpen = open;
+    // Motion inventory item 2: only a genuine closed-to-open transition
+    // staggers its cards, from this single call site regardless of which of
+    // the spec's named triggers (header, Expand all, search/persona
+    // force-open) reached it. An already-open shelf that a filter redraw
+    // simply re-confirms as open (applyFilter calls this on every matching
+    // shelf on every keystroke) must never re-animate: wasClosed guards
+    // exactly that.
+    if (open && wasClosed) staggerShelfCards(shelf.grid, prefersReducedMotion());
   }
 
   /** Builds one <section> per category from a single buildCardSections()
@@ -741,6 +878,29 @@ function buildJudgeChipWrap(li, tool, judgeApi) {
   const chip = el('button', {
     class: 'pub-judge-chip', type: 'button', 'aria-haspopup': 'true', 'aria-expanded': 'false',
   }, decision === 'have' ? 'Got it' : 'On my list');
+  // Motion inventory item 5 ("Judged-chip pop"): wasFreshlyDecided consumes
+  // a one-shot marker discover.js sets only on the setDecision/judge() write
+  // path, never on a load-time or otherwise unrelated redecoration pass, so
+  // this chip pops only when it is rendering the reader's own just-made
+  // choice. Never applied under reduced motion, matching the discipline
+  // every other item in this inventory uses (chosen in JS, guarded again in
+  // CSS behind the same query).
+  //
+  // If the judgement lands while this tool's shelf is collapsed (a deck
+  // judgement never opens the matching shelf), the animation cannot run at
+  // all (a display:none element does not execute CSS animations): it plays
+  // the first time the shelf is later opened instead, the same mechanism
+  // .pub-shelf .tool-card's suppression rule above exists to guard against
+  // for the OLD card-in animation. Left uncleaned, that would make this
+  // pop replay on every subsequent open/close of the same shelf, exactly
+  // that bug reborn on a new element. animationend removes the class the
+  // first time it actually plays (immediately if the shelf is already
+  // open, or on first reveal otherwise), so it is a genuine once-only pop
+  // regardless of when the reader first sees it.
+  if (!prefersReducedMotion() && judgeApi.wasFreshlyDecided(tool.id)) {
+    chip.classList.add('is-new');
+    chip.addEventListener('animationend', () => chip.classList.remove('is-new'), { once: true });
+  }
   wrap.append(chip);
 
   // chooser, and the document-level listeners that dismiss it, only exist
@@ -843,12 +1003,18 @@ async function loadPersonaPacks(row, activeIds, state) {
         setActiveChip(null);
         setPersonaIds(null);
       }
-      if (wasActive) { draw(); return; }
+      // Motion inventory item 3: a discrete click, not a keystroke stream,
+      // so draw() (applyFilter) runs inside the guarded transition directly.
+      // The chip's own colour swap stays outside it (that is its existing,
+      // unrelated micro-transition, not part of the page-wide filter
+      // crossfade), and scrollToBrowse below is a separate scroll action,
+      // never bundled into the transition's DOM mutation.
+      if (wasActive) { withViewTransition(draw); return; }
       setPersonaIds(new Set(validIds));
       chip.classList.add('is-active');
       chip.setAttribute('aria-pressed', 'true');
       setActiveChip(chip);
-      draw();
+      withViewTransition(draw);
       scrollToBrowse();
     });
     row.append(chip);

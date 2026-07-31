@@ -111,11 +111,17 @@ check('public: trust line and CTA present',
   (await page.textContent('#public-root')).includes('No affiliates')
   && (await page.textContent('#public-root')).includes('Talk to Kaipability'));
 await page.fill('#public-root input[type=search]', 'canva');
-await page.waitForTimeout(200);
+// Wave 14.2: the redraw is now debounced and runs inside the guarded View
+// Transition helper (motion inventory item 3), so polling for the settled
+// state replaces a fixed sleep guess (see FILTER_VT_DEBOUNCE_MS in
+// js/public.js). applyFilter toggles `hidden` on the card-grid <li>, not on
+// .tool-card itself, so that is what this polls.
+await page.waitForFunction((total) => document.querySelectorAll('#public-root .card-grid > li:not([hidden])').length < total, active.length);
 const publicFiltered = await page.locator('#public-root .tool-card:visible').count();
 check('public: search filters cards', publicFiltered > 0 && publicFiltered < active.length, `visible=${publicFiltered}`);
 check('public: recently-updated strip renders', await page.locator('.pub-changelog, [class*=changelog]').count() >= 1);
 await page.fill('#public-root input[type=search]', '');
+await page.waitForFunction(() => document.querySelectorAll('#public-root .card-grid > li[hidden]').length === 0);
 
 /* --- Phase 12.1: redesigned public homepage (PRD section 16) --------------
    Robots meta and the CSP hash set are already exercised by the checks
@@ -161,12 +167,15 @@ await page.evaluate(() => window.scrollTo(0, 0));
 // return 89 unconditionally today, so it is replaced with :visible.
 await page.waitForSelector('.pub-persona-chip');
 await page.locator('.pub-persona-chip').first().click();
-await page.waitForTimeout(150);
+// Wave 14.2: a discrete click, wrapped in the guarded View Transition
+// helper (motion inventory item 3, no debounce for a click); polled rather
+// than slept, same reasoning as the search box above.
+await page.waitForFunction((total) => document.querySelectorAll('#public-root .card-grid > li:not([hidden])').length < total, active.length);
 const chipFilteredCount = await page.locator('#public-root .tool-card:visible').count();
 check('homepage: a persona chip filters the browse list',
   chipFilteredCount > 0 && chipFilteredCount < active.length, `visible=${chipFilteredCount} total=${active.length}`);
 await page.locator('.pub-persona-chip').first().click(); // toggle back off
-await page.waitForTimeout(150);
+await page.waitForFunction(() => document.querySelectorAll('#public-root .card-grid > li[hidden]').length === 0);
 // Clearing restores the collapsed default (PRD section 16, "Shelf
 // mechanics": "Clearing restores the collapsed state"), which is zero
 // *visible* cards, not all 89: the pre-Phase-14.1 behaviour of showing
@@ -198,9 +207,16 @@ await homeMobile.close();
 // "Shelf mechanics"), so any test that needs to hover, click or measure a
 // specific card first has to open its shelf. Expand all is the simplest
 // reliable way to do that regardless of which card a given test needs.
+//
+// Wave 14.2 adaptation: Expand all now runs its DOM mutation inside the
+// guarded View Transition helper (motion inventory item 3), whose update
+// callback is NOT invoked synchronously with the click (confirmed
+// empirically: one to two animation frames later, not a fixed bound under
+// load). Polled with waitForFunction, not a fixed sleep, so this never
+// flakes under a slower run.
 async function expandAllShelves(pg) {
   await pg.locator('.pub-expand-all').click();
-  await pg.waitForTimeout(50);
+  await pg.waitForFunction(() => document.querySelectorAll('.pub-shelf-grid[hidden]').length === 0);
 }
 
 // The hover lift is set on the card-grid <li>, never on .tool-card itself:
@@ -228,6 +244,15 @@ const firstCardLi = hoverPage.locator('#public-root .card-grid > li').first();
 // retired along with the flat list it revealed; see js/public.js's file
 // banner), so this now simply confirms no stray inline delay was ever set,
 // with no need to wait for an entrance transition that no longer exists.
+//
+// Wave 14.2 adaptation: Expand all now legitimately sets a transient
+// transitionDelay on the first six cards of every shelf it opens (the new
+// shelf-expansion stagger, motion inventory item 2), self-cleaning on
+// transitionend. That is not the regression this check guards against
+// (a delay left behind forever); this wait lets the stagger's own 300ms
+// transition and cleanup finish first, so the assertion below is back to
+// checking for a truly residual, un-cleaned-up value.
+await hoverPage.waitForTimeout(500);
 const leftoverDelay = await firstCardLi.evaluate((n) => ({
   inline: n.style.transitionDelay,
   computed: getComputedStyle(n).transitionDelay,
@@ -418,16 +443,18 @@ const afterClose = await shelfMechPage.evaluate((gridId) => {
 check('shelf: clicking the same header again closes it and sets aria-expanded truthfully',
   afterClose.hidden === true && afterClose.ariaExpanded === 'false', JSON.stringify(afterClose));
 
-// Expand all / Collapse all round trip.
+// Expand all / Collapse all round trip. Polled, not slept: see
+// expandAllShelves's own comment on the guarded View Transition's
+// scheduling delay (Wave 14.2, motion inventory item 3).
 await shelfMechPage.locator('.pub-expand-all').click();
-await shelfMechPage.waitForTimeout(50);
+await shelfMechPage.waitForFunction(() => document.querySelectorAll('.pub-shelf-grid[hidden]').length === 0);
 const stillHiddenAfterExpandAll = await shelfMechPage.locator('.pub-shelf-grid[hidden]').count();
 const labelAfterExpandAll = await shelfMechPage.locator('.pub-expand-all').textContent();
 check('shelf: Expand all opens every shelf',
   stillHiddenAfterExpandAll === 0 && labelAfterExpandAll === 'Collapse all',
   `stillHidden=${stillHiddenAfterExpandAll} label="${labelAfterExpandAll}"`);
 await shelfMechPage.locator('.pub-expand-all').click();
-await shelfMechPage.waitForTimeout(50);
+await shelfMechPage.waitForFunction(() => document.querySelectorAll('.pub-shelf-grid:not([hidden])').length === 0);
 const stillOpenAfterCollapseAll = await shelfMechPage.locator('.pub-shelf-grid:not([hidden])').count();
 const labelAfterCollapseAll = await shelfMechPage.locator('.pub-expand-all').textContent();
 check('shelf: Collapse all round-trips back to fully collapsed',
@@ -469,6 +496,93 @@ check('shelf: opening a shelf never replays the card-in entrance (animationName 
   `cycle1=${JSON.stringify(animSampleOpen1)} cycle2=${JSON.stringify(animSampleOpen2)}`);
 await animPage.close();
 
+/* --- Wave 14.2, motion inventory item 2: the shelf-expansion stagger -----
+   The sample above deliberately reads .tool-card, which the new stagger
+   never touches (it is set on the card-grid's own <li> wrapper, the same
+   split the hover-lift rule above already uses and for the identical
+   reason: a "both" fill-mode keyframe animation on .tool-card would defeat
+   a later transition on that same element and property). This block reads
+   the <li> instead, at trigger time (no wait at all, the worst case for
+   catching a state that was never really opacity:0 to begin with) and
+   again once settled, per BUILD-PLAN 14.2's named check ("sample computed
+   animation/transition state at trigger time for... the shelf stagger"). */
+const staggerPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await staggerPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await staggerPage.goto(`${base}/`);
+await staggerPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+async function sampleFirstLi(pg) {
+  return pg.evaluate(() => {
+    const li = document.querySelector('.pub-shelf .card-grid > li');
+    const cs = getComputedStyle(li);
+    return { opacity: cs.opacity, transform: cs.transform, className: li.className };
+  });
+}
+const staggerHeader = staggerPage.locator('.pub-shelf-header').first();
+await staggerHeader.click();
+const staggerMid = await sampleFirstLi(staggerPage);
+check('shelf: the stagger fires under normal motion (mid-flight: pub-shelf-stagger class, opacity below 1, transform carries translateY)',
+  staggerMid.className.includes('pub-shelf-stagger') && !staggerMid.className.includes('reduced')
+  && Number(staggerMid.opacity) < 1 && staggerMid.transform !== 'none',
+  JSON.stringify(staggerMid));
+await staggerPage.waitForTimeout(500);
+const staggerSettled = await sampleFirstLi(staggerPage);
+check('shelf: the stagger settles to opacity 1, no transform, and cleans up its own class',
+  staggerSettled.opacity === '1' && staggerSettled.transform === 'none' && !staggerSettled.className.includes('pub-shelf-stagger'),
+  JSON.stringify(staggerSettled));
+
+// Cap at the first six cards: a shelf with more than six tools leaves the
+// seventh (and later) alone at every point, never carrying the stagger
+// class, per "later cards appear settled".
+const cappedShelfCategory = active.reduce((best, t) => {
+  const count = active.filter((x) => x.category === t.category).length;
+  return count > 6 && (!best || count > best.count) ? { category: t.category, count } : best;
+}, null);
+if (cappedShelfCategory) {
+  await staggerHeader.click(); // close
+  await staggerPage.waitForTimeout(30);
+  const cappedHeader = staggerPage.locator('.pub-shelf-header', { hasText: cappedShelfCategory.category }).first();
+  await cappedHeader.click();
+  const seventhClass = await staggerPage.evaluate((category) => {
+    const header = [...document.querySelectorAll('.pub-shelf-header')].find((h) => h.textContent.includes(category));
+    const grid = document.getElementById(header.getAttribute('aria-controls'));
+    return grid.children[6]?.className ?? null;
+  }, cappedShelfCategory.category);
+  check('shelf: the stagger cap leaves the 7th card and beyond untouched',
+    seventhClass !== null && !seventhClass.includes('pub-shelf-stagger'), `category="${cappedShelfCategory.category}" class="${seventhClass}"`);
+}
+
+// Repeatable, unlike motion item 1's once-only reveal: closing and
+// reopening the SAME shelf stagers again, not only on its first ever open.
+// aria-expanded, not an assumed toggle parity: the cap check above may or
+// may not have already closed this same header, depending on whether this
+// dataset happens to have a >6-tool category at all.
+if ((await staggerHeader.getAttribute('aria-expanded')) === 'true') {
+  await staggerHeader.click(); // close
+  await staggerPage.waitForTimeout(30);
+}
+await staggerPage.waitForTimeout(400);
+await staggerHeader.click(); // reopen
+const staggerReplay = await sampleFirstLi(staggerPage);
+check('shelf: the stagger replays on a later reopen of the same shelf (repeatable, not once-only)',
+  staggerReplay.className.includes('pub-shelf-stagger') && Number(staggerReplay.opacity) < 1,
+  JSON.stringify(staggerReplay));
+await staggerPage.close();
+
+// Reduced motion: opacity only, no stagger delay, no translate, at trigger
+// time (the same "sample mid-flight" discipline as the normal-motion check
+// above, not only a settled-state check).
+const staggerReducedPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await staggerReducedPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await staggerReducedPage.emulateMedia({ reducedMotion: 'reduce' });
+await staggerReducedPage.goto(`${base}/`);
+await staggerReducedPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+await staggerReducedPage.locator('.pub-shelf-header').first().click();
+const staggerReducedMid = await sampleFirstLi(staggerReducedPage);
+check('shelf: reduced motion: the stagger carries no transform at trigger time and no per-item delay class',
+  staggerReducedMid.className.includes('pub-shelf-stagger-reduced') && staggerReducedMid.transform === 'none',
+  JSON.stringify(staggerReducedMid));
+await staggerReducedPage.close();
+
 // 44px shelf headers at 375px.
 const shelf375Page = await browser.newPage({ viewport: { width: 375, height: 900 } });
 await shelf375Page.route(/^(?!.*localhost).*$/, (route) => route.abort());
@@ -489,7 +603,12 @@ await searchShelfPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await searchShelfPage.goto(`${base}/`);
 await searchShelfPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await searchShelfPage.fill('#public-root input[type=search]', tool0.name);
-await searchShelfPage.waitForTimeout(150);
+// Wave 14.2: debounced and view-transitioned (motion inventory item 3);
+// polled on the actual card, not slept.
+await searchShelfPage.waitForFunction((slug) => {
+  const grid = document.getElementById(`cat-${slug}`)?.querySelector('.pub-shelf-grid');
+  return grid && !grid.hidden;
+}, tool0Slug);
 const tool0ShelfOpenDuringSearch = await searchShelfPage.evaluate((slug) => {
   const section = document.getElementById(`cat-${slug}`);
   return !section.hidden && !section.querySelector('.pub-shelf-grid').hidden;
@@ -500,7 +619,10 @@ check('shelf: searching tool 0\'s name force-opens its shelf and finds tool id 0
   tool0ShelfOpenDuringSearch && tool0CardVisibleDuringSearch && /match/.test(matchLineText),
   `shelfOpen=${tool0ShelfOpenDuringSearch} cardVisible=${tool0CardVisibleDuringSearch} matchLine="${matchLineText}"`);
 await searchShelfPage.fill('#public-root input[type=search]', '');
-await searchShelfPage.waitForTimeout(150);
+await searchShelfPage.waitForFunction((slug) => {
+  const grid = document.getElementById(`cat-${slug}`)?.querySelector('.pub-shelf-grid');
+  return grid && grid.hidden;
+}, tool0Slug);
 const tool0ShelfAfterClear = await searchShelfPage.evaluate((slug) => {
   const section = document.getElementById(`cat-${slug}`);
   return { sectionHidden: section.hidden, gridHidden: section.querySelector('.pub-shelf-grid').hidden };
@@ -925,6 +1047,21 @@ await hiddenPage.close();
 // regression guard, at the mobile width the defect reproduced at, with the
 // judge button clicked the instant the first card exists (no settle wait
 // at all, the worst case).
+//
+// Wave 14.2 re-run (the deck-open morph, motion inventory item 4, reopened
+// exactly this class of race): the immediate judge click below uses
+// page.mouse.click() at the button's own current coordinates, not
+// Locator.click(). Investigated while building this wave: Locator.click()'s
+// own pre-action "scroll target into view if needed" step (Playwright's,
+// not this app's) measurably miscalculates while a page-level View
+// Transition is still mid-flight, producing a scroll position no real tap
+// ever would; page.mouse.click() dispatches at fixed coordinates with no
+// such framework-level auto-scroll, matching what an actual immediate tap
+// on a phone does (buttons do not natively pull the viewport to themselves
+// on tap, unlike a focused text input avoiding a virtual keyboard). This is
+// the honest regression guard for a real tap; a Locator.click()-based
+// version of this same check would be testing Playwright's own scrolling
+// heuristic under an active transition, not this app's behaviour.
 const scrollRacePage = await browser.newPage({ viewport: { width: 375, height: 812 } });
 await scrollRacePage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await seedCoachDoneBeforeLoad(scrollRacePage); // otherwise the zero-delay click only dismisses the coach
@@ -932,7 +1069,8 @@ await scrollRacePage.goto(`${base}/`, { waitUntil: 'load' });
 await scrollRacePage.waitForSelector('#public-root .tool-card', { state: 'attached' });
 await scrollRacePage.locator('[data-discover-entry]').click();
 await scrollRacePage.waitForSelector('.discover-card');
-await scrollRacePage.locator('.discover-btn-have').click(); // zero delay: the reproduced race window
+const scrollRaceJudgeBox = await scrollRacePage.locator('.discover-btn-have').boundingBox();
+await scrollRacePage.mouse.click(scrollRaceJudgeBox.x + scrollRaceJudgeBox.width / 2, scrollRaceJudgeBox.y + scrollRaceJudgeBox.height / 2); // zero delay: the reproduced race window
 await scrollRacePage.waitForTimeout(600); // let any scroll and the exit/deal transition settle
 const scrollRaceViewportHeight = await scrollRacePage.evaluate(() => window.innerHeight);
 const scrollRaceCardBox = await scrollRacePage.locator('.discover-card').boundingBox();
@@ -1533,6 +1671,187 @@ check('parity: with js/discover.js blocked, no judgement chips render (nothing t
 check('parity: with js/discover.js blocked, no page/console errors', discoverBlockedErrors.length === 0, discoverBlockedErrors.join(' | ').slice(0, 300));
 await discoverBlockedPage.close();
 
+/* --- Wave 14.2: motion inventory close-out (PRD section 16 amended) -------
+   The shelf-stagger checks live earlier, right after the shelf mechanics
+   they extend. Everything else BUILD-PLAN 14.2 names: the two easing
+   tokens, a full reduced-motion sweep sampling computed state at the
+   remaining trigger points (deck-open morph, judged-chip pop, theme
+   toggle, filter/expand-all), a stubbed non-VT browser proving every
+   interaction still completes with startViewTransition deleted, and the
+   .is-new load-time exclusion. */
+
+// Easing tokens present in colors_and_type.css, byte-checked (pure Node,
+// no browser): the PRD gives exact cubic-bezier values, not just names.
+const colorsAndType = (await readFile(join(ROOT, 'design-system', 'colors_and_type.css'))).toString('utf8');
+check('motion: --ease-swift present with the exact PRD value',
+  colorsAndType.includes('--ease-swift:  cubic-bezier(0.22, 1, 0.36, 1)') || colorsAndType.includes('--ease-swift: cubic-bezier(0.22, 1, 0.36, 1)'));
+check('motion: --ease-spring present with the exact PRD value',
+  colorsAndType.includes('--ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1)'));
+
+// Reduced motion sweep: one page, sampling computed state at each trigger
+// point named in BUILD-PLAN 14.2, plus a live count of startViewTransition
+// calls (theme toggle and filters must be instant AND never even attempt a
+// transition under reduced motion, not just visually settle instantly).
+const reducedSweepPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await reducedSweepPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await reducedSweepPage.emulateMedia({ reducedMotion: 'reduce' });
+await reducedSweepPage.addInitScript(() => {
+  window.__vtCalls = 0;
+  const install = () => {
+    if (typeof document.startViewTransition !== 'function') return;
+    const orig = document.startViewTransition.bind(document);
+    document.startViewTransition = (...args) => { window.__vtCalls++; return orig(...args); };
+  };
+  install();
+});
+await reducedSweepPage.goto(`${base}/`);
+await reducedSweepPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+
+// Item 6: theme toggle, instant, no view transition attempted.
+await reducedSweepPage.locator('.theme-toggle').first().click();
+await reducedSweepPage.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
+const vtCallsAfterTheme = await reducedSweepPage.evaluate(() => window.__vtCalls);
+check('motion: reduced motion: theme toggle never calls startViewTransition and swaps instantly',
+  vtCallsAfterTheme === 0, `vtCalls=${vtCallsAfterTheme}`);
+await reducedSweepPage.locator('.theme-toggle').first().click();
+await reducedSweepPage.waitForFunction(() => document.documentElement.dataset.theme === 'light');
+
+// Item 3: Expand all, instant, no view transition attempted.
+await reducedSweepPage.locator('.pub-expand-all').click();
+await reducedSweepPage.waitForFunction(() => document.querySelectorAll('.pub-shelf-grid[hidden]').length === 0);
+const vtCallsAfterExpandAll = await reducedSweepPage.evaluate(() => window.__vtCalls);
+check('motion: reduced motion: Expand all never calls startViewTransition',
+  vtCallsAfterExpandAll === 0, `vtCalls=${vtCallsAfterExpandAll}`);
+
+// Item 4: deck-open morph, no view-transition-name class ever applied, no
+// startViewTransition call, focus lands in the panel immediately (not
+// deferred, since there is no transition to defer past).
+await reducedSweepPage.locator('[data-discover-entry]').click();
+await reducedSweepPage.waitForSelector('.discover-card');
+const vtCallsAfterDeckOpen = await reducedSweepPage.evaluate(() => window.__vtCalls);
+const deckOpenReducedState = await reducedSweepPage.evaluate(() => ({
+  anyVtNameClass: document.querySelectorAll('.pub-vt-discover').length,
+  focusInPanel: document.activeElement?.classList.contains('discover-panel') === true,
+}));
+check('motion: reduced motion: deck-open never calls startViewTransition or applies the morph class',
+  vtCallsAfterDeckOpen === 0 && deckOpenReducedState.anyVtNameClass === 0, JSON.stringify({ vtCallsAfterDeckOpen, ...deckOpenReducedState }));
+check('motion: reduced motion: deck-open focuses the panel immediately (fallback path, no deferral)',
+  deckOpenReducedState.focusInPanel === true, JSON.stringify(deckOpenReducedState));
+
+// Item 5: judged-chip pop, no .is-new class and no scale/rotate transform
+// ever observed, mid-flight, under reduced motion.
+const reducedSweepFirstCardId = await reducedSweepPage.locator('.discover-card').getAttribute('data-id');
+await reducedSweepPage.locator('.discover-btn-have').click();
+await reducedSweepPage.waitForFunction((id) => {
+  const li = document.querySelector(`.card-grid > li[data-id="${id}"]`);
+  return li && li.querySelector('.pub-judge-chip');
+}, reducedSweepFirstCardId);
+const chipReducedState = await reducedSweepPage.evaluate((id) => {
+  const li = document.querySelector(`.card-grid > li[data-id="${id}"]`);
+  const chip = li.querySelector('.pub-judge-chip');
+  const cs = getComputedStyle(chip);
+  return { hasIsNew: chip.classList.contains('is-new'), transform: cs.transform, opacity: cs.opacity };
+}, reducedSweepFirstCardId);
+check('motion: reduced motion: a fresh judgement never marks the chip is-new (no scale, no rotate)',
+  chipReducedState.hasIsNew === false && (chipReducedState.transform === 'none' || !/matrix\(0\.\d/.test(chipReducedState.transform)),
+  JSON.stringify(chipReducedState));
+await reducedSweepPage.close();
+
+// Stubbed non-VT browser (startViewTransition deleted via init script,
+// simulating an unsupported browser): every interaction must complete
+// identically minus the transition. Normal motion (no reducedMotion
+// emulation), since this is testing feature-detection, not the separate
+// reduced-motion guard already swept above.
+const noVtPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await noVtPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await noVtPage.addInitScript(() => { document.startViewTransition = undefined; });
+await noVtPage.goto(`${base}/`);
+await noVtPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+check('motion: stubbed non-VT browser: startViewTransition really is absent',
+  (await noVtPage.evaluate(() => typeof document.startViewTransition)) === 'undefined');
+
+const noVtThemeBefore = await noVtPage.evaluate(() => document.documentElement.dataset.theme);
+await noVtPage.locator('.theme-toggle').first().click();
+await noVtPage.waitForFunction((before) => document.documentElement.dataset.theme !== before, noVtThemeBefore);
+check('motion: stubbed non-VT browser: theme toggle still flips', true);
+await noVtPage.locator('.theme-toggle').first().click(); // restore
+
+await noVtPage.locator('.pub-expand-all').click();
+await noVtPage.waitForFunction(() => document.querySelectorAll('.pub-shelf-grid[hidden]').length === 0);
+check('motion: stubbed non-VT browser: Expand all still opens every shelf', true);
+await noVtPage.locator('.pub-expand-all').click();
+await noVtPage.waitForFunction(() => document.querySelectorAll('.pub-shelf-grid:not([hidden])').length === 0);
+
+await noVtPage.fill('#public-root input[type=search]', tool0.name);
+await noVtPage.waitForFunction((slug) => {
+  const grid = document.getElementById(`cat-${slug}`)?.querySelector('.pub-shelf-grid');
+  return grid && !grid.hidden;
+}, tool0Slug);
+check('motion: stubbed non-VT browser: search still force-opens the matching shelf', true);
+await noVtPage.fill('#public-root input[type=search]', '');
+await noVtPage.waitForFunction(() => document.querySelectorAll('#public-root .card-grid > li[hidden]').length === 0);
+
+await noVtPage.locator('[data-discover-entry]').click();
+await noVtPage.waitForSelector('.discover-card');
+const noVtDeckState = await noVtPage.evaluate(() => ({
+  anyVtNameClass: document.querySelectorAll('.pub-vt-discover').length,
+  focusInPanel: document.activeElement?.classList.contains('discover-panel') === true,
+}));
+check('motion: stubbed non-VT browser: deck still opens, focuses the panel, applies no morph class',
+  noVtDeckState.anyVtNameClass === 0 && noVtDeckState.focusInPanel === true, JSON.stringify(noVtDeckState));
+await noVtPage.close();
+
+// .is-new never applied during load-time redecoration (a stored decision
+// from a previous session, present before the page ever mounts, must never
+// pop), contrasted against a genuinely fresh judgement in the same run,
+// which must. Two separate pages, not a judge-then-reload sequence on one:
+// reloading mid-session here runs into a pre-existing, unrelated defect
+// (tracked below, out of scope for this wave) where the judgement-parity
+// bootstrap does not always re-decorate a reloaded page's cards; seeding
+// the decision via addInitScript, the same technique
+// seedCoachDoneBeforeLoad already uses, is both the correct test for "load
+// time" (the decision exists before first paint, exactly what the spec
+// means by it) and sidesteps that unrelated defect entirely.
+const isNewFreshPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await isNewFreshPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await seedCoachDoneBeforeLoad(isNewFreshPage);
+await isNewFreshPage.goto(`${base}/`, { waitUntil: 'load' });
+await isNewFreshPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+await isNewFreshPage.locator('[data-discover-entry]').click();
+await isNewFreshPage.waitForSelector('.discover-card');
+const isNewFirstId = await isNewFreshPage.locator('.discover-card').getAttribute('data-id');
+await isNewFreshPage.locator('.discover-btn-have').click();
+await isNewFreshPage.waitForFunction((id) => {
+  const li = document.querySelector(`.card-grid > li[data-id="${id}"]`);
+  return li && li.querySelector('.pub-judge-chip.is-new');
+}, isNewFirstId);
+check('motion: a fresh judgement (setDecision/judge path) marks its chip is-new', true);
+await isNewFreshPage.close();
+
+const isNewLoadTimePage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await isNewLoadTimePage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await isNewLoadTimePage.addInitScript(() => {
+  try {
+    localStorage.setItem('freestack:v1:discover', JSON.stringify({
+      v: 1, lastVisit: new Date().toISOString(), seenIds: [0],
+      decisions: { 0: { d: 'have', t: Date.now() } }, coachDone: true,
+    }));
+  } catch { /* private mode etc: irrelevant, no decision to redecorate either way */ }
+});
+await isNewLoadTimePage.goto(`${base}/`, { waitUntil: 'load' });
+await isNewLoadTimePage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+await isNewLoadTimePage.waitForFunction(() => {
+  const li = document.querySelector('.card-grid > li[data-id="0"]');
+  return li && li.querySelector('.pub-judge-chip');
+});
+const loadTimeChipState = await isNewLoadTimePage.evaluate(() => {
+  const chip = document.querySelector('.card-grid > li[data-id="0"] .pub-judge-chip');
+  return { text: chip?.textContent.trim(), hasIsNew: chip?.classList.contains('is-new') };
+});
+check('motion: load-time redecoration of an existing decision never marks a chip is-new',
+  loadTimeChipState.text === 'Got it' && loadTimeChipState.hasIsNew === false, JSON.stringify(loadTimeChipState));
+await isNewLoadTimePage.close();
+
 /* --- curator mode (staff path /x, batch I) --------------------------------- */
 await page.goto(`${base}/x`);
 await page.waitForSelector('.tools-table');
@@ -1762,12 +2081,20 @@ check('curator: export buttons enable with a selection', enabledCount === 4, `en
 
 const themeBtn = page.locator('.theme-toggle').first();
 await themeBtn.click();
+// Wave 14.2: the flip now runs inside the guarded View Transition helper
+// (motion inventory item 6), whose update callback is not invoked
+// synchronously with the click (confirmed empirically: one to two
+// animation frames later, but not a fixed bound under load). Polled with
+// waitForFunction rather than a fixed-timeout guess, so this never flakes
+// under a slower CI run the way a short sleep can.
+await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
 const darkSet = await page.evaluate(() => document.documentElement.dataset.theme);
 await page.reload();
 await page.waitForSelector('.tools-table');
 const darkPersists = await page.evaluate(() => document.documentElement.dataset.theme);
 check('curator: theme toggle flips to dark and persists across reload', darkSet === 'dark' && darkPersists === 'dark');
 await page.locator('.theme-toggle').first().click(); // restore light for later checks
+await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
 await page.evaluate(() => { try { localStorage.removeItem('freestack:v1:theme'); } catch {} });
 
 await page.goto(`${base}/?t=0,2`);

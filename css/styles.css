@@ -252,6 +252,20 @@ button { font: inherit; }
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 
+/* Wave 14.2 (PRD section 16 amended, motion inventory, closing clause: "no
+   view transition" under reduced motion): the universal selector above
+   cannot reach the ::view-transition tree the browser generates outside the
+   normal DOM for an active View Transition, since js/data-loader.js's
+   withViewTransition() helper already never starts one under reduced
+   motion, this is a defensive second guard, exactly the same belt-and-braces
+   posture every other item in the inventory takes (JS decides, CSS confirms
+   it behind the same query). */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) {
+    animation-duration: 0.01ms !important;
+  }
+}
+
 /* Screen-only chrome (print/share controls) is hidden in @media print below
    via the .no-print class; it needs no screen styles. */
 
@@ -1199,6 +1213,28 @@ button { font: inherit; }
 .pub-entry-pitch { max-width: none; color: var(--ink-2); font-size: var(--fs-14); line-height: var(--lh-14); }
 .pub-discover-btn { align-self: stretch; justify-content: center; }
 
+/* --- motion: deck-open morph (motion inventory item 4, PRD section 16
+   amended) -------------------------------------------------------------
+   js/public.js toggles this one class between the Discover button (before
+   the guarded transition captures its "old" state) and the mounted
+   .discover-panel (inside the transition's callback, before the "new"
+   state is captured), never on both elements at once: that shared name is
+   what tells the browser to morph the old box into the new one rather than
+   simple cross-fading them independently. The group's own duration and
+   easing is set on the generated pseudo-element, not on either real
+   element, since ::view-transition-group only exists for the duration of
+   an active transition. The reduced-motion guard for this whole pseudo-
+   element family already lives in the COMPONENTS block above (JS never
+   starts a transition under reduced motion in the first place; this is the
+   belt-and-braces CSS confirmation, not a second, item-specific one). */
+.pub-vt-discover { view-transition-name: discover-panel; }
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-group(discover-panel) {
+    animation-duration: 380ms;
+    animation-timing-function: var(--ease-swift);
+  }
+}
+
 .pub-persona-chip-row { display: flex; flex-wrap: wrap; gap: var(--s-2); }
 /* Verifier fix round (page-height budget, PRD section 16 amended, "first
    shelf rows visible within the first mobile viewport"): below 768px, five
@@ -1356,7 +1392,14 @@ button { font: inherit; }
    wave 14.2's forthcoming shelf-open stagger. This is a subtraction, scoped
    to cards inside a public shelf only, so client mode's own entrance
    (#client-root) is untouched: this selector cannot match there, .pub-shelf
-   only ever exists inside #public-root. */
+   only ever exists inside #public-root.
+
+   Wave 14.2: this subtraction stays exactly as is, per the phase brief
+   ("the suppression of the old card-in stays"). The new shelf-open stagger
+   (motion inventory item 2, see .pub-shelf-stagger below) is a fully
+   separate mechanism, applied to the <li> wrapper rather than .tool-card,
+   under its own JS-chosen, transient class: the two do not conflict, since
+   this rule only ever silences the OLD, always-on @keyframes animation. */
 .pub-shelf .tool-card { animation: none; }
 
 /* --- motion: reveal (motion inventory item 1, PRD section 16) -------------
@@ -1373,10 +1416,13 @@ button { font: inherit; }
    only shortens durations, it does not remove transform from the property
    list, so a dedicated override here is needed for the two classes below to
    ever measure as opacity-only). */
+/* Wave 14.2 recalibration: translateY(18px), 480ms, --ease-swift, per the
+   amended spec's exact item 1 values (previously translateY(10px)/360ms/
+   --ease-out from Phase 12.1, imperceptible per Rocky's 29 Jul direction). */
 .pub-reveal {
   opacity: 0;
-  transform: translateY(10px);
-  transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out);
+  transform: translateY(18px);
+  transition: opacity 480ms var(--ease-swift), transform 480ms var(--ease-swift);
 }
 .pub-reveal.is-in { opacity: 1; transform: translateY(0); }
 .pub-reveal-reduced {
@@ -1389,31 +1435,73 @@ button { font: inherit; }
   .pub-reveal.is-in { transform: none; }
 }
 
-/* --- motion: hover lift (motion inventory item 3, PRD section 16) ---------
+/* --- motion: shelf-expansion stagger (motion inventory item 2, "the
+   showpiece", PRD section 16 amended) ---------------------------------
+   js/public.js's staggerShelfCards applies one of these two classes (never
+   both) to the first six <li> cards of a shelf grid the instant it opens,
+   the same JS-chooses/CSS-confirms split as .pub-reveal above. Repeatable,
+   unlike .pub-reveal: cleanup after the transition removes the class again,
+   so the same shelf staggers again on its next open, not only its first. */
+.pub-shelf-stagger {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 300ms var(--ease-swift), transform 300ms var(--ease-swift);
+}
+.pub-shelf-stagger.is-in { opacity: 1; transform: translateY(0); }
+.pub-shelf-stagger-reduced {
+  opacity: 0;
+  transition: opacity 120ms var(--ease-swift);
+}
+.pub-shelf-stagger-reduced.is-in { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .pub-shelf-stagger { transition: opacity 120ms var(--ease-swift); transform: none; }
+  .pub-shelf-stagger.is-in { transform: none; }
+}
+
+/* --- motion: hover lift and focus (motion inventory item 7, PRD section 16
+   amended) -----------------------------------------------------------
    Scoped to #public-root rather than editing the CLIENT block's .tool-card
-   rule above (owned by Phase 4): additive rules only, the existing
-   border-hover behaviour there is untouched and simply layers with this.
-   The lift is set on the card-grid's <li> wrapper, not on .tool-card
-   itself: the CLIENT block's own entrance keyframes (card-in, "both" fill
-   mode) never release their hold on .tool-card's transform property once
-   they finish, which silently defeats any later hover-triggered transition
-   on that same element and property (verified in isolation: identical
-   rules on a plain element transition correctly, the same rules on an
-   element also carrying a "both" fill-mode animation on transform do not).
-   The <li> carries no such animation and, with no padding or border of its
-   own, occupies exactly the same box as the card inside it, so the lift
-   reads identically to the reader while sidestepping the conflict rather
-   than touching Phase 4's file. Hover-capable devices only; reduced motion
-   drops the translate but keeps the shadow as a static, non-moving
-   affordance. */
+   rule above (owned by Phase 4): additive/overriding rules only, layered on
+   top rather than touching that file. The lift itself is set on the
+   card-grid's <li> wrapper, not on .tool-card: the CLIENT block's own
+   entrance keyframes (card-in, "both" fill mode) never release their hold
+   on .tool-card's transform property once they finish, which silently
+   defeats any later hover-triggered transition on that same element and
+   property (verified in isolation: identical rules on a plain element
+   transition correctly, the same rules on an element also carrying a "both"
+   fill-mode animation on transform do not). The <li> carries no such
+   animation and, with no padding or border of its own, occupies exactly the
+   same box as the card inside it, so the lift reads identically to the
+   reader while sidestepping the conflict.
+
+   The border-colour half targets .tool-card itself (that is where the
+   border lives), overriding the CLIENT block's own hover rule (which shifts
+   to --ink-3) via an ID-anchored selector rather than editing that file,
+   the same technique this block already used before this wave.
+
+   Wave 14.2 recalibration to the amended spec's exact values: translateY
+   was -2px with a box-shadow swap (Phase 12.1); it is now -3px with a
+   border-colour shift to oxblood, 180ms, --ease-swift, no shadow term at
+   all (the inventory names only the two effects below). Reduced motion:
+   "colour change only, no translate", so the border shift is deliberately
+   NOT dropped under reduced motion, only the translate is.
+
+   Site-wide :focus-visible (2px oxblood outline, 2px offset, zero
+   duration) is the BASE block's existing `:is(a, button, input, select,
+   [tabindex]):focus-visible` rule: outline carries no transition anywhere
+   in this file, so focus never lags, satisfying this item's other half
+   with no new rule needed here. */
 @media (hover: hover) {
   #public-root .card-grid > li {
-    transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
+    transition: transform 180ms var(--ease-swift);
   }
-  #public-root .card-grid > li:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); }
+  #public-root .card-grid > li:hover { transform: translateY(-3px); }
+  #public-root .tool-card { transition: border-color 180ms var(--ease-swift); }
+  #public-root .card-grid > li:hover .tool-card { border-color: var(--oxblood); }
 }
 @media (hover: hover) and (prefers-reduced-motion: reduce) {
-  #public-root .card-grid > li:hover { transform: none; box-shadow: var(--shadow-1); }
+  #public-root .card-grid > li:hover { transform: none; }
+  #public-root .card-grid > li:hover .tool-card { border-color: var(--oxblood); }
 }
 
 /* --- judgement parity (Phase 12.3, PRD section 16, "Grid quick-judge and
@@ -1499,6 +1587,27 @@ button { font: inherit; }
   cursor: pointer;
 }
 .pub-judge-chip:hover { background: var(--oxblood); color: var(--paper); }
+
+/* --- motion: judged-chip pop (motion inventory item 5, PRD section 16
+   amended) -------------------------------------------------------------
+   js/public.js only ever adds .is-new to a chip rendering a decision the
+   reader just made this instant (discover.js's wasFreshlyDecided, consumed
+   once), never one merely re-rendered from stored state. --ease-spring is
+   reserved for small elements only, per the inventory's own note; a pill
+   chip comfortably qualifies. No fill-mode: the keyframe's own 100% state
+   (scale(1), opacity 1) already equals the chip's unstyled resting style,
+   so there is nothing to hold onto once the animation ends. */
+@keyframes pub-judge-chip-pop {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1); }
+}
+.pub-judge-chip.is-new {
+  transform-origin: left;
+  animation: pub-judge-chip-pop 220ms var(--ease-spring);
+}
+@media (prefers-reduced-motion: reduce) {
+  .pub-judge-chip.is-new { animation: none; }
+}
 .pub-judge-chooser {
   display: flex;
   flex-wrap: wrap;
@@ -1538,7 +1647,16 @@ button { font: inherit; }
    from the shared custom properties, so dark mode (the :root[data-theme]
    overrides in DARK MODE above) applies with no extra rules here. */
 
-.discover-mount { margin-bottom: var(--s-8); }
+/* Wave 14.2: overflow-anchor: none opts this whole subtree out of the
+   browser's scroll anchoring heuristic. The deck swaps its card (a
+   different height each time) on every judgement, right at the scroll
+   position js/public.js's deck-open morph just settled on; without this,
+   scroll anchoring reads that swap as content changing near the anchor
+   point and silently adjusts scrollY to compensate, which is exactly the
+   sort of scroll-linked effect the motion inventory bans and, measured
+   during this wave's build, could carry the freshly dealt card off-screen
+   the instant a judgement landed. */
+.discover-mount { margin-bottom: var(--s-8); overflow-anchor: none; }
 
 .discover-panel {
   background: var(--paper-2);

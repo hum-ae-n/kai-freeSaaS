@@ -174,6 +174,28 @@ document.addEventListener('error', (event) => {
   }
 }, true);
 
+/* --- guarded View Transitions helper (Wave 14.2, PRD section 16 amended,
+   motion inventory items 3, 4 and 6) -----------------------------------
+   Progressive enhancement only, feature-detected and skipped outright under
+   prefers-reduced-motion: `run` then executes directly with zero behaviour
+   change from before this helper existed ("otherwise the callback runs
+   directly, keeping today's hard cut"). Lives here, not in js/public.js,
+   because the theme toggle below is the one call site every surface shares;
+   js/public.js imports this same function for its filter redraws, Expand
+   all/Collapse all and the Discover deck-open morph, so the guard condition
+   can never drift between call sites. Returns the ViewTransition object
+   when one was actually started, so a caller that needs `.ready`/`.finished`
+   (the deck-open morph) can await it, or null when `run` was simply called
+   directly. */
+export function withViewTransition(run) {
+  if (typeof document.startViewTransition !== 'function'
+    || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    run();
+    return null;
+  }
+  return document.startViewTransition(run);
+}
+
 /* --- dark mode ------------------------------------------------------------
    The inline head script (index.html) already set data-theme before first
    paint, from the stored choice or prefers-color-scheme. This module owns
@@ -236,9 +258,18 @@ export function themeToggleButton(extraClass = 'btn-ghost btn-sm') {
   };
   btn.addEventListener('click', () => {
     const next = currentTheme() === 'dark' ? 'light' : 'dark';
-    applyTheme(next);
-    writeTheme(next);
-    for (const listener of themeToggleListeners) listener();
+    // Motion inventory item 6, "Theme-toggle cross-fade": the whole flip
+    // (attribute swap, stored preference, every open toggle button syncing)
+    // runs as one DOM mutation inside the guarded helper, which is what lets
+    // the browser's default ::view-transition-old(root)/new(root) cross-fade
+    // (roughly 250ms) cover the swap; unsupported browsers or a
+    // reduced-motion visitor get the identical instant swap this code always
+    // did.
+    withViewTransition(() => {
+      applyTheme(next);
+      writeTheme(next);
+      for (const listener of themeToggleListeners) listener();
+    });
   });
   themeToggleListeners.add(sync);
   sync();
