@@ -276,7 +276,18 @@ export function renderPublic(root, tools) {
       '.',
     ),
   );
+  // Utility nav (PRD section 16 amended, layout item 1, Phase 15): quiet
+  // links to My Stack and FAQ, pinned to the panel's top corner by CSS
+  // absolute positioning so it adds no vertical height at 375px and the
+  // 880px first-shelf budget below stays untouched. A plain child of
+  // `header`, so it inherits the hero's first-paint stagger rather than
+  // needing a second reveal call. Real internal links, no target=_blank.
+  const heroNav = el('nav', { class: 'pub-hero-nav', 'aria-label': 'Utility' },
+    el('a', { href: '/my' }, 'My Stack'),
+    el('a', { href: '/faq.html' }, 'FAQ'),
+  );
   const header = el('header', { class: 'panel pub-header' },
+    heroNav,
     el('img', { class: 'logo', src: 'design-system/assets/kaipability-logo-lockup.png', alt: 'Kaipability' }),
     el('h1', {}, 'Free Stack'),
     el('p', { class: 'subtitle' }, 'Curated free software for small business'),
@@ -706,6 +717,22 @@ export function renderPublic(root, tools) {
         'Also free: ', el('a', { href: '/my' }, 'My Stack'),
         ', a register for tracking who holds which account. ',
         el('a', { href: '/why-register.html' }, 'Why we built this'),
+        '.',
+      ),
+      // Good-practice block (PRD section 16 amended, layout item 6, Phase
+      // 15): the legal/practice line and the company identity line, added
+      // below the existing lines rather than replacing any of them.
+      el('p', { class: 't-meta pub-footer-legal' },
+        el('a', { href: '/privacy.html' }, 'Privacy'), ' · ',
+        el('a', { href: '/contact.html' }, 'Contact'), ' · ',
+        el('a', { href: '/faq.html' }, 'FAQ'), ' · ',
+        el('a', { href: '/why-register.html' }, 'Why we built My Stack'),
+      ),
+      el('p', { class: 't-meta pub-footer-company' },
+        'Kaipability Ltd, registered in England and Wales, Company No. 15772934. ',
+        el('a', { href: 'https://kaipability.com', target: '_blank', rel: 'noopener noreferrer' }, 'kaipability.com'),
+        ' · ',
+        el('a', { href: 'https://www.airl.io', target: '_blank', rel: 'noopener noreferrer' }, 'AIRL'),
         '.',
       ),
     ),

@@ -140,7 +140,9 @@ export function renderClient(root, tools, selection, clientName, noteText, print
   const workspaceAwarenessNote = el('p', { class: 't-meta my-awareness-link-line no-print' },
     'Curious why the workspace exists? ',
     el('a', { href: '/why-register.html' }, 'Why we built this'),
-    '.');
+    '. ',
+    el('a', { href: '/privacy.html' }, 'Privacy'), ' · ',
+    el('a', { href: '/contact.html' }, 'Contact'), '.');
 
   /* --- summary ----------------------------------------------------------- */
   const valueFigure = el('span', { class: 'num' }, money(0));

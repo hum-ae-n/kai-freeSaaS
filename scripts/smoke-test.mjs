@@ -110,6 +110,37 @@ check('public: indexable, no robots meta', await page.locator('meta[name=robots]
 check('public: trust line and CTA present',
   (await page.textContent('#public-root')).includes('No affiliates')
   && (await page.textContent('#public-root')).includes('Talk to Kaipability'));
+
+/* --- Phase 15: hero utility nav (PRD section 16 amended, layout item 1) ---
+   My Stack and FAQ links inside .pub-header, each at least 44px tall (the
+   site-wide touch-target rule), present without moving the pinned
+   first-shelf budget below (that budget's own check, further down, already
+   proves the number itself; this just confirms the nav did not regress
+   it). */
+const heroNavLinks = page.locator('.pub-header .pub-hero-nav a');
+check('homepage: hero utility nav links to /my and /faq.html', await heroNavLinks.count() === 2
+  && (await heroNavLinks.nth(0).getAttribute('href')) === '/my'
+  && (await heroNavLinks.nth(1).getAttribute('href')) === '/faq.html');
+const heroNavBoxes = await heroNavLinks.evaluateAll((nodes) => nodes.map((n) => n.getBoundingClientRect().height));
+// Sub-pixel tolerance: getBoundingClientRect() on this inline-flex row can
+// report 43.999996 for a CSS min-height:44px box (observed on this exact
+// build), a float-rounding artefact rather than a real sub-44px target;
+// the same 0.1px tolerance a device's own physical pixel grid would round
+// away.
+check('homepage: hero utility nav links are each at least 44px tall',
+  heroNavBoxes.every((h) => h >= 43.9), heroNavBoxes.join(','));
+
+/* --- Phase 15: footer good-practice block (PRD section 16 amended, layout
+   item 6) -------------------------------------------------------------- */
+const footerHtml = await page.locator('.pub-footer').innerHTML();
+check('homepage: footer links to /privacy.html and /contact.html',
+  footerHtml.includes('href="/privacy.html"') && footerHtml.includes('href="/contact.html"'));
+const footerOutboundLinks = await page.locator('.pub-footer a[href^="https://kaipability.com"], .pub-footer a[href^="https://www.airl.io"]').all();
+const footerOutboundRels = await Promise.all(footerOutboundLinks.map((a) => a.getAttribute('rel')));
+check('homepage: footer carries outbound links to kaipability.com and www.airl.io, all rel=noopener noreferrer',
+  footerOutboundLinks.length >= 2 && footerOutboundRels.every((r) => r === 'noopener noreferrer'),
+  footerOutboundRels.join('|'));
+
 await page.fill('#public-root input[type=search]', 'canva');
 // Wave 14.2: the redraw is now debounced and runs inside the guarded View
 // Transition helper (motion inventory item 3), so polling for the settled
@@ -336,7 +367,31 @@ check('homepage: reduced motion reveal elements carry no transform in their tran
   !revealTransitionProp.includes('transform'), revealTransitionProp);
 const reducedMotionClassCount = await reducedMotionPage.locator('.pub-reveal').count();
 check('homepage: reduced motion never applies the transform-bearing reveal class', reducedMotionClassCount === 0, `count=${reducedMotionClassCount}`);
+
+// Discover button emphasis (motion inventory item 8, PRD section 16
+// amended, Phase 15): under reduced motion, no pulse animation and no
+// transform response on hover.
+const reducedDiscoverAnim = await reducedMotionPage.locator('.pub-discover-btn').first()
+  .evaluate((node) => getComputedStyle(node).animationName);
+check('homepage: Discover button carries no animation under reduced motion', reducedDiscoverAnim === 'none', reducedDiscoverAnim);
+await reducedMotionPage.hover('.pub-discover-btn');
+const reducedDiscoverHoverTransform = await reducedMotionPage.locator('.pub-discover-btn').first()
+  .evaluate((node) => getComputedStyle(node).transform);
+check('homepage: Discover button has no transform on hover under reduced motion',
+  reducedDiscoverHoverTransform === 'none', reducedDiscoverHoverTransform);
 await reducedMotionPage.close();
+
+// Same button, normal motion: a finite, bounded pulse sequence, never
+// 'infinite' anywhere on this element (motion inventory item 8's own
+// explicit ban).
+const discoverAnimInfo = await page.locator('.pub-discover-btn').first()
+  .evaluate((node) => {
+    const cs = getComputedStyle(node);
+    return { name: cs.animationName, iterationCount: cs.animationIterationCount };
+  });
+check('homepage: Discover button pulse animation is present and has a finite iteration count (never infinite)',
+  discoverAnimInfo.name !== 'none' && discoverAnimInfo.iterationCount !== 'infinite' && !Number.isNaN(Number(discoverAnimInfo.iterationCount)),
+  JSON.stringify(discoverAnimInfo));
 
 /* --- Phase 14.1: shelf mechanics (PRD section 16 amended, "compact
    landing") ---------------------------------------------------------------
@@ -2204,13 +2259,20 @@ const whyRegisterHtml = (await readFile(join(ROOT, 'why-register.html'))).toStri
 // a new entry (PRD section 18: "a third distinct script would need a
 // netlify.toml hash which section 18 forbids adding").
 const faqHtml = (await readFile(join(ROOT, 'faq.html'))).toString('utf8');
+// Phase 15: privacy.html and contact.html join the why-register.html /
+// faq.html mould, reusing the same byte-for-byte boot script so neither
+// needs a new CSP hash entry.
+const privacyHtml = (await readFile(join(ROOT, 'privacy.html'))).toString('utf8');
+const contactHtml = (await readFile(join(ROOT, 'contact.html'))).toString('utf8');
 const netlifyToml = (await readFile(join(ROOT, 'netlify.toml'))).toString('utf8');
 
 const indexInline = extractInlineScripts(rawHtml);
 const embedInline = extractInlineScripts(embedHtml);
 const whyInline = extractInlineScripts(whyRegisterHtml);
 const faqInline = extractInlineScripts(faqHtml);
-const currentHashes = new Set([...indexInline, ...embedInline, ...whyInline, ...faqInline].map(sha256Base64));
+const privacyInline = extractInlineScripts(privacyHtml);
+const contactInline = extractInlineScripts(contactHtml);
+const currentHashes = new Set([...indexInline, ...embedInline, ...whyInline, ...faqInline, ...privacyInline, ...contactInline].map(sha256Base64));
 
 const cspScriptSrcLine = netlifyToml.split('\n').find((l) => l.includes('Content-Security-Policy') && l.includes('script-src'));
 const cspHashes = new Set([...(cspScriptSrcLine || '').matchAll(/'sha256-([A-Za-z0-9+/]+=*)'/g)].map((m) => m[1]));
@@ -2223,6 +2285,12 @@ check('csp: why-register.html boot script is byte identical to index.html',
   indexInline.length === 1 && whyInline.length === 1 && sha256Base64(indexInline[0]) === sha256Base64(whyInline[0]));
 check('csp: faq.html boot script is byte identical to index.html (Phase 14.3, no third hash needed)',
   indexInline.length === 1 && faqInline.length === 1 && sha256Base64(indexInline[0]) === sha256Base64(faqInline[0]));
+check('csp: privacy.html boot script is byte identical to index.html (Phase 15, no third hash needed)',
+  indexInline.length === 1 && privacyInline.length === 1 && sha256Base64(indexInline[0]) === sha256Base64(privacyInline[0]));
+check('csp: contact.html boot script is byte identical to index.html (Phase 15, no third hash needed)',
+  indexInline.length === 1 && contactInline.length === 1 && sha256Base64(indexInline[0]) === sha256Base64(contactInline[0]));
+check('csp: privacy.html and contact.html introduce no additional inline script beyond the shared boot script',
+  privacyInline.length === 1 && contactInline.length === 1);
 
 // Regression guard for the JSON-LD exclusion itself (PRD section 18,
 // "Smoke-gate exclusion for JSON-LD"): a type="application/ld+json" block
@@ -2372,15 +2440,18 @@ check('csp: faq.html boot script is byte identical to index.html (Phase 14.3, no
     rawHtml.includes('<meta property="og:title" content="Your Free Software Stack">'));
 
   // sitemap.xml: exactly the permitted URLs, nothing noindexed, no
-  // how-we-choose.html until Rocky's sign-off lands.
+  // how-we-choose.html until Rocky's sign-off lands. Phase 15 (PRD section
+  // 16 amended) adds privacy.html and contact.html to this list.
   const sitemapRes = await fetch(`${base}/sitemap.xml`);
   const sitemapXml = await sitemapRes.text();
   const sitemapUrls = [...sitemapXml.matchAll(/<loc>([^<]*)<\/loc>/g)].map((m) => m[1]);
-  check('aeo: sitemap.xml lists exactly / and /faq.html, nothing else',
+  check('aeo: sitemap.xml lists exactly /, /faq.html, /privacy.html and /contact.html, nothing else',
     sitemapRes.status === 200
-    && sitemapUrls.length === 2
+    && sitemapUrls.length === 4
     && sitemapUrls.includes('https://tools.airl.io/')
-    && sitemapUrls.includes('https://tools.airl.io/faq.html'));
+    && sitemapUrls.includes('https://tools.airl.io/faq.html')
+    && sitemapUrls.includes('https://tools.airl.io/privacy.html')
+    && sitemapUrls.includes('https://tools.airl.io/contact.html'));
 
   // robots.txt: Sitemap line present, still no disallow anywhere (a
   // disallow for /x would advertise the hidden staff path).
@@ -2391,13 +2462,15 @@ check('csp: faq.html boot script is byte identical to index.html (Phase 14.3, no
     && robotsTxt.includes('Sitemap: https://tools.airl.io/sitemap.xml')
     && !/Disallow:/i.test(robotsTxt));
 
-  // llms.txt: served, points at the machine-readable dataset and the FAQ.
+  // llms.txt: served, points at the machine-readable dataset, the FAQ and
+  // (Phase 15) the contact page.
   const llmsRes = await fetch(`${base}/llms.txt`);
   const llmsTxt = await llmsRes.text();
-  check('aeo: llms.txt is served and points at /data/tools.json and /faq.html',
+  check('aeo: llms.txt is served and points at /data/tools.json, /faq.html and /contact.html',
     llmsRes.status === 200
     && llmsTxt.includes('/data/tools.json')
-    && llmsTxt.includes('/faq.html'));
+    && llmsTxt.includes('/faq.html')
+    && llmsTxt.includes('/contact.html'));
 
   /* --- Wave 14.3b: data/faq.json as the single source of truth, and its two
      runtime surfacing points (homepage FAQ slot in js/public.js, ?tool=
@@ -2598,6 +2671,29 @@ await whyMobile.waitForSelector('#awareness-root');
 const whyScrollW = await whyMobile.evaluate(() => document.documentElement.scrollWidth);
 check('why-register: no horizontal scroll at 375px', whyScrollW <= 375, `scrollWidth=${whyScrollW}`);
 await whyMobile.close();
+
+/* --- Phase 15: privacy.html and contact.html (PRD section 16 amended,
+   layout item 6) -------------------------------------------------------
+   Unlike why-register.html, these two are indexable: served with 200, no
+   noindex meta, no horizontal scroll at 375px, and no em dashes anywhere in
+   their copy (house style, PRD section 10). */
+for (const [slug, needle] of [['privacy', 'Company No. 15772934'], ['contact', 'info@kaipability.com']]) {
+  const res = await fetch(`${base}/${slug}.html`);
+  const body = await res.text();
+  check(`${slug}.html: served locally with 200 and carries expected content`,
+    res.status === 200 && body.includes(needle), `status=${res.status}`);
+  check(`${slug}.html: no noindex meta (indexable, unlike why-register.html)`,
+    !/<meta\s+name="robots"/i.test(body));
+  check(`${slug}.html: no em dashes in the page copy`, !body.includes('—'));
+
+  const mobile = await browser.newPage({ viewport: { width: 375, height: 812 } });
+  await mobile.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await mobile.goto(`${base}/${slug}.html`);
+  await mobile.waitForSelector('.legal-body');
+  const scrollW = await mobile.evaluate(() => document.documentElement.scrollWidth);
+  check(`${slug}.html: no horizontal scroll at 375px`, scrollW <= 375, `scrollWidth=${scrollW}`);
+  await mobile.close();
+}
 
 /* --- Phase 11.5, batch D: /my DoD mechanics (PRD-REGISTER section 15) -----
    Plaintext path only throughout: encryption is deliberately never enabled

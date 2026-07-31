@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy · Free Stack by Kaipability</title>
+  <meta name="description" content="How Free Stack handles data: no analytics, no cookies, no accounts, and what genuinely stays on your device.">
+  <link rel="canonical" href="https://tools.airl.io/privacy.html">
+  <link rel="icon" type="image/png" href="design-system/assets/kaipability-mark.png">
+
+  <!-- No-flash-of-wrong-theme boot script, byte-identical to index.html's:
+       kept identical on purpose so the CSP script-src hash already
+       allow-listed for index.html's boot script covers this page too,
+       without a second hash entry in netlify.toml (why-register.html and
+       faq.html do the same). If this ever needs to diverge from
+       index.html's copy, it must get its own hash there. -->
+  <script>
+    try {
+      var t = localStorage.getItem('freestack:v1:theme');
+      if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="css/styles.css">
+
+  <!-- Page-specific layout only: colours, type and spacing tokens all come
+       from design-system/colors_and_type.css via css/styles.css. style-src
+       already allows 'unsafe-inline' in netlify.toml's CSP (PRD-REGISTER
+       section 10), so this inline block needs no hash entry and changes
+       the CSP value not at all. Shared with contact.html, which repeats
+       these same rules rather than importing a third stylesheet file. -->
+  <style>
+    .legal-wrap { max-width: var(--content-max); margin: 0 auto; padding: var(--s-8) var(--s-6) var(--s-24); }
+    .legal-back { font-size: var(--fs-14); display: inline-block; margin-bottom: var(--s-6); }
+    .legal-header { padding: var(--s-8) var(--s-6); margin-bottom: var(--s-10); }
+    .legal-header .logo { height: 32px; width: auto; margin-bottom: var(--s-6); display: block; }
+    .legal-body { display: flex; flex-direction: column; gap: var(--s-6); max-width: var(--measure); }
+    .legal-body h2 { font-size: var(--fs-26); line-height: var(--lh-26); margin-bottom: var(--s-2); }
+    .legal-footer { display: flex; align-items: center; gap: var(--s-4); flex-wrap: wrap; padding-top: var(--s-8); margin-top: var(--s-16); border-top: var(--border); }
+    .legal-footer .logo { height: 26px; width: auto; }
+  </style>
+</head>
+<body>
+  <noscript>
+    <div class="app-message">This page needs no JavaScript to read, but the theme toggle and site chrome need it enabled.</div>
+  </noscript>
+
+  <div class="legal-wrap">
+    <a class="legal-back" href="/">&larr; Free Stack</a>
+    <header class="panel legal-header">
+      <img class="logo" src="design-system/assets/kaipability-logo-lockup.png" alt="Kaipability">
+      <p class="eyebrow">Free Stack</p>
+      <h1>Privacy</h1>
+      <p class="t-lede">What we collect, what stays on your device, and who runs this site.</p>
+    </header>
+    <div class="legal-body">
+      <section>
+        <h2>Who runs this</h2>
+        <p>Free Stack is run by Kaipability Ltd, registered in England and Wales, Company No. 15772934. Questions go to <a href="mailto:info@kaipability.com">info@kaipability.com</a>.</p>
+      </section>
+      <section>
+        <h2>No tracking</h2>
+        <p>This site runs no analytics, no advertising and no tracking scripts of any kind. It sets no cookies.</p>
+      </section>
+      <section>
+        <h2>No accounts</h2>
+        <p>There are no user accounts anywhere on this site, and no password field exists on any page. Nothing you do here creates a login.</p>
+      </section>
+      <section>
+        <h2>What stays on your device</h2>
+        <p>A few things are saved in your browser, on this device only: your theme choice (light or dark), any judgements you make in Discover, and, if you use it, your My Stack account register. None of this is sent to Kaipability. Browser storage is a working copy, not a safe or permanent one: it can be cleared by you, by your browser, or lost by switching devices. If you use My Stack, the export file you download is the copy that genuinely lasts.</p>
+      </section>
+      <section>
+        <h2>Client share links</h2>
+        <p>When a curated stack is shared as a link, the client name in that link is carried in the URL itself and is rendered only in the visitor's own browser. It is never sent to or stored by Kaipability.</p>
+      </section>
+      <section>
+        <h2>Hosting</h2>
+        <p>Our hosting provider briefly keeps standard access logs, the same way almost every website host does, to keep the site running and secure. We do not use these logs for tracking or analytics.</p>
+      </section>
+      <section>
+        <h2>Tool icons</h2>
+        <p>The small icon shown next to each tool is fetched from a third-party icon service, DuckDuckGo's or Google's icon proxy, at the moment the page loads. Those services therefore see the standard request data, such as your IP address, that comes with any request for an image, the same way any icon or image loaded from another site would. We do not control what they do with that data.</p>
+      </section>
+    </div>
+    <footer class="legal-footer">
+      <img class="logo" src="design-system/assets/kaipability-logo-lockup.png" alt="">
+      <span class="t-meta">Curated by Kaipability Ltd. No affiliate links, no sponsored placements.</span>
+    </footer>
+  </div>
+</body>
+</html>

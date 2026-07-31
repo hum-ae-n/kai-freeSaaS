@@ -821,6 +821,10 @@ export async function renderWorkspace(root) {
       el('p', { class: 't-meta my-firstrun-privacy' },
         'Your register is ', STORAGE_PHRASE, '. Nothing you type is ever sent to Kaipability. ',
         el('a', { href: '/why-register.html', target: '_blank', rel: 'noopener noreferrer' }, 'Why we built this'),
+        '. ',
+        el('a', { href: '/privacy.html', target: '_blank', rel: 'noopener noreferrer' }, 'Privacy'),
+        ' · ',
+        el('a', { href: '/contact.html', target: '_blank', rel: 'noopener noreferrer' }, 'Contact'),
         '.'),
     );
   }
@@ -2788,6 +2792,11 @@ export async function renderWorkspace(root) {
           el('p', { class: 't-meta' },
             el('a', { href: '/why-register.html', target: '_blank', rel: 'noopener noreferrer' }, 'Why we built this'),
             ', including the evidence behind it and what a passphrase does and does not protect.'),
+          el('p', { class: 't-meta' },
+            el('a', { href: '/privacy.html', target: '_blank', rel: 'noopener noreferrer' }, 'Privacy'),
+            ' · ',
+            el('a', { href: '/contact.html', target: '_blank', rel: 'noopener noreferrer' }, 'Contact'),
+            '.'),
         ),
         state.example ? null : renderWipeSection(),
       );

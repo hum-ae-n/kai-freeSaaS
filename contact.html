@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact · Free Stack by Kaipability</title>
+  <meta name="description" content="Get in touch with Kaipability about Free Stack: suggest a tool, report a correction, or ask about a stack consultation.">
+  <link rel="canonical" href="https://tools.airl.io/contact.html">
+  <link rel="icon" type="image/png" href="design-system/assets/kaipability-mark.png">
+
+  <!-- No-flash-of-wrong-theme boot script, byte-identical to index.html's:
+       kept identical on purpose so the CSP script-src hash already
+       allow-listed for index.html's boot script covers this page too,
+       without a second hash entry in netlify.toml (why-register.html,
+       faq.html and privacy.html do the same). If this ever needs to
+       diverge from index.html's copy, it must get its own hash there. -->
+  <script>
+    try {
+      var t = localStorage.getItem('freestack:v1:theme');
+      if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="css/styles.css">
+
+  <!-- Page-specific layout only, identical to privacy.html's own block: see
+       that page's comment for why this repeats rather than shares a third
+       stylesheet file. -->
+  <style>
+    .legal-wrap { max-width: var(--content-max); margin: 0 auto; padding: var(--s-8) var(--s-6) var(--s-24); }
+    .legal-back { font-size: var(--fs-14); display: inline-block; margin-bottom: var(--s-6); }
+    .legal-header { padding: var(--s-8) var(--s-6); margin-bottom: var(--s-10); }
+    .legal-header .logo { height: 32px; width: auto; margin-bottom: var(--s-6); display: block; }
+    .legal-body { display: flex; flex-direction: column; gap: var(--s-6); max-width: var(--measure); }
+    .legal-body h2 { font-size: var(--fs-26); line-height: var(--lh-26); margin-bottom: var(--s-2); }
+    .legal-footer { display: flex; align-items: center; gap: var(--s-4); flex-wrap: wrap; padding-top: var(--s-8); margin-top: var(--s-16); border-top: var(--border); }
+    .legal-footer .logo { height: 26px; width: auto; }
+  </style>
+</head>
+<body>
+  <noscript>
+    <div class="app-message">This page needs no JavaScript to read, but the theme toggle and site chrome need it enabled.</div>
+  </noscript>
+
+  <div class="legal-wrap">
+    <a class="legal-back" href="/">&larr; Free Stack</a>
+    <header class="panel legal-header">
+      <img class="logo" src="design-system/assets/kaipability-logo-lockup.png" alt="Kaipability">
+      <p class="eyebrow">Free Stack</p>
+      <h1>Contact</h1>
+      <p class="t-lede">Suggest a tool, report a correction, or ask about a stack consultation.</p>
+    </header>
+    <div class="legal-body">
+      <section>
+        <h2>Email</h2>
+        <p>Every message reaches a real person: <a href="mailto:info@kaipability.com">info@kaipability.com</a>. There is no contact form on this site, so this address is the one way to reach us.</p>
+      </section>
+      <section>
+        <h2>What to contact us about</h2>
+        <p>A tool you think belongs in the directory, a correction to something already listed, or a stack consultation for your own business. Kaipability Ltd, registered in England and Wales, Company No. 15772934, curates this directory from real client work.</p>
+      </section>
+      <section>
+        <h2>Kaipability</h2>
+        <p>Free Stack is one project from Kaipability, a consultancy for small and growing businesses. Read more at <a href="https://kaipability.com" target="_blank" rel="noopener noreferrer">kaipability.com</a>.</p>
+      </section>
+      <section>
+        <h2>AIRL</h2>
+        <p>Kaipability also maintains the AI Readiness Level (AIRL) framework for manufacturers, at <a href="https://www.airl.io" target="_blank" rel="noopener noreferrer">www.airl.io</a>.</p>
+      </section>
+    </div>
+    <footer class="legal-footer">
+      <img class="logo" src="design-system/assets/kaipability-logo-lockup.png" alt="">
+      <span class="t-meta">Curated by Kaipability Ltd. No affiliate links, no sponsored placements.</span>
+    </footer>
+  </div>
+</body>
+</html>
