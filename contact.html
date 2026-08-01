@@ -12,13 +12,16 @@
        kept identical on purpose so the CSP script-src hash already
        allow-listed for index.html's boot script covers this page too,
        without a second hash entry in netlify.toml (why-register.html,
-       faq.html and privacy.html do the same). If this ever needs to
-       diverge from index.html's copy, it must get its own hash there. -->
+       faq.html and privacy.html do the same). Also stamps js-boot on the
+       root (Phase 15.4), which only hides anything on index.html's own
+       #static-root; harmless here. If this ever needs to diverge from
+       index.html's copy, it must get its own hash there. -->
   <script>
     try {
       var t = localStorage.getItem('freestack:v1:theme');
       if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
       document.documentElement.setAttribute('data-theme', t);
+      document.documentElement.classList.add('js-boot');
     } catch (e) {}
   </script>
   <link rel="stylesheet" href="css/styles.css">

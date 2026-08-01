@@ -11,6 +11,7 @@
  */
 import { createServer } from 'node:http';
 import { readFile, readdir } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { extname, join, normalize, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
@@ -378,12 +379,20 @@ check('homepage: reduced motion reveal elements carry no transform in their tran
 const reducedMotionClassCount = await reducedMotionPage.locator('.pub-reveal').count();
 check('homepage: reduced motion never applies the transform-bearing reveal class', reducedMotionClassCount === 0, `count=${reducedMotionClassCount}`);
 
-// Discover button emphasis (motion inventory item 8, PRD section 16
-// amended, Phase 15): under reduced motion, no pulse animation and no
-// transform response on hover.
-const reducedDiscoverAnim = await reducedMotionPage.locator('.pub-discover-btn').first()
-  .evaluate((node) => getComputedStyle(node).animationName);
-check('homepage: Discover button carries no animation under reduced motion', reducedDiscoverAnim === 'none', reducedDiscoverAnim);
+// Discover button, house CTA treatment (motion inventory item 8, PRD
+// section 16 amended 15.4, rewritten from the bounded two-pulse emphasis to
+// the airl.io-style ambient loop, the inventory's single recorded looping
+// exception): under reduced motion, no animation anywhere on the element or
+// its two pseudo-elements, and no transform response on hover.
+const reducedDiscoverAnimNames = await reducedMotionPage.locator('.pub-discover-btn').first()
+  .evaluate((node) => ({
+    self: getComputedStyle(node).animationName,
+    before: getComputedStyle(node, '::before').animationName,
+    after: getComputedStyle(node, '::after').animationName,
+  }));
+check('homepage: Discover button and its pseudo-elements carry no animation under reduced motion',
+  reducedDiscoverAnimNames.self === 'none' && reducedDiscoverAnimNames.before === 'none' && reducedDiscoverAnimNames.after === 'none',
+  JSON.stringify(reducedDiscoverAnimNames));
 await reducedMotionPage.hover('.pub-discover-btn');
 const reducedDiscoverHoverTransform = await reducedMotionPage.locator('.pub-discover-btn').first()
   .evaluate((node) => getComputedStyle(node).transform);
@@ -391,17 +400,59 @@ check('homepage: Discover button has no transform on hover under reduced motion'
   reducedDiscoverHoverTransform === 'none', reducedDiscoverHoverTransform);
 await reducedMotionPage.close();
 
-// Same button, normal motion: a finite, bounded pulse sequence, never
-// 'infinite' anywhere on this element (motion inventory item 8's own
-// explicit ban).
+// Same button, normal motion: the rewritten treatment's recorded exception,
+// the one element on the whole public surface allowed an infinite iteration
+// count. animationIterationCount is a comma list matching animationName's
+// own list; the real button carries the drift animation alone, so its
+// single entry must read 'infinite'. The ::before pulse and ::after sheen
+// carry their own infinite loops too.
 const discoverAnimInfo = await page.locator('.pub-discover-btn').first()
-  .evaluate((node) => {
-    const cs = getComputedStyle(node);
-    return { name: cs.animationName, iterationCount: cs.animationIterationCount };
-  });
-check('homepage: Discover button pulse animation is present and has a finite iteration count (never infinite)',
-  discoverAnimInfo.name !== 'none' && discoverAnimInfo.iterationCount !== 'infinite' && !Number.isNaN(Number(discoverAnimInfo.iterationCount)),
+  .evaluate((node) => ({
+    self: {
+      name: getComputedStyle(node).animationName,
+      iterationCount: getComputedStyle(node).animationIterationCount,
+    },
+    before: {
+      name: getComputedStyle(node, '::before').animationName,
+      iterationCount: getComputedStyle(node, '::before').animationIterationCount,
+    },
+    after: {
+      name: getComputedStyle(node, '::after').animationName,
+      iterationCount: getComputedStyle(node, '::after').animationIterationCount,
+    },
+  }));
+check('homepage: Discover button (drift) and both pseudo-elements (pulse, sheen) all carry infinite iteration counts',
+  discoverAnimInfo.self.name !== 'none' && discoverAnimInfo.self.iterationCount === 'infinite'
+  && discoverAnimInfo.before.name !== 'none' && discoverAnimInfo.before.iterationCount === 'infinite'
+  && discoverAnimInfo.after.name !== 'none' && discoverAnimInfo.after.iterationCount === 'infinite',
   JSON.stringify(discoverAnimInfo));
+
+// The recorded exception must stay scoped: 'infinite' may appear in the
+// PUBLIC block of styles.css only inside pub-discover-btn-related rules (its
+// base rule, ::before, ::after), never on any other public-surface element,
+// so no other rule can quietly inherit the site's one looping allowance.
+{
+  const cssText = readFileSync(join(ROOT, 'css', 'styles.css'), 'utf8');
+  const publicStart = cssText.indexOf('/* === PUBLIC');
+  const publicEnd = cssText.indexOf('/* === DISCOVER', publicStart);
+  const publicBlock = cssText.slice(publicStart, publicEnd);
+  // Comments are stripped first: prose can legitimately say "infinite" (this
+  // very section's own lead comment does, describing the treatment) without
+  // that being a live CSS declaration to scope. Stripping them means only
+  // real `animation: ... infinite ...;` declarations are ever scanned, and
+  // every one of those sits directly inside its own rule, a short window
+  // away from the selector that names it.
+  const publicBlockNoComments = publicBlock.replace(/\/\*[\s\S]*?\*\//g, '');
+  const lines = publicBlockNoComments.split('\n');
+  const strayInfinite = [];
+  lines.forEach((line, idx) => {
+    if (!line.includes('infinite')) return;
+    const nearby = lines.slice(Math.max(0, idx - 6), idx + 1).join('\n');
+    if (!nearby.includes('pub-discover')) strayInfinite.push(`line ${idx}: ${line.trim()}`);
+  });
+  check('css: "infinite" in the PUBLIC block appears only in pub-discover-btn-related rules',
+    strayInfinite.length === 0, strayInfinite.join(' | '));
+}
 
 /* --- Phase 14.1: shelf mechanics (PRD section 16 amended, "compact
    landing") ---------------------------------------------------------------
@@ -527,6 +578,102 @@ check('shelf: Collapse all round-trips back to fully collapsed',
   `stillOpen=${stillOpenAfterCollapseAll} label="${labelAfterCollapseAll}"`);
 await shelfMechPage.close();
 
+/* --- Phase 15.4: sticky shelf headers (PRD section 16 amended shelf
+   mechanics) --------------------------------------------------------------
+   An open shelf's header stays on screen (position: sticky) at every width,
+   so collapsing a long shelf never needs scrolling back up; a collapsed
+   shelf's header must never stick. The target shelf is data-driven, per the
+   task's own instruction, not hardcoded to "SEO & Analytics": whichever
+   category currently has the most active tools, so the check keeps testing
+   the worst case as tools.json changes over time. */
+const shelfCounts = new Map();
+for (const t of active) shelfCounts.set(t.category, (shelfCounts.get(t.category) ?? 0) + 1);
+const [biggestCategory, biggestCount] = [...shelfCounts.entries()].sort((a, b) => b[1] - a[1])[0];
+const biggestSlug = slugifyForTest(biggestCategory);
+
+const stickyPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+await stickyPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+// Reduced motion so the #cat-<slug> deep link's own scrollIntoView (see
+// openShelfBySlug) runs 'auto' (instant) rather than 'smooth': otherwise its
+// animation can still be mid-flight when the manual scroll below runs a
+// moment later, and the two scrolls fighting is a test-harness race, not
+// anything sticky positioning itself needs to care about.
+await stickyPage.emulateMedia({ reducedMotion: 'reduce' });
+// The #cat-<slug> deep link (existing mechanic, unchanged by this wave)
+// opens and scrolls to the shelf, so the header starts already pinned.
+await stickyPage.goto(`${base}/#cat-${biggestSlug}`);
+await stickyPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+const biggestHeaderSelector = `#cat-${biggestSlug} .pub-shelf-header`;
+const biggestGridId = await stickyPage.locator(biggestHeaderSelector).getAttribute('aria-controls');
+await stickyPage.waitForFunction((gridId) => document.getElementById(gridId)?.hidden === false, biggestGridId);
+await stickyPage.waitForTimeout(200); // let the deep link's own instant scroll settle
+
+// Scroll so the shelf's own last card sits at the very top of the viewport,
+// the deepest a reader could scroll into this shelf before leaving it.
+await stickyPage.evaluate((gridId) => {
+  const grid = document.getElementById(gridId);
+  const cards = grid.querySelectorAll('.tool-card');
+  cards[cards.length - 1].scrollIntoView({ block: 'start' });
+}, biggestGridId);
+await stickyPage.waitForTimeout(80);
+
+const stuckHeaderBox = await stickyPage.locator(biggestHeaderSelector).boundingBox();
+check(`sticky: "${biggestCategory}" (${biggestCount} tools, the largest shelf), scrolled to its last card, still shows its header on screen`,
+  stuckHeaderBox !== null && stuckHeaderBox.y >= 0 && stuckHeaderBox.y < 844,
+  JSON.stringify(stuckHeaderBox));
+const isStuckClassPresent = await stickyPage.locator(biggestHeaderSelector).evaluate((n) => n.classList.contains('is-stuck'));
+check('sticky: the pinned header carries is-stuck (the separation-shadow class) once scrolled past its resting position',
+  isStuckClassPresent === true);
+
+await stickyPage.locator(biggestHeaderSelector).click();
+await stickyPage.waitForTimeout(120);
+const afterStuckCollapse = await stickyPage.evaluate((gridId) => {
+  const grid = document.getElementById(gridId);
+  const header = grid.closest('.pub-shelf').querySelector('.pub-shelf-header');
+  return {
+    hidden: grid.hidden,
+    ariaExpanded: header.getAttribute('aria-expanded'),
+    scrollY: window.scrollY,
+    scrollHeight: document.documentElement.scrollHeight,
+    innerHeight: window.innerHeight,
+  };
+}, biggestGridId);
+check('sticky: clicking the stuck header collapses the shelf exactly as before and flips aria-expanded',
+  afterStuckCollapse.hidden === true && afterStuckCollapse.ariaExpanded === 'false', JSON.stringify(afterStuckCollapse));
+// "Must not leave the viewport scrolled into a void": the scroll position
+// plus one viewport height must never exceed the (now shorter) document, the
+// signature of scrolling into blank space below the shortened page.
+check('sticky: collapsing the stuck shelf does not scroll the viewport into a void past the shortened document',
+  afterStuckCollapse.scrollY + afterStuckCollapse.innerHeight <= afterStuckCollapse.scrollHeight + 2,
+  JSON.stringify(afterStuckCollapse));
+await stickyPage.close();
+
+// A collapsed shelf's header must never stick: scroll well past a still-
+// collapsed shelf's resting position (no shelf is ever opened on this fresh
+// load) and confirm it scrolls away with the page instead of pinning at 0.
+const collapsedStickyPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+await collapsedStickyPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await collapsedStickyPage.goto(`${base}/`);
+await collapsedStickyPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+const secondHeader = collapsedStickyPage.locator('.pub-shelf-header').nth(1);
+await secondHeader.evaluate((n) => {
+  window.scrollTo(0, n.getBoundingClientRect().top + window.scrollY + 400);
+});
+await collapsedStickyPage.waitForTimeout(80);
+const collapsedHeaderBox = await secondHeader.boundingBox();
+// is-stuck itself may still be toggled by the passive sentinel observer
+// (it tracks every shelf's scroll position regardless of open state, by
+// design, the cheapest way to keep one observer per shelf rather than
+// wiring one up only on open); what must never happen is any VISUAL stuck
+// effect on a collapsed header, since the CSS gates both position:sticky
+// and the shadow on aria-expanded="true". box-shadow is the proof that
+// actually matters here, not the class name.
+const collapsedHeaderShadow = await secondHeader.evaluate((n) => getComputedStyle(n).boxShadow);
+check('sticky: a collapsed shelf header is never sticky (scrolls past normally, top goes negative) and shows no stuck shadow',
+  collapsedHeaderBox !== null && collapsedHeaderBox.y < 0 && (collapsedHeaderShadow === 'none' || collapsedHeaderShadow === ''),
+  JSON.stringify({ box: collapsedHeaderBox, boxShadow: collapsedHeaderShadow }));
+await collapsedStickyPage.close();
+
 // Card-in replay suppression (verifier fix round): client.js's CLIENT block
 // gives every .tool-card an unconditional "card-in" fade-and-rise, gated
 // only on prefers-reduced-motion: no-preference (the default here, left
@@ -648,11 +795,28 @@ if ((await staggerHeader.getAttribute('aria-expanded')) === 'true') {
   await staggerPage.waitForTimeout(30);
 }
 await staggerPage.waitForTimeout(400);
+/* Same race the first-open check above had (sampling computed style after
+   the click loses to a fast flight under CPU load): record transitionstart
+   evidence installed before the reopen click instead of sampling after. */
+await staggerPage.evaluate(() => {
+  window.__staggerReplayEvidence = { starts: 0, first: null };
+  document.addEventListener('transitionstart', (e) => {
+    const t = e.target;
+    if (!(t instanceof Element) || !t.matches('.pub-shelf .card-grid > li')) return;
+    if (!t.classList.contains('pub-shelf-stagger')) return;
+    window.__staggerReplayEvidence.starts++;
+    if (!window.__staggerReplayEvidence.first) {
+      window.__staggerReplayEvidence.first = { property: e.propertyName, className: t.className };
+    }
+  }, true);
+});
 await staggerHeader.click(); // reopen
-const staggerReplay = await sampleFirstLi(staggerPage);
-check('shelf: the stagger replays on a later reopen of the same shelf (repeatable, not once-only)',
-  staggerReplay.className.includes('pub-shelf-stagger') && Number(staggerReplay.opacity) < 1,
-  JSON.stringify(staggerReplay));
+await staggerPage.waitForTimeout(600);
+const staggerReplay = await staggerPage.evaluate(() => window.__staggerReplayEvidence);
+check('shelf: the stagger replays on a later reopen of the same shelf (repeatable, not once-only; transitionstart evidence)',
+  staggerReplay.starts > 0 && staggerReplay.first !== null
+  && staggerReplay.first.className.includes('pub-shelf-stagger'),
+  `starts=${staggerReplay.starts} first=${JSON.stringify(staggerReplay.first)}`);
 await staggerPage.close();
 
 // Reduced motion: opacity only, no stagger delay, no translate, at trigger
@@ -1101,47 +1265,57 @@ check('discover: opening the deck sets the ways-in band to display:none and leav
   `entryDisplay=${entryDisplayWhileOpen} btnBox=${JSON.stringify(discoverBtnBoxWhileOpen)} panelVisible=${panelVisibleWhileOpen}`);
 await hideCheckPage.close();
 
-// The pulse-while-deck-open race, and the reopen-after-close replay guard.
-// The entry is clicked immediately after load, before the pulse's own
-// 900ms animation-delay has elapsed, with an animationstart listener
-// installed first: on the pre-fix tree the button stayed visible and kept
-// its animation, so the delay would elapse with the deck open and the
-// pulse would genuinely start; a display:none button cannot run a CSS
-// animation at all, which is what this proves once the fix is in place.
+// House CTA loop, deck-open stop and restore-resume (PRD section 16
+// amended 15.4, motion inventory item 8 rewritten): the old bounded,
+// one-shot pulse's "never fires while the deck is open" and "never
+// replays" checks are REWRITTEN here, not merely retired, because the
+// spec itself flipped: an ambient loop is SUPPOSED to stop while hidden
+// (display:none on entryPaths already halts every animation on that
+// subtree, real element and pseudo-elements alike) and resume when the
+// band returns, which is correct behaviour for this treatment, not a bug.
+// getAnimations({ subtree: true }) on the entry wrapper counts every
+// running animation including the ::before pulse and ::after sheen, not
+// only the drift animation that lives on the real button.
 const raceCheckPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 await raceCheckPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await seedCoachDoneBeforeLoad(raceCheckPage);
 await raceCheckPage.goto(`${base}/`);
 await raceCheckPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
-await raceCheckPage.evaluate(() => {
-  window.__pulseStarted = false;
-  document.querySelector('[data-discover-entry]').addEventListener('animationstart', (e) => {
-    if (e.animationName === 'pub-discover-pulse') window.__pulseStarted = true;
-  });
-});
-await raceCheckPage.locator('[data-discover-entry]').click(); // well before the 900ms delay elapses
+const animCountOnLoad = await raceCheckPage.locator('[data-discover-entry]')
+  .evaluate((n) => n.getAnimations({ subtree: true }).length);
+check('discover: Start Discover carries at least one running animation before the deck opens (the ambient loop)',
+  animCountOnLoad > 0, `animCountOnLoad=${animCountOnLoad}`);
+await raceCheckPage.locator('[data-discover-entry]').click();
 await raceCheckPage.waitForSelector('.discover-card');
-await raceCheckPage.waitForTimeout(1700); // past the 900ms delay and the full 1650ms pulse sequence
-const pulseFiredWhileOpen = await raceCheckPage.evaluate(() => window.__pulseStarted);
-check('discover: the pulse animation never fires on Start Discover while the deck is open (opened before the 900ms delay elapsed)',
-  pulseFiredWhileOpen === false, `pulseFiredWhileOpen=${pulseFiredWhileOpen}`);
+// Same settled-state wait as the checks above: the hide is deferred to the
+// View Transition's finished promise.
+await raceCheckPage.locator('.pub-entry').waitFor({ state: 'hidden' });
+const animCountWhileOpen = await raceCheckPage.locator('[data-discover-entry]')
+  .evaluate((n) => n.getAnimations({ subtree: true }).length);
+check('discover: Start Discover carries no running animation while the deck is open (display:none halts the loop)',
+  animCountWhileOpen === 0, `animCountWhileOpen=${animCountWhileOpen}`);
 
-// (d) Reopen after close: the band must re-hide, and the same flag (never
-// reset) must still read false, proving the pulse did not replay when
-// display was restored between the two opens.
+// Reopen after close: the band must re-hide, and the loop must resume
+// (getAnimations evidence), the ambient treatment's desired behaviour, the
+// exact opposite of the retired no-replay guard's assertion.
 await raceCheckPage.locator('.discover-panel').press('Escape');
 await raceCheckPage.waitForTimeout(150);
 const entryVisibleBeforeReopen = await raceCheckPage.locator('.pub-entry').isVisible();
+const animCountAfterClose = await raceCheckPage.locator('[data-discover-entry]')
+  .evaluate((n) => n.getAnimations({ subtree: true }).length);
+check('discover: closing the deck restores the ways-in band with its loop resumed (no retired no-replay guard)',
+  entryVisibleBeforeReopen === true && animCountAfterClose > 0,
+  `entryVisibleBeforeReopen=${entryVisibleBeforeReopen} animCountAfterClose=${animCountAfterClose}`);
 await raceCheckPage.locator('[data-discover-entry]').click();
 await raceCheckPage.waitForSelector('.discover-card');
 // Same settled-state wait as the checks above, on the reopen this time.
 await raceCheckPage.locator('.pub-entry').waitFor({ state: 'hidden' });
 const entryHiddenOnReopen = await raceCheckPage.locator('.pub-entry').isHidden();
-await raceCheckPage.waitForTimeout(1700);
-const pulseFiredAfterReopen = await raceCheckPage.evaluate(() => window.__pulseStarted);
-check('discover: reopening the deck re-hides the ways-in band, and the pulse does not replay after the earlier restore',
-  entryVisibleBeforeReopen === true && entryHiddenOnReopen === true && pulseFiredAfterReopen === false,
-  `entryVisibleBeforeReopen=${entryVisibleBeforeReopen} entryHiddenOnReopen=${entryHiddenOnReopen} pulseFiredAfterReopen=${pulseFiredAfterReopen}`);
+const animCountOnReopen = await raceCheckPage.locator('[data-discover-entry]')
+  .evaluate((n) => n.getAnimations({ subtree: true }).length);
+check('discover: reopening the deck re-hides the ways-in band and stops the loop again',
+  entryHiddenOnReopen === true && animCountOnReopen === 0,
+  `entryHiddenOnReopen=${entryHiddenOnReopen} animCountOnReopen=${animCountOnReopen}`);
 await raceCheckPage.close();
 
 // Completion hand-off: have= always present (even empty), skip never travels.
@@ -2485,6 +2659,52 @@ check('csp: privacy.html and contact.html introduce no additional inline script 
   const staticRootVisibleText = await page.locator('#static-root').isVisible().catch(() => false);
   check('aeo: the static block is not visibly duplicated once the app has rendered',
     staticRootVisibleText === false);
+
+  /* --- Phase 15.4: no flash on JS-capable loads (section 18 amended) -------
+     The js-boot stamp lands before first paint, from the shared head boot
+     script; a JS-capable load must never paint #static-root even for the
+     duration of a slow tools.json fetch. tools.json is deliberately delayed
+     here to widen the window a regression would need to slip through: with
+     the fix in place the static block is display:none from before
+     DOMContentLoaded regardless of how long the fetch takes. */
+  const flashPage = await browser.newPage();
+  await flashPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await flashPage.route('**/data/tools.json', async (route) => {
+    await new Promise((resolve) => { setTimeout(resolve, 600); });
+    await route.continue();
+  });
+  await flashPage.addInitScript(() => {
+    window.__flashEvidence = { stampBeforeDCL: null, staticDisplayAtDCL: null };
+    document.addEventListener('DOMContentLoaded', () => {
+      window.__flashEvidence.stampBeforeDCL = document.documentElement.classList.contains('js-boot');
+      const node = document.getElementById('static-root');
+      window.__flashEvidence.staticDisplayAtDCL = node ? getComputedStyle(node).display : null;
+    });
+  });
+  await flashPage.goto(`${base}/`);
+  await flashPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+  const flashEvidence = await flashPage.evaluate(() => window.__flashEvidence);
+  check('flash: js-boot is stamped and #static-root computes display:none by DOMContentLoaded, even with tools.json delayed 600ms',
+    flashEvidence.stampBeforeDCL === true && flashEvidence.staticDisplayAtDCL === 'none',
+    JSON.stringify(flashEvidence));
+  await flashPage.close();
+
+  // Fetch-failure path extended (PRD section 18: "a fetch failure now leaves
+  // readable content instead of a blank page"): the js-boot stamp must come
+  // back OFF too, or a broken app would leave the static block stamped
+  // hidden with nothing rendered in its place, the exact blank page the
+  // static block exists to prevent.
+  const toolsBlockedPage = await browser.newPage();
+  await toolsBlockedPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await toolsBlockedPage.route('**/data/tools.json', (route) => route.abort());
+  await toolsBlockedPage.goto(`${base}/`);
+  await toolsBlockedPage.waitForSelector('.app-message.is-error');
+  const staticVisibleOnFailure = await toolsBlockedPage.locator('#static-root').isVisible();
+  const stampPresentOnFailure = await toolsBlockedPage.evaluate(() => document.documentElement.classList.contains('js-boot'));
+  check('flash: a blocked tools.json fetch removes the js-boot stamp, leaving #static-root visible',
+    staticVisibleOnFailure === true && stampPresentOnFailure === false,
+    `staticVisible=${staticVisibleOnFailure} stampPresent=${stampPresentOnFailure}`);
+  await toolsBlockedPage.close();
 
   // faq.html: the ten canonical questions as visible text, indexable (no
   // robots meta), FAQPage JSON-LD whose strings match the visible copy.

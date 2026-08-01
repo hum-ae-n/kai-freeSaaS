@@ -115,6 +115,18 @@ button { font: inherit; }
   outline-offset: 2px;
 }
 
+/* Phase 15.4, section 18 amended clause: the shared theme-boot inline
+   script stamps js-boot on <html> before first paint, so a JS-capable load
+   never paints #static-root for the duration of the tools.json fetch (it
+   used to stay visible until js/data-loader.js's boot() hid it after the
+   fetch resolved, which painted the whole crawler block on slow mobile
+   connections). Only index.html has a #static-root element; the stamp
+   lands on every page sharing the boot script, harmless where the id is
+   absent. The boot failure path in js/data-loader.js removes the stamp so
+   a broken app still falls back to the readable static content, and non-JS
+   readers never receive the stamp at all. */
+html.js-boot #static-root { display: none; }
+
 .app-message {
   max-width: var(--measure);
   margin: var(--s-24) auto;
@@ -1279,88 +1291,162 @@ button { font: inherit; }
 /* Same design-system `p` line-height trap as .pub-hero-trust-item above. */
 .pub-entry-pitch { max-width: none; color: var(--ink-2); font-size: var(--fs-14); line-height: var(--lh-14); }
 
-/* --- motion: Discover button emphasis (motion inventory item 8, PRD
-   section 16 amended, Phase 15) -------------------------------------------
-   A bounded, non-looping attention sequence, not the ambient or looping
-   motion this section otherwise bans: exactly two scale-and-glow pulses
-   baked into one keyframe timeline (0-450ms the first pulse, a plateau,
-   1200-1650ms the second, "about 1.2s apart" measured start to start),
-   animation-iteration-count 1 (the last value in the shorthand below), so
-   nothing on this button ever loops and it never runs again without a
-   reload. animation-delay clears the ways-in band's own first-paint
-   stagger (motion item 1): the latest of the three staggered nodes
-   (personaItem, index 2) settles at 80ms*2 + 480ms = 640ms, so 900ms
-   leaves a clear margin. --ease-spring is reserved for elements under
-   roughly 200px per the inventory's own note; this button qualifies. The
-   glow is color-mix against the --oxblood token so it tracks the brand
-   colour's own per-theme value automatically, per the design-token rule,
-   rather than a hardcoded hex; the sheen highlight further down
-   deliberately does not use a token, see its own comment. */
-@keyframes pub-discover-pulse {
-  0%, 27.3%, 72.7%, 100% {
-    transform: scale(1);
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--oxblood) 0%, transparent);
-  }
-  13.6%, 86.4% {
-    transform: scale(1.04);
-    box-shadow: 0 0 20px 4px color-mix(in srgb, var(--oxblood) 35%, transparent);
-  }
-}
+/* --- motion: Discover button, house CTA treatment (motion inventory item 8,
+   PRD section 16 amended 15.4, rewritten on Rocky's phone-test direction,
+   airl.io reference) --------------------------------------------------------
+   The one deliberate, recorded exception to this section's ban on looping
+   and ambient motion: a three-stop brand-red gradient that drifts slowly, a
+   soft ambient pulse and a periodic sheen, all infinite, all stopped for
+   free whenever the ways-in band hides (display:none halts every animation
+   on its subtree) and resumed when it returns.
+
+   Theme-stable colour, deliberately not the live --oxblood/--oxblood-deep
+   custom properties: those tokens INVERT under dark mode (lighten, so text
+   sitting on them stays readable, see the DARK MODE block's own note further
+   up this file), which is exactly wrong for this button. This is the site's
+   one ambient brand CTA, modelled on an external reference with its own
+   fixed identity, and its white text needs 4.5:1 against the gradient's
+   lightest stop in EITHER theme, never the lightened dark-mode salmon every
+   other .btn-primary gets. These three custom properties therefore pin the
+   light theme's own --oxblood (#A40000) and --oxblood-deep (#7A0000) hex
+   values directly, the same duplication pattern the DARK MODE block already
+   uses for tokens whose per-theme value cannot follow the normal variable
+   relationship (see its own "hardcoded hex" comment). The bright stop is a
+   color-mix lighten off that same red, close to the airl.io reference's
+   range without copying its literal hex values. Scoped to this selector, not
+   :root, so it never touches the frozen APP TOKENS block. */
 .pub-discover-btn {
+  --pub-cta-bright: color-mix(in srgb, #A40000 88%, white 12%);
+  --pub-cta-mid: #A40000;
+  --pub-cta-deep: #7A0000;
+  --pub-cta-gradient: linear-gradient(115deg, var(--pub-cta-bright) 0%, var(--pub-cta-mid) 45%, var(--pub-cta-deep) 100%);
   align-self: stretch;
   justify-content: center;
   position: relative;
   overflow: hidden;
-  animation: pub-discover-pulse 1650ms var(--ease-spring) 900ms 1;
-  transition: transform var(--dur-base) var(--ease-swift);
+  color: #fff;
+  background: var(--pub-cta-gradient);
+  background-size: 220% 100%;
+  background-position: 0% 50%;
+  animation: pub-discover-drift 5.5s ease-in-out infinite alternate;
+  transition: transform var(--dur-base) var(--ease-swift), box-shadow var(--dur-base) var(--ease-swift);
 }
-/* Sheen sweep on hover/focus: a light gradient highlight translating across
-   the button's face, contained by the overflow:hidden above so it never
-   escapes the button's own edges. Fixed white, not a design token
-   deliberately: this is a lighting effect (glare crossing a glossy
-   surface), not a brand colour, and needs to read as a highlight against
-   the oxblood fill in both themes, which var(--paper) cannot do (it is
-   near-black under data-theme="dark", the wrong direction for a
-   highlight). */
+@keyframes pub-discover-drift {
+  from { background-position: 0% 50%; }
+  to   { background-position: 100% 50%; }
+}
+/* Ambient pulse: an inset glow plus a whisper of scale on a full-cover
+   ::before layer, never the real button's own box-shadow or transform. Kept
+   off the real element on purpose: the real button's transform is reserved
+   for the hover-lift/press-scale responses below, and its own box-shadow for
+   the hover glow, so neither ever fights a running keyframe animation for
+   control of the same property (a paused animation still wins a property
+   over a plain declaration, so sharing was not an option). inset keeps the
+   glow fully contained by the overflow:hidden above with no bleed to manage;
+   any sliver that scale pushes past the edge is quietly clipped by the same
+   rule, which reads as the glow breathing right at the button's own edge. */
+@keyframes pub-discover-pulse {
+  0%, 100% { box-shadow: inset 0 0 0 0 color-mix(in srgb, var(--pub-cta-mid) 0%, transparent); transform: scale(1); }
+  50% { box-shadow: inset 0 0 26px 2px color-mix(in srgb, var(--pub-cta-mid) 55%, transparent); transform: scale(1.02); }
+}
+.pub-discover-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  animation: pub-discover-pulse 2.8s ease-in-out infinite;
+}
+/* Sheen sweep, now on a timer rather than hover-triggered: a light gradient
+   highlight crossing the button's face every few seconds, contained by the
+   overflow:hidden above so it never escapes the button's own edges. Fixed
+   white, not a design token deliberately: this is a lighting effect (glare
+   crossing a glossy surface), not a brand colour, and needs to read as a
+   highlight against the red fill in both themes. The rest phase (35% to
+   100%) is deliberate: the sweep crosses quickly then holds off-face until
+   the next loop, rather than crossing continuously. */
+@keyframes pub-discover-sheen {
+  0%   { transform: translateX(-140%); }
+  35%  { transform: translateX(140%); }
+  100% { transform: translateX(140%); }
+}
 .pub-discover-btn::after {
   content: '';
   position: absolute;
   inset: 0;
   background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.35) 50%, transparent 65%);
-  transform: translateX(-140%);
-  transition: transform 550ms var(--ease-swift);
+  animation: pub-discover-sheen 3.8s ease-in-out infinite;
   pointer-events: none;
+}
+/* Hover/focus-visible: the pulse (::before only) pauses so it never competes
+   with the hover response; the real button lifts and gains an outward
+   brand-red glow, both plain declarations since nothing else ever animates
+   this element's own transform or box-shadow. */
+.pub-discover-btn:hover::before,
+.pub-discover-btn:focus-visible::before {
+  animation-play-state: paused;
 }
 .pub-discover-btn:hover,
 .pub-discover-btn:focus-visible {
-  transform: scale(1.03);
+  /* Re-declared, not inherited from the base rule: .btn-primary:hover
+     (COMPONENTS block) sets a flat background at the same (0,2,0)
+     specificity as this selector, and a flat background would have quietly
+     replaced the gradient on hover, including the theme-flipped
+     --oxblood-deep in dark mode, exactly the pale, low-contrast fill this
+     whole treatment exists to avoid. Re-stating the same custom property
+     here, later in source at equal specificity, wins outright against the
+     plain light/dark-agnostic .btn-primary:hover rule. */
+  background: var(--pub-cta-gradient);
+  background-size: 220% 100%;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px color-mix(in srgb, var(--pub-cta-mid) 40%, transparent);
 }
-.pub-discover-btn:hover::after,
-.pub-discover-btn:focus-visible::after {
-  transform: translateX(140%);
+/* DARK MODE also carries its OWN, higher-specificity .btn-primary:hover
+   override (:root[data-theme="dark"] .btn-primary:hover, (0,4,0)), the one
+   this button needs the light-mode-flipped --oxblood-deep to avoid most of
+   all. Matched here at equal (0,4,0) specificity, later in source, so it
+   wins in turn. Not touching the DARK MODE block itself: this stays a
+   PUBLIC-block rule that happens to be scoped by the theme attribute. */
+:root[data-theme="dark"] .pub-discover-btn:hover,
+:root[data-theme="dark"] .pub-discover-btn:focus-visible {
+  background: var(--pub-cta-gradient);
+  background-size: 220% 100%;
 }
 .pub-discover-btn:active { transform: scale(0.97); }
-/* Verifier fix round (PRD section 16 amended, motion inventory item 8's
-   closing clause): js/public.js adds this class the first time it hides
-   the ways-in band, and never removes it, so the pulse can never restart
-   when the band (and this button with it) is later restored. Two classes
-   beats the bare .pub-discover-btn rule above on specificity alone, so
-   source order does not matter here. */
-.pub-discover-btn.pub-discover-settled { animation: none; }
 @media (prefers-reduced-motion: reduce) {
   .pub-discover-btn {
+    /* Static mid-gradient face: the drift stops on a fixed mid position
+       rather than the 0% starting stop, so a reduced-motion visitor still
+       sees the full three-stop range at rest, never just the bright end. */
     animation: none;
+    background-position: 50% 50%;
     transition: none;
   }
-  .pub-discover-btn::after { content: none; }
+  .pub-discover-btn::before { animation: none; box-shadow: none; transform: none; }
+  .pub-discover-btn::after { content: none; animation: none; }
   .pub-discover-btn:hover,
   .pub-discover-btn:focus-visible,
   .pub-discover-btn:active {
-    transform: none;
-    /* Colour and shadow response only, per the inventory: no pulse, no
-       sheen, no scale, but a static (non-swelling) glow still marks the
+    /* Same re-declaration as the normal-motion hover rule above, and for
+       the same reason: without it .btn-primary:hover's flat background
+       (equal specificity, the theme-flipped --oxblood-deep in dark mode)
+       would replace the static gradient face the moment this is hovered. */
+    background: var(--pub-cta-gradient);
+    background-position: 50% 50%;
+    background-size: 220% 100%;
+    /* Colour and shadow response only, per the inventory: no lift, no
+       press, no pulse, no sheen, but a static glow still marks the
        hover/focus state. */
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--oxblood) 35%, transparent);
+    transform: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--pub-cta-mid) 35%, transparent);
+  }
+  /* Same dark-mode-specific specificity fight as the normal-motion rule
+     above, a media query changes nothing about it. */
+  :root[data-theme="dark"] .pub-discover-btn:hover,
+  :root[data-theme="dark"] .pub-discover-btn:focus-visible,
+  :root[data-theme="dark"] .pub-discover-btn:active {
+    background: var(--pub-cta-gradient);
+    background-position: 50% 50%;
+    background-size: 220% 100%;
   }
 }
 
@@ -1491,7 +1577,18 @@ button { font: inherit; }
    otherwise pull that whole 44px/line-height pair down onto the button,
    nearly doubling every collapsed shelf row's height. Reset here, in the
    PUBLIC block, rather than touching the frozen design-system file. */
-.pub-shelf-heading { margin: 0; font-size: var(--fs-16); line-height: 1; letter-spacing: normal; }
+/* display: contents (Phase 15.4): a sticky element is clamped to stay
+   within its own containing block, normally its DOM parent's box. Before
+   this, that parent was this h2, auto-height and therefore exactly as tall
+   as the button it wraps, leaving the header nowhere to visually "stick"
+   once scrolled even a few pixels into a shelf: measured on the built page,
+   position: sticky computed correctly yet the header still scrolled away
+   almost immediately. display: contents removes the h2's own box without
+   removing the h2 element or its heading semantics (supported in every
+   evergreen engine this project targets), so the header's containing block
+   becomes .pub-shelf itself, the full header-plus-grid section, which is
+   exactly the range the header needs to stay pinned across. */
+.pub-shelf-heading { display: contents; margin: 0; font-size: var(--fs-16); line-height: 1; letter-spacing: normal; }
 .pub-shelf-header {
   display: flex;
   align-items: center;
@@ -1507,6 +1604,36 @@ button { font: inherit; }
   color: var(--ink);
   transition: background var(--dur-fast) var(--ease-out);
 }
+/* Sticky shelf headers (Phase 15.4, section 16 amended shelf mechanics):
+   an open shelf's header pins to the viewport top at every width, so
+   collapsing an eleven-tool shelf never needs a scroll back up. Keyed
+   purely off the aria-expanded state js/public.js's setShelfOpen() already
+   writes, so a collapsed header (aria-expanded="false") never sticks. This
+   is positioning, not motion: it adds nothing to the motion inventory.
+   background is set explicitly (matching .pub-shelf's own panel background
+   below) rather than relying on the ancestor showing through, since once
+   pinned the header no longer shares its ancestor's painted box: cards
+   scrolling underneath would otherwise show through the gap. Placed before
+   the :hover rule below so hover's own background still wins on hover,
+   same specificity, source order. z-index sits above the shelf's cards
+   (which form no stacking context of their own) and below the toast
+   (z-index: 100) and any future overlay; the deck panel is mounted inline,
+   never overlapping a shelf spatially, so needs no explicit ordering here. */
+.pub-shelf-header[aria-expanded="true"] {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--paper);
+}
+/* is-stuck: set by a small, passive IntersectionObserver in js/public.js
+   watching a zero-height sentinel placed immediately before the header (the
+   standard sticky-detection pattern; CSS alone cannot yet select an
+   element's own "currently pinned" state). Gated by aria-expanded so a
+   collapsed shelf, whose sentinel the observer still quietly tracks, never
+   shows the shadow. Shadow only, no colour or size change, so it reads as
+   separation from the cards beneath, not emphasis. */
+.pub-shelf-header[aria-expanded="true"].is-stuck { box-shadow: var(--shadow-2); }
+.pub-shelf-sentinel { height: 0; }
 .pub-shelf-header:hover { background: var(--paper-2); }
 .pub-shelf-header .cli-category-icon { flex: none; color: var(--oxblood); }
 .pub-shelf-name { flex: none; font-weight: 500; font-size: var(--fs-16); }

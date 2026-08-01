@@ -368,6 +368,13 @@ async function boot() {
     loading.textContent = 'Could not load the tool directory. If you opened this file directly, serve it over HTTP instead (file:// blocks fetch). Otherwise, try reloading.';
     loading.classList.add('is-error');
     console.error('tools.json fetch failed:', cause);
+    // Phase 15.4: the head boot script's js-boot stamp hides #static-root
+    // before first paint (see the CSS rule keyed on that class). A broken
+    // app has to fall back to that readable static content instead, so the
+    // stamp is removed here, the one place that knows the fetch failed. The
+    // existing setAttribute('hidden') in the success path below is
+    // untouched, belt-and-braces for the normal case.
+    document.documentElement.classList.remove('js-boot');
     return;
   }
 

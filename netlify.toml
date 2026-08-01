@@ -42,6 +42,9 @@
     # (swap the file/tag match for embed.html's inline module script) and
     # replace the hash below if either boot script ever changes; a stale
     # hash blocks the script entirely rather than degrading gracefully.
+    # (Phase 15.4: the shared boot script also stamps js-boot on the root to
+    # hide the #static-root crawler block before first paint, per the
+    # amended section 18 clause; the hash above is that updated script's.)
     # img-src allows https: for the DuckDuckGo/Google favicon proxies
     # (PRD section 8) plus data: for any inline-encoded images; connect-src
     # is 'self' only, since the app only ever fetches its own data/*.json.
@@ -50,7 +53,7 @@
     # own complete copy of this policy with frame-ancestors appended, because
     # Netlify replaces a same-named header wholesale for the narrower path
     # (confirmed on the PR 3 deploy preview); keep the two values in step.
-    Content-Security-Policy = "default-src 'none'; script-src 'self' 'sha256-lsQEYtPvOLF/0p5/Ha7LBjWH8MEuawpuwGZTYqleMkA=' 'sha256-tXEPFiTeuQ78cXDjzf3LUP2Kr7tiig87hhXnuzQg008='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'"
+    Content-Security-Policy = "default-src 'none'; script-src 'self' 'sha256-XRCkNlfal/u9MDRDFatwZ8fbo9S8jzgsybjnonliY4Q=' 'sha256-tXEPFiTeuQ78cXDjzf3LUP2Kr7tiig87hhXnuzQg008='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'"
 
 # My Stack (PRD-REGISTER section 10): "Referrer-Policy: no-referrer for /my
 # specifically... the site-wide policy stays as is". Confirmed on the PR 3
@@ -78,7 +81,7 @@
 [[headers]]
   for = "/embed.html"
   [headers.values]
-    Content-Security-Policy = "default-src 'none'; script-src 'self' 'sha256-lsQEYtPvOLF/0p5/Ha7LBjWH8MEuawpuwGZTYqleMkA=' 'sha256-tXEPFiTeuQ78cXDjzf3LUP2Kr7tiig87hhXnuzQg008='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors https://kaipability.com https://*.kaipability.com"
+    Content-Security-Policy = "default-src 'none'; script-src 'self' 'sha256-XRCkNlfal/u9MDRDFatwZ8fbo9S8jzgsybjnonliY4Q=' 'sha256-tXEPFiTeuQ78cXDjzf3LUP2Kr7tiig87hhXnuzQg008='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors https://kaipability.com https://*.kaipability.com"
 
 # security.txt (RFC 9116, PRD-REGISTER section 10): a real file under
 # publish = ".", so the SPA fallback redirect below never reaches it (it

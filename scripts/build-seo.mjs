@@ -364,12 +364,17 @@ function buildFaqData(active) {
 /* Byte-identical to index.html's, per netlify.toml's comment: kept identical
    on purpose so the CSP script-src hash already allow-listed for index.html
    covers this page too, without a third hash entry. Do not edit without
-   also updating index.html and netlify.toml in the same commit. */
+   also updating index.html and netlify.toml in the same commit (Phase
+   15.4: the js-boot stamp that hides #static-root before first paint is
+   part of this shared script; keeping this template in step is what stops
+   a regeneration from resurrecting the pre-15.4 script and breaking the
+   CSP hash). */
 const THEME_BOOT_SCRIPT = `  <script>
     try {
       var t = localStorage.getItem('freestack:v1:theme');
       if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
       document.documentElement.setAttribute('data-theme', t);
+      document.documentElement.classList.add('js-boot');
     } catch (e) {}
   </script>`;
 
@@ -405,8 +410,10 @@ function buildFaqHtml() {
        kept identical on purpose so the CSP script-src hash already
        allow-listed for index.html's boot script covers this page too,
        without a second hash entry in netlify.toml (why-register.html does
-       the same). If this ever needs to diverge from index.html's copy, it
-       must get its own hash there. -->
+       the same). Also stamps js-boot on the root (Phase 15.4), which only
+       hides anything on index.html's own #static-root; harmless here. If
+       this ever needs to diverge from index.html's copy, it must get its
+       own hash there. -->
 ${THEME_BOOT_SCRIPT}
   <link rel="stylesheet" href="css/styles.css">
 
