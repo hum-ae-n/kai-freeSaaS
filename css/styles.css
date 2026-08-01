@@ -1634,6 +1634,31 @@ html.js-boot #static-root { display: none; }
    separation from the cards beneath, not emphasis. */
 .pub-shelf-header[aria-expanded="true"].is-stuck { box-shadow: var(--shadow-2); }
 .pub-shelf-sentinel { height: 0; }
+/* Close hint (Phase 15.5, PRD section 16 amended, "Collapse must land you
+   back in the list"): a plain-language affordance next to the chevron,
+   shown only while the header is genuinely stuck, so a reader scrolled deep
+   into a shelf sees an explicit "tap to close" cue rather than relying on
+   the chevron's implied meaning alone. flex: none, so it never grows or
+   wraps; it sits before .pub-shelf-scent in DOM order is irrelevant here
+   since flexbox lays out by source order and this is placed after scent,
+   meaning scent (the only flexible, min-width:0 item in the row) is what
+   shrinks and ellipsizes first as this hint claims its own space, exactly
+   the "ellipsize the scent line first" requirement. Same eyebrow-label
+   styling used throughout the CLIENT block (uppercase, --tr-eyebrow),
+   already legible in both themes via --ink-3, so no per-theme override is
+   needed. */
+.pub-shelf-close-hint {
+  display: none;
+  flex: none;
+  font-family: var(--font-sans);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  letter-spacing: var(--tr-eyebrow);
+  text-transform: uppercase;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.pub-shelf-header[aria-expanded="true"].is-stuck .pub-shelf-close-hint { display: inline; }
 .pub-shelf-header:hover { background: var(--paper-2); }
 .pub-shelf-header .cli-category-icon { flex: none; color: var(--oxblood); }
 .pub-shelf-name { flex: none; font-weight: 500; font-size: var(--fs-16); }

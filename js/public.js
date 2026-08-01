@@ -651,6 +651,15 @@ export function renderPublic(root, tools) {
       grid.id = gridId;
       const count = toolsInCat.length;
       const scentText = toolsInCat.map((t) => t.name).join(', ');
+      // Phase 15.5, PRD section 16 amended: while stuck, a visible "Close"
+      // hint beside the chevron makes the tap-to-collapse affordance
+      // explicit rather than implied. Part of the button itself (not a
+      // sibling control), so the hit target is unchanged; the CSS below
+      // hides it unless the header is both expanded and stuck. No
+      // aria-label change: aria-expanded already announces the state to
+      // assistive tech, this is a purely visual affordance for sighted
+      // pointer/touch use.
+      const closeHint = el('span', { class: 'pub-shelf-close-hint', 'aria-hidden': 'true' }, 'Close');
       const headerBtn = el('button', {
         class: 'pub-shelf-header', type: 'button',
         'aria-expanded': 'false', 'aria-controls': gridId,
@@ -659,6 +668,7 @@ export function renderPublic(root, tools) {
         el('span', { class: 'pub-shelf-name' }, category),
         el('span', { class: 'pub-shelf-count' }, `· ${count} tool${count === 1 ? '' : 's'}`),
         el('span', { class: 'pub-shelf-scent' }, scentText),
+        closeHint,
         chevronIcon(),
       );
       // Sticky-header shadow detection (Phase 15.4): a zero-height sentinel
@@ -680,12 +690,40 @@ export function renderPublic(root, tools) {
         manualOpen: false,
       };
       headerBtn.addEventListener('click', () => {
+        // Phase 15.5 (PRD section 16 amended, "Collapse must land you back
+        // in the list"): read is-stuck BEFORE the toggle, since setShelfOpen
+        // clears it as part of an ordinary collapse. A stuck header at click
+        // time is the honest signal the reader scrolled deep into a tall
+        // shelf; closing that collapse must scroll them back to the
+        // header, or the content that used to sit below the shelf (the FAQ
+        // section, for the last shelves) slides up under their thumb while
+        // the scroll position stays put in document coordinates. An
+        // ordinary, never-stuck collapse (a tap at the top of the shelf)
+        // must never scroll: `wasStuck` guards exactly that, so top-of-shelf
+        // taps stay pixel-identical to before this fix.
+        const wasStuck = headerBtn.classList.contains('is-stuck');
+        const closing = !shelf.grid.hidden;
         setShelfOpen(shelf, shelf.grid.hidden, true);
         syncExpandAllLabel();
+        if (wasStuck && closing) {
+          headerBtn.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+        }
       });
       if (typeof IntersectionObserver === 'function') {
         new IntersectionObserver(([entry]) => {
-          headerBtn.classList.toggle('is-stuck', !entry.isIntersecting);
+          // !entry.isIntersecting alone is directionless: it is equally true
+          // for a sentinel scrolled ABOVE the viewport (genuinely stuck) and
+          // for one still BELOW it (an open shelf further down the page the
+          // reader has not scrolled to yet), which would have shown the
+          // is-stuck shadow, and now the more prominent Close hint (Phase
+          // 15.5), on a shelf nobody had scrolled past at all. Comparing the
+          // sentinel's own top edge against the root's disambiguates: only
+          // "above the visible area" counts as stuck. rootBounds can be null
+          // if the browser has not run layout yet; falling back to 0
+          // (viewport top) keeps the same "above zero" comparison.
+          const rootTop = entry.rootBounds ? entry.rootBounds.top : 0;
+          const scrolledPast = !entry.isIntersecting && entry.boundingClientRect.top < rootTop;
+          headerBtn.classList.toggle('is-stuck', scrolledPast);
         }, { threshold: 0 }).observe(sentinel);
       }
       built.push(shelf);
