@@ -597,16 +597,52 @@ await stickyPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 // openShelfBySlug) runs 'auto' (instant) rather than 'smooth': otherwise its
 // animation can still be mid-flight when the manual scroll below runs a
 // moment later, and the two scrolls fighting is a test-harness race, not
-// anything sticky positioning itself needs to care about.
+// anything sticky positioning itself needs to care about. The same emulated
+// setting is also what makes the Phase 15.5 scroll-back below run 'auto'
+// rather than 'smooth', so the 120ms wait after that click is enough.
 await stickyPage.emulateMedia({ reducedMotion: 'reduce' });
 // The #cat-<slug> deep link (existing mechanic, unchanged by this wave)
 // opens and scrolls to the shelf, so the header starts already pinned.
 await stickyPage.goto(`${base}/#cat-${biggestSlug}`);
 await stickyPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+// Phase 15.5: the FAQ slot loads data/faq.json asynchronously (loadFaqSection);
+// waiting for it here means the "FAQ does not dominate after collapse" check
+// below is testing against the real page, not a still-empty, still-hidden slot.
+await stickyPage.waitForSelector('.pub-faq-item');
 const biggestHeaderSelector = `#cat-${biggestSlug} .pub-shelf-header`;
 const biggestGridId = await stickyPage.locator(biggestHeaderSelector).getAttribute('aria-controls');
 await stickyPage.waitForFunction((gridId) => document.getElementById(gridId)?.hidden === false, biggestGridId);
 await stickyPage.waitForTimeout(200); // let the deep link's own instant scroll settle
+// The deep link's own scrollIntoView(block:'start') lands the shelf's
+// sentinel right at the viewport's top edge, exactly the boundary where the
+// 15.4 directionless observer misread "stuck" (it treated any
+// non-intersection as stuck, whichever side of the viewport the sentinel
+// was on). Pin the fixed comparator at this boundary permanently: a
+// deep-link arrival must NEVER show the stuck state or the Close hint, no
+// compensating scroll first. The verifier flagged that dodging this case
+// with a scroll left the 15.4 regression unpinned.
+const deepLinkArrival = await stickyPage.locator(biggestHeaderSelector).evaluate((n) => ({
+  isStuck: n.classList.contains('is-stuck'),
+  hintDisplay: getComputedStyle(n.querySelector('.pub-shelf-close-hint')).display,
+  top: n.getBoundingClientRect().top,
+}));
+check('sticky: a #cat- deep-link arrival at the sentinel boundary is never misread as stuck (15.4 observer regression pin)',
+  deepLinkArrival.isStuck === false && deepLinkArrival.hintDisplay === 'none',
+  JSON.stringify(deepLinkArrival));
+// Scrolling up a little now gives the later checks their unambiguous,
+// clearly-intersecting "not stuck" baseline, unchanged from before.
+await stickyPage.evaluate(() => window.scrollBy(0, -80));
+await stickyPage.waitForTimeout(80);
+
+// Phase 15.5: baseline height and Close-hint visibility while the header is
+// open but NOT yet stuck (freshly opened by the deep link, still at its own
+// natural in-flow position, well before the manual scroll below).
+const unstuckHeaderState = await stickyPage.locator(biggestHeaderSelector).evaluate((n) => ({
+  height: n.getBoundingClientRect().height,
+  hintDisplay: getComputedStyle(n.querySelector('.pub-shelf-close-hint')).display,
+}));
+check('sticky: the Close hint is absent on an unstuck (but open) header',
+  unstuckHeaderState.hintDisplay === 'none', JSON.stringify(unstuckHeaderState));
 
 // Scroll so the shelf's own last card sits at the very top of the viewport,
 // the deepest a reader could scroll into this shelf before leaving it.
@@ -625,21 +661,65 @@ const isStuckClassPresent = await stickyPage.locator(biggestHeaderSelector).eval
 check('sticky: the pinned header carries is-stuck (the separation-shadow class) once scrolled past its resting position',
   isStuckClassPresent === true);
 
+// Phase 15.5: the Close hint appears while stuck, and does not change the
+// header's own height versus the unstuck baseline captured above (it must
+// not wrap or push the row taller at 375px).
+const stuckHeaderState = await stickyPage.locator(biggestHeaderSelector).evaluate((n) => ({
+  height: n.getBoundingClientRect().height,
+  hintDisplay: getComputedStyle(n.querySelector('.pub-shelf-close-hint')).display,
+  hintText: n.querySelector('.pub-shelf-close-hint').textContent,
+}));
+check('sticky: the Close hint is visible on the stuck header and reads "Close"',
+  stuckHeaderState.hintDisplay !== 'none' && stuckHeaderState.hintText === 'Close', JSON.stringify(stuckHeaderState));
+check('sticky: the stuck header\'s height is unchanged from the unstuck baseline (the Close hint adds no height)',
+  Math.abs(stuckHeaderState.height - unstuckHeaderState.height) < 1,
+  `unstuck=${unstuckHeaderState.height} stuck=${stuckHeaderState.height}`);
+
 await stickyPage.locator(biggestHeaderSelector).click();
 await stickyPage.waitForTimeout(120);
 const afterStuckCollapse = await stickyPage.evaluate((gridId) => {
   const grid = document.getElementById(gridId);
   const header = grid.closest('.pub-shelf').querySelector('.pub-shelf-header');
+  const faq = document.querySelector('.pub-faq');
+  const faqRect = faq ? faq.getBoundingClientRect() : null;
+  // Overlap between the FAQ section and the visible viewport, in px: how
+  // much of the screen it actually occupies right now, a sturdier "is this
+  // the dominant content" test than comparing a single top coordinate,
+  // which a tall section can satisfy from either side (scrolled to its
+  // middle reads as "top < 0" just as much as "scrolled past it entirely"
+  // does, and only one of those is actually the Rocky-reported bug).
+  const faqOverlapPx = faqRect
+    ? Math.max(0, Math.min(faqRect.bottom, window.innerHeight) - Math.max(faqRect.top, 0))
+    : 0;
   return {
     hidden: grid.hidden,
     ariaExpanded: header.getAttribute('aria-expanded'),
     scrollY: window.scrollY,
     scrollHeight: document.documentElement.scrollHeight,
     innerHeight: window.innerHeight,
+    headerTop: header.getBoundingClientRect().top,
+    faqOverlapPx,
   };
 }, biggestGridId);
 check('sticky: clicking the stuck header collapses the shelf exactly as before and flips aria-expanded',
   afterStuckCollapse.hidden === true && afterStuckCollapse.ariaExpanded === 'false', JSON.stringify(afterStuckCollapse));
+// Phase 15.5, "Collapse must land you back in the list": collapsing from a
+// stuck header must scroll the viewport back to the collapsed header, in
+// place, never leave the reader wherever the document's static scroll
+// position happened to land (Rocky: "takes you to faqs at bottom not back
+// to list"). The header itself must be back near the viewport top, and the
+// FAQ section (the content that used to sit below this tall shelf, and what
+// dominated the screen on the pre-fix build) must not be occupying the
+// visible viewport.
+check('sticky (15.5): collapsing the stuck header lands the viewport back on the header, near the top',
+  // -2px tolerance for sub-pixel layout rounding (a genuinely landed header
+  // reads as -0.3px as often as 0px); -1093px, the pre-fix reading, is not
+  // remotely close to that tolerance.
+  afterStuckCollapse.headerTop >= -2 && afterStuckCollapse.headerTop < 120,
+  `headerTop=${afterStuckCollapse.headerTop}`);
+check('sticky (15.5): the FAQ section does not dominate the viewport after collapsing the stuck header (occupies well under half the screen)',
+  afterStuckCollapse.faqOverlapPx < afterStuckCollapse.innerHeight / 2,
+  `faqOverlapPx=${afterStuckCollapse.faqOverlapPx} innerHeight=${afterStuckCollapse.innerHeight}`);
 // "Must not leave the viewport scrolled into a void": the scroll position
 // plus one viewport height must never exceed the (now shorter) document, the
 // signature of scrolling into blank space below the shortened page.
@@ -673,6 +753,28 @@ check('sticky: a collapsed shelf header is never sticky (scrolls past normally, 
   collapsedHeaderBox !== null && collapsedHeaderBox.y < 0 && (collapsedHeaderShadow === 'none' || collapsedHeaderShadow === ''),
   JSON.stringify({ box: collapsedHeaderBox, boxShadow: collapsedHeaderShadow }));
 await collapsedStickyPage.close();
+
+// Phase 15.5: collapsing from an UNSTUCK header (opened, then closed again
+// immediately, with no scroll in between) must not move the viewport at
+// all: the 15.5 scroll-back is gated on is-stuck being true at click time,
+// specifically so an ordinary top-of-shelf tap stays exactly as it always
+// was, no new scroll jump introduced for the common case.
+const unstuckCollapsePage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+await unstuckCollapsePage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await unstuckCollapsePage.goto(`${base}/`);
+await unstuckCollapsePage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+const firstHeaderForUnstuckTest = unstuckCollapsePage.locator('.pub-shelf-header').first();
+await firstHeaderForUnstuckTest.click(); // open
+await unstuckCollapsePage.waitForTimeout(60);
+const scrollYBeforeUnstuckCollapse = await unstuckCollapsePage.evaluate(() => window.scrollY);
+const wasStuckBeforeUnstuckCollapse = await firstHeaderForUnstuckTest.evaluate((n) => n.classList.contains('is-stuck'));
+await firstHeaderForUnstuckTest.click(); // close, immediately, never scrolled
+await unstuckCollapsePage.waitForTimeout(120);
+const scrollYAfterUnstuckCollapse = await unstuckCollapsePage.evaluate(() => window.scrollY);
+check('sticky (15.5): collapsing from an unstuck header does not move scrollY (no new scroll jump for the ordinary case)',
+  wasStuckBeforeUnstuckCollapse === false && Math.abs(scrollYAfterUnstuckCollapse - scrollYBeforeUnstuckCollapse) <= 4,
+  `wasStuck=${wasStuckBeforeUnstuckCollapse} before=${scrollYBeforeUnstuckCollapse} after=${scrollYAfterUnstuckCollapse}`);
+await unstuckCollapsePage.close();
 
 // Card-in replay suppression (verifier fix round): client.js's CLIENT block
 // gives every .tool-card an unconditional "card-in" fade-and-rise, gated
