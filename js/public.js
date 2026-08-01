@@ -397,19 +397,14 @@ export function renderPublic(root, tools) {
      `[hidden] { display: none !important; }`), the same one discoverMount
      itself already uses. */
   function hideWaysInBand() {
+    // Phase 15.4: the house CTA's drift/pulse/sheen are an ambient loop, not
+    // the old bounded one-shot pulse, so no no-replay guard is needed here
+    // any more: display:none on entryPaths already stops every animation on
+    // this subtree outright (a hidden element runs no CSS animation), and
+    // restoring it in showWaysInBand() below correctly resumes the loop from
+    // its own beginning, which is the desired behaviour for an ambient
+    // treatment, not a bug to guard against.
     entryPaths.hidden = true;
-    // The pulse (motion item 8) must never fire again once the band has
-    // been hidden even once: toggling display:none back to visible
-    // restarts a CSS animation from its own beginning, delay included
-    // (removing an element from rendering cancels its running animation
-    // outright), which would replay the "at most two pulses per page
-    // load, never runs again without a reload" sequence a second time on
-    // every later close. Setting this class now, unconditionally, closes
-    // that off regardless of which stage the pulse itself was in (not yet
-    // started, mid-flight, or already finished) at the moment the band is
-    // first hidden: see the CSS rule's own comment for why this beats the
-    // animation shorthand it overrides.
-    discoverBtn.classList.add('pub-discover-settled');
   }
   function showWaysInBand() {
     entryPaths.hidden = false;
@@ -424,14 +419,6 @@ export function renderPublic(root, tools) {
     }
     if (discoverLoading) return;
     discoverLoading = true;
-    // The pulse dies here, synchronously at click time, not inside the
-    // View Transition's `finished` callback where the layout hide waits.
-    // The re-verify proved the gap: under heavy load `finished` can land
-    // after the pulse's 900ms animation-delay, and the pulse then fires
-    // over the open deck, the exact competition inventory item 8 bans.
-    // Killing the animation costs the morph nothing (the morph is a view
-    // transition, not this CSS animation), so it need not wait.
-    discoverBtn.classList.add('pub-discover-settled');
     try {
       const mod = await loadDiscoverModule();
       if (!mod) throw new Error('module unavailable');
@@ -623,6 +610,13 @@ export function renderPublic(root, tools) {
     const wasClosed = shelf.grid.hidden;
     shelf.grid.hidden = !open;
     shelf.headerBtn.setAttribute('aria-expanded', String(open));
+    // The sticky rule is entirely CSS, keyed off aria-expanded above; the
+    // is-stuck shadow class is IntersectionObserver-driven (see the sentinel
+    // wiring in buildShelves) and would otherwise linger from a scroll
+    // position reached before this collapse. Harmless either way since the
+    // CSS gates the shadow on aria-expanded="true" too, but a header should
+    // never carry it while collapsed.
+    if (!open) shelf.headerBtn.classList.remove('is-stuck');
     if (manual) shelf.manualOpen = open;
     // Motion inventory item 2: only a genuine closed-to-open transition
     // staggers its cards, from this single call site regardless of which of
@@ -667,7 +661,16 @@ export function renderPublic(root, tools) {
         el('span', { class: 'pub-shelf-scent' }, scentText),
         chevronIcon(),
       );
+      // Sticky-header shadow detection (Phase 15.4): a zero-height sentinel
+      // placed immediately before the header. The sticky pin itself is pure
+      // CSS, keyed off aria-expanded; this observer only toggles the
+      // separation shadow once the header is actually pinned rather than
+      // sitting at its normal in-flow position. One tiny, passive observer
+      // per shelf, disconnected never (shelves live for the page's whole
+      // lifetime); each fires on scroll only, no rAF loop, no polling.
+      const sentinel = el('div', { class: 'pub-shelf-sentinel', 'aria-hidden': 'true' });
       const section = el('section', { class: 'pub-shelf', id: `cat-${slug}` },
+        sentinel,
         el('h2', { class: 'pub-shelf-heading' }, headerBtn),
         grid,
       );
@@ -680,6 +683,11 @@ export function renderPublic(root, tools) {
         setShelfOpen(shelf, shelf.grid.hidden, true);
         syncExpandAllLabel();
       });
+      if (typeof IntersectionObserver === 'function') {
+        new IntersectionObserver(([entry]) => {
+          headerBtn.classList.toggle('is-stuck', !entry.isIntersecting);
+        }, { threshold: 0 }).observe(sentinel);
+      }
       built.push(shelf);
       nodes.push(section);
     }

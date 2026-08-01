@@ -23,12 +23,19 @@
   <link rel="icon" type="image/png" href="design-system/assets/kaipability-mark.png">
 
   <!-- No-flash-of-wrong-theme: stored choice wins, otherwise OS preference.
-       Runs before the stylesheet loads so the first paint is already correct. -->
+       Runs before the stylesheet loads so the first paint is already correct.
+       Also stamps js-boot on the root before first paint (Phase 15.4,
+       section 18 amended clause): a JS-capable load never paints the
+       #static-root crawler block, since the CSS rule keyed on that class
+       hides it immediately, no fetch wait. Non-JS readers never get the
+       stamp. js/data-loader.js removes it in the fetch failure path so a
+       broken app falls back to the readable static content. -->
   <script>
     try {
       var t = localStorage.getItem('freestack:v1:theme');
       if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
       document.documentElement.setAttribute('data-theme', t);
+      document.documentElement.classList.add('js-boot');
     } catch (e) {}
   </script>
   <link rel="stylesheet" href="css/styles.css">
