@@ -45,6 +45,15 @@ const COMMIT_PX = 100;
 const COMMIT_RATIO = 0.35;
 const FLING_VELOCITY = 0.5; // px/ms
 const VALID_DECISIONS = ['have', 'want', 'skip'];
+// Movability hint (PRD 17 amended, Phase 15.6): how long the coachDone-
+// already-true path waits after mount before shaking the top card, standing
+// in for public.js's own finished-promise-then-fallback sequencing on the
+// deck-open morph, which this module has no reference to (it does not know
+// whether its caller is inside a View Transition at all). 450ms clears both
+// the deal-in entrance (200ms) and the morph's own group duration (380ms,
+// motion inventory item 4) with a small margin, so the shake reliably lands
+// once the open has visually settled rather than fighting either of them.
+const SHAKE_HINT_DELAY_MS = 450;
 
 /* --- persistence (PRD 17, "Persistence") ----------------------------------
    Wrapped in try/catch throughout: a blocked store (private mode, some
@@ -367,7 +376,19 @@ function exitCard(card, decision, reduced, done) {
   // Removing the class here hands transform/opacity back to ordinary CSS
   // (and this element's own inline styles) immediately, so the exit
   // transition set up below always actually runs and fires on schedule.
+  // discover-card-shake (Phase 15.6) is removed for the identical reason:
+  // it is a second transform keyframe animation this element can carry (the
+  // shake trigger's up-to-450ms delay means it can still be running on a
+  // card that gets judged quickly), and left in place it would block the
+  // exit transition exactly like a still-running discover-card-enter did,
+  // discovered by a real, reproducible test flake while building this
+  // wave: a fast judge-then-skip sequence measurably fell back to the
+  // 320ms timeout on the shaken card instead of firing transitionend at
+  // ~220ms, and the accumulated slack across several cards in a row was
+  // enough to desync a test loop's own fixed per-card wait from the
+  // deck's actual pace.
   card.classList.remove('discover-card-enter');
+  card.classList.remove('discover-card-shake');
   const cleanup = () => {
     const stillCurrent = card.isConnected;
     card.remove();
@@ -454,7 +475,14 @@ function revealStagger(nodes, reduced) {
     stationary tap or click on an interactive descendant such as the "More"
     permalink. A drag that starts over that same link still works, since
     capture engages the moment slop is exceeded, before the drag math ever
-    depends on it. */
+    depends on it.
+
+    Returns { isPointerActive }, Phase 15.6: the movability-hint shake
+    (triggerShakeHint below) must never fire while a pointer is already down
+    on the card, and this is the one place that already tracks that,
+    untouched otherwise: no new state, just a read of the existing
+    `pointerId` closure variable exposed outward. Deck physics and
+    persistence are otherwise unchanged by this wave. */
 const VELOCITY_WINDOW_MS = 100; // trailing window a release velocity is read from
 
 function attachGesture(card, reduced, { getThreshold, onCommit }) {
@@ -529,7 +557,16 @@ function attachGesture(card, reduced, { getThreshold, onCommit }) {
       // on transform overrides an inline style on that same property, so
       // dragging a card within its own 200ms entrance would otherwise not
       // visibly respond to the pointer at all until the animation ended.
+      // discover-card-shake (Phase 15.6) is removed here for the identical
+      // reason: it is the same kind of transform keyframe animation on this
+      // same element, and setDragTransform below sets transform inline on
+      // every subsequent pointermove, which a still-running animation would
+      // silently keep overriding otherwise. This removal always runs before
+      // setDragTransform is ever called for this drag (synchronously, a few
+      // lines below), so the two never actually composite even for a single
+      // frame.
       card.classList.remove('discover-card-enter');
+      card.classList.remove('discover-card-shake');
       card.classList.add('discover-card-dragging');
     }
     event.preventDefault();
@@ -565,6 +602,8 @@ function attachGesture(card, reduced, { getThreshold, onCommit }) {
 
   card.addEventListener('pointerup', release);
   card.addEventListener('pointercancel', cancel);
+
+  return { isPointerActive: () => pointerId !== null };
 }
 
 /** Measures the live card (must already be attached to the document: this
@@ -680,6 +719,15 @@ export function openDiscoverDeck(options) {
     if (completionUnsub) { completionUnsub(); completionUnsub = null; }
   }
 
+  // Movability hint (PRD 17 amended, Phase 15.6): currentGesture is the
+  // { isPointerActive } handle attachGesture() returns for whichever card
+  // is live in the stage right now, kept current by dealCurrent()/undo()
+  // below; shakenThisOpen is scoped to this one openDiscoverDeck() call, so
+  // it naturally resets to false on every fresh deck open, per "once per
+  // deck open", never once per module lifetime.
+  let currentGesture = null;
+  let shakenThisOpen = false;
+
   const progressEl = el('p', { class: 'discover-progress' });
   const liveEl = el('p', { class: 'discover-live visually-hidden', 'aria-live': 'polite' });
   const stage = el('div', { class: 'discover-stage' });
@@ -735,6 +783,41 @@ export function openDiscoverDeck(options) {
   let coachTimer = null;
   let coachOverlay = null;
 
+  /** Movability hint (PRD 17 amended, Phase 15.6, "each time a deck opens
+      ... the top card runs one brief shake ... to show it can be moved").
+      Guards, all hard per spec: `shakenThisOpen` makes this at most once per
+      openDiscoverDeck() call, ever, regardless of how many times a caller
+      might try to trigger it (dealing a later card never re-shakes);
+      `reduced` skips it outright, never even queued; `currentGesture`'s
+      `isPointerActive()` (attachGesture's own return value) skips it if a
+      pointer is already down on the card at the exact moment this runs, so
+      a reader who has already grabbed the card is never fought with an
+      animation the pointermove handler would then have to tear down. The
+      class is removed on animationend so a later drag claim's own removal
+      (see attachGesture's pointermove handler) is belt-and-braces, not the
+      only cleanup path.
+
+      `session.index === 0` is the literal reading of "the top card": the
+      coachDone-already-true path schedules this on a fixed delay
+      (SHAKE_HINT_DELAY_MS) from mount, and a fast reader can judge that
+      first card before the delay elapses, by which point stage holds a
+      different card entirely. Shaking THAT card instead would not be "the
+      top card" any more, and, discovered as a real, reproducible bug while
+      building this wave, risks a second transform keyframe animation
+      landing on a card mid-way through its own fresh 200ms entrance
+      animation, which exitCard()'s own cleanup now defends against
+      (removing this class alongside discover-card-enter) but is better
+      avoided at the source: if the reader has moved on, the hint is simply
+      skipped for this open, never transferred to a later card. */
+  function triggerShakeHint() {
+    if (shakenThisOpen || reduced || session.index !== 0) return;
+    const card = stage.querySelector('.discover-card');
+    if (!card || !currentGesture || currentGesture.isPointerActive()) return;
+    shakenThisOpen = true;
+    card.classList.add('discover-card-shake');
+    card.addEventListener('animationend', () => card.classList.remove('discover-card-shake'), { once: true });
+  }
+
   function dismissCoach() {
     if (!coachVisible) return;
     coachVisible = false;
@@ -763,6 +846,11 @@ export function openDiscoverDeck(options) {
     // the panel here, same preventScroll discipline as the initial mount
     // focus above, keeps the keyboard contract alive after every path.
     panel.focus({ preventScroll: true });
+    // Phase 15.6: on a first-ever open the shake fires here, right after the
+    // coach mark clears, never while it is still covering the card (every
+    // dismissal path, explicit or timed-out, funnels through this one
+    // function, so this is the single correct trigger point for that case).
+    triggerShakeHint();
   }
 
   function showCoachIfNeeded() {
@@ -840,7 +928,7 @@ export function openDiscoverDeck(options) {
     const tool = byId.get(session.order[session.index]);
     updateProgress();
     const card = buildCard(tool);
-    attachGesture(card, reduced, { getThreshold: () => cardThreshold(card), onCommit: (decision) => judge(decision) });
+    currentGesture = attachGesture(card, reduced, { getThreshold: () => cardThreshold(card), onCommit: (decision) => judge(decision) });
     stage.replaceChildren(card);
     positionStamps(card); // after insertion: layout must exist to measure it
     // New-card deal-in ("a few fancy animations"): a subtle rise and fade,
@@ -904,7 +992,7 @@ export function openDiscoverDeck(options) {
     updateProgress();
     announce(`Undid your choice for ${tool.name}. ${session.order.length - session.index} of ${session.order.length}.`);
     const card = buildCard(tool);
-    attachGesture(card, reduced, { getThreshold: () => cardThreshold(card), onCommit: (d) => judge(d) });
+    currentGesture = attachGesture(card, reduced, { getThreshold: () => cardThreshold(card), onCommit: (d) => judge(d) });
     stage.replaceChildren(card);
     positionStamps(card);
     animateCardIn(card, decision, reduced);
@@ -1032,6 +1120,15 @@ export function openDiscoverDeck(options) {
     // and the empty-state screen (no card at all) has nothing to coach
     // over in the first place.
     showCoachIfNeeded();
+    // Phase 15.6: the other half of the movability hint's two trigger
+    // points. coachVisible is only ever true here if showCoachIfNeeded()
+    // just turned the coach mark on, in which case triggerShakeHint() fires
+    // later, from inside dismissCoach() instead; every other case (coach
+    // already dismissed on this device, or a returning visitor with
+    // decisions already recorded) reaches here with coachVisible still
+    // false, and this is that case's own trigger, on the small delay
+    // documented at SHAKE_HINT_DELAY_MS's own definition.
+    if (!coachVisible) setTimeout(triggerShakeHint, SHAKE_HINT_DELAY_MS);
   } else {
     showEmptyState();
   }
