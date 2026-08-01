@@ -2,8 +2,8 @@
 
 **Project:** `free-stack`
 **Owner:** Kaipability Ltd (Rocky Verma)
-**Version:** 1.6
-**Date:** 31 July 2026 (v1.0: 14 July 2026; v1.5: 30 July 2026; v1.6: 31 July 2026)
+**Version:** 1.7
+**Date:** 1 August 2026 (v1.0: 14 July 2026; v1.5: 30 July 2026; v1.6: 31 July 2026; v1.7: 1 August 2026)
 **Build tool:** Claude Code from this PRD
 **Deploy target:** Netlify via GitHub
 
@@ -488,6 +488,7 @@ This layout supersedes the Phase 12 homepage layout and its viewport ordering, w
 - The card renderer (`js/client.js`) is untouched; the shelf wrapper is applied around its output.
 - **Search**: filtering force-opens every shelf containing a match, hides shelves with none, and shows a "N tools match" line. Clearing restores the collapsed state. Persona chips use the same mechanic.
 - **Expand all / Collapse all** round-trips, so no capability against the old layout is lost.
+- **Sticky shelf headers (Phase 15.4, from Rocky's phone test):** while a shelf is open, its header button is `position: sticky` at the top of the viewport, at every width, so collapsing an eleven-tool shelf never requires scrolling back to where it started. The stuck header keeps its full hit target, carries the panel background plus a subtle separation shadow only while stuck, and sits below the deck and any overlay in stacking order. Tapping it collapses the shelf exactly as before; this is positioning, not motion, and adds nothing to the motion inventory.
 - **Deep links**: `#cat-<slug>` opens and scrolls to its shelf. The `?tool=ID` permalink is unchanged.
 - Shelf open state is transient per page load: no persistence, no new storage keys.
 - Tool id 0 must survive search, shelf grouping and judgement parity; the section 4 id laws apply throughout.
@@ -506,7 +507,7 @@ Judgement state (§17) is not deck-private. On the browse list:
 
 ### Motion inventory
 
-This list is exhaustive. Any motion not named here is banned on the public surface: no parallax, no looping or ambient motion, no scroll-linked effects, no autoplaying anything. The budget moves from unseen entrances to user-initiated responses. Two tokens land in `design-system/colors_and_type.css`:
+This list is exhaustive. Any motion not named here is banned on the public surface: no parallax, no looping or ambient motion (item 8 carries the single recorded exception, for the primary CTA only), no scroll-linked effects, no autoplaying anything. The budget moves from unseen entrances to user-initiated responses. Two tokens land in `design-system/colors_and_type.css`:
 
 ```css
 --ease-swift:  cubic-bezier(0.22, 1, 0.36, 1);    /* entrances and responses */
@@ -522,7 +523,7 @@ This list is exhaustive. Any motion not named here is banned on the public surfa
 5. **Judged-chip pop**: only a fresh judgement (the setDecision path, never load-time redecoration) marks the chip `.is-new`, keyframed `scale(0.85)` to 1 with fade, 220ms, `--ease-spring`, `transform-origin` left. Reduced motion: instant.
 6. **Theme-toggle cross-fade**: the theme attribute swap runs in the same guarded View Transition helper, giving a roughly 250ms full-page cross-fade. Unsupported or reduced motion: instant swap as today.
 7. **Hover lift and focus**: cards lift `translateY(-3px)` with a border-colour shift to oxblood, 180ms, `--ease-swift`, hover-capable devices only. Site-wide `:focus-visible`: 2px oxblood outline, 2px offset, zero duration (focus never lags). Reduced motion: colour change only, no translate.
-8. **Discover button emphasis** (Phase 15): the Start Discover button earns a bounded attention sequence. After the first-paint stagger settles, the button runs exactly two gentle pulses (scale 1 to 1.04 and back, roughly 450ms each on `--ease-spring`, the button being well under the 200px spring ceiling, with a soft glow swell in the brand colour) about 1.2s apart, then rests. At most two pulses per page load: this is a bounded sequence, not the looping or ambient motion this section bans, and it never runs again without a reload. On hover or focus, a sheen sweep (a light gradient highlight translating across the face, roughly 550ms, `--ease-swift`) plus a spring scale to 1.03; on press, scale to 0.97. While the deck is open the button is hidden with the rest of the ways-in band, so the sequence can never compete with the deck. Reduced motion: no pulse, no sheen, no scale; colour and shadow response only.
+8. **Discover button, house CTA treatment** (Phase 15, rewritten 15.4 on Rocky's direction after his phone test, reference the airl.io hero CTA): the Start Discover button is the one deliberate, recorded exception to this section's ban on looping and ambient motion, because it is the page's single primary call to action and Rocky judged the bounded version flat. Exactly one element may loop, this one. The treatment, matching the airl.io house CTA: a three-stop brand-red gradient background (derived from the design-system's own red tokens, tones near the airl.io reference's bright-to-deep range) sized around 220% and drifting slowly via background-position (roughly 5.5s, ease-in-out, alternate, infinite); a soft glow-and-scale pulse (roughly 2.8s, infinite); and a sheen sweep crossing the face every few seconds (roughly 3.8s, infinite). On hover or focus-visible: the pulse pauses, the button lifts about 2px with a brand-red glow shadow; on press, scale to 0.97. While the deck is open the ways-in band is hidden, which also stops the loop; it resumes when the band returns, which is correct for an ambient treatment (the Phase 15 no-replay guard applied to the old one-shot pulse and is retired with it). Reduced motion: every animation off, a static mid-gradient face, no sheen, no scale or lift; colour and shadow response only. No other element may ever cite this exception.
 
 Deck card physics (§17) and the client-mode motion (Phase 7.6) stay in force alongside this inventory, unchanged.
 
@@ -652,6 +653,8 @@ A dev-time Node script, same category as `validate-data.mjs` and permitted under
 The generator writes real HTML between marker comments (`<!-- seo-static:start -->` / `<!-- seo-static:end -->`) inside `<div id="static-root">`: hero copy, the trust lines (live tool count, the no-affiliates line verbatim, curator identity), each category as an `<h2>` with its question-led intro and a plain list of tool names with one-sentence descriptions and free-limit summaries, and a link to `/faq.html`. Public-directory content only: nothing from `/x`, `/my` or client mode.
 
 `js/data-loader.js` hides `#static-root` when an app surface mounts, so JS users see exactly the rendered page. Non-JS crawlers and noscript readers get the full directory as text, and a fetch failure now leaves readable content instead of a blank page.
+
+**No flash on JS-capable loads (Phase 15.4, from Rocky's phone test):** hiding the block only after `tools.json` arrives painted the whole crawler block for the duration of the fetch on mobile. The shared theme-boot inline script in `<head>` (which already runs before first paint) now also stamps a class on the document root, and a static CSS rule hides `#static-root` under that class, so a JS-capable load never paints the block at all. The boot failure path removes the stamp so a broken app still falls back to readable static content, and non-JS readers never get the stamp in the first place. The modified boot script's new hash lands in `netlify.toml` in the same commit with a changelog row, per this document's own inline-script law.
 
 ### Static `/faq.html`
 
