@@ -1110,11 +1110,47 @@ button { font: inherit; }
 }
 
 .pub-header {
+  /* Positioning context for .pub-hero-nav below: it is absolutely
+     positioned so it adds no vertical height to the hero, and that only
+     works relative to this panel rather than the page. */
+  position: relative;
   padding: var(--s-10) var(--s-10) var(--s-8);
   margin-bottom: var(--s-3);
   border-top: var(--bw-heavy) solid var(--oxblood);
 }
 .pub-header .logo { height: 40px; width: auto; margin-bottom: var(--s-5); }
+
+/* --- hero utility nav (PRD section 16 amended, layout item 1, Phase 15) ---
+   "My Stack" and "FAQ", pinned to the panel's top-right corner. Absolute
+   positioning takes it out of normal flow entirely, which is what lets it
+   add zero vertical height at 375px: the 880px first-shelf budget below is
+   measured against the header's normal content flow (logo, h1, strapline,
+   trust lines), which this nav never joins. It is a plain child of
+   .pub-header, so it inherits the hero's first-paint stagger (motion
+   inventory item 1) rather than needing an animation of its own. Quiet
+   text links, not buttons, each padded to a 44px minimum target per the
+   site-wide touch-target rule. */
+.pub-hero-nav {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  gap: var(--s-1);
+}
+.pub-hero-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--s-2);
+  color: var(--ink-3);
+  font-family: var(--font-sans);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  letter-spacing: var(--tr-loose);
+  text-decoration: none;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.pub-hero-nav a:hover, .pub-hero-nav a:focus-visible { color: var(--oxblood); }
 .pub-header h1 {
   font-family: var(--font-display);
   font-weight: 900;
@@ -1164,8 +1200,23 @@ button { font: inherit; }
 
 .pub-empty { color: var(--ink-2); padding: var(--s-10) 0; }
 
-.pub-footer { align-items: flex-start; }
+/* The shared .cli-footer rule (CLIENT block) sets margin-top: var(--s-20)
+   (80px), plenty of breathing room for client mode's much shorter page.
+   Phase 15's good-practice block adds two more lines here, which the
+   1280px page-height budget (2200px, measured 2174px before this phase)
+   has no spare room for; tightening this one property, specific to
+   .pub-footer, buys back roughly what the two new lines cost, following
+   the same precedent as the align-items override just below. */
+.pub-footer { align-items: flex-start; margin-top: var(--s-10); }
 .pub-cta { margin-top: var(--s-1); }
+/* Good-practice block (PRD section 16 amended, layout item 6, Phase 15):
+   the legal/practice line and the company identity line, same quiet t-meta
+   treatment as the existing my-awareness-link-line just below them. Same
+   design-system bare `p` trap documented several times elsewhere in this
+   block: without max-width: none, the 68ch --measure cap wraps the longer
+   company line onto two lines, which is what pushed the 1280px page-height
+   budget over in the verifier's first pass. */
+.pub-footer-legal, .pub-footer-company { margin-top: var(--s-1); max-width: none; }
 
 /* --- hero trust signals (Phase 12.1, PRD section 16) ----------------------
    The three verifiable claims sit under the strapline as a quiet stacked
@@ -1227,7 +1278,91 @@ button { font: inherit; }
 }
 /* Same design-system `p` line-height trap as .pub-hero-trust-item above. */
 .pub-entry-pitch { max-width: none; color: var(--ink-2); font-size: var(--fs-14); line-height: var(--lh-14); }
-.pub-discover-btn { align-self: stretch; justify-content: center; }
+
+/* --- motion: Discover button emphasis (motion inventory item 8, PRD
+   section 16 amended, Phase 15) -------------------------------------------
+   A bounded, non-looping attention sequence, not the ambient or looping
+   motion this section otherwise bans: exactly two scale-and-glow pulses
+   baked into one keyframe timeline (0-450ms the first pulse, a plateau,
+   1200-1650ms the second, "about 1.2s apart" measured start to start),
+   animation-iteration-count 1 (the last value in the shorthand below), so
+   nothing on this button ever loops and it never runs again without a
+   reload. animation-delay clears the ways-in band's own first-paint
+   stagger (motion item 1): the latest of the three staggered nodes
+   (personaItem, index 2) settles at 80ms*2 + 480ms = 640ms, so 900ms
+   leaves a clear margin. --ease-spring is reserved for elements under
+   roughly 200px per the inventory's own note; this button qualifies. The
+   glow is color-mix against the --oxblood token so it tracks the brand
+   colour's own per-theme value automatically, per the design-token rule,
+   rather than a hardcoded hex; the sheen highlight further down
+   deliberately does not use a token, see its own comment. */
+@keyframes pub-discover-pulse {
+  0%, 27.3%, 72.7%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--oxblood) 0%, transparent);
+  }
+  13.6%, 86.4% {
+    transform: scale(1.04);
+    box-shadow: 0 0 20px 4px color-mix(in srgb, var(--oxblood) 35%, transparent);
+  }
+}
+.pub-discover-btn {
+  align-self: stretch;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  animation: pub-discover-pulse 1650ms var(--ease-spring) 900ms 1;
+  transition: transform var(--dur-base) var(--ease-swift);
+}
+/* Sheen sweep on hover/focus: a light gradient highlight translating across
+   the button's face, contained by the overflow:hidden above so it never
+   escapes the button's own edges. Fixed white, not a design token
+   deliberately: this is a lighting effect (glare crossing a glossy
+   surface), not a brand colour, and needs to read as a highlight against
+   the oxblood fill in both themes, which var(--paper) cannot do (it is
+   near-black under data-theme="dark", the wrong direction for a
+   highlight). */
+.pub-discover-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.35) 50%, transparent 65%);
+  transform: translateX(-140%);
+  transition: transform 550ms var(--ease-swift);
+  pointer-events: none;
+}
+.pub-discover-btn:hover,
+.pub-discover-btn:focus-visible {
+  transform: scale(1.03);
+}
+.pub-discover-btn:hover::after,
+.pub-discover-btn:focus-visible::after {
+  transform: translateX(140%);
+}
+.pub-discover-btn:active { transform: scale(0.97); }
+/* Verifier fix round (PRD section 16 amended, motion inventory item 8's
+   closing clause): js/public.js adds this class the first time it hides
+   the ways-in band, and never removes it, so the pulse can never restart
+   when the band (and this button with it) is later restored. Two classes
+   beats the bare .pub-discover-btn rule above on specificity alone, so
+   source order does not matter here. */
+.pub-discover-btn.pub-discover-settled { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .pub-discover-btn {
+    animation: none;
+    transition: none;
+  }
+  .pub-discover-btn::after { content: none; }
+  .pub-discover-btn:hover,
+  .pub-discover-btn:focus-visible,
+  .pub-discover-btn:active {
+    transform: none;
+    /* Colour and shadow response only, per the inventory: no pulse, no
+       sheen, no scale, but a static (non-swelling) glow still marks the
+       hover/focus state. */
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--oxblood) 35%, transparent);
+  }
+}
 
 /* --- motion: deck-open morph (motion inventory item 4, PRD section 16
    amended) -------------------------------------------------------------

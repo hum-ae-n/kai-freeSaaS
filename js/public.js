@@ -276,7 +276,18 @@ export function renderPublic(root, tools) {
       '.',
     ),
   );
+  // Utility nav (PRD section 16 amended, layout item 1, Phase 15): quiet
+  // links to My Stack and FAQ, pinned to the panel's top corner by CSS
+  // absolute positioning so it adds no vertical height at 375px and the
+  // 880px first-shelf budget below stays untouched. A plain child of
+  // `header`, so it inherits the hero's first-paint stagger rather than
+  // needing a second reveal call. Real internal links, no target=_blank.
+  const heroNav = el('nav', { class: 'pub-hero-nav', 'aria-label': 'Utility' },
+    el('a', { href: '/my' }, 'My Stack'),
+    el('a', { href: '/faq.html' }, 'FAQ'),
+  );
   const header = el('header', { class: 'panel pub-header' },
+    heroNav,
     el('img', { class: 'logo', src: 'design-system/assets/kaipability-logo-lockup.png', alt: 'Kaipability' }),
     el('h1', {}, 'Free Stack'),
     el('p', { class: 'subtitle' }, 'Curated free software for small business'),
@@ -369,6 +380,41 @@ export function renderPublic(root, tools) {
     shelfBand.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
   }
 
+  /* --- ways-in band hide/restore while the deck is open (verifier fix,
+     PRD section 16 amended, motion inventory item 8's closing clause):
+     "While the deck is open the button is hidden with the rest of the
+     ways-in band, so the sequence can never compete with the deck." As
+     built, nothing ever enforced that: the button (glow and pulse both)
+     sat in the viewport directly above the open deck, and the pulse could
+     genuinely fire while the deck had focus. "The rest of the ways-in
+     band" is read literally here: the whole `entryPaths` section, search
+     input included, not only the Discover/persona grid, since the clause
+     says the button is hidden WITH the rest of the band, not instead of
+     it. A reader who wants to search the directory while the deck is open
+     now has to close the deck first; flagged in this wave's own report as
+     a UX cost of following the clause literally, not silently narrowed
+     away. entryPaths.hidden is the established idiom (BASE block's
+     `[hidden] { display: none !important; }`), the same one discoverMount
+     itself already uses. */
+  function hideWaysInBand() {
+    entryPaths.hidden = true;
+    // The pulse (motion item 8) must never fire again once the band has
+    // been hidden even once: toggling display:none back to visible
+    // restarts a CSS animation from its own beginning, delay included
+    // (removing an element from rendering cancels its running animation
+    // outright), which would replay the "at most two pulses per page
+    // load, never runs again without a reload" sequence a second time on
+    // every later close. Setting this class now, unconditionally, closes
+    // that off regardless of which stage the pulse itself was in (not yet
+    // started, mid-flight, or already finished) at the moment the band is
+    // first hidden: see the CSS rule's own comment for why this beats the
+    // animation shorthand it overrides.
+    discoverBtn.classList.add('pub-discover-settled');
+  }
+  function showWaysInBand() {
+    entryPaths.hidden = false;
+  }
+
   discoverBtn.addEventListener('click', async () => {
     if (discoverOpen) {
       // Already open: bring it back into focus rather than mounting a
@@ -378,6 +424,14 @@ export function renderPublic(root, tools) {
     }
     if (discoverLoading) return;
     discoverLoading = true;
+    // The pulse dies here, synchronously at click time, not inside the
+    // View Transition's `finished` callback where the layout hide waits.
+    // The re-verify proved the gap: under heavy load `finished` can land
+    // after the pulse's 900ms animation-delay, and the pulse then fires
+    // over the open deck, the exact competition inventory item 8 bans.
+    // Killing the animation costs the morph nothing (the morph is a view
+    // transition, not this CSS animation), so it need not wait.
+    discoverBtn.classList.add('pub-discover-settled');
     try {
       const mod = await loadDiscoverModule();
       if (!mod) throw new Error('module unavailable');
@@ -393,7 +447,14 @@ export function renderPublic(root, tools) {
         container: discoverMount,
         opener: discoverBtn,
         seed,
-        onClose: () => { discoverOpen = false; },
+        // showWaysInBand() runs before discover.js's own closeDeck() hands
+        // focus back to `opener` (this button): closeDeck() calls onClose()
+        // first and focuses `opener` immediately afterward, so by the time
+        // that focus() call runs the button is already visible again and
+        // able to take it. No discover.js edit needed for this: closeDeck()
+        // is already the single seam every close route (Escape, the close
+        // button, and "Browse all" below) funnels through.
+        onClose: () => { discoverOpen = false; showWaysInBand(); },
         onBrowseAll: () => { discoverOpen = false; scrollToShelfBand(); },
       };
       // Motion inventory item 4 ("Deck-open morph"): guarded the same way as
@@ -438,11 +499,20 @@ export function renderPublic(root, tools) {
         // on. Caught, not left to reject unhandled: a skipped transition
         // (closed mid-flight) still resolves `finished`, but nothing here
         // depends on that distinction.
+        // hideWaysInBand() is deferred to `finished`, the same point the
+        // deferred focus above already waits for, and for the same reason:
+        // hiding entryPaths inside the transition callback (before the
+        // browser has captured its "new" state) would change the layout of
+        // elements the transition is not tracking by name while it is
+        // still mid-flight, visibly breaking the morph. Waiting for
+        // `finished` lets the panel morph settle first, then removes the
+        // band once there is nothing left for that removal to disturb.
         let transitionSettled = !transition;
         transition?.finished.then(() => {
           transitionSettled = true;
+          hideWaysInBand();
           if (panelRef && panelRef.isConnected) panelRef.focus({ preventScroll: true });
-        }).catch(() => { transitionSettled = true; });
+        }).catch(() => { transitionSettled = true; hideWaysInBand(); });
         // Fast-first-tap regression, reopened by the morph itself: a pointer
         // interaction with the deck (the judge buttons above all) while
         // this page-level transition is still active moves native focus to
@@ -469,8 +539,14 @@ export function renderPublic(root, tools) {
         // Fallback: today's mount and scroll, unchanged. openDiscoverDeck
         // focuses the panel itself (deferFocus defaults to false), and the
         // existing preventScroll discipline inside it is what already
-        // guards the fast-first-tap race documented there.
+        // guards the fast-first-tap race documented there. No transition to
+        // wait for here (this is also the reduced-motion path, since
+        // canMorph is false whenever prefersReducedMotion() is true), so
+        // the band hides synchronously, before the scroll below, the same
+        // "settled" point as the VT path's post-finished hide once there is
+        // no morph in flight to disturb.
         openDiscoverDeck(openOptions);
+        hideWaysInBand();
         discoverMount.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
       }
     } catch (cause) {
@@ -704,8 +780,24 @@ export function renderPublic(root, tools) {
       // treatment as the two paragraphs above.
       el('p', { class: 't-meta my-awareness-link-line' },
         'Also free: ', el('a', { href: '/my' }, 'My Stack'),
-        ', a register for tracking who holds which account. ',
-        el('a', { href: '/why-register.html' }, 'Why we built this'),
+        ', a register for tracking who holds which account, and ',
+        el('a', { href: '/why-register.html' }, 'the reasoning behind it'),
+        '.',
+      ),
+      // Good-practice block (PRD section 16 amended, layout item 6, Phase
+      // 15): the legal/practice line and the company identity line, added
+      // below the existing lines rather than replacing any of them.
+      el('p', { class: 't-meta pub-footer-legal' },
+        el('a', { href: '/privacy.html' }, 'Privacy'), ' · ',
+        el('a', { href: '/contact.html' }, 'Contact'), ' · ',
+        el('a', { href: '/faq.html' }, 'FAQ'), ' · ',
+        el('a', { href: '/why-register.html' }, 'Why we built My Stack'),
+      ),
+      el('p', { class: 't-meta pub-footer-company' },
+        'Kaipability Ltd, registered in England and Wales, Company No. 15772934. ',
+        el('a', { href: 'https://kaipability.com', target: '_blank', rel: 'noopener noreferrer' }, 'kaipability.com'),
+        ' · ',
+        el('a', { href: 'https://www.airl.io', target: '_blank', rel: 'noopener noreferrer' }, 'AIRL'),
         '.',
       ),
     ),
