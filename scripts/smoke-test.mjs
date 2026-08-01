@@ -614,10 +614,23 @@ const biggestGridId = await stickyPage.locator(biggestHeaderSelector).getAttribu
 await stickyPage.waitForFunction((gridId) => document.getElementById(gridId)?.hidden === false, biggestGridId);
 await stickyPage.waitForTimeout(200); // let the deep link's own instant scroll settle
 // The deep link's own scrollIntoView(block:'start') lands the shelf's
-// sentinel right at the viewport's top edge, an ambiguous boundary for the
-// IntersectionObserver (sub-pixel rounding can register either side).
-// Scrolling up a little first gives an unambiguous, clearly-intersecting
-// "not stuck" baseline to test against.
+// sentinel right at the viewport's top edge, exactly the boundary where the
+// 15.4 directionless observer misread "stuck" (it treated any
+// non-intersection as stuck, whichever side of the viewport the sentinel
+// was on). Pin the fixed comparator at this boundary permanently: a
+// deep-link arrival must NEVER show the stuck state or the Close hint, no
+// compensating scroll first. The verifier flagged that dodging this case
+// with a scroll left the 15.4 regression unpinned.
+const deepLinkArrival = await stickyPage.locator(biggestHeaderSelector).evaluate((n) => ({
+  isStuck: n.classList.contains('is-stuck'),
+  hintDisplay: getComputedStyle(n.querySelector('.pub-shelf-close-hint')).display,
+  top: n.getBoundingClientRect().top,
+}));
+check('sticky: a #cat- deep-link arrival at the sentinel boundary is never misread as stuck (15.4 observer regression pin)',
+  deepLinkArrival.isStuck === false && deepLinkArrival.hintDisplay === 'none',
+  JSON.stringify(deepLinkArrival));
+// Scrolling up a little now gives the later checks their unambiguous,
+// clearly-intersecting "not stuck" baseline, unchanged from before.
 await stickyPage.evaluate(() => window.scrollBy(0, -80));
 await stickyPage.waitForTimeout(80);
 
