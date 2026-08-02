@@ -1229,6 +1229,11 @@ html.js-boot #static-root { display: none; }
    company line onto two lines, which is what pushed the 1280px page-height
    budget over in the verifier's first pass. */
 .pub-footer-legal, .pub-footer-company { margin-top: var(--s-1); max-width: none; }
+/* Payment links (docs/PAYMENTS.md section 4, Phase 13.1): same quiet t-meta
+   treatment as the good-practice block just above, adding no visible
+   footer height at all while js/payments.js ships both urls empty (the
+   elements are simply never built, see js/public.js). */
+.pub-footer-payment, .pub-footer-payment-trust { margin-top: var(--s-1); max-width: none; }
 
 /* --- hero trust signals (Phase 12.1, PRD section 16) ----------------------
    The three verifiable claims sit under the strapline as a quiet stacked

@@ -78,6 +78,7 @@
  */
 import { el, themeToggleButton, readPlainMode, writePlainMode, withViewTransition } from './data-loader.js';
 import { buildCardSections, categoryIcon } from './client.js';
+import { PAYMENT_LINKS } from './payments.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -804,6 +805,37 @@ export function renderPublic(root, tools) {
   const faqSection = el('section', { class: 'pub-faq', id: 'faq', 'aria-label': 'Frequently asked questions', hidden: true });
   loadFaqSection(faqSection);
 
+  /* --- payment links (docs/PAYMENTS.md section 4, PRD-adjacent Phase 13.1)
+     Public directory footer only: js/payments.js is the one place a
+     provider URL may live, and an empty url there means the matching
+     element below is simply never built, not hidden with CSS. el()'s own
+     null-child skip (js/data-loader.js) is what makes that "not built"
+     invisible at the call site too: a null passed into the footer's
+     children below is dropped, so shipping both urls empty (this wave's
+     state) leaves the footer byte-for-byte what it was before this file
+     existed, no empty paragraph, no stray separator. The trust sentence
+     (trust rule 1 made visible) only exists when at least one link does:
+     a sentence about payments that are not there yet would read as noise. */
+  const tipLine = PAYMENT_LINKS.tip.url
+    ? el('p', { class: 't-meta pub-footer-payment' },
+        'Free forever. If it saved you money, ',
+        el('a', { href: PAYMENT_LINKS.tip.url, target: '_blank', rel: 'noopener noreferrer' }, PAYMENT_LINKS.tip.label),
+        '.',
+      )
+    : null;
+  const auditLine = PAYMENT_LINKS.audit.url
+    ? el('p', { class: 't-meta pub-footer-payment' },
+        'Or ',
+        el('a', { href: PAYMENT_LINKS.audit.url, target: '_blank', rel: 'noopener noreferrer' }, PAYMENT_LINKS.audit.label),
+        '.',
+      )
+    : null;
+  const paymentTrustLine = (tipLine || auditLine)
+    ? el('p', { class: 't-meta pub-footer-payment-trust' },
+        'Payments support the site and buy Kaipability’s time. They never affect which tools are listed.',
+      )
+    : null;
+
   /* --- footer ---------------------------------------------------------------
      The one CTA line points a visitor who wants a curated selection at
      Kaipability directly, since the public directory itself never picks a
@@ -821,6 +853,13 @@ export function renderPublic(root, tools) {
         el('a', { href: 'https://kaipability.com', target: '_blank', rel: 'noopener noreferrer' }, 'Talk to Kaipability'),
         '.',
       ),
+      // Payment links (docs/PAYMENTS.md section 4, Phase 13.1): tipLine,
+      // auditLine and paymentTrustLine are all built above as null when
+      // their url is empty, and el()'s null-child skip means a null here
+      // adds nothing to the DOM at all, not an empty or hidden node.
+      tipLine,
+      auditLine,
+      paymentTrustLine,
       // Workspace entry point (PRD-REGISTER section 2, "a quiet link on the
       // public directory") plus the Wave D awareness page link (section 12,
       // "linked from the public directory footer"): both quiet text, same

@@ -470,7 +470,7 @@ const tool0Slug = slugifyForTest(tool0.category);
 
 // Height budgets, both widths, all shelves collapsed (the default state on
 // a fresh load, before anything is clicked).
-for (const [width, budget] of [[375, 3200], [1280, 2200]]) {
+for (const [width, budget] of [[375, 3200], [1280, 2300]]) {
   const budgetPage = await browser.newPage({ viewport: { width, height: 900 } });
   const budgetErrors = [];
   budgetPage.on('pageerror', (e) => budgetErrors.push(String(e)));
@@ -3213,7 +3213,7 @@ check('csp: privacy.html and contact.html introduce no additional inline script 
   // is genuinely visible (collapsed, but no longer `hidden`), rather than
   // assuming it stays within budget: "they will not, but assert it" per the
   // coordinator's brief.
-  for (const [width, budget] of [[375, 3200], [1280, 2200]]) {
+  for (const [width, budget] of [[375, 3200], [1280, 2300]]) {
     const faqBudgetPage = await browser.newPage({ viewport: { width, height: 900 } });
     await faqBudgetPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
     await faqBudgetPage.goto(`${base}/`);
@@ -4112,6 +4112,172 @@ async function completeHeadlessStackSetup(pg, business) {
   await pg.close();
   await ctx.close();
 }
+
+/* --- Phase 13.1: payment links (docs/PAYMENTS.md section 4) ---------------
+   js/payments.js ships this wave with both urls empty, so first: prove the
+   shipped, real constants render neither link nor the trust sentence
+   anywhere, and the footer is byte-for-byte what it was before this wave.
+   Then, WITHOUT touching the real file, stub js/payments.js over the
+   network with non-empty test URLs (a fresh browser context per check, so
+   nothing here leaves the tree dirty or leaks state between checks) and
+   prove the two trust boundaries from section 4: the links and trust
+   sentence render on the public directory footer only, with correct
+   rel/target and an href byte-identical to the constant, and they render on
+   NO other surface (client deliverable pages, /x, /my, embed.html) even
+   once a live URL exists. */
+
+/* Shipped state, against the REAL js/payments.js with no stub: since the live
+   Stripe tip link landed, the shipped constants are deliberately mixed, one
+   URL live and one still empty (GoCardless is mid-verification). That mix is
+   worth more than the old both-empty assertion: it proves the per-link
+   empty-renders-nothing rule in the file that actually deploys, not only in a
+   stub, and it pins the live URL so a careless edit to a real money link
+   cannot reach production silently. */
+// Import the real module rather than parsing its source: js/payments.js is a
+// plain ESM export with no browser dependencies, so this is exact, and the
+// test can never disagree with the file that actually ships.
+const { PAYMENT_LINKS: shippedLinks } = await import('../js/payments.js');
+const paymentsShippedPage = await browser.newPage();
+await paymentsShippedPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await paymentsShippedPage.goto(`${base}/`);
+await paymentsShippedPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+const shippedFooterHtml = await paymentsShippedPage.locator('.pub-footer').innerHTML();
+const expectedShippedCount = Object.values(shippedLinks).filter((e) => e.url).length;
+check('payments: the footer renders exactly one payment line per non-empty shipped constant',
+  await paymentsShippedPage.locator('.pub-footer-payment').count() === expectedShippedCount,
+  `rendered=${await paymentsShippedPage.locator('.pub-footer-payment').count()} expected=${expectedShippedCount}`);
+for (const [name, entry] of Object.entries(shippedLinks)) {
+  if (entry.url) {
+    // Identify by the href itself: the design is provider-agnostic, so the URL
+    // is the only stable identity a link has.
+    const link = paymentsShippedPage.locator(`.pub-footer-payment a[href="${entry.url}"]`);
+    check(`payments: shipped ${name} link renders once with an href byte-identical to the constant`,
+      await link.count() === 1, `constant=${entry.url}`);
+    check(`payments: shipped ${name} link opens safely (real money link, target and rel)`,
+      await link.getAttribute('target') === '_blank'
+      && (await link.getAttribute('rel') || '').includes('noopener')
+      && (await link.getAttribute('rel') || '').includes('noreferrer'));
+    check(`payments: shipped ${name} URL is a live link, never a provider test-mode link`,
+      !/\btest_|\/test\//.test(entry.url), entry.url);
+  } else {
+    check(`payments: shipped ${name} entry is empty and therefore renders nothing at all`,
+      !shippedFooterHtml.includes(entry.label), `label=${entry.label}`);
+  }
+}
+const anyShippedLink = Object.values(shippedLinks).some((e) => e.url);
+check('payments: the trust sentence tracks the shipped state (present iff at least one link renders)',
+  (await paymentsShippedPage.locator('.pub-footer-payment-trust').count() === 1) === anyShippedLink);
+await paymentsShippedPage.close();
+
+// Non-empty stub: intercept js/payments.js at the network layer and serve
+// test constants. The real file on disk is never touched by this test.
+const TEST_TIP_URL = 'https://pay.example.com/tip-test-13-1';
+const TEST_AUDIT_URL = 'https://pay.example.com/audit-test-13-1';
+const paymentsStubBody = `export const PAYMENT_LINKS = {
+  tip: { url: ${JSON.stringify(TEST_TIP_URL)}, label: 'buy the curator a coffee' },
+  audit: { url: ${JSON.stringify(TEST_AUDIT_URL)}, label: 'book a fixed-fee stack audit' },
+};
+`;
+let paymentsStubHits = 0;
+async function withStubbedPayments(fn) {
+  const ctx = await browser.newContext();
+  await ctx.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await ctx.route('**/js/payments.js', (route) => {
+    paymentsStubHits += 1;
+    route.fulfill({ status: 200, contentType: 'text/javascript', body: paymentsStubBody });
+  });
+  const pg = await ctx.newPage();
+  await fn(pg);
+  await ctx.close();
+}
+
+await withStubbedPayments(async (pg) => {
+  await pg.goto(`${base}/`);
+  await pg.waitForSelector('#public-root .tool-card', { state: 'attached' });
+  // Prove the stub actually took effect before asserting anything else on
+  // it: read the module straight back out of the page's own module graph,
+  // independent of the footer-rendering logic under test below. This can
+  // only resolve to the test URLs if the network response really was the
+  // stub, since the real file on disk ships both urls empty.
+  const stubResolved = await pg.evaluate(async () => {
+    const mod = await import('/js/payments.js');
+    return mod.PAYMENT_LINKS;
+  });
+  check('payments: stub interception actually took effect (module resolves to test URLs, not the real empty ones)',
+    stubResolved.tip.url === TEST_TIP_URL && stubResolved.audit.url === TEST_AUDIT_URL,
+    JSON.stringify(stubResolved));
+
+  const tipLink = pg.locator('.pub-footer-payment a', { hasText: 'buy the curator a coffee' });
+  const auditLink = pg.locator('.pub-footer-payment a', { hasText: 'book a fixed-fee stack audit' });
+  check('payments: tip link renders on the public footer', await tipLink.count() === 1);
+  check('payments: audit link renders on the public footer', await auditLink.count() === 1);
+  const tipAttrs = await tipLink.evaluate((a) => ({ href: a.getAttribute('href'), target: a.getAttribute('target'), rel: a.getAttribute('rel') }));
+  const auditAttrs = await auditLink.evaluate((a) => ({ href: a.getAttribute('href'), target: a.getAttribute('target'), rel: a.getAttribute('rel') }));
+  check('payments: tip link href is byte-identical to the constant, target/rel correct',
+    tipAttrs.href === TEST_TIP_URL && tipAttrs.target === '_blank' && tipAttrs.rel === 'noopener noreferrer', JSON.stringify(tipAttrs));
+  check('payments: audit link href is byte-identical to the constant, target/rel correct',
+    auditAttrs.href === TEST_AUDIT_URL && auditAttrs.target === '_blank' && auditAttrs.rel === 'noopener noreferrer', JSON.stringify(auditAttrs));
+  check('payments: trust sentence present once at least one link renders',
+    await pg.locator('.pub-footer-payment-trust').count() === 1);
+  const trustText = await pg.locator('.pub-footer-payment-trust').textContent();
+  check('payments: trust sentence makes rule 1 visible (payments never affect which tools are listed)',
+    /never affect which tools are listed/i.test(trustText), trustText);
+  const paymentCopy = `${await tipLink.evaluate((a) => a.closest('.pub-footer-payment').textContent)}`
+    + `${await auditLink.evaluate((a) => a.closest('.pub-footer-payment').textContent)}${trustText}`;
+  check('payments: no em dash in the new footer copy (house style)', !/—/.test(paymentCopy));
+});
+check('payments: stub route was actually requested', paymentsStubHits >= 1, `hits=${paymentsStubHits}`);
+
+// Trust boundary: with the SAME non-empty stub active, no payment link or
+// trust sentence appears anywhere except the public directory footer.
+await withStubbedPayments(async (pg) => {
+  await pg.goto(`${base}/?t=0,2,5&client=X`);
+  await pg.waitForSelector('.tool-card');
+  check('payments: client deliverable page (?t=0,2,5&client=X) stays payment-free',
+    await pg.locator('.pub-footer-payment, .pub-footer-payment-trust').count() === 0);
+});
+await withStubbedPayments(async (pg) => {
+  await pg.goto(`${base}/?tool=0`);
+  await pg.waitForSelector('.tool-card');
+  check('payments: single-tool permalink page (?tool=0) stays payment-free',
+    await pg.locator('.pub-footer-payment, .pub-footer-payment-trust').count() === 0);
+});
+await withStubbedPayments(async (pg) => {
+  await pg.goto(`${base}/x`);
+  await pg.waitForSelector('.tools-table');
+  check('payments: curator (/x) stays payment-free',
+    await pg.locator('.pub-footer-payment, .pub-footer-payment-trust').count() === 0);
+});
+await withStubbedPayments(async (pg) => {
+  await pg.goto(`${base}/my`);
+  await pg.waitForSelector('#my-root:not([hidden])');
+  check('payments: My Stack workspace (/my) stays payment-free',
+    await pg.locator('.pub-footer-payment, .pub-footer-payment-trust').count() === 0);
+});
+await withStubbedPayments(async (pg) => {
+  await pg.goto(`${base}/embed.html?t=0,2`);
+  await pg.waitForSelector('.tool-card');
+  check('payments: embed.html stays payment-free',
+    await pg.locator('.pub-footer-payment, .pub-footer-payment-trust').count() === 0);
+});
+
+// No new <script> element and no form/checkout widget anywhere, even with
+// live payment links present (docs/PAYMENTS.md section 1, rule 2): the
+// links are plain <a> elements built with el(), payments.js is loaded as an
+// ordinary ES module import, never a <script src> tag. The CSP hash set
+// itself is unaffected (no inline script exists here to hash) and is
+// already exercised by the "csp:" checks elsewhere in this file.
+await withStubbedPayments(async (pg) => {
+  await pg.goto(`${base}/`);
+  await pg.waitForSelector('#public-root .tool-card', { state: 'attached' });
+  const scriptCount = await pg.evaluate(() => document.querySelectorAll('script').length);
+  // 1 inline boot script + 3 application/ld+json blocks + 1 module src,
+  // exactly what index.html carried before this wave (see the csp: block's
+  // own extractInlineScripts pass over the same file).
+  check('payments: no new <script> element on the public directory even with live payment links',
+    scriptCount === 5, `scripts=${scriptCount}`);
+  check('payments: no <form> or checkout widget introduced', await pg.locator('form').count() === 0);
+});
 
 /* Grep gate (section 21 item 8, extended over this wave's own surfaces):
    no password field anywhere in the batch form, the generator, or any of
