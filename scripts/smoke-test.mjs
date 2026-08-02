@@ -4137,6 +4137,29 @@ async function completeHeadlessStackSetup(pg, business) {
 // plain ESM export with no browser dependencies, so this is exact, and the
 // test can never disagree with the file that actually ships.
 const { PAYMENT_LINKS: shippedLinks } = await import('../js/payments.js');
+
+/* Literal pin on the live money links, added after the 13.1 verifier proved
+   the surrounding checks were self-referential: they import js/payments.js and
+   assert the DOM matches whatever that import returned, which verifies
+   rendering, not correctness. Emptying the tip URL or swapping it for a
+   different buy.stripe.com link both still passed the whole suite. These are
+   real payment destinations on a public page, so they get the same treatment
+   as the CSP hashes: a literal expected value here, so changing a URL in
+   js/payments.js forces a deliberate matching edit to this file and both land
+   in the same reviewed diff. Filling in the GoCardless audit link is expected
+   to fail this check once; that failure IS the review prompt. */
+const EXPECTED_PAYMENT_URLS = {
+  tip:   'https://buy.stripe.com/3cI00idJjcJzdN75ps3AY01', // Stripe, live, verified by Rocky on the Deploy Preview
+  audit: '',                                               // GoCardless, pending business verification
+};
+for (const [name, expected] of Object.entries(EXPECTED_PAYMENT_URLS)) {
+  check(`payments: the shipped ${name} URL is exactly the reviewed one (pins a real money link against a silent edit)`,
+    shippedLinks[name]?.url === expected,
+    `shipped=${JSON.stringify(shippedLinks[name]?.url)} expected=${JSON.stringify(expected)}`);
+}
+check('payments: no payment entry was added or removed without updating the pin',
+  JSON.stringify(Object.keys(shippedLinks).sort()) === JSON.stringify(Object.keys(EXPECTED_PAYMENT_URLS).sort()),
+  `shipped=${Object.keys(shippedLinks)} pinned=${Object.keys(EXPECTED_PAYMENT_URLS)}`);
 const paymentsShippedPage = await browser.newPage();
 await paymentsShippedPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await paymentsShippedPage.goto(`${base}/`);
