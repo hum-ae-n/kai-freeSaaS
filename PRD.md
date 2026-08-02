@@ -475,7 +475,7 @@ This layout supersedes the Phase 12 homepage layout and its viewport ordering, w
    - **Persona chips**: behaviour unchanged.
    - The "Browse all" entry card is retired; its job passes to the shelves plus an **Expand all / Collapse all** toggle on the shelf-band header.
 3. **Discover mount and changelog strip**, as today.
-4. **Category shelves**: one `section` per category. Each collapsed shelf is a single row whose header is a real `<button>` (44px minimum) carrying the category icon, name, count ("AI Assistants · 6 tools"), a muted one-line scent of tool names truncated with an ellipsis, and a chevron. `aria-expanded` on the button, `aria-controls` naming the grid. Expanding reveals that category's full card grid.
+4. **Category shelves**: one `section` per category. Each collapsed shelf is a single row whose header is a real `<button>` (44px minimum) carrying the category icon, name, count ("AI Assistants · 6 tools") and a chevron. (The muted scent line of tool names shipped in 14.1 was removed in 15.6 on Rocky's mobile finesse pass: truncated to two or three words on a phone it added noise, not scent, and the icon-title-count row reads cleaner without it. Search still finds every tool name, so nothing is less discoverable.) `aria-expanded` on the button, `aria-controls` naming the grid. Expanding reveals that category's full card grid.
 5. **FAQ section**: the section 18 question-led content, as native `<details>`/`<summary>` items in the changelog strip's visual language. `<details>` content is in the DOM whether open or not.
 6. **Footer**, now reachable and, since Phase 15, carrying the site's good-practice block alongside the existing curator identity, Kaipability CTA and My Stack lines:
    - A **legal and practice line**: links to **Privacy** (`/privacy.html`), **Contact** (`/contact.html`), **FAQ** (`/faq.html`) and **Why we built My Stack** (`/why-register.html`).
@@ -556,7 +556,8 @@ A short card deck for judging tools one at a time. Swipe or press left for **"Go
 
 ### Deck composition
 
-- A deck deals **10 to 12 cards** and always ends: a progress counter ("4 of 12") and a completion card are part of every deck. Never infinite.
+- A deck deals **10 to 12 cards** and always ends: a progress counter ("4 of 12") and a completion card are part of every deck. Never infinite. **The counter must be plainly visible alongside the card at every viewport (15.6, Rocky's mobile pass: he could not see one at 375px), body-size text or larger, not buried in panel chrome a thumb covers or a small screen crops.**
+- **Movability hint (15.6):** each time a deck opens (after the first-open coach dismisses, or immediately when the coach is already done), the top card runs one brief shake, a small rotate-and-return nudge of roughly 600ms, to show it can be moved. Once per deck open, never looping, never during a drag, and skipped entirely under reduced motion. This is deck-card physics under this section, not a public-surface motion inventory item.
 - Seeding, in priority order: a chosen persona pack (`data/presets.json` ids, filtered to active and unjudged), a chosen category, otherwise the default mix (unjudged core tools first, then unjudged tools spread across categories).
 - Only active tools are dealt. Only "new to you" ids (not in `seenIds`, below) are dealt, unless the visitor explicitly chooses to review judged tools again.
 - Fewer than 10 eligible ids: deal what remains. Zero: the entry point says so and offers review or browse instead of an empty deck.

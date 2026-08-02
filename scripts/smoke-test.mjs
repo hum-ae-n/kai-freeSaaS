@@ -947,6 +947,29 @@ check('shelf: every shelf header is at least 44px tall at 375px',
   headerHeights375.length === 15 && headerHeights375.every((h) => h >= 44), JSON.stringify(headerHeights375));
 await shelf375Page.close();
 
+/* --- Phase 15.6: scent line retired (PRD section 16 amended layout item 4,
+   Rocky's mobile finesse pass) ---------------------------------------------
+   Shelf headers drop to icon, title, count, Close-hint slot, chevron: no
+   muted "scent" of tool names any more. The removal is checked against the
+   raw served DOM directly (no scent class, no leftover scent text pattern),
+   not just "the JS build no longer writes it", since a stale CSS rule or a
+   forgotten second call site would still leave the class findable. */
+{
+  const scentPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  await scentPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await scentPage.goto(`${base}/`);
+  await scentPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+  const scentCount = await scentPage.locator('.pub-shelf-scent').count();
+  check('shelf: no .pub-shelf-scent anywhere in the served DOM (retired 15.6)', scentCount === 0, `count=${scentCount}`);
+  const rawHomeHtml = await (await fetch(`${base}/`)).text();
+  check('shelf: no pub-shelf-scent string anywhere in the raw served HTML either', !rawHomeHtml.includes('pub-shelf-scent'));
+  // The count text itself must still be present and correctly worded, the
+  // one piece of shelf metadata besides the name and icon that survives.
+  const firstHeaderCountText = await scentPage.locator('.pub-shelf-header .pub-shelf-count').first().textContent();
+  check('shelf: the header count text is still present and reads "N tools"', /^\s*·\s*\d+\s*tools?$/.test(firstHeaderCountText ?? ''), firstHeaderCountText);
+  await scentPage.close();
+}
+
 // Search force-open and restore: searching tool 0's own name opens its
 // shelf (and shows the "N tools match" line), and clearing restores the
 // fully collapsed default. This is also the "tool id 0 found by search"
@@ -1306,6 +1329,237 @@ check('discover: Escape still closes the deck and restores opener focus after cl
   deckClosedAfterCoachClickEscape === 0 && focusReturnedAfterCoachClickEscape === true,
   `panelCount=${deckClosedAfterCoachClickEscape} focusReturned=${focusReturnedAfterCoachClickEscape}`);
 await coachClickPage.close();
+
+/* --- Phase 15.6: deck movability-hint shake (PRD section 17 amended,
+   "Deck composition") -------------------------------------------------------
+   A brief, finite rotate-and-return nudge on the top card, once per deck
+   open. Two trigger points (after dismissCoach() on a first-ever open, or a
+   short delay after mount when coachDone is already true) collapse to the
+   same observable contract: exactly one discover-card-shake animationstart
+   per open, never a second one on a later card, none at all under reduced
+   motion, and never while a pointer is already down on the card. */
+{
+  // (a) coachDone already true: the setTimeout(triggerShakeHint,
+  // SHAKE_HINT_DELAY_MS) path. The listener is installed the moment the
+  // first card exists, comfortably inside the 450ms window before the
+  // shake can possibly fire.
+  const shakePage = await browser.newPage();
+  await shakePage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await seedCoachDoneBeforeLoad(shakePage);
+  await shakePage.goto(`${base}/`);
+  await shakePage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+  await shakePage.locator('[data-discover-entry]').click();
+  await shakePage.waitForSelector('.discover-card');
+  await shakePage.evaluate(() => {
+    window.__shakeEvents = [];
+    document.addEventListener('animationstart', (e) => {
+      if (e.animationName === 'discover-card-shake') window.__shakeEvents.push({ id: e.target.dataset.id, t: Date.now() });
+    }, true);
+  });
+  await shakePage.waitForTimeout(1300); // 450ms trigger delay + 600ms animation + margin
+  const shakeAfterOpen = await shakePage.evaluate(() => window.__shakeEvents.length);
+  check('discover: the movability-hint shake fires exactly once after a deck opens (coachDone path)',
+    shakeAfterOpen === 1, `count=${shakeAfterOpen}`);
+
+  // Judge the shaken card and let the next one deal: the shake must not
+  // replay on it, "once per deck open", not once per card.
+  await shakePage.locator('.discover-btn-skip').click();
+  await shakePage.waitForTimeout(1300);
+  const shakeAfterSecondCard = await shakePage.evaluate(() => window.__shakeEvents.length);
+  check('discover: the shake never re-fires on a later card in the same open (dealing the next card does not shake)',
+    shakeAfterSecondCard === 1, `count=${shakeAfterSecondCard}`);
+  await shakePage.close();
+
+  // (b) Reduced motion: skipped entirely, from either trigger point.
+  const shakeReducedPage = await browser.newPage();
+  await shakeReducedPage.emulateMedia({ reducedMotion: 'reduce' });
+  await shakeReducedPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await seedCoachDoneBeforeLoad(shakeReducedPage);
+  await shakeReducedPage.goto(`${base}/`);
+  await shakeReducedPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+  await shakeReducedPage.locator('[data-discover-entry]').click();
+  await shakeReducedPage.waitForSelector('.discover-card');
+  await shakeReducedPage.evaluate(() => {
+    window.__shakeEvents = [];
+    document.addEventListener('animationstart', (e) => {
+      if (e.animationName === 'discover-card-shake') window.__shakeEvents.push(true);
+    }, true);
+  });
+  await shakeReducedPage.waitForTimeout(1300);
+  const shakeUnderReducedMotion = await shakeReducedPage.evaluate(() => window.__shakeEvents.length);
+  check('discover: the movability-hint shake never fires under reduced motion',
+    shakeUnderReducedMotion === 0, `count=${shakeUnderReducedMotion}`);
+  await shakeReducedPage.close();
+
+  // (c) Code-level proof of the pointer-down guard: triggerShakeHint must
+  // read attachGesture's own isPointerActive() before ever adding the shake
+  // class, the exact mechanism, not merely a comment promising it.
+  const discoverSrc = readFileSync(join(ROOT, 'js', 'discover.js'), 'utf8');
+  const triggerFnMatch = discoverSrc.match(/function triggerShakeHint\(\)\s*\{[\s\S]*?\n  \}/);
+  check('discover: triggerShakeHint source reads currentGesture.isPointerActive() before shaking',
+    !!triggerFnMatch && triggerFnMatch[0].includes('currentGesture.isPointerActive()'));
+
+  // (d) Pointer-down guard, driven precisely: a real mouse drag racing a
+  // 450ms setTimeout against Playwright's own round-trip latency proved too
+  // flaky to trust either direction (measured while building this check:
+  // page-load, click and boundingBox() round trips alone routinely eat
+  // 300-400ms of the budget before a single pointer event is even sent).
+  // A synthetic pointerdown dispatched inside one evaluate() call has none
+  // of that latency, so it deterministically lands before the trigger
+  // delay regardless of automation overhead, giving the guard itself a
+  // clean, unambiguous test: held for the whole window, the shake must
+  // never fire.
+  const guardPage = await browser.newPage();
+  await guardPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await seedCoachDoneBeforeLoad(guardPage);
+  await guardPage.goto(`${base}/`);
+  await guardPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+  await guardPage.locator('[data-discover-entry]').click();
+  await guardPage.waitForSelector('.discover-card');
+  await guardPage.evaluate(() => {
+    window.__shakeEvents = [];
+    document.addEventListener('animationstart', (e) => {
+      if (e.animationName === 'discover-card-shake') window.__shakeEvents.push(true);
+    }, true);
+    document.querySelector('.discover-card')
+      .dispatchEvent(new PointerEvent('pointerdown', { pointerId: 1, clientX: 0, clientY: 0, bubbles: true }));
+  });
+  await guardPage.waitForTimeout(1300); // spans the 450ms trigger delay and the 600ms animation, pointer still down throughout
+  const guardShakeCount = await guardPage.evaluate(() => window.__shakeEvents.length);
+  check('discover: the shake never fires while a pointer is held down on the card through the trigger window',
+    guardShakeCount === 0, `count=${guardShakeCount}`);
+  await guardPage.evaluate(() => {
+    document.querySelector('.discover-card')
+      .dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, bubbles: true }));
+  });
+  await guardPage.close();
+
+  // (e) Transform correctness, the practical half of the task's own stated
+  // fallback ("assert the guard exists in code AND that a drag begun
+  // immediately after open still works with correct transforms"): the same
+  // proven move/wait/move/wait pattern the existing sub-threshold drag
+  // check above already uses successfully, run again here specifically to
+  // prove that removing discover-card-shake on claim (attachGesture's
+  // pointermove handler) never leaves a composition artefact behind, i.e.
+  // the card's own inline transform keeps tracking the pointer exactly as
+  // it would if the shake feature did not exist at all.
+  const transformPage = await browser.newPage({ viewport: { width: 500, height: 900 } });
+  await transformPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await seedCoachDoneBeforeLoad(transformPage);
+  await transformPage.goto(`${base}/`);
+  await transformPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+  await transformPage.locator('[data-discover-entry]').click();
+  await transformPage.waitForSelector('.discover-card');
+  // Lets the deck-open View Transition's own ~380ms group animation
+  // (motion inventory item 4) settle before sending real pointer
+  // coordinates: proven by direct investigation while building this check
+  // that a real mouse event sent while that transition is still active can
+  // hit-test against the transition's own compositing layer rather than
+  // the live .discover-card underneath it (elementFromPoint at the card's
+  // own centre resolved to <html> mid-transition, not the card), a timing
+  // race with Playwright's round-trip latency under load, not anything
+  // this wave's shake feature introduced; the code-level guard check above
+  // sidesteps it entirely by dispatching directly on the element instead
+  // of relying on screen coordinates.
+  await transformPage.waitForTimeout(500);
+  const transformBox = await transformPage.locator('.discover-card').boundingBox();
+  const tsx = transformBox.x + transformBox.width / 2;
+  const tsy = transformBox.y + transformBox.height / 2;
+  await transformPage.mouse.move(tsx, tsy);
+  await transformPage.mouse.down();
+  await transformPage.mouse.move(tsx + 20, tsy, { steps: 1 });
+  await transformPage.waitForTimeout(120);
+  const midDragTransform = await transformPage.locator('.discover-card').evaluate((n) => n.style.transform);
+  await transformPage.mouse.move(tsx + 40, tsy, { steps: 1 });
+  await transformPage.waitForTimeout(120);
+  const laterDragTransform = await transformPage.locator('.discover-card').evaluate((n) => n.style.transform);
+  await transformPage.mouse.up();
+  check('discover: the card\'s transform keeps following the pointer with no animation/transform composition artefact',
+    /translateX\(20px\)/.test(midDragTransform) && /translateX\(40px\)/.test(laterDragTransform),
+    `mid=${midDragTransform} later=${laterDragTransform}`);
+  await transformPage.close();
+}
+
+/* --- Phase 15.6: visible progress counter (PRD section 17 amended, "the
+   counter must be plainly visible alongside the card at every viewport")
+   ------------------------------------------------------------------------
+   Rocky could not see .discover-progress at 375px: fs-14 against --ink-2
+   read as chrome, not content. Checked at the literal 375x812 reference
+   with the deck open: the counter's own bounding box must sit fully inside
+   the viewport, its computed font-size must be at least the design
+   system's body size (read live from --fs-16 rather than a hard-coded
+   16, so this check tracks the token if it is ever retuned), and its
+   colour pair against the panel background must clear WCAG 4.5:1 in both
+   themes, computed here rather than merely eyeballed. */
+function srgbToLinear(c) {
+  const cs = c / 255;
+  return cs <= 0.03928 ? cs / 12.92 : ((cs + 0.055) / 1.055) ** 2.4;
+}
+function relativeLuminance([r, g, b]) {
+  return 0.2126 * srgbToLinear(r) + 0.7152 * srgbToLinear(g) + 0.0722 * srgbToLinear(b);
+}
+function parseRgb(cssColor) {
+  const m = cssColor.match(/rgba?\(([^)]+)\)/);
+  if (!m) return null;
+  const parts = m[1].split(',').map((s) => Number.parseFloat(s.trim()));
+  return parts.slice(0, 3);
+}
+function contrastRatio(fgCss, bgCss) {
+  const fg = parseRgb(fgCss);
+  const bg = parseRgb(bgCss);
+  if (!fg || !bg) return null;
+  const l1 = relativeLuminance(fg);
+  const l2 = relativeLuminance(bg);
+  const lighter = Math.max(l1, l2);
+  const darker = Math.min(l1, l2);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+for (const theme of ['light', 'dark']) {
+  const counterPage = await browser.newPage({ viewport: { width: 375, height: 812 } });
+  await counterPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await seedCoachDoneBeforeLoad(counterPage);
+  await counterPage.goto(`${base}/`);
+  await counterPage.evaluate((t) => { localStorage.setItem('freestack:v1:theme', t); }, theme);
+  await counterPage.reload();
+  await counterPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+  const themeAttr = await counterPage.evaluate(() => document.documentElement.getAttribute('data-theme'));
+  await counterPage.locator('[data-discover-entry]').click();
+  await counterPage.waitForSelector('.discover-card');
+  if (await counterPage.locator('.discover-coach-dismiss').count()) await counterPage.locator('.discover-coach-dismiss').click();
+
+  const progressBox = await counterPage.locator('.discover-progress').boundingBox();
+  const viewportOk = progressBox
+    && progressBox.x >= 0 && progressBox.y >= 0
+    && progressBox.x + progressBox.width <= 375 && progressBox.y + progressBox.height <= 812;
+  check(`discover (${theme}): the progress counter's bounding box sits fully within the 375x812 viewport with the deck open`,
+    viewportOk === true, `theme=${themeAttr} box=${JSON.stringify(progressBox)}`);
+
+  const progressStyle = await counterPage.locator('.discover-progress').evaluate((n) => {
+    const cs = getComputedStyle(n);
+    return { fontSize: Number.parseFloat(cs.fontSize), color: cs.color };
+  });
+  const bodyFontSizePx = await counterPage.evaluate(() => Number.parseFloat(getComputedStyle(document.body).fontSize));
+  check(`discover (${theme}): the counter's font-size is at least the design system's body size`,
+    progressStyle.fontSize >= bodyFontSizePx, `progress=${progressStyle.fontSize}px body=${bodyFontSizePx}px`);
+
+  const panelBg = await counterPage.locator('.discover-panel').evaluate((n) => getComputedStyle(n).backgroundColor);
+  const ratio = contrastRatio(progressStyle.color, panelBg);
+  check(`discover (${theme}): the counter clears WCAG 4.5:1 against the panel background`,
+    ratio !== null && ratio >= 4.5, `ratio=${ratio?.toFixed(2)} fg=${progressStyle.color} bg=${panelBg}`);
+
+  // Not overlapping the stamps or the card title: structurally guaranteed
+  // (the counter lives in .discover-panel-head, a separate flex row above
+  // .discover-stage entirely), checked directly here rather than trusted.
+  const stampBox = await counterPage.locator('.discover-stamp-have').boundingBox();
+  const titleBox = await counterPage.locator('.discover-card-name').boundingBox();
+  const noOverlap = (a, b) => !a || !b || a.y + a.height <= b.y || b.y + b.height <= a.y;
+  check(`discover (${theme}): the counter does not overlap the verdict stamps or the card title`,
+    noOverlap(progressBox, stampBox) && noOverlap(progressBox, titleBox),
+    `progress=${JSON.stringify(progressBox)} stamp=${JSON.stringify(stampBox)} title=${JSON.stringify(titleBox)}`);
+
+  await counterPage.close();
+}
 
 // Escape restores focus to the opener button.
 const escPage = await browser.newPage();

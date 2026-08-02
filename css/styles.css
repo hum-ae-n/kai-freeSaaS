@@ -1639,14 +1639,12 @@ html.js-boot #static-root { display: none; }
    shown only while the header is genuinely stuck, so a reader scrolled deep
    into a shelf sees an explicit "tap to close" cue rather than relying on
    the chevron's implied meaning alone. flex: none, so it never grows or
-   wraps; it sits before .pub-shelf-scent in DOM order is irrelevant here
-   since flexbox lays out by source order and this is placed after scent,
-   meaning scent (the only flexible, min-width:0 item in the row) is what
-   shrinks and ellipsizes first as this hint claims its own space, exactly
-   the "ellipsize the scent line first" requirement. Same eyebrow-label
-   styling used throughout the CLIENT block (uppercase, --tr-eyebrow),
-   already legible in both themes via --ink-3, so no per-theme override is
-   needed. */
+   wraps; the row's own only flexible item is .pub-shelf-name below (the
+   scent line this comment used to reference was retired in Phase 15.6), so
+   the category name is what shrinks and ellipsizes as this hint claims its
+   own space, never the hint or the chevron. Same eyebrow-label styling used
+   throughout the CLIENT block (uppercase, --tr-eyebrow), already legible in
+   both themes via --ink-3, so no per-theme override is needed. */
 .pub-shelf-close-hint {
   display: none;
   flex: none;
@@ -1661,22 +1659,27 @@ html.js-boot #static-root { display: none; }
 .pub-shelf-header[aria-expanded="true"].is-stuck .pub-shelf-close-hint { display: inline; }
 .pub-shelf-header:hover { background: var(--paper-2); }
 .pub-shelf-header .cli-category-icon { flex: none; color: var(--oxblood); }
-.pub-shelf-name { flex: none; font-weight: 500; font-size: var(--fs-16); }
-.pub-shelf-count { flex: none; color: var(--ink-3); font-size: var(--fs-14); }
-/* The "scent": a muted, single-line, ellipsis-truncated list of the
-   category's own tool names, so a collapsed row still hints at what is
-   inside it. min-width: 0 is required for a flex child to actually shrink
-   and truncate rather than pushing the row wider (the same trap the
-   card-grid comment above documents for grid tracks). */
-.pub-shelf-scent {
+/* Phase 15.6 (PRD section 16 amended layout item 4, Rocky's mobile finesse
+   pass): the muted scent line of tool names is retired outright (truncated
+   to two or three words at 375px it read as noise, not scent; search still
+   finds every tool name regardless), so .pub-shelf-name is now the row's
+   one flexible, truncating item, min-width: 0 required for a flex child to
+   actually shrink rather than pushing the row wider (the same trap the
+   card-grid comment above documents for grid tracks). Count, the Close
+   hint and the chevron stay flex: none, fixed width, never wrapping: the
+   category name is the only thing that ever truncates, and only as a last
+   resort when the row is genuinely tight (mainly a long name plus the
+   Close hint sharing 375px at once). */
+.pub-shelf-name {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--ink-3);
-  font-size: var(--fs-14);
+  font-weight: 500;
+  font-size: var(--fs-16);
 }
+.pub-shelf-count { flex: none; color: var(--ink-3); font-size: var(--fs-14); }
 .pub-shelf-chevron { flex: none; color: var(--ink-3); }
 /* A static state flip keyed off aria-expanded, not an animation: this wave
    introduces no new animation styles, the shelf-open stagger itself is wave
@@ -2060,12 +2063,24 @@ html.js-boot #static-root { display: none; }
   justify-content: space-between;
   gap: var(--s-3);
 }
+/* Phase 15.6, Rocky's mobile pass ("could not see the counter at 375px"):
+   the previous fs-14 / --ink-2 pairing was smaller than body text and a
+   muted secondary colour, easy to read as chrome rather than content next
+   to the close button's own 44px target. Bumped to fs-18 (body, --fs-16,
+   or larger) and full-contrast --ink, the same pairing the rest of the app
+   relies on for primary text against --paper/--paper-2 (already measured
+   to clear 4.5:1 in both themes, see the DARK MODE block's own contrast
+   note). Left exactly where it was, in .discover-panel-head above the
+   card: PRD 17 amended says "plainly visible alongside the card", not
+   moved onto or over it, so this is a size and colour fix only, never a
+   position change, and cannot overlap the stamps or the card title, which
+   live inside .discover-stage below this row entirely. */
 .discover-progress {
   margin: 0;
   font-family: var(--font-sans);
-  font-size: var(--fs-14);
-  font-weight: 500;
-  color: var(--ink-2);
+  font-size: var(--fs-18);
+  font-weight: 600;
+  color: var(--ink);
 }
 .discover-close {
   min-height: 44px;
@@ -2238,6 +2253,31 @@ html.js-boot #static-root { display: none; }
 .discover-card-enter { animation: discover-card-enter 200ms var(--ease-out); }
 @media (prefers-reduced-motion: reduce) {
   .discover-card-enter { animation: none; }
+}
+
+/* Movability hint (PRD 17 amended, "Deck composition", Phase 15.6): one
+   brief rotate-and-return nudge on the top card each time a deck opens, to
+   show it can be dragged rather than only tapped. Finite (iteration count
+   1, the shorthand's implicit default), never looping; js/discover.js adds
+   this class at most once per deck open (shakenThisOpen) and removes it on
+   animationend. Same transform-origin as the real drag physics (bottom
+   centre, set on .discover-card itself further up this block), so the
+   pivot matches what a reader is about to feel under their thumb. Small
+   translateX alongside the rotation, per the spec's own "small translateX
+   allowed", kept subtle (a few px) since this is a hint, not the drag
+   itself. Only ever added when !reduced in JS (also gated on no pointer
+   currently down on the card); the query below is the belt-and-braces
+   second guard, consistent with every other motion path in this block. */
+@keyframes discover-card-shake {
+  0%   { transform: rotate(0deg) translateX(0); }
+  20%  { transform: rotate(-2deg) translateX(-3px); }
+  55%  { transform: rotate(1.5deg) translateX(2px); }
+  80%  { transform: rotate(-0.6deg) translateX(-1px); }
+  100% { transform: rotate(0deg) translateX(0); }
+}
+.discover-card-shake { animation: discover-card-shake 600ms var(--ease-out); }
+@media (prefers-reduced-motion: reduce) {
+  .discover-card-shake { animation: none; }
 }
 
 /* Stamp pop on commit: a single quick scale settle as the verdict locks,

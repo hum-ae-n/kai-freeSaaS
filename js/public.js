@@ -37,11 +37,14 @@
  *
  * PHASE 14.1 (PRD section 16 as amended, v1.5, "compact landing"): the flat
  * browse list below is now 15 collapsed category shelves, one <section> per
- * category, each a single 44px header row (icon, name, count, a truncated
- * "scent" of tool names, chevron) that reveals its card grid on click. The
- * "Browse all" entry card is retired; its job passes to the shelves plus the
- * Expand all / Collapse all toggle on the shelf-band header. Search is
- * promoted into the ways-in band, full width, its placeholder count-bearing.
+ * category, each a single 44px header row (icon, name, count, chevron) that
+ * reveals its card grid on click. The "Browse all" entry card is retired;
+ * its job passes to the shelves plus the Expand all / Collapse all toggle on
+ * the shelf-band header. Search is promoted into the ways-in band, full
+ * width, its placeholder count-bearing. (The muted "scent" line of tool
+ * names this header once carried was retired in Phase 15.6, Rocky's mobile
+ * finesse pass: truncated to two or three words at 375px it read as noise,
+ * not scent. Search still finds every tool name regardless.)
  *
  * The key architectural change from 12.1: buildCardSections() is now called
  * exactly ONCE per plain-English toggle, against the full active list, never
@@ -216,9 +219,9 @@ function chevronIcon() {
 /** Groups tools by category, insertion order preserved, the same grouping
     buildCardSections does internally. Called on the same array in the same
     order as the buildCardSections() call below, so the two orderings can
-    never drift apart: this is what lets shelf metadata (count, scent, tool
-    ids) be computed straight from tools.json rather than scraped back out
-    of the rendered card DOM. */
+    never drift apart: this is what lets shelf metadata (count, tool ids) be
+    computed straight from tools.json rather than scraped back out of the
+    rendered card DOM. */
 function groupByCategory(list) {
   const map = new Map();
   for (const tool of list) {
@@ -631,7 +634,7 @@ export function renderPublic(root, tools) {
   /** Builds one <section> per category from a single buildCardSections()
       call, discarding client.js's own <h2> in favour of the shelf's button
       header (which already carries the category name and icon, plus the
-      count/scent/chevron the plain heading never had): buildCardSections()
+      count/chevron the plain heading never had): buildCardSections()
       itself is untouched, this is purely how its output is wrapped. The
       grid (`ul.card-grid`) is kept exactly as rendered; only its `hidden`
       IDL property changes hereafter, never its children. */
@@ -650,7 +653,6 @@ export function renderPublic(root, tools) {
       const gridId = `shelf-grid-${slug}`;
       grid.id = gridId;
       const count = toolsInCat.length;
-      const scentText = toolsInCat.map((t) => t.name).join(', ');
       // Phase 15.5, PRD section 16 amended: while stuck, a visible "Close"
       // hint beside the chevron makes the tap-to-collapse affordance
       // explicit rather than implied. Part of the button itself (not a
@@ -667,7 +669,6 @@ export function renderPublic(root, tools) {
         categoryIcon(category),
         el('span', { class: 'pub-shelf-name' }, category),
         el('span', { class: 'pub-shelf-count' }, `· ${count} tool${count === 1 ? '' : 's'}`),
-        el('span', { class: 'pub-shelf-scent' }, scentText),
         closeHint,
         chevronIcon(),
       );
