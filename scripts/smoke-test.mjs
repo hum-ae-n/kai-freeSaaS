@@ -299,6 +299,31 @@ check('homepage: the trust fact tile states zero paid placements',
   /paid placements/i.test(savingsTickerText) && paidPlacementFigure === '0',
   `figure=${paidPlacementFigure}`);
 
+/* 17.5. The three fact figures are styled by one selector,
+   `.pub-fact-figure, .pub-savings-amount`, so they are meant to be a set.
+   A standalone `.pub-savings-amount` block left over from 17.1's inline
+   sentence sat LATER in the file at equal specificity, so it won every tie
+   and the lead figure silently rendered 44px against the other two's 40px,
+   and 26px against 28px once the phone rules landed. Nothing caught it,
+   including the phone-layout checks written in the same commit: they
+   measured overhang, and a 2px difference overhangs nothing.
+
+   So this asserts the set is a set. If the lead figure should ever be
+   emphasised, that is a deliberate design decision and this check should
+   fail until someone writes it down here, which is the point. */
+const factFigureTreatment = await page.evaluate(() => {
+  return [...document.querySelectorAll('.pub-fact-figure, .pub-savings-amount')].map((n) => {
+    const cs = getComputedStyle(n);
+    return { text: n.textContent.trim(), fontSize: cs.fontSize, display: cs.display, fontWeight: cs.fontWeight };
+  });
+});
+const factTreatmentsAgree = factFigureTreatment.length === 3
+  && factFigureTreatment.every((f) => f.fontSize === factFigureTreatment[0].fontSize
+    && f.display === factFigureTreatment[0].display
+    && f.fontWeight === factFigureTreatment[0].fontWeight);
+check('homepage: all three hero fact figures share one computed treatment (no duplicate rule winning on source order)',
+  factTreatmentsAgree, JSON.stringify(factFigureTreatment));
+
 // Accessibility (BUILD-PLAN 17.1 item 4): the accessible name is one
 // settled sentence, present from the start, never aria-live; the animated
 // digits and their visible siblings are aria-hidden, so the count-up is
@@ -537,6 +562,18 @@ const factRowFit = await homeMobile.evaluate(() => {
 check('mobile: every hero fact figure sits inside its own tile at 375px (nowrap figures overhang silently, they never widen the page)',
   factRowFit.length === 3 && factRowFit.every((r) => r.overhang === 0),
   JSON.stringify(factRowFit));
+
+/* The same set check as at desktop width, repeated here because the two
+   rules that disagreed were in different media contexts: the phone override
+   and its unqualified twin. Passing at 1280 proved nothing about 375. */
+const mobileFactTreatment = await homeMobile.evaluate(() => {
+  return [...document.querySelectorAll('.pub-fact-figure, .pub-savings-amount')]
+    .map((n) => ({ text: n.textContent.trim(), fontSize: getComputedStyle(n).fontSize }));
+});
+check('mobile: all three hero fact figures share one computed font size at 375px',
+  mobileFactTreatment.length === 3
+    && mobileFactTreatment.every((f) => f.fontSize === mobileFactTreatment[0].fontSize),
+  JSON.stringify(mobileFactTreatment));
 
 const mobileFooterFit = await homeMobile.evaluate(() => {
   const footer = document.querySelector('.pub-footer');

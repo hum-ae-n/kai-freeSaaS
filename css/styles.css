@@ -1582,17 +1582,21 @@ html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
   .pub-fact-figure, .pub-savings-amount { margin-top: 0; font-size: 26px; }
 }
 
-.pub-savings-amount {
-  font-family: var(--font-display);
-  font-weight: 900;
-  font-size: clamp(28px, 5.2vw, 44px);
-  line-height: 1;
-  color: var(--oxblood);
-  font-variant-numeric: tabular-nums;
-  display: inline-block;
-  vertical-align: baseline;
-  margin-right: var(--s-1);
-}
+/* The standalone .pub-savings-amount block that used to sit here was deleted
+   in 17.5. It dated from 17.1, when the saving was one figure set inline in
+   a sentence: `display: inline-block`, `vertical-align: baseline` and a
+   right margin are all vestiges of that sentence, and there has been no
+   sentence to sit in since 17.3 turned the hero into three tiles.
+
+   It survived because it did no visible harm, but it was a duplicate of the
+   `.pub-fact-figure, .pub-savings-amount` rule above at equal specificity
+   and later in the file, so it won every tie. That meant the lead figure
+   rendered 44px against the other two facts' 40px, and, once 17.5 added the
+   phone rules, 28px against their 26px while the comment three rules up
+   asserted "the 26px figure still sets the row height". Nobody chose either
+   number: they are what an old rule for a different layout happened to say.
+   If the lead figure should be emphasised, that wants a rule that says so
+   on purpose, not a leftover winning on source order. */
 
 
 /* Contrast proof for motion inventory item 9, and the reasoning behind the
