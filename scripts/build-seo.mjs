@@ -238,11 +238,18 @@ function buildStaticBlockHtml(active, intros) {
     .map(([category, toolsInCategory]) => buildCategorySectionHtml(category, toolsInCategory, intros))
     .join('\n');
 
+  // Phase 16.2 (PRD section 16 amended, layout item 1): kept byte-for-byte
+  // in step with the rendered hero (js/public.js's header build), since a
+  // crawler that never runs JS only ever sees this block. The count is
+  // computed from the same `active` array as the rendered page's, never a
+  // separate hard-coded figure; the old standalone count sentence this
+  // block used to carry is retired along with its live-page counterpart,
+  // since the sub-line now states it once.
   const heroHtml = (
     '  <header>\n'
     + '    <p class="eyebrow">Free Stack</p>\n'
-    + '    <h1>Curated free software for small business</h1>\n'
-    + `    <p>${active.length} free tool${active.length === 1 ? '' : 's'} in the directory.</p>\n`
+    + '    <h1>The free software directory for small business.</h1>\n'
+    + `    <p>${active.length} tool${active.length === 1 ? '' : 's'} with genuinely free tiers, honest limits, and at least two alternatives each. Nobody paid to be listed.</p>\n`
     + '    <p>No affiliates, no sponsors, no paid placement.</p>\n'
     + '    <p>Curated by <a href="https://kaipability.com">Kaipability Ltd</a>.</p>\n'
     + '  </header>'

@@ -52,7 +52,7 @@
  * all; they only toggle the `hidden` IDL property on individual <li> cards
  * and on whole shelf <section>s, which is what makes shelf collapse "CSS
  * only" and the rendered DOM "a superset of the previous layout's" (PRD
- * section 16, "Shelf mechanics"): every one of the 89 active cards is always
+ * section 16, "Shelf mechanics"): every one of the active cards is always
  * attached, nothing is ever lazily fetched, deferred or removed. This also
  * retires the per-category scroll-reveal system 12.1 built in this file
  * (revealOnIntersect for categories past the first): with shelves collapsed
@@ -287,21 +287,50 @@ export function renderPublic(root, tools) {
   // the nodes it already holds.
   let shelves = [];
 
-  /* --- hero (PRD section 16, "Hero") ---------------------------------------
-     Tightened but unchanged in content: the live count (derived from the
-     same active-tools filter the shelves themselves use, never a separate
-     hard-coded figure), the no-affiliates line verbatim, and the curator
-     identity with its existing link. */
+  /* --- hero (PRD section 16 amended, layout item 1, Phase 16 rewrite) ------
+     Rocky's 2 Aug direction, "the first section should be distinctive and
+     say what Free Stack is, call it what it is": the headline now states
+     the proposition in a stranger's words, and the live tool count (never a
+     separate hard-coded figure) moves into the sub-line, which is trust
+     signal 1 made prose rather than a stat line of its own. The two
+     remaining verifiable trust signals (no-affiliates, curator identity)
+     stay put underneath; the old standalone count paragraph this div used
+     to carry first is retired here, since restating the count a second time
+     directly under the sub-line that already states it would be pure
+     duplication (see this wave's own report for what the hero rendered
+     before this change). */
   const heroTrust = el('div', { class: 'pub-hero-trust' },
-    el('p', { class: 'pub-hero-trust-item pub-hero-count' },
-      el('strong', {}, String(active.length)),
-      active.length === 1 ? ' free tool in the directory.' : ' free tools in the directory.'),
     el('p', { class: 'pub-hero-trust-item trust-line' }, 'No affiliates, no sponsors, no paid placement.'),
     el('p', { class: 'pub-hero-trust-item pub-hero-curator' },
       'Curated by ',
       el('a', { href: 'https://kaipability.com', target: '_blank', rel: 'noopener noreferrer' }, 'Kaipability Ltd'),
       '.',
     ),
+  );
+  // The headline states what the thing is; the sub-line carries the runtime
+  // count (never hard-coded, computed from the same `active` array the
+  // shelves and the search placeholder already use) plus the closing
+  // sentence, the differentiator a competitor could not copy just by
+  // copying the list. .pub-hero-count on the <strong> keeps the class name
+  // BUILD-PLAN 16.2 already gave this figure, now scoped to where the count
+  // actually lives rather than a whole paragraph of its own.
+  const heroSubline = el('p', { class: 'subtitle pub-hero-subline' },
+    el('strong', { class: 'pub-hero-count' }, String(active.length)),
+    ` tool${active.length === 1 ? '' : 's'} with genuinely free tiers, honest limits, and at least two alternatives each. Nobody paid to be listed.`,
+  );
+  // Drifting stack planes (motion inventory item 9, PRD section 16 amended):
+  // the second and final recorded exception to the ban on looping ambient
+  // motion, built here purely as inert decoration (aria-hidden, no text, no
+  // interactive content) so it never enters the accessibility tree or the
+  // tab order. Four parallelogram planes, CSS transform/opacity only (see
+  // the PUBLIC block of styles.css for the keyframes, the reduced-motion
+  // static frame and the worked contrast proof); this function only ever
+  // builds the same four inert nodes, once, on mount.
+  const heroBg = el('div', { class: 'pub-hero-bg', 'aria-hidden': 'true' },
+    el('div', { class: 'pub-hero-plane pub-hero-plane-1' }),
+    el('div', { class: 'pub-hero-plane pub-hero-plane-2' }),
+    el('div', { class: 'pub-hero-plane pub-hero-plane-3' }),
+    el('div', { class: 'pub-hero-plane pub-hero-plane-4' }),
   );
   // Plain English and theme toggle (Phase 16, PRD section 16 amended layout
   // item 1, Rocky's 2 Aug direction: "buttons for plain english and light
@@ -342,10 +371,11 @@ export function renderPublic(root, tools) {
     themeBtn,
   );
   const header = el('header', { class: 'panel pub-header' },
+    heroBg,
     heroNav,
     el('img', { class: 'logo', src: 'design-system/assets/kaipability-logo-lockup.png', alt: 'Kaipability' }),
-    el('h1', {}, 'Free Stack'),
-    el('p', { class: 'subtitle' }, 'Curated free software for small business'),
+    el('h1', { class: 'pub-hero-headline' }, 'The free software directory for small business.'),
+    heroSubline,
     heroTrust,
   );
 

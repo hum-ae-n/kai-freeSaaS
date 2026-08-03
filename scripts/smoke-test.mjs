@@ -219,6 +219,32 @@ const heroCountText = await page.locator('.pub-hero-count').textContent();
 check('homepage: hero count equals the active tools.json count',
   heroCountText.includes(String(active.length)), heroCountText.trim());
 
+/* --- Phase 16.2: hero rewrite (PRD section 16 amended item 1, BUILD-PLAN
+   16.2) -----------------------------------------------------------------
+   The mandated headline and sub-line, verbatim, with the sub-line's count
+   read at runtime rather than baked into this test as a literal figure
+   (active.length, the same count the placeholder and the shelves
+   themselves already use); a source-text check that js/public.js itself
+   never hard-codes the current count as a string literal; and a check that
+   the old, now-duplicate "N free tools in the directory" trust line this
+   hero used to carry on its own is genuinely gone, not merely renamed. */
+const heroHeadlineText = await page.locator('.pub-hero-headline').textContent();
+check('homepage: hero headline states the PRD-mandated proposition sentence',
+  heroHeadlineText.trim() === 'The free software directory for small business.', heroHeadlineText.trim());
+
+const heroSublineText = await page.locator('.pub-hero-subline').textContent();
+const expectedSubline = `${active.length} tool${active.length === 1 ? '' : 's'} with genuinely free tiers, honest limits, and at least two alternatives each. Nobody paid to be listed.`;
+check('homepage: hero sub-line carries the runtime tool count and the mandated closing sentence',
+  heroSublineText.trim() === expectedSubline, heroSublineText.trim());
+
+const publicJsSource = readFileSync(join(ROOT, 'js', 'public.js'), 'utf8');
+check('homepage: js/public.js never hard-codes the active tool count as a literal "89"',
+  !publicJsSource.includes('89'));
+
+const heroPanelText = await page.locator('.pub-header').textContent();
+check('homepage: the old duplicated "N free tools in the directory" trust line is gone (count now lives in the sub-line only)',
+  !heroPanelText.includes('in the directory'));
+
 // Phase 14.1 adaptation: PRD section 16 as amended retires the "Browse all"
 // entry card, its job passing to the shelf band's own Expand all / Collapse
 // all toggle, so only Discover and Persona packs remain in the ways-in
@@ -450,6 +476,35 @@ const reducedDiscoverHoverTransform = await reducedMotionPage.locator('.pub-disc
   .evaluate((node) => getComputedStyle(node).transform);
 check('homepage: Discover button has no transform on hover under reduced motion',
   reducedDiscoverHoverTransform === 'none', reducedDiscoverHoverTransform);
+
+// Hero background planes (motion inventory item 9, PRD section 16 amended,
+// BUILD-PLAN 16.2): under reduced motion, no animation on any of the four
+// planes, and the whole hero subtree (the panel-level getAnimations sweep
+// below) has nothing running once the first-paint reveal above has
+// settled. The static frame must still read as deliberately composed, not
+// a flattened accident: each plane keeps a distinct, non-identity
+// transform, not all four collapsed to the same pose.
+const reducedPlaneAnimNames = await reducedMotionPage.locator('.pub-hero-plane').evaluateAll(
+  (nodes) => nodes.map((n) => getComputedStyle(n).animationName));
+check('homepage: all four hero planes carry no animation under reduced motion',
+  reducedPlaneAnimNames.length === 4 && reducedPlaneAnimNames.every((n) => n === 'none'),
+  JSON.stringify(reducedPlaneAnimNames));
+const reducedPlaneTransforms = await reducedMotionPage.locator('.pub-hero-plane').evaluateAll(
+  (nodes) => nodes.map((n) => getComputedStyle(n).transform));
+const reducedPlaneTransformsUnique = new Set(reducedPlaneTransforms).size;
+check('homepage: the reduced-motion static frame keeps each plane at its own distinct pose (a designed frame, not a flattened one)',
+  reducedPlaneTransforms.every((t) => t !== 'none') && reducedPlaneTransformsUnique === reducedPlaneTransforms.length,
+  JSON.stringify(reducedPlaneTransforms));
+// waitForSelector above already let the first-paint reveal's transitions
+// settle (it fires immediately on load and the panel has since been idle
+// through several other evaluations); getAnimations({subtree:true}) on the
+// header itself is the direct proof the spec asks for: the whole hero
+// subtree runs zero animations under reduced motion, reveal transitions,
+// discover-adjacent transitions and the planes all included.
+const reducedHeroAnimCount = await reducedMotionPage.locator('.pub-header').first()
+  .evaluate((n) => n.getAnimations({ subtree: true }).length);
+check('homepage: the hero subtree runs zero animations under reduced motion (getAnimations)',
+  reducedHeroAnimCount === 0, `count=${reducedHeroAnimCount}`);
 await reducedMotionPage.close();
 
 // Same button, normal motion: the rewritten treatment's recorded exception,
@@ -479,10 +534,32 @@ check('homepage: Discover button (drift) and both pseudo-elements (pulse, sheen)
   && discoverAnimInfo.after.name !== 'none' && discoverAnimInfo.after.iterationCount === 'infinite',
   JSON.stringify(discoverAnimInfo));
 
+// Hero background planes (motion inventory item 9, PRD section 16 amended,
+// BUILD-PLAN 16.2), normal motion: the second and final recorded looping
+// exception, so all four planes must carry an infinite iteration count,
+// each with its own distinct animation-delay (checked by name only here;
+// the delay values themselves are declared statically in CSS and asserted
+// by the "reads as atmosphere" review, not machine-checkable). Also
+// pointer-events: none (never intercepts a click meant for the header's
+// real content) and z-index: -1 (behind everything, computed live rather
+// than merely asserted from the stylesheet).
+const heroPlaneInfo = await page.locator('.pub-hero-plane').evaluateAll((nodes) => nodes.map((n) => {
+  const cs = getComputedStyle(n);
+  return { name: cs.animationName, iterationCount: cs.animationIterationCount, pointerEvents: getComputedStyle(n.parentElement).pointerEvents, zIndex: getComputedStyle(n.parentElement).zIndex };
+}));
+check('homepage: all four hero planes carry an infinite iteration count under normal motion',
+  heroPlaneInfo.length === 4 && heroPlaneInfo.every((p) => p.name !== 'none' && p.iterationCount === 'infinite'),
+  JSON.stringify(heroPlaneInfo));
+check('homepage: the hero plane container is pointer-events: none and stacked behind content (z-index: -1)',
+  heroPlaneInfo.every((p) => p.pointerEvents === 'none' && p.zIndex === '-1'),
+  JSON.stringify(heroPlaneInfo));
+
 // The recorded exception must stay scoped: 'infinite' may appear in the
 // PUBLIC block of styles.css only inside pub-discover-btn-related rules (its
-// base rule, ::before, ::after), never on any other public-surface element,
-// so no other rule can quietly inherit the site's one looping allowance.
+// base rule, ::before, ::after) or pub-hero-plane-related rules (Phase 16's
+// planes, the inventory's other recorded exception), never on any other
+// public-surface element, so no other rule can quietly inherit the site's
+// two looping allowances.
 {
   const cssText = readFileSync(join(ROOT, 'css', 'styles.css'), 'utf8');
   const publicStart = cssText.indexOf('/* === PUBLIC');
@@ -500,10 +577,112 @@ check('homepage: Discover button (drift) and both pseudo-elements (pulse, sheen)
   lines.forEach((line, idx) => {
     if (!line.includes('infinite')) return;
     const nearby = lines.slice(Math.max(0, idx - 6), idx + 1).join('\n');
-    if (!nearby.includes('pub-discover')) strayInfinite.push(`line ${idx}: ${line.trim()}`);
+    if (!nearby.includes('pub-discover') && !nearby.includes('pub-hero-plane')) strayInfinite.push(`line ${idx}: ${line.trim()}`);
   });
-  check('css: "infinite" in the PUBLIC block appears only in pub-discover-btn-related rules',
+  check('css: "infinite" in the PUBLIC block appears only in pub-discover-btn or pub-hero-plane related rules',
     strayInfinite.length === 0, strayInfinite.join(' | '));
+}
+
+// Page-wide sweep (BUILD-PLAN 16.2's own wording: "sweep every element's
+// computed animation-iteration-count"), not only the PUBLIC block's source
+// text above: every live element on the page, its own animation-name list
+// paired index-for-index with its animation-iteration-count list (both are
+// comma-separated in the same order per the CSS Animations spec), flagging
+// any 'infinite' entry whose element is neither the Discover CTA nor a hero
+// plane. This is the belt to the CSS-text scan's braces: a rule added
+// somewhere else entirely that happened to target these classes some other
+// way (an id selector, an attribute selector) would still be caught here,
+// since this reads computed style, not source text.
+const strayInfiniteElements = await page.evaluate(() => {
+  const offenders = [];
+  document.querySelectorAll('*').forEach((elNode) => {
+    const cs = getComputedStyle(elNode);
+    const names = cs.animationName.split(',').map((s) => s.trim());
+    const counts = cs.animationIterationCount.split(',').map((s) => s.trim());
+    names.forEach((name, i) => {
+      if (name === 'none' || counts[i] !== 'infinite') return;
+      const allowed = elNode.classList.contains('pub-discover-btn') || elNode.classList.contains('pub-hero-plane');
+      if (!allowed) offenders.push(elNode.className || elNode.tagName);
+    });
+  });
+  return offenders;
+});
+check('homepage: page-wide computed-style sweep finds infinite animation-iteration-count only on the Discover CTA and the hero planes',
+  strayInfiniteElements.length === 0, JSON.stringify(strayInfiniteElements));
+
+/* --- Phase 16.2: hero background contrast, at the animation's worst frame
+   (PRD section 16 amended, motion inventory item 9's own closing clause;
+   BUILD-PLAN 16.2) -----------------------------------------------------
+   Each plane's opacity is a flat, unanimated value (only `transform` is
+   keyframed), so the true worst case is time-invariant rather than tied to
+   a sampled animation offset: reasoned from the planes' maximum overlap
+   opacity, the amended clause's own permitted alternative to sampling at
+   several points in the cycle. Every plane's live background-color and
+   opacity is read straight from the page (never hard-coded here), then
+   alpha-composited on top of the panel's own background in the worst case
+   where every one of them fully covers the same pixel at once, which is
+   more pessimistic than anything the real, spatially-separated drift can
+   ever produce. contrastRatio/relativeLuminance are this file's own WCAG
+   helpers (declared further down; function declarations hoist, so they are
+   callable here). Checked against both hero text colours (the headline's
+   and the tighter-margin sub-line's) in both themes. */
+function compositeOver(topRgb, topAlpha, baseRgb) {
+  return [0, 1, 2].map((i) => topAlpha * topRgb[i] + (1 - topAlpha) * baseRgb[i]);
+}
+for (const theme of ['light', 'dark']) {
+  const contrastPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  await contrastPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await contrastPage.addInitScript((t) => localStorage.setItem('freestack:v1:theme', t), theme);
+  await contrastPage.goto(`${base}/`);
+  await contrastPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+  const themeAttr = await contrastPage.evaluate(() => document.documentElement.getAttribute('data-theme'));
+
+  const panelBg = await contrastPage.locator('.pub-header').first().evaluate((n) => getComputedStyle(n).backgroundColor);
+  const planeLayers = await contrastPage.locator('.pub-hero-plane').evaluateAll((nodes) => nodes.map((n) => {
+    const cs = getComputedStyle(n);
+    return { color: cs.backgroundColor, opacity: Number.parseFloat(cs.opacity) };
+  }));
+  const headlineColor = await contrastPage.locator('.pub-hero-headline').first().evaluate((n) => getComputedStyle(n).color);
+  const sublineColor = await contrastPage.locator('.pub-hero-subline').first().evaluate((n) => getComputedStyle(n).color);
+
+  let worstBg = parseRgb(panelBg);
+  for (const layer of planeLayers) {
+    const layerRgb = parseRgb(layer.color);
+    if (layerRgb && worstBg) worstBg = compositeOver(layerRgb, layer.opacity, worstBg);
+  }
+  const headlineRatio = contrastRatio(headlineColor, `rgb(${worstBg.join(',')})`);
+  const sublineRatio = contrastRatio(sublineColor, `rgb(${worstBg.join(',')})`);
+  check(`homepage (${theme}): headline clears 4.5:1 against the worst-case fully-overlapped plane background`,
+    headlineRatio !== null && headlineRatio >= 4.5,
+    `theme=${themeAttr} ratio=${headlineRatio?.toFixed(2)} bg=${JSON.stringify(worstBg)} planes=${JSON.stringify(planeLayers)}`);
+  check(`homepage (${theme}): sub-line clears 4.5:1 against the worst-case fully-overlapped plane background`,
+    sublineRatio !== null && sublineRatio >= 4.5,
+    `theme=${themeAttr} ratio=${sublineRatio?.toFixed(2)} bg=${JSON.stringify(worstBg)}`);
+  await contrastPage.close();
+}
+
+/* --- Phase 16.2: the planes never affect layout, cause a scrollbar, or
+   move the fold, at any viewport, with the animation actually running
+   (BUILD-PLAN 16.2) ------------------------------------------------------
+   scrollWidth sampled twice, several seconds apart, at three viewports:
+   equal to the viewport width both times (no horizontal scrollbar ever)
+   and unchanged between samples (the drift itself never grows the
+   scrollable area as it runs, not just at the moment of load). */
+for (const width of [375, 768, 1280]) {
+  const driftPage = await browser.newPage({ viewport: { width, height: 900 } });
+  await driftPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await driftPage.goto(`${base}/`);
+  await driftPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+  const scrollWidthAtLoad = await driftPage.evaluate(() => document.documentElement.scrollWidth);
+  await driftPage.waitForTimeout(2000); // partway into every plane's own loop; still well short of any of their 26-35s periods
+  const scrollWidthAfterDrift = await driftPage.evaluate(() => document.documentElement.scrollWidth);
+  check(`homepage: no horizontal scrollbar at ${width}px with the hero background animation running`,
+    scrollWidthAtLoad <= width && scrollWidthAfterDrift <= width,
+    `atLoad=${scrollWidthAtLoad} afterDrift=${scrollWidthAfterDrift} viewport=${width}`);
+  check(`homepage: document scrollWidth at ${width}px is unchanged by the running animation`,
+    scrollWidthAtLoad === scrollWidthAfterDrift,
+    `atLoad=${scrollWidthAtLoad} afterDrift=${scrollWidthAfterDrift}`);
+  await driftPage.close();
 }
 
 /* --- Phase 14.1: shelf mechanics (PRD section 16 amended, "compact
@@ -3049,7 +3228,8 @@ check('csp: changelog.html introduces no additional inline script beyond the sha
     [...new Set(active.map((t) => t.category))].every((cat) => rawRootHtml.includes(escapeHtmlForCheck(cat))));
   check('aeo: raw fetch of / contains the trust lines and a link to /faq.html',
     rawRootHtml.includes('No affiliates, no sponsors, no paid placement.')
-    && rawRootHtml.includes(`${active.length} free tool`)
+    && rawRootHtml.includes(`${active.length} tool`)
+    && rawRootHtml.includes('Nobody paid to be listed.')
     && /href="\/faq\.html"/.test(rawRootHtml));
   // Phase 16 (Rocky, 2 Aug): the "Recently updated" strip is removed from
   // the homepage entirely, not just hidden. Checked against the raw page

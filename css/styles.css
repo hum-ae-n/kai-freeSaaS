@@ -1124,8 +1124,17 @@ html.js-boot #static-root { display: none; }
 .pub-header {
   /* Positioning context for .pub-hero-nav below: it is absolutely
      positioned so it adds no vertical height to the hero, and that only
-     works relative to this panel rather than the page. */
+     works relative to this panel rather than the page. Phase 16: also the
+     containing block AND the stacking context for .pub-hero-bg's
+     z-index: -1 (motion inventory item 9). z-index: 0 here, not just
+     position: relative, is load-bearing: position: relative alone with
+     z-index left at auto does not establish a new stacking context, so
+     without this the drifting planes' negative z-index would escape this
+     panel and stack against the page's own root context instead of just
+     this header's own content, which is what actually keeps the planes
+     behind the hero text and nothing else. */
   position: relative;
+  z-index: 0;
   padding: var(--s-10) var(--s-10) var(--s-8);
   margin-bottom: var(--s-3);
   border-top: var(--bw-heavy) solid var(--oxblood);
@@ -1212,17 +1221,36 @@ html.js-boot #static-root { display: none; }
   }
   .pub-hero-nav .btn { padding: 0 var(--s-2); gap: 0; }
 }
-.pub-header h1 {
+/* Headline (Phase 16, PRD section 16 amended item 1: "the first section
+   should be distinctive and say what Free Stack is"). The h1 treatment
+   Phase 12.1 built for the two-word "Free Stack" wordmark is the starting
+   point, not the ceiling this rule stays at: a full sentence carries the
+   page's one big statement, so the clamp's ceiling is raised and the
+   line-height and letter-spacing are retuned for legibility across the
+   two-to-four lines this now wraps to (a 900-weight display face at
+   near-zero tracking, tolerable for a short brand name, gets cramped
+   reading a whole sentence). Weight and family are unchanged: still the
+   heaviest cut of the display face, still the thing that reads as a
+   statement rather than a caption. */
+.pub-hero-headline {
   font-family: var(--font-display);
   font-weight: 900;
-  font-size: clamp(34px, 5.5vw, 58px);
-  line-height: 1.02;
-  letter-spacing: var(--tr-tight);
+  font-size: clamp(34px, 7.2vw, 72px);
+  line-height: 1.07;
+  letter-spacing: -0.01em;
+  max-width: 16ch;
 }
 /* Same design-system `p` line-height trap as .pub-hero-trust-item below:
    the bare `p` rule's 28px line-height (tuned for 18px text) survives a
    font-size-only override otherwise. */
 .pub-header .subtitle { margin-top: var(--s-4); color: var(--ink-2); font-size: var(--fs-16); line-height: var(--lh-16); max-width: none; }
+/* Sub-line (Phase 16): the runtime count plus the "nobody paid to be
+   listed" differentiator, PRD section 16's trust signal 1 made prose. A
+   touch larger than the plain .subtitle rule above and capped to a
+   comfortable reading measure, since this is now a full sentence doing the
+   work the old one-line strapline and the retired count paragraph used to
+   split between them. */
+.pub-hero-subline { font-size: var(--fs-18); line-height: var(--lh-18); max-width: 46ch; }
 .pub-header .trust-line { margin-top: var(--s-2); color: var(--ink-3); font-size: var(--fs-14); max-width: none; }
 
 /* Search, promoted to first-class (PRD section 16, "Ways-in band"): its own
@@ -1265,10 +1293,11 @@ html.js-boot #static-root { display: none; }
    elements are simply never built, see js/public.js). */
 .pub-footer-payment, .pub-footer-payment-trust { margin-top: var(--s-1); max-width: none; }
 
-/* --- hero trust signals (Phase 12.1, PRD section 16) ----------------------
-   The three verifiable claims sit under the strapline as a quiet stacked
-   list, never as boastful metric tiles: same type scale as the existing
-   .trust-line, just three lines instead of one. */
+/* --- hero trust signals (Phase 12.1, PRD section 16; Phase 16 retires the
+   count line into the sub-line above, leaving two) --------------------------
+   The remaining two verifiable claims sit under the sub-line as a quiet
+   stacked list, never as boastful metric tiles: same type scale as the
+   existing .trust-line. */
 .pub-hero-trust {
   margin-top: var(--s-4);
   display: flex;
@@ -1287,7 +1316,139 @@ html.js-boot #static-root { display: none; }
   max-width: none;
 }
 .pub-hero-trust-item.trust-line { color: var(--ink-3); }
-.pub-hero-count strong { color: var(--ink); font-family: var(--font-sans); }
+/* The count now lives inline in the sub-line (Phase 16) as the <strong>
+   itself, not a nested strong inside a dedicated trust-item paragraph (see
+   js/public.js's heroSubline): the selector targets the class directly. */
+.pub-hero-count { color: var(--ink); font-family: var(--font-sans); }
+
+/* --- hero background, drifting stack planes (motion inventory item 9, PRD
+   section 16 amended, Phase 16, Rocky's direction the hero be "animated and
+   impressive") ---------------------------------------------------------
+   The second and FINAL recorded exception to this section's ban on looping
+   ambient motion, scoped to exactly one element: this container and its
+   four plane children together, the same way item 8's button and its two
+   pseudo-elements count as one. Three or four translucent parallelograms in
+   the oxblood/cream brand range, CSS transform and opacity only, no canvas,
+   no library, no requestAnimationFrame, no image asset.
+
+   Structure: .pub-hero-bg is position: absolute, inset: 0, inside
+   .pub-header (the panel-level z-index: 0 stacking context established just
+   above, load-bearing for the reason documented there), with z-index: -1 so
+   it paints behind every in-flow hero child (logo, headline, sub-line,
+   trust lines) by construction, never in front of them regardless of scroll
+   or hover state. overflow: hidden on this same element clips every plane's
+   drift and rotation to the header's own box, so the animation can never
+   extend the page's scrollable area, cause a scrollbar, or move the fold,
+   at any viewport. pointer-events: none keeps it, and everything in it,
+   fully inert to the pointer. The planes carry no text and are
+   aria-hidden: they never enter the accessibility tree.
+
+   Shape: clip-path carves each plane into a parallelogram. This is a
+   static, unanimated declaration, not part of any keyframe, so it sits
+   outside the "transforms and opacity only" restriction on the ANIMATED
+   properties, the same way .pub-discover-btn's static gradient background
+   sits outside that restriction for item 8. Only `transform` ever appears
+   inside the keyframes below.
+
+   Slowness and opacity: every plane's opacity is a flat, never-animated
+   0.07 (only transform varies over the loop), each loop 26s to 35s, all
+   comfortably past the mandated 20s floor, eased and alternating so the
+   motion reads as settling rather than sliding, never fast enough to pull
+   the eye off the headline (Rocky's own test for "wrong").
+
+   Contrast proof (PRD section 12's 4.5:1 floor, both themes, checked at the
+   worst frame, not at rest, per the amended inventory item's own clause):
+   because opacity is static rather than animated, the true worst case is
+   time-invariant and can be reasoned about directly rather than sampled at
+   arbitrary phase (the amended clause's own permitted alternative to
+   sampling). Treat every one of the four planes, conservatively, as if it
+   were the strongest-tinting colour used (--oxblood, not the two much
+   fainter --paper-2/--paper-edge planes, which barely move the background
+   at all): four layers at 0.07 alpha, alpha-composited on top of each
+   other in the unlikely case all four land on the exact same pixel at
+   once, sum to a combined alpha of 1-(0.93)^4 ≈ 0.25. Composited against
+   each theme's own --paper and checked against the design system's own
+   --ink and --ink-2 (the sub-line's colour, the tighter-margin of the two
+   text colours the hero carries: --ink itself, being closer to the
+   extreme of the pair, clears by more): light mode's worst case still
+   reads roughly 7.2:1 against --ink-2, dark mode's roughly 7.6:1, both well
+   past the 4.5:1 floor with margin to spare even under this deliberately
+   pessimistic all-four-as-oxblood assumption. Reproduced as a computed,
+   not merely asserted, smoke check (scripts/smoke-test.mjs), which reads
+   each plane's own live background-color and opacity and the two text
+   colours straight from the page in both themes, rather than trusting this
+   comment's arithmetic alone. Full worked figures are in this wave's own
+   report. */
+.pub-hero-bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: -1;
+  pointer-events: none;
+}
+.pub-hero-plane {
+  position: absolute;
+  top: -25%;
+  width: 62%;
+  height: 150%;
+  opacity: 0.07;
+  clip-path: polygon(22% 0%, 100% 0%, 78% 100%, 0% 100%);
+}
+.pub-hero-plane-1 {
+  left: -14%;
+  background: var(--oxblood);
+  transform: rotate(-6deg) translate(0%, 0%);
+  animation: pub-hero-drift-1 26s ease-in-out infinite alternate;
+}
+.pub-hero-plane-2 {
+  left: 18%;
+  background: var(--paper-2);
+  transform: rotate(5deg) translate(0%, 0%);
+  animation: pub-hero-drift-2 32s ease-in-out infinite alternate;
+  animation-delay: -9s; /* negative delay: starts partway through its own loop, so the four planes never read as synchronised */
+}
+.pub-hero-plane-3 {
+  left: 46%;
+  background: var(--oxblood-deep);
+  transform: rotate(-4deg) translate(0%, 0%);
+  animation: pub-hero-drift-3 29s ease-in-out infinite alternate;
+  animation-delay: -14s;
+}
+.pub-hero-plane-4 {
+  left: 70%;
+  background: var(--paper-edge);
+  transform: rotate(7deg) translate(0%, 0%);
+  animation: pub-hero-drift-4 35s ease-in-out infinite alternate;
+  animation-delay: -21s;
+}
+@keyframes pub-hero-drift-1 {
+  from { transform: rotate(-6deg) translate(0%, 0%); }
+  to   { transform: rotate(-3deg) translate(6%, 4%); }
+}
+@keyframes pub-hero-drift-2 {
+  from { transform: rotate(5deg) translate(0%, 0%); }
+  to   { transform: rotate(8deg) translate(-5%, 5%); }
+}
+@keyframes pub-hero-drift-3 {
+  from { transform: rotate(-4deg) translate(0%, 0%); }
+  to   { transform: rotate(-7deg) translate(4%, -4%); }
+}
+@keyframes pub-hero-drift-4 {
+  from { transform: rotate(7deg) translate(0%, 0%); }
+  to   { transform: rotate(4deg) translate(-6%, -3%); }
+}
+/* Reduced motion: a single static composed frame, not the resting (0%)
+   keyframe of any single plane repeated four times, since a flat identical
+   pose would read as an accident rather than the deliberate arrangement
+   the clause demands. Each plane keeps its own distinct rotation and
+   offset, frozen partway through its own travel. */
+@media (prefers-reduced-motion: reduce) {
+  .pub-hero-plane { animation: none; }
+  .pub-hero-plane-1 { transform: rotate(-4deg) translate(3%, 2%); }
+  .pub-hero-plane-2 { transform: rotate(7deg) translate(-3%, 3%); }
+  .pub-hero-plane-3 { transform: rotate(-6deg) translate(2%, -2%); }
+  .pub-hero-plane-4 { transform: rotate(5deg) translate(-3%, -2%); }
+}
 
 /* --- entry paths (Phase 12.1, PRD section 16; Phase 14.1 amends this to two
    items) -------------------------------------------------------------------
