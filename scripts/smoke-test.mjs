@@ -233,10 +233,6 @@ await page.waitForFunction(() => document.querySelectorAll('#public-root .card-g
    paths and their order, the Discover stub's scroll (never a dead end
    before js/discover.js exists), persona chips composing with the rest of
    the filter state, and the reduced-motion reveal contract. */
-const heroCountText = await page.locator('.pub-hero-count').textContent();
-check('homepage: hero count equals the active tools.json count',
-  heroCountText.includes(String(active.length)), heroCountText.trim());
-
 /* --- Phase 16.2: hero rewrite (PRD section 16 amended item 1, BUILD-PLAN
    16.2) -----------------------------------------------------------------
    The mandated headline and sub-line, verbatim, with the sub-line's count
@@ -251,9 +247,9 @@ check('homepage: hero headline states the PRD-mandated proposition sentence',
   heroHeadlineText.trim() === 'The free software directory for small business.', heroHeadlineText.trim());
 
 const heroSublineText = await page.locator('.pub-hero-subline').textContent();
-const expectedSubline = `${active.length} tool${active.length === 1 ? '' : 's'} with genuinely free tiers, honest limits, and at least two alternatives each. Nobody paid to be listed.`;
-check('homepage: hero sub-line carries the runtime tool count and the mandated closing sentence',
-  heroSublineText.trim() === expectedSubline, heroSublineText.trim());
+check('homepage: hero sub-line carries the mandated qualities sentence',
+  heroSublineText.trim() === 'Honest limits, at least two alternatives for every tool, and nobody paid to be listed.',
+  heroSublineText.trim());
 
 const publicJsSource = readFileSync(join(ROOT, 'js', 'public.js'), 'utf8');
 check('homepage: js/public.js never hard-codes the active tool count as a literal "89"',
@@ -265,15 +261,25 @@ check('homepage: the old duplicated "N free tools in the directory" trust line i
 
 /* --- Phase 17: savings ticker (PRD section 16 amended layout item 1's
    savings-ticker clause, BUILD-PLAN 17.1) ---------------------------------
-   SAVINGS_COUNT_MS (js/public.js) is 1100ms; waiting past it before reading
-   .pub-savings-amount is what proves the RESTING figure the count-up settles
-   on, never a mid-count sample. */
-await page.waitForTimeout(1300);
+   SAVINGS_COUNT_MS (js/public.js) is 1100ms and, since 17.2, the three
+   figures start FACT_STAGGER_MS (260ms) apart, so the last one settles at
+   about 260*2 + 1100 = 1620ms. Waiting past that is what proves the RESTING
+   figures the count-ups settle on, never a mid-count sample; the previous
+   1300ms wait predated the stagger and would now read the coffee figure
+   mid-count. */
+await page.waitForTimeout(2000);
+const heroFactCountText = await page.locator('.pub-fact-figure').first().textContent();
+check('homepage: the first fact figure settles on the active tools.json count',
+  heroFactCountText.trim() === String(active.length), heroFactCountText.trim());
 const savingsAmountText = await page.locator('.pub-savings-amount').first().textContent();
 check('homepage: savings ticker ceiling equals a freshly computed sum of active tool values',
   savingsAmountText.trim() === gbp(activeCeilingValue), `got=${savingsAmountText.trim()} want=${gbp(activeCeilingValue)}`);
 
 const savingsTickerText = await page.locator('.pub-savings-ticker').first().textContent();
+const savingsVisibleText = await page.locator('.pub-savings-visible').first().textContent();
+check('homepage: the VISIBLE ticker block carries the framing itself, not only the hidden a11y sentence',
+  savingsVisibleText.includes(`if you used all ${active.length} tool`)
+  && savingsVisibleText.includes(gbp(activeCoreValue)), savingsVisibleText.trim());
 check('homepage: the ceiling never appears without its "if you used all N tools" framing',
   savingsTickerText.includes(gbp(activeCeilingValue)) && savingsTickerText.includes(`if you used all ${active.length} tool`),
   savingsTickerText.trim());

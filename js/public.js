@@ -171,15 +171,27 @@ function revealFirstPaint(node, index, reduced) {
    frame of this ever runs, so there is nothing for the reduced-motion
    sweep to find. */
 const SAVINGS_COUNT_MS = 1100;
-function animateSavingsCeiling(node, target, reduced) {
-  if (reduced) { node.textContent = money(target); return; }
-  const start = performance.now();
+/* Phase 17.2 (Rocky: the count, the pounds and the coffees "load one after the other so
+   eye scans"): each figure takes its own start offset, so the three read
+   left to right as a sequence rather than three things moving at once. The
+   stagger is the whole point of the change: a reader's eye is led across the
+   row instead of having to choose where to look. Still one entrance apiece,
+   still terminating, so this remains motion item 1's family and adds no
+   third ambient exception. */
+const FACT_STAGGER_MS = 260;
+function animateFigure(node, target, reduced, { delayMs = 0, format = (n) => String(n) } = {}) {
+  if (reduced) { node.textContent = format(target); return; }
+  // Hold the start value until this figure's turn, so a staggered figure is
+  // not silently sitting at its final value before it animates.
+  node.textContent = format(0);
+  const begin = performance.now() + delayMs;
   function step(now) {
-    const progress = Math.min(1, (now - start) / SAVINGS_COUNT_MS);
+    if (now < begin) { requestAnimationFrame(step); return; }
+    const progress = Math.min(1, (now - begin) / SAVINGS_COUNT_MS);
     const eased = 1 - (1 - progress) ** 3;
-    node.textContent = money(Math.round(target * eased));
+    node.textContent = format(Math.round(target * eased));
     if (progress < 1) requestAnimationFrame(step);
-    else node.textContent = money(target); // exact, never an eased-interpolation artefact
+    else node.textContent = format(target); // exact, never an eased-interpolation artefact
   }
   requestAnimationFrame(step);
 }
@@ -365,8 +377,7 @@ export function renderPublic(root, tools) {
   // BUILD-PLAN 16.2 already gave this figure, now scoped to where the count
   // actually lives rather than a whole paragraph of its own.
   const heroSubline = el('p', { class: 'subtitle pub-hero-subline' },
-    el('strong', { class: 'pub-hero-count' }, String(active.length)),
-    ` tool${active.length === 1 ? '' : 's'} with genuinely free tiers, honest limits, and at least two alternatives each. Nobody paid to be listed.`,
+    'Honest limits, at least two alternatives for every tool, and nobody paid to be listed.',
   );
   /* --- savings ticker (Phase 17, PRD section 16 amended layout item 1's
      savings-ticker clause, Rocky, 3 Aug: "a roller that spins that shows
@@ -409,22 +420,39 @@ export function renderPublic(root, tools) {
     + `${active.length} tools. A starter stack of ${coreTools.length} saves `
     + `${money(savingsCore)}, roughly ${savingsCoffees.toLocaleString('en-GB')} `
     + `coffees at ${money(COFFEE_CUP_PRICE_GBP)} a cup.`;
+  /* Three facts, read left to right (Phase 17.2, Rocky: "make the facts
+     three columns", the count, the pounds and the coffees loading one after another so
+     eye scans"). The container keeps the .pub-savings-ticker class the
+     honesty checks already target: every one of them asserts on this
+     element's aggregate text, so the ceiling still cannot render without
+     its "if you used all N tools" framing or without the core figure, which
+     is exactly the guarantee that must survive a layout change. */
   const savingsAmountEl = el('span', { class: 'pub-savings-amount' }, money(0));
-  const savingsTicker = el('div', { class: 'pub-savings-ticker' },
+  const toolCountEl = el('span', { class: 'pub-fact-figure' }, '0');
+  const coffeeCountEl = el('span', { class: 'pub-fact-figure' }, '0');
+  const savingsTicker = el('div', { class: 'pub-savings-ticker pub-hero-facts' },
     el('p', { class: 'visually-hidden' }, savingsSentence),
     el('div', { class: 'pub-savings-visible', 'aria-hidden': 'true' },
-      el('p', { class: 'pub-savings-ceiling-line' },
-        savingsAmountEl,
-        ' a year, if you used all ',
-        el('strong', {}, String(active.length)),
-        ' tools.',
+      el('div', { class: 'pub-fact' },
+        toolCountEl,
+        el('p', { class: 'pub-fact-label' }, `free tool${active.length === 1 ? '' : 's'}`),
       ),
-      el('p', { class: 'pub-savings-core-line' },
-        'A starter stack of ',
+      el('div', { class: 'pub-fact pub-fact-money' },
+        savingsAmountEl,
+        el('p', { class: 'pub-fact-label' }, 'a year, at most'),
+      ),
+      el('div', { class: 'pub-fact' },
+        coffeeCountEl,
+        el('p', { class: 'pub-fact-label' }, 'coffees'),
+      ),
+      el('p', { class: 'pub-fact-detail' },
+        'That is if you used all ',
+        el('strong', {}, String(active.length)),
+        ' tools. A starter stack of ',
         el('strong', {}, String(coreTools.length)),
         ' saves ',
         el('strong', {}, money(savingsCore)),
-        `, roughly ${savingsCoffees.toLocaleString('en-GB')} coffees at ${money(COFFEE_CUP_PRICE_GBP)} a cup.`,
+        `, or about ${savingsCoffees.toLocaleString('en-GB')} coffees at ${money(COFFEE_CUP_PRICE_GBP)} a cup.`,
       ),
     ),
   );
@@ -1236,7 +1264,10 @@ export function renderPublic(root, tools) {
   // Savings ticker count-up (Phase 17): fires once here, on mount, after
   // `reduced` above is known; never re-triggered by any later redraw (a
   // plainMode toggle rebuilds the shelves, never the header).
-  animateSavingsCeiling(savingsAmountEl, savingsCeiling, reduced);
+  animateFigure(toolCountEl, active.length, reduced, { delayMs: 0 });
+  animateFigure(savingsAmountEl, savingsCeiling, reduced, { delayMs: FACT_STAGGER_MS, format: money });
+  animateFigure(coffeeCountEl, savingsCoffees, reduced,
+    { delayMs: FACT_STAGGER_MS * 2, format: (n) => n.toLocaleString('en-GB') });
 
   loadPersonaPacks(personaChipRow, activeIds, {
     setPersonaIds: (ids) => { activePersonaIds = ids; },

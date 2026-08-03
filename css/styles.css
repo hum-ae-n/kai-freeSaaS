@@ -1502,20 +1502,51 @@ html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
    every digit the same width while the count-up runs, so the line does not
    visibly jitter sideways as the figure grows from one digit to five. */
 .pub-savings-ticker { margin-top: var(--s-4); }
-.pub-savings-ceiling-line {
-  /* Normal inline flow, deliberately NOT flex. Flex with a gap turned every
-     text fragment and the tool-count <strong> into separate flex items, so
-     the sentence rendered with visible holes either side of the number
-     ("used all  89  tools") that the identical count in the sub-line above
-     does not have. Flex was reaching for baseline alignment of the large
-     amount against the smaller text, which inline layout already does for
-     free: an inline-block sits on the baseline by default. */
-  margin: 0;
-  color: var(--ink);
-  font-size: var(--fs-16);
-  line-height: var(--lh-16);
+/* Three facts side by side (Phase 17.2). Grid is right here, unlike the
+   ceiling line this phase already had to un-flex: these are three discrete
+   blocks, not one sentence broken into fragments. Single column below 640px
+   so the figures stay large and legible on a phone rather than shrinking to
+   fit three abreast. */
+.pub-savings-visible {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-3);
   max-width: none;
+  align-items: start;
 }
+@media (min-width: 640px) { .pub-savings-visible { gap: var(--s-6); } }
+/* The framing sentence spans the full row beneath the three figures, so the
+   ceiling can never be read without "if you used all N tools" and without
+   the realistic core figure, at any width. Stacking the three facts on a
+   phone was tried first and made the hero TALLER than the two lines it
+   replaced, breaching the height budget: the whole point is a row the eye
+   scans, so it stays a row everywhere and the figures scale instead. */
+.pub-fact-detail {
+  grid-column: 1 / -1;
+  margin: var(--s-2) 0 0;
+  max-width: none;
+  color: var(--ink-2);
+  font-size: var(--fs-14);
+  line-height: var(--lh-14);
+}
+.pub-fact { min-width: 0; }
+.pub-fact-figure, .pub-savings-amount {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(22px, 4.4vw, 46px);
+  line-height: 1;
+  color: var(--oxblood);
+  font-variant-numeric: tabular-nums;
+}
+.pub-fact-label {
+  margin: var(--s-1) 0 0;
+  max-width: none;
+  color: var(--ink-2);
+  font-size: var(--fs-14);
+  line-height: var(--lh-14);
+}
+
 .pub-savings-amount {
   font-family: var(--font-display);
   font-weight: 900;
@@ -1527,13 +1558,7 @@ html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
   vertical-align: baseline;
   margin-right: var(--s-1);
 }
-.pub-savings-core-line {
-  margin: var(--s-1) 0 0;
-  color: var(--ink-2);
-  font-size: var(--fs-14);
-  line-height: var(--lh-14);
-  max-width: none;
-}
+
 
 /* Contrast proof for motion inventory item 9, and the reasoning behind the
    two numbers below, since both were arrived at the hard way.
@@ -1587,44 +1612,44 @@ html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
   left: -14%;
   background: var(--oxblood);
   transform: rotate(-6deg) translate(0%, 0%);
-  animation: pub-hero-drift-1 26s ease-in-out infinite alternate;
+  animation: pub-hero-drift-1 21s ease-in-out infinite alternate;
 }
 .pub-hero-plane-2 {
   left: 18%;
   background: var(--paper-2);
   transform: rotate(5deg) translate(0%, 0%);
-  animation: pub-hero-drift-2 32s ease-in-out infinite alternate;
+  animation: pub-hero-drift-2 25s ease-in-out infinite alternate;
   animation-delay: -9s; /* negative delay: starts partway through its own loop, so the four planes never read as synchronised */
 }
 .pub-hero-plane-3 {
   left: 46%;
   background: var(--oxblood-deep);
   transform: rotate(-4deg) translate(0%, 0%);
-  animation: pub-hero-drift-3 29s ease-in-out infinite alternate;
+  animation: pub-hero-drift-3 23s ease-in-out infinite alternate;
   animation-delay: -14s;
 }
 .pub-hero-plane-4 {
   left: 70%;
   background: var(--paper-edge);
   transform: rotate(7deg) translate(0%, 0%);
-  animation: pub-hero-drift-4 35s ease-in-out infinite alternate;
+  animation: pub-hero-drift-4 27s ease-in-out infinite alternate;
   animation-delay: -21s;
 }
 @keyframes pub-hero-drift-1 {
   from { transform: rotate(-6deg) translate(0%, 0%); }
-  to   { transform: rotate(-3deg) translate(6%, 4%); }
+  to   { transform: rotate(-2deg) translate(13%, 8%); }
 }
 @keyframes pub-hero-drift-2 {
   from { transform: rotate(5deg) translate(0%, 0%); }
-  to   { transform: rotate(8deg) translate(-5%, 5%); }
+  to   { transform: rotate(10deg) translate(-11%, 10%); }
 }
 @keyframes pub-hero-drift-3 {
   from { transform: rotate(-4deg) translate(0%, 0%); }
-  to   { transform: rotate(-7deg) translate(4%, -4%); }
+  to   { transform: rotate(-8deg) translate(9%, -9%); }
 }
 @keyframes pub-hero-drift-4 {
   from { transform: rotate(7deg) translate(0%, 0%); }
-  to   { transform: rotate(4deg) translate(-6%, -3%); }
+  to   { transform: rotate(3deg) translate(-12%, -7%); }
 }
 /* Reduced motion: a single static composed frame, not the resting (0%)
    keyframe of any single plane repeated four times, since a flat identical
