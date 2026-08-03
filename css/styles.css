@@ -1174,7 +1174,14 @@ html.js-boot #static-root { display: none; }
   min-height: 44px;
   min-width: 44px;
   padding: 0 var(--s-2);
-  color: var(--ink-3);
+  /* --ink-2, not --ink-3 (Phase 16 close-out). Real pixel sampling behind
+     the hero proved --ink-3 here was the binding constraint on the whole
+     background treatment: it is the palette's faintest tint, already only
+     about 5.4:1 on plain paper, so any texture behind it ate the margin and
+     forced the planes down to invisibility. Navigation should not be the
+     faintest text on the page, and this is an accessibility gain in its own
+     right, independent of the planes. */
+  color: var(--ink-2);
   font-family: var(--font-sans);
   font-size: var(--fs-12);
   font-weight: 500;
@@ -1251,7 +1258,7 @@ html.js-boot #static-root { display: none; }
    work the old one-line strapline and the retired count paragraph used to
    split between them. */
 .pub-hero-subline { font-size: var(--fs-18); line-height: var(--lh-18); max-width: 46ch; }
-.pub-header .trust-line { margin-top: var(--s-2); color: var(--ink-3); font-size: var(--fs-14); max-width: none; }
+.pub-header .trust-line { margin-top: var(--s-2); color: var(--ink-2); font-size: var(--fs-14); max-width: none; }
 
 /* Search, promoted to first-class (PRD section 16, "Ways-in band"): its own
    full-width row above the entry-path grid, on every viewport, not only
@@ -1315,70 +1322,48 @@ html.js-boot #static-root { display: none; }
   line-height: var(--lh-14);
   max-width: none;
 }
-.pub-hero-trust-item.trust-line { color: var(--ink-3); }
+/* --ink-2 since Phase 16 close-out: this line carries one of section 16's
+   three mandated verifiable trust signals, so it should not be the faintest
+   text on the page, and as --ink-3 it capped the hero background treatment. */
+.pub-hero-trust-item.trust-line { color: var(--ink-2); }
 /* The count now lives inline in the sub-line (Phase 16) as the <strong>
    itself, not a nested strong inside a dedicated trust-item paragraph (see
    js/public.js's heroSubline): the selector targets the class directly. */
 .pub-hero-count { color: var(--ink); font-family: var(--font-sans); }
 
-/* --- hero background, drifting stack planes (motion inventory item 9, PRD
-   section 16 amended, Phase 16, Rocky's direction the hero be "animated and
-   impressive") ---------------------------------------------------------
-   The second and FINAL recorded exception to this section's ban on looping
-   ambient motion, scoped to exactly one element: this container and its
-   four plane children together, the same way item 8's button and its two
-   pseudo-elements count as one. Three or four translucent parallelograms in
-   the oxblood/cream brand range, CSS transform and opacity only, no canvas,
-   no library, no requestAnimationFrame, no image asset.
+/* Contrast proof for motion inventory item 9, and the reasoning behind the
+   two numbers below, since both were arrived at the hard way.
 
-   Structure: .pub-hero-bg is position: absolute, inset: 0, inside
-   .pub-header (the panel-level z-index: 0 stacking context established just
-   above, load-bearing for the reason documented there), with z-index: -1 so
-   it paints behind every in-flow hero child (logo, headline, sub-line,
-   trust lines) by construction, never in front of them regardless of scroll
-   or hover state. overflow: hidden on this same element clips every plane's
-   drift and rotation to the header's own box, so the animation can never
-   extend the page's scrollable area, cause a scrollbar, or move the fold,
-   at any viewport. pointer-events: none keeps it, and everything in it,
-   fully inert to the pointer. The planes carry no text and are
-   aria-hidden: they never enter the accessibility tree.
+   METHOD: ground truth, not arithmetic. scripts/smoke-test.mjs hides every
+   hero child except this background, screenshots, decodes the PNG itself and
+   reads the real composited pixels behind each rendered LINE box (via Range
+   rects, not the parent element box, which is far wider than the glyphs for a
+   left-aligned block), taking the worst pixel each line covers, at 10 offsets
+   spanning the slowest plane's full 35s travel, in both themes at 375 and
+   1280. An earlier version instead composited all four planes as if they
+   fully overlapped one pixel. That bound is unreachable (their authored spans
+   forbid it) and tuning opacity to satisfy it drove the planes to 0.013,
+   which erased the effect entirely. The metric was wrong, not the design.
 
-   Shape: clip-path carves each plane into a parallelogram. This is a
-   static, unanimated declaration, not part of any keyframe, so it sits
-   outside the "transforms and opacity only" restriction on the ANIMATED
-   properties, the same way .pub-discover-btn's static gradient background
-   sits outside that restriction for item 8. Only `transform` ever appears
-   inside the keyframes below.
+   WHY --ink-2 AND NOT --ink-3 IN THE HERO: real sampling then showed the true
+   binding constraint was never the trust line at all, it was the utility nav
+   links, which the planes' rotated silhouette genuinely reaches. As --ink-3
+   (#6B645B, the palette's faintest tint, already only about 5.4:1 on plain
+   paper) they capped this whole treatment at an invisible opacity. Raising
+   the hero's nav links and trust line to --ink-2 is an accessibility gain in
+   its own right, navigation and a mandated trust signal should not be the
+   faintest text on the page, and it is what lets the background exist at all.
 
-   Slowness and opacity: every plane's opacity is a flat, never-animated
-   0.07 (only transform varies over the loop), each loop 26s to 35s, all
-   comfortably past the mandated 20s floor, eased and alternating so the
-   motion reads as settling rather than sliding, never fast enough to pull
-   the eye off the headline (Rocky's own test for "wrong").
+   RESULT at opacity 0.06 the worst sampled ratio was about 9.6:1, so there
+   was room to spend: at the shipped 0.11 the worst real pixel behind any hero
+   text is 8.57:1 (light, 1280) and 8.56:1 (dark), against a 4.5:1 floor. The
+   planes are visible as deliberate texture with the margin still near double.
 
-   Contrast proof (PRD section 12's 4.5:1 floor, both themes, checked at the
-   worst frame, not at rest, per the amended inventory item's own clause):
-   because opacity is static rather than animated, the true worst case is
-   time-invariant and can be reasoned about directly rather than sampled at
-   arbitrary phase (the amended clause's own permitted alternative to
-   sampling). Treat every one of the four planes, conservatively, as if it
-   were the strongest-tinting colour used (--oxblood, not the two much
-   fainter --paper-2/--paper-edge planes, which barely move the background
-   at all): four layers at 0.07 alpha, alpha-composited on top of each
-   other in the unlikely case all four land on the exact same pixel at
-   once, sum to a combined alpha of 1-(0.93)^4 ≈ 0.25. Composited against
-   each theme's own --paper and checked against the design system's own
-   --ink and --ink-2 (the sub-line's colour, the tighter-margin of the two
-   text colours the hero carries: --ink itself, being closer to the
-   extreme of the pair, clears by more): light mode's worst case still
-   reads roughly 7.2:1 against --ink-2, dark mode's roughly 7.6:1, both well
-   past the 4.5:1 floor with margin to spare even under this deliberately
-   pessimistic all-four-as-oxblood assumption. Reproduced as a computed,
-   not merely asserted, smoke check (scripts/smoke-test.mjs), which reads
-   each plane's own live background-color and opacity and the two text
-   colours straight from the page in both themes, rather than trusting this
-   comment's arithmetic alone. Full worked figures are in this wave's own
-   report. */
+   The keyframes below animate transform ONLY. That is load bearing: a static
+   opacity is what makes the worst case time invariant, and smoke-test.mjs
+   enforces it at source level, since a runtime sample taken shortly after
+   load always lands near a slow loop's minimum and would miss the breach. */
+
 .pub-hero-bg {
   position: absolute;
   inset: 0;
@@ -1391,7 +1376,7 @@ html.js-boot #static-root { display: none; }
   top: -25%;
   width: 62%;
   height: 150%;
-  opacity: 0.07;
+  opacity: 0.11;
   clip-path: polygon(22% 0%, 100% 0%, 78% 100%, 0% 100%);
 }
 .pub-hero-plane-1 {

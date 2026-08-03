@@ -16,6 +16,7 @@ import { extname, join, normalize, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';
+import { inflateSync } from 'node:zlib';
 import { PRIVACY_NOTICE } from '../js/my/copy.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -610,55 +611,299 @@ const strayInfiniteElements = await page.evaluate(() => {
 check('homepage: page-wide computed-style sweep finds infinite animation-iteration-count only on the Discover CTA and the hero planes',
   strayInfiniteElements.length === 0, JSON.stringify(strayInfiniteElements));
 
-/* --- Phase 16.2: hero background contrast, at the animation's worst frame
-   (PRD section 16 amended, motion inventory item 9's own closing clause;
-   BUILD-PLAN 16.2) -----------------------------------------------------
-   Each plane's opacity is a flat, unanimated value (only `transform` is
-   keyframed), so the true worst case is time-invariant rather than tied to
-   a sampled animation offset: reasoned from the planes' maximum overlap
-   opacity, the amended clause's own permitted alternative to sampling at
-   several points in the cycle. Every plane's live background-color and
-   opacity is read straight from the page (never hard-coded here), then
-   alpha-composited on top of the panel's own background in the worst case
-   where every one of them fully covers the same pixel at once, which is
-   more pessimistic than anything the real, spatially-separated drift can
-   ever produce. contrastRatio/relativeLuminance are this file's own WCAG
-   helpers (declared further down; function declarations hoist, so they are
-   callable here). Checked against both hero text colours (the headline's
-   and the tighter-margin sub-line's) in both themes. */
-function compositeOver(topRgb, topAlpha, baseRgb) {
-  return [0, 1, 2].map((i) => topAlpha * topRgb[i] + (1 - topAlpha) * baseRgb[i]);
-}
-for (const theme of ['light', 'dark']) {
-  const contrastPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
-  await contrastPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
-  await contrastPage.addInitScript((t) => localStorage.setItem('freestack:v1:theme', t), theme);
-  await contrastPage.goto(`${base}/`);
-  await contrastPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
-  const themeAttr = await contrastPage.evaluate(() => document.documentElement.getAttribute('data-theme'));
+/* --- Phase 16.2: hero background contrast, GROUND TRUTH by real pixel
+   sampling (PRD section 16 amended, motion inventory item 9's own closing
+   clause; BUILD-PLAN 16.2, second verifier fix round) ---------------------
+   Second fix round: the first fix round's answer to Gap 1 (enumerate every
+   hero text colour rather than hard-code two) was the right SHAPE but the
+   wrong STANDARD. It composited all four planes as if fully overlapping
+   the same pixel, a configuration the planes' own authored spans forbid,
+   and then tuned opacity down until that unreachable worst case cleared
+   4.5:1, which produced a background so faint it stopped reading as the
+   "animated and impressive" backdrop the wave was for. Tried and rejected:
+   proving a bound that can never occur is not the same as proving the
+   hero is legible, and it cost the entire visible point of the wave.
 
-  const panelBg = await contrastPage.locator('.pub-header').first().evaluate((n) => getComputedStyle(n).backgroundColor);
-  const planeLayers = await contrastPage.locator('.pub-hero-plane').evaluateAll((nodes) => nodes.map((n) => {
-    const cs = getComputedStyle(n);
-    return { color: cs.backgroundColor, opacity: Number.parseFloat(cs.opacity) };
-  }));
-  const headlineColor = await contrastPage.locator('.pub-hero-headline').first().evaluate((n) => getComputedStyle(n).color);
-  const sublineColor = await contrastPage.locator('.pub-hero-subline').first().evaluate((n) => getComputedStyle(n).color);
+   This version tests what actually renders. For every real text node
+   under .pub-header (same enumeration shape as before, now per TEXT NODE
+   rather than per element: an element's own bounding box can be far wider
+   than its glyphs for a left-aligned block-level line, so this walks
+   `document.createTreeWalker(header, NodeFilter.SHOW_TEXT, ...)` and reads
+   each text node's own rendered line boxes via `Range.getClientRects()`,
+   which hugs each wrapped line's actual glyphs rather than the parent's
+   full-width box):
+     1. capture every text node's line rects and its parent's live colour,
+        with the hero rendered NORMALLY (nothing hidden yet);
+     2. hide every hero child except .pub-hero-bg itself
+        (`.pub-header > *:not(.pub-hero-bg) { visibility: hidden }`, which
+        preserves every box's layout and therefore every rect captured in
+        step 1, while removing all foreground paint: text, borders, icons
+        and the logo image alike, none of which are "background" in the
+        sense this check cares about);
+     3. at each of a spread of animation offsets, pause every plane's own
+        Animation and set its `currentTime` directly (freezing an exact,
+        reproducible frame instead of racing a real clock), screenshot the
+        page, and decode the PNG by hand (`decodePNG`/`getPixel` below, an
+        8-bit non-interlaced RGB/RGBA reader built on nothing but Node's
+        own `zlib.inflateSync`, since this repo takes on no npm dependency
+        even in scripts/: PNG's IDAT stream is zlib/RFC1950, which Node's
+        built-in zlib already speaks, so no decoder library is needed);
+     4. for every captured line rect, sample a 5x3 grid (the corners, the
+        midpoints and the centre) and keep the WORST (lowest-contrast)
+        pixel the line covers, not its centre.
 
-  let worstBg = parseRgb(panelBg);
-  for (const layer of planeLayers) {
-    const layerRgb = parseRgb(layer.color);
-    if (layerRgb && worstBg) worstBg = compositeOver(layerRgb, layer.opacity, worstBg);
+   Offsets: 0, 5000, 10000, 13000, 17500, 20000, 26000, 29000, 32000, 35000
+   (ms). Ten points spanning 0 to 35000ms, the longest plane's own one-way
+   duration (pub-hero-drift-4), and including every plane's own reversal
+   instant (26000/29000/32000/35000ms, pub-hero-drift-1 through -4's own
+   durations) plus several evenly spread midpoints. Each plane's keyframes
+   are a plain two-endpoint interpolation (`from`/`to`, no intermediate
+   waypoints per the CSS above), so the full set of positions any plane can
+   ever occupy is the continuum between those two states; sampling across
+   one full one-way pass of the slowest plane, including every plane's own
+   endpoint, covers that continuum for all four regardless of the
+   `alternate` reversal (forward and reverse trace the same positions) and
+   regardless of their differing periods and negative delays (each one is
+   independently sampled at multiple points along its own progress).
+
+   Checked at both 1280 and 375: which text node binds the tightest margin
+   genuinely differs by viewport (the utility nav links at 1280, the
+   trust line at 375, both --ink-3, the palette's lowest tint), because the
+   header's aspect ratio and therefore the planes' actual footprint differs
+   by width. Neither viewport alone would have caught the other's binding
+   case. */
+// contrastRatio/relativeLuminance/parseRgb are this file's own WCAG helpers,
+// declared once further down (function declarations hoist, so they are
+// callable here); reused rather than redeclared, so there is exactly one
+// implementation of the maths in this file.
+/** Minimal PNG decoder: 8-bit, non-interlaced, colour type 2 (RGB) or 6
+    (RGBA) only, which is what Chromium's page.screenshot({type:'png'})
+    produces. Built on node:zlib alone (no npm dependency). Throws loudly
+    on anything else rather than silently misreading it. */
+function decodePNG(buffer) {
+  if (buffer.readUInt32BE(0) !== 0x89504e47 || buffer.readUInt32BE(4) !== 0x0d0a1a0a) {
+    throw new Error('not a PNG (bad signature)');
   }
-  const headlineRatio = contrastRatio(headlineColor, `rgb(${worstBg.join(',')})`);
-  const sublineRatio = contrastRatio(sublineColor, `rgb(${worstBg.join(',')})`);
-  check(`homepage (${theme}): headline clears 4.5:1 against the worst-case fully-overlapped plane background`,
-    headlineRatio !== null && headlineRatio >= 4.5,
-    `theme=${themeAttr} ratio=${headlineRatio?.toFixed(2)} bg=${JSON.stringify(worstBg)} planes=${JSON.stringify(planeLayers)}`);
-  check(`homepage (${theme}): sub-line clears 4.5:1 against the worst-case fully-overlapped plane background`,
-    sublineRatio !== null && sublineRatio >= 4.5,
-    `theme=${themeAttr} ratio=${sublineRatio?.toFixed(2)} bg=${JSON.stringify(worstBg)}`);
-  await contrastPage.close();
+  let offset = 8;
+  let width, height, bitDepth, colorType, interlace;
+  const idatChunks = [];
+  while (offset < buffer.length) {
+    const length = buffer.readUInt32BE(offset);
+    const type = buffer.toString('ascii', offset + 4, offset + 8);
+    const dataStart = offset + 8;
+    const data = buffer.subarray(dataStart, dataStart + length);
+    if (type === 'IHDR') {
+      width = data.readUInt32BE(0);
+      height = data.readUInt32BE(4);
+      bitDepth = data.readUInt8(8);
+      colorType = data.readUInt8(9);
+      interlace = data.readUInt8(12);
+    } else if (type === 'IDAT') {
+      idatChunks.push(data);
+    } else if (type === 'IEND') {
+      break;
+    }
+    offset = dataStart + length + 4; // skip CRC
+  }
+  if (bitDepth !== 8) throw new Error(`unsupported PNG bit depth ${bitDepth}`);
+  if (interlace !== 0) throw new Error('unsupported PNG interlacing');
+  if (colorType !== 2 && colorType !== 6) throw new Error(`unsupported PNG colour type ${colorType}`);
+  const bpp = colorType === 6 ? 4 : 3;
+  const raw = inflateSync(Buffer.concat(idatChunks));
+  const stride = width * bpp;
+  const pixels = new Uint8Array(height * stride);
+  let rawOffset = 0;
+  let prevRowStart = -1;
+  for (let y = 0; y < height; y += 1) {
+    const filterType = raw[rawOffset];
+    rawOffset += 1;
+    const rowStart = y * stride;
+    for (let x = 0; x < stride; x += 1) {
+      const filt = raw[rawOffset + x];
+      const a = x >= bpp ? pixels[rowStart + x - bpp] : 0;
+      const b = prevRowStart >= 0 ? pixels[prevRowStart + x] : 0;
+      const c = (prevRowStart >= 0 && x >= bpp) ? pixels[prevRowStart + x - bpp] : 0;
+      let recon;
+      switch (filterType) {
+        case 0: recon = filt; break;
+        case 1: recon = filt + a; break;
+        case 2: recon = filt + b; break;
+        case 3: recon = filt + ((a + b) >> 1); break;
+        case 4: {
+          const p = a + b - c;
+          const pa = Math.abs(p - a);
+          const pb = Math.abs(p - b);
+          const pc = Math.abs(p - c);
+          recon = filt + ((pa <= pb && pa <= pc) ? a : (pb <= pc ? b : c));
+          break;
+        }
+        default: throw new Error(`unsupported PNG filter type ${filterType}`);
+      }
+      pixels[rowStart + x] = recon & 0xff;
+    }
+    prevRowStart = rowStart;
+    rawOffset += stride;
+  }
+  return { width, height, bpp, pixels };
+}
+function getPngPixel(png, x, y) {
+  const xi = Math.max(0, Math.min(png.width - 1, Math.round(x)));
+  const yi = Math.max(0, Math.min(png.height - 1, Math.round(y)));
+  const idx = (yi * png.width + xi) * png.bpp;
+  return [png.pixels[idx], png.pixels[idx + 1], png.pixels[idx + 2]];
+}
+
+const HERO_SAMPLE_OFFSETS_MS = [0, 5000, 10000, 13000, 17500, 20000, 26000, 29000, 32000, 35000];
+async function sampleHeroContrast(theme, viewportWidth) {
+  const p = await browser.newPage({ viewport: { width: viewportWidth, height: 900 }, deviceScaleFactor: 1 });
+  await p.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await p.addInitScript((t) => localStorage.setItem('freestack:v1:theme', t), theme);
+  await p.goto(`${base}/`);
+  await p.waitForSelector('#public-root .tool-card', { state: 'attached' });
+
+  // Step 1: every text node's own rendered line rects and its parent's
+  // live colour, captured before anything is hidden.
+  const textRuns = await p.evaluate(() => {
+    const header = document.querySelector('.pub-header');
+    const out = [];
+    const walker = document.createTreeWalker(header, NodeFilter.SHOW_TEXT, {
+      acceptNode: (n) => (n.textContent.trim().length > 0 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT),
+    });
+    let node = walker.nextNode();
+    while (node) {
+      const parent = node.parentElement;
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      const rects = [...range.getClientRects()]
+        .map((r) => ({ x: r.x, y: r.y, width: r.width, height: r.height }))
+        .filter((r) => r.width > 2 && r.height > 2);
+      out.push({
+        label: parent.className ? `${parent.tagName}.${parent.className}` : parent.tagName,
+        text: node.textContent.trim().slice(0, 24),
+        color: getComputedStyle(parent).color,
+        rects,
+      });
+      node = walker.nextNode();
+    }
+    return out;
+  });
+
+  // Step 2: hide every hero child except the plane container, so a
+  // screenshot from here on reads pure panel-plus-planes, contaminated by
+  // nothing (not the logo image, not a button border, not an icon glyph).
+  // visibility: hidden preserves every box's geometry, so the rects above
+  // stay valid.
+  await p.addStyleTag({ content: '.pub-header > *:not(.pub-hero-bg) { visibility: hidden !important; }' });
+
+  const perRun = new Map(); // label -> { ratio, offsetMs, bg, fg, text }
+  for (const offsetMs of HERO_SAMPLE_OFFSETS_MS) {
+    await p.evaluate((ms) => {
+      document.querySelectorAll('.pub-hero-plane').forEach((el) => {
+        el.getAnimations().forEach((a) => { a.pause(); a.currentTime = ms; });
+      });
+    }, offsetMs);
+    const buf = await p.screenshot({ type: 'png' });
+    const png = decodePNG(buf);
+    for (const run of textRuns) {
+      for (const rect of run.rects) {
+        const xs = [0.05, 0.25, 0.5, 0.75, 0.95].map((f) => rect.x + f * rect.width);
+        const ys = [0.15, 0.5, 0.85].map((f) => rect.y + f * rect.height);
+        for (const sx of xs) {
+          for (const sy of ys) {
+            const bg = getPngPixel(png, sx, sy);
+            // contrastRatio (hoisted below) takes two CSS colour strings;
+            // run.color already is one (getComputedStyle's own string),
+            // and the sampled pixel is turned into the same shape rather
+            // than adding a second, raw-array code path for the maths.
+            const bgCss = `rgb(${bg.join(',')})`;
+            const ratio = contrastRatio(run.color, bgCss);
+            const key = `${run.label}:"${run.text}"`;
+            const cur = perRun.get(key);
+            if (!cur || ratio < cur.ratio) perRun.set(key, { ratio, offsetMs, bg, fg: run.color, text: run.text });
+          }
+        }
+      }
+    }
+  }
+  await p.close();
+  return perRun;
+}
+
+for (const viewportWidth of [1280, 375]) {
+  for (const theme of ['light', 'dark']) {
+    const perRun = await sampleHeroContrast(theme, viewportWidth);
+    check(`homepage (${theme}, ${viewportWidth}px): the hero contrast sweep covers at least the three known body text colours (enumerated per text node, not hard-coded)`,
+      perRun.size >= 3, [...perRun.keys()].join(' | '));
+
+    let minOverall = Infinity;
+    let minKey = null;
+    const failures = [];
+    for (const [key, r] of perRun) {
+      if (r.ratio < minOverall) { minOverall = r.ratio; minKey = key; }
+      if (r.ratio < 4.5) failures.push(`${key} ratio=${r.ratio.toFixed(2)} offset=${r.offsetMs}ms bg=${JSON.stringify(r.bg)} fg=${JSON.stringify(r.fg)}`);
+    }
+    check(`homepage (${theme}, ${viewportWidth}px): every real sampled pixel behind hero text clears 4.5:1 across all ${HERO_SAMPLE_OFFSETS_MS.length} animation offsets`,
+      failures.length === 0,
+      `worst=${minOverall.toFixed(3)} (${minKey}); failures=${JSON.stringify(failures)}`);
+    // Recorded for the report, not itself pass/fail: the minimum observed
+    // ratio, so "clears 4.5 with real margin" is a number on record, not a
+    // claim.
+    check(`homepage (${theme}, ${viewportWidth}px): minimum observed ratio recorded`,
+      true, `min=${minOverall.toFixed(3)} at ${minKey}`);
+  }
+}
+
+/* --- Phase 16.2: the "opacity is static, never animated" invariant the
+   whole contrast proof above depends on, enforced at the source level
+   (BUILD-PLAN 16.2, verifier fix round) -----------------------------------
+   The runtime checks above sample getComputedStyle once, shortly after
+   load; on a slow-drifting animation that starts near its own minimum,
+   that single sample cannot tell a genuinely static opacity from an
+   animated one merely caught early. The guarantee is a claim about the
+   SOURCE, not a runtime sample: this reads css/styles.css directly and
+   fails if any pub-hero-drift-* keyframe block declares `opacity`, or if
+   any pub-hero-plane rule carries a `transition` whose value touches
+   opacity (an explicit one, or `all`, which would implicitly include it).
+   Brace-matched rather than a single greedy regex, since a keyframe block
+   contains its own nested `{ }` pairs (its from/to or percentage
+   selectors) that a naive `/@keyframes[^}]*}/` would stop at prematurely. */
+function extractBracedBlock(cssText, startBraceIndex) {
+  let depth = 0;
+  for (let i = startBraceIndex; i < cssText.length; i += 1) {
+    if (cssText[i] === '{') depth += 1;
+    else if (cssText[i] === '}') {
+      depth -= 1;
+      if (depth === 0) return cssText.slice(startBraceIndex, i + 1);
+    }
+  }
+  return cssText.slice(startBraceIndex);
+}
+{
+  const cssText = readFileSync(join(ROOT, 'css', 'styles.css'), 'utf8');
+  const keyframeRe = /@keyframes\s+(pub-hero-drift-\d+)\s*\{/g;
+  const animatedOpacityOffenders = [];
+  let m;
+  while ((m = keyframeRe.exec(cssText))) {
+    const block = extractBracedBlock(cssText, m.index + m[0].length - 1);
+    if (/\bopacity\s*:/.test(block)) animatedOpacityOffenders.push(m[1]);
+  }
+  check('css: no pub-hero-drift-* keyframe block ever declares opacity (the contrast proof requires opacity to be static)',
+    animatedOpacityOffenders.length === 0, animatedOpacityOffenders.join(', '));
+
+  // Same invariant, the other way it could be broken: a `transition` on a
+  // plane rule would let a hover, focus or class change animate opacity
+  // even with no such keyframe. No such rule exists today; this asserts it
+  // stays that way. Rule bodies are brace-matched the same way, from each
+  // `.pub-hero-plane` selector's own opening brace.
+  const planeRuleRe = /\.pub-hero-plane[\w-]*\s*(?:,\s*\.pub-hero-plane[\w-]*\s*)*\{/g;
+  const transitionOpacityOffenders = [];
+  while ((m = planeRuleRe.exec(cssText))) {
+    const block = extractBracedBlock(cssText, m.index + m[0].length - 1);
+    const transitionDecl = block.match(/transition\s*:\s*([^;]+);/);
+    if (transitionDecl && /\b(opacity|all)\b/.test(transitionDecl[1])) transitionOpacityOffenders.push(m[0].trim());
+  }
+  check('css: no .pub-hero-plane rule carries a transition touching opacity',
+    transitionOpacityOffenders.length === 0, transitionOpacityOffenders.join(' | '));
 }
 
 /* --- Phase 16.2: the planes never affect layout, cause a scrollbar, or
