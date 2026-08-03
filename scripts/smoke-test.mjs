@@ -112,30 +112,75 @@ check('public: trust line and CTA present',
   (await page.textContent('#public-root')).includes('No affiliates')
   && (await page.textContent('#public-root')).includes('Talk to Kaipability'));
 
-/* --- Phase 15: hero utility nav (PRD section 16 amended, layout item 1) ---
-   My Stack and FAQ links inside .pub-header, each at least 44px tall (the
-   site-wide touch-target rule), present without moving the pinned
-   first-shelf budget below (that budget's own check, further down, already
-   proves the number itself; this just confirms the nav did not regress
-   it). */
+/* --- Phase 15/16: hero utility bar (PRD section 16 amended, layout item 1)
+   My Stack, FAQ, Plain English and the theme toggle inside .pub-header,
+   all four at least 44px in both dimensions (the site-wide touch-target
+   rule), present without moving the pinned first-shelf budget below
+   (that budget's own check, further down, already proves the number
+   itself; this just confirms the bar did not regress it). Phase 16 moves
+   Plain English and the theme toggle in here from the now-retired
+   shelf-band controls row, so the bar carries four items, not two. */
 const heroNavLinks = page.locator('.pub-header .pub-hero-nav a');
 check('homepage: hero utility nav links to /my and /faq.html', await heroNavLinks.count() === 2
   && (await heroNavLinks.nth(0).getAttribute('href')) === '/my'
   && (await heroNavLinks.nth(1).getAttribute('href')) === '/faq.html');
-const heroNavBoxes = await heroNavLinks.evaluateAll((nodes) => nodes.map((n) => n.getBoundingClientRect().height));
+const heroUtilItems = page.locator('.pub-hero-nav a, .pub-hero-nav button');
+check('homepage: hero utility bar carries exactly four items (My Stack, FAQ, Plain English, theme toggle)',
+  await heroUtilItems.count() === 4);
+const heroUtilBoxes = await heroUtilItems.evaluateAll((nodes) => nodes.map((n) => {
+  const r = n.getBoundingClientRect();
+  return { w: r.width, h: r.height };
+}));
 // Sub-pixel tolerance: getBoundingClientRect() on this inline-flex row can
 // report 43.999996 for a CSS min-height:44px box (observed on this exact
 // build), a float-rounding artefact rather than a real sub-44px target;
 // the same 0.1px tolerance a device's own physical pixel grid would round
 // away.
-check('homepage: hero utility nav links are each at least 44px tall',
-  heroNavBoxes.every((h) => h >= 43.9), heroNavBoxes.join(','));
+check('homepage: all four hero utility bar items are at least 44px in both dimensions at 1280px',
+  heroUtilBoxes.every((b) => b.w >= 43.9 && b.h >= 43.9), JSON.stringify(heroUtilBoxes));
+check('homepage: Plain English and theme toggle carry aria-pressed in the hero utility bar',
+  await page.locator('.pub-hero-nav .plain-toggle[aria-pressed]').count() === 1
+  && await page.locator('.pub-hero-nav .theme-toggle[aria-pressed]').count() === 1);
+
+// Below 768px the two toggles may render icon-only (PRD section 16 amended:
+// "with an accessible name"): the visible label collapses to a
+// visually-hidden span rather than disappearing from the accessible tree,
+// so the button keeps an accessible name even though nothing reads on
+// screen. Measured at the literal 375x812 reference the fold budget itself
+// uses.
+const heroMobilePage = await browser.newPage({ viewport: { width: 375, height: 812 } });
+await heroMobilePage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await heroMobilePage.goto(`${base}/`);
+await heroMobilePage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+const heroMobileItems = heroMobilePage.locator('.pub-hero-nav a, .pub-hero-nav button');
+check('homepage: hero utility bar still holds exactly four items at 375px', await heroMobileItems.count() === 4);
+const heroMobileBoxes = await heroMobileItems.evaluateAll((nodes) => nodes.map((n) => {
+  const r = n.getBoundingClientRect();
+  return { w: r.width, h: r.height };
+}));
+check('homepage: all four hero utility bar items are at least 44px in both dimensions at 375px',
+  heroMobileBoxes.every((b) => b.w >= 43.9 && b.h >= 43.9), JSON.stringify(heroMobileBoxes));
+const heroMobileAccessibleNames = await heroMobilePage.evaluate(() => {
+  const plain = document.querySelector('.pub-hero-nav .plain-toggle');
+  const theme = document.querySelector('.pub-hero-nav .theme-toggle');
+  return { plain: plain ? plain.textContent.trim() : null, theme: theme ? theme.textContent.trim() : null };
+});
+check('homepage: Plain English and theme toggle keep a non-empty accessible name at 375px (icon-only visually, not to assistive tech)',
+  !!heroMobileAccessibleNames.plain && !!heroMobileAccessibleNames.theme, JSON.stringify(heroMobileAccessibleNames));
+const heroMobileScrollW = await heroMobilePage.evaluate(() => document.documentElement.scrollWidth);
+check('homepage: no horizontal scroll at 375px with the four-item hero utility bar', heroMobileScrollW <= 375, `scrollWidth=${heroMobileScrollW}`);
+await heroMobilePage.close();
 
 /* --- Phase 15: footer good-practice block (PRD section 16 amended, layout
    item 6) -------------------------------------------------------------- */
 const footerHtml = await page.locator('.pub-footer').innerHTML();
 check('homepage: footer links to /privacy.html and /contact.html',
   footerHtml.includes('href="/privacy.html"') && footerHtml.includes('href="/contact.html"'));
+// Phase 16: the footer's legal and practice line gains a Changelog link
+// (js/public.js renders the footer at runtime, so this is checked against
+// the rendered page, not the raw no-JS fetch the earlier static-content
+// checks use).
+check('homepage: footer legal line links /changelog.html', footerHtml.includes('href="/changelog.html"'));
 const footerOutboundLinks = await page.locator('.pub-footer a[href^="https://kaipability.com"], .pub-footer a[href^="https://www.airl.io"]').all();
 const footerOutboundRels = await Promise.all(footerOutboundLinks.map((a) => a.getAttribute('rel')));
 check('homepage: footer carries outbound links to kaipability.com and www.airl.io, all rel=noopener noreferrer',
@@ -151,7 +196,14 @@ await page.fill('#public-root input[type=search]', 'canva');
 await page.waitForFunction((total) => document.querySelectorAll('#public-root .card-grid > li:not([hidden])').length < total, active.length);
 const publicFiltered = await page.locator('#public-root .tool-card:visible').count();
 check('public: search filters cards', publicFiltered > 0 && publicFiltered < active.length, `visible=${publicFiltered}`);
-check('public: recently-updated strip renders', await page.locator('.pub-changelog, [class*=changelog]').count() >= 1);
+// Phase 16 (Rocky, 2 Aug: "remove the recently updated and move it"): the
+// homepage keeps no trace of the changelog strip at all, not a hidden or
+// collapsed remnant. Checked both against the rendered DOM and the raw
+// page source further down (the "no changelog node anywhere in the raw
+// HTML" check, near the other AEO raw-fetch assertions), so a
+// server-rendered leftover the DOM check alone could miss is still caught.
+check('public: no changelog node of any kind remains on the homepage',
+  await page.locator('[class*=changelog], [id*=changelog]').count() === 0);
 await page.fill('#public-root input[type=search]', '');
 await page.waitForFunction(() => document.querySelectorAll('#public-root .card-grid > li[hidden]').length === 0);
 
@@ -2913,6 +2965,9 @@ const faqHtml = (await readFile(join(ROOT, 'faq.html'))).toString('utf8');
 // needs a new CSP hash entry.
 const privacyHtml = (await readFile(join(ROOT, 'privacy.html'))).toString('utf8');
 const contactHtml = (await readFile(join(ROOT, 'contact.html'))).toString('utf8');
+// Phase 16: changelog.html joins the same mould, reusing the byte-for-byte
+// boot script so it too needs no new CSP hash entry.
+const changelogHtmlSrc = (await readFile(join(ROOT, 'changelog.html'))).toString('utf8');
 const netlifyToml = (await readFile(join(ROOT, 'netlify.toml'))).toString('utf8');
 
 const indexInline = extractInlineScripts(rawHtml);
@@ -2921,7 +2976,8 @@ const whyInline = extractInlineScripts(whyRegisterHtml);
 const faqInline = extractInlineScripts(faqHtml);
 const privacyInline = extractInlineScripts(privacyHtml);
 const contactInline = extractInlineScripts(contactHtml);
-const currentHashes = new Set([...indexInline, ...embedInline, ...whyInline, ...faqInline, ...privacyInline, ...contactInline].map(sha256Base64));
+const changelogInline = extractInlineScripts(changelogHtmlSrc);
+const currentHashes = new Set([...indexInline, ...embedInline, ...whyInline, ...faqInline, ...privacyInline, ...contactInline, ...changelogInline].map(sha256Base64));
 
 const cspScriptSrcLine = netlifyToml.split('\n').find((l) => l.includes('Content-Security-Policy') && l.includes('script-src'));
 const cspHashes = new Set([...(cspScriptSrcLine || '').matchAll(/'sha256-([A-Za-z0-9+/]+=*)'/g)].map((m) => m[1]));
@@ -2940,6 +2996,10 @@ check('csp: contact.html boot script is byte identical to index.html (Phase 15, 
   indexInline.length === 1 && contactInline.length === 1 && sha256Base64(indexInline[0]) === sha256Base64(contactInline[0]));
 check('csp: privacy.html and contact.html introduce no additional inline script beyond the shared boot script',
   privacyInline.length === 1 && contactInline.length === 1);
+check('csp: changelog.html boot script is byte identical to index.html (Phase 16, no third hash needed)',
+  indexInline.length === 1 && changelogInline.length === 1 && sha256Base64(indexInline[0]) === sha256Base64(changelogInline[0]));
+check('csp: changelog.html introduces no additional inline script beyond the shared boot script',
+  changelogInline.length === 1);
 
 // Regression guard for the JSON-LD exclusion itself (PRD section 18,
 // "Smoke-gate exclusion for JSON-LD"): a type="application/ld+json" block
@@ -2991,6 +3051,14 @@ check('csp: privacy.html and contact.html introduce no additional inline script 
     rawRootHtml.includes('No affiliates, no sponsors, no paid placement.')
     && rawRootHtml.includes(`${active.length} free tool`)
     && /href="\/faq\.html"/.test(rawRootHtml));
+  // Phase 16 (Rocky, 2 Aug): the "Recently updated" strip is removed from
+  // the homepage entirely, not just hidden. Checked against the raw page
+  // source, not only the rendered DOM (the earlier "no changelog node of
+  // any kind remains on the homepage" check further up this file), so a
+  // server-rendered leftover neither check alone could miss stays caught by
+  // at least one of the two.
+  check('aeo: raw fetch of / carries no changelog node of any kind (class or id)',
+    !/class="[^"]*changelog/i.test(rawRootHtml) && !/id="[^"]*changelog/i.test(rawRootHtml));
   // Per-tool question, tool 0 specifically (PRD section 18, per-tool
   // questions, and the section 4 id law: id 0 is a real tool and must never
   // be dropped by a truthiness check anywhere in this pipeline).
@@ -3105,6 +3173,44 @@ check('csp: privacy.html and contact.html introduce no additional inline script 
   check('aeo: faq.html has no horizontal scroll at 375px', faqScrollW <= 375, `scrollWidth=${faqScrollW}`);
   await faqMobile.close();
 
+  /* --- changelog.html (PRD section 16 amended, Phase 16): static,
+     indexable, generated from data/changelog.json the way faq.html is
+     generated from FAQ_ITEMS, no runtime fetch. Entry text is asserted
+     against a plain fetch of the page source, not just the rendered DOM,
+     per this wave's own brief. */
+  const changelogJsonEntries = JSON.parse(await readFile(join(ROOT, 'data', 'changelog.json'), 'utf8'));
+  const changelogRes = await fetch(`${base}/changelog.html`);
+  const changelogRawHtml = await changelogRes.text();
+  check('aeo: /changelog.html serves 200', changelogRes.status === 200);
+  const changelogMissingDetails = changelogJsonEntries.filter((e) => !changelogRawHtml.includes(escapeHtmlForCheck(e.detail)));
+  check('aeo: /changelog.html carries every data/changelog.json entry as raw HTML text (no runtime fetch)',
+    changelogJsonEntries.length > 0 && changelogMissingDetails.length === 0,
+    `entries=${changelogJsonEntries.length} missing=${changelogMissingDetails.length}`);
+  check('aeo: /changelog.html carries no robots meta tag (indexable)',
+    !/<meta\s+name="robots"/i.test(changelogRawHtml));
+  check('aeo: /changelog.html makes no runtime fetch of data/changelog.json (entries are static markup)',
+    !/fetch\(\s*['"]data\/changelog\.json['"]\s*\)/.test(changelogRawHtml));
+  check('aeo: /changelog.html carries a canonical link to itself',
+    changelogRawHtml.includes('<link rel="canonical" href="https://tools.airl.io/changelog.html">'));
+
+  await page.goto(`${base}/changelog.html`);
+  await page.waitForSelector('.changelog-item');
+  const changelogVisibleDetails = await page.locator('.changelog-detail').allTextContents();
+  check('aeo: changelog.html renders every entry as visible text (not JS-injected)',
+    changelogJsonEntries.every((e) => changelogVisibleDetails.includes(e.detail)));
+  const changelogArchivedCount = await page.locator('.changelog-item.is-archived').count();
+  const expectedArchivedCount = changelogJsonEntries.filter((e) => e.kind === 'archived').length;
+  check('aeo: changelog.html marks archived entries with their own class, matching data/changelog.json',
+    changelogArchivedCount === expectedArchivedCount, `rendered=${changelogArchivedCount} expected=${expectedArchivedCount}`);
+
+  const changelogMobile = await browser.newPage({ viewport: { width: 375, height: 812 } });
+  await changelogMobile.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await changelogMobile.goto(`${base}/changelog.html`);
+  await changelogMobile.waitForSelector('.changelog-item');
+  const changelogScrollW = await changelogMobile.evaluate(() => document.documentElement.scrollWidth);
+  check('aeo: changelog.html has no horizontal scroll at 375px', changelogScrollW <= 375, `scrollWidth=${changelogScrollW}`);
+  await changelogMobile.close();
+
   // index.html head JSON-LD: Organization, WebSite, ItemList, valid JSON,
   // expected @types, ItemList length equals the active count (id 0 counted:
   // no truthiness filter anywhere in this pipeline could silently drop it).
@@ -3136,17 +3242,19 @@ check('csp: privacy.html and contact.html introduce no additional inline script 
 
   // sitemap.xml: exactly the permitted URLs, nothing noindexed, no
   // how-we-choose.html until Rocky's sign-off lands. Phase 15 (PRD section
-  // 16 amended) adds privacy.html and contact.html to this list.
+  // 16 amended) adds privacy.html and contact.html; Phase 16 adds
+  // changelog.html.
   const sitemapRes = await fetch(`${base}/sitemap.xml`);
   const sitemapXml = await sitemapRes.text();
   const sitemapUrls = [...sitemapXml.matchAll(/<loc>([^<]*)<\/loc>/g)].map((m) => m[1]);
-  check('aeo: sitemap.xml lists exactly /, /faq.html, /privacy.html and /contact.html, nothing else',
+  check('aeo: sitemap.xml lists exactly /, /faq.html, /privacy.html, /contact.html and /changelog.html, nothing else',
     sitemapRes.status === 200
-    && sitemapUrls.length === 4
+    && sitemapUrls.length === 5
     && sitemapUrls.includes('https://tools.airl.io/')
     && sitemapUrls.includes('https://tools.airl.io/faq.html')
     && sitemapUrls.includes('https://tools.airl.io/privacy.html')
-    && sitemapUrls.includes('https://tools.airl.io/contact.html'));
+    && sitemapUrls.includes('https://tools.airl.io/contact.html')
+    && sitemapUrls.includes('https://tools.airl.io/changelog.html'));
 
   // robots.txt: Sitemap line present, still no disallow anywhere (a
   // disallow for /x would advertise the hidden staff path).
@@ -3157,14 +3265,15 @@ check('csp: privacy.html and contact.html introduce no additional inline script 
     && robotsTxt.includes('Sitemap: https://tools.airl.io/sitemap.xml')
     && !/Disallow:/i.test(robotsTxt));
 
-  // llms.txt: served, points at the machine-readable dataset, the FAQ and
-  // (Phase 15) the contact page.
+  // llms.txt: served, points at the machine-readable dataset, the FAQ,
+  // (Phase 15) the contact page and (Phase 16) the changelog.
   const llmsRes = await fetch(`${base}/llms.txt`);
   const llmsTxt = await llmsRes.text();
-  check('aeo: llms.txt is served and points at /data/tools.json, /faq.html and /contact.html',
+  check('aeo: llms.txt is served and points at /data/tools.json, /faq.html, /changelog.html and /contact.html',
     llmsRes.status === 200
     && llmsTxt.includes('/data/tools.json')
     && llmsTxt.includes('/faq.html')
+    && llmsTxt.includes('/changelog.html')
     && llmsTxt.includes('/contact.html'));
 
   /* --- Wave 14.3b: data/faq.json as the single source of truth, and its two
@@ -3317,10 +3426,14 @@ check('csp: privacy.html and contact.html introduce no additional inline script 
   const { execFileSync } = await import('node:child_process');
   // 'data/faq.json' (wave 14.3b): the same drift proof now covers the JSON
   // source of truth every runtime surface fetches, not only the HTML/XML/
-  // text artefacts. .github/workflows/ci.yml's own drift step diffs this
-  // exact path list too, so a real CI run and this in-suite corroboration
-  // can never disagree about what "covered by the drift gate" means.
-  const artefacts = ['index.html', 'faq.html', 'sitemap.xml', 'llms.txt', 'robots.txt', join('data', 'faq.json')];
+  // text artefacts. 'changelog.html' (Phase 16) joins the same list this
+  // wave. .github/workflows/ci.yml's own drift step diffs an explicit path
+  // list too; this wave's addition to it is outside this file's ownership
+  // (see this wave's own report), so this in-suite corroboration is, for
+  // now, the one place changelog.html's own drift is actually gated end to
+  // end. A real CI run and this corroboration can never disagree about
+  // what "covered by the drift gate" means for every path they DO share.
+  const artefacts = ['index.html', 'faq.html', 'changelog.html', 'sitemap.xml', 'llms.txt', 'robots.txt', join('data', 'faq.json')];
   const before = Object.fromEntries(await Promise.all(artefacts.map(async (f) => [f, await readFile(join(ROOT, f), 'utf8')])));
   execFileSync(process.execPath, [join(ROOT, 'scripts', 'build-seo.mjs')], { cwd: ROOT });
   const afterFirstRun = Object.fromEntries(await Promise.all(artefacts.map(async (f) => [f, await readFile(join(ROOT, f), 'utf8')])));

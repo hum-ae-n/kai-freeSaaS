@@ -1132,27 +1132,38 @@ html.js-boot #static-root { display: none; }
 }
 .pub-header .logo { height: 40px; width: auto; margin-bottom: var(--s-5); }
 
-/* --- hero utility nav (PRD section 16 amended, layout item 1, Phase 15) ---
-   "My Stack" and "FAQ", pinned to the panel's top-right corner. Absolute
-   positioning takes it out of normal flow entirely, which is what lets it
-   add zero vertical height at 375px: the 880px first-shelf budget below is
-   measured against the header's normal content flow (logo, h1, strapline,
-   trust lines), which this nav never joins. It is a plain child of
-   .pub-header, so it inherits the hero's first-paint stagger (motion
-   inventory item 1) rather than needing an animation of its own. Quiet
-   text links, not buttons, each padded to a 44px minimum target per the
-   site-wide touch-target rule. */
+/* --- hero utility bar (PRD section 16 amended, layout item 1, Phase 15,
+   extended Phase 16) --------------------------------------------------------
+   "My Stack", "FAQ", Plain English and the light/dark toggle, pinned to the
+   panel's top-right corner. Absolute positioning takes it out of normal
+   flow entirely, which is what lets it add zero vertical height of its own
+   at 375px: the 880px first-shelf budget below is measured against the
+   header's normal content flow (logo, h1, strapline, trust lines), which
+   this nav never joins. It is a plain child of .pub-header, so it inherits
+   the hero's first-paint stagger (motion inventory item 1) rather than
+   needing an animation of its own. My Stack/FAQ are quiet text links, not
+   buttons; Plain English and the theme toggle (moved in here from the
+   retired shelf-band controls row, Phase 16, Rocky's 2 Aug direction) keep
+   their existing .btn-ghost/.btn-lg shape (CLIENT/COMPONENTS blocks, not
+   touched here), just resized below to sit comfortably alongside the
+   links. Every one of the four is at least 44px in both dimensions at
+   every viewport, per the site-wide touch-target rule. */
 .pub-hero-nav {
   position: absolute;
   top: 0;
   right: 0;
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: var(--s-1);
 }
 .pub-hero-nav a {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   min-height: 44px;
+  min-width: 44px;
   padding: 0 var(--s-2);
   color: var(--ink-3);
   font-family: var(--font-sans);
@@ -1163,6 +1174,44 @@ html.js-boot #static-root { display: none; }
   transition: color var(--dur-fast) var(--ease-out);
 }
 .pub-hero-nav a:hover, .pub-hero-nav a:focus-visible { color: var(--oxblood); }
+/* Plain English and theme toggle: only sizing and spacing are touched here,
+   never colour, border or background, which stay entirely the .btn-ghost/
+   .plain-toggle[aria-pressed="true"] rules already own (CLIENT block):
+   those two selectors and this one share the same specificity (two
+   classes), so had this rule set colour/background/border too, source
+   order (this PUBLIC block sits after CLIENT) would make it win outright
+   and silently erase the pressed-state highlight. Restricting this rule to
+   layout properties sidesteps that entirely, regardless of cascade order. */
+.pub-hero-nav .btn {
+  min-height: 44px;
+  min-width: 44px;
+  justify-content: center;
+  padding: 0 var(--s-3);
+  font-size: var(--fs-12);
+}
+/* Plain English's own icon (js/public.js's plainToggleIcon, this page's
+   only user of the class): flex: none the same way COMPONENTS' shared
+   .theme-toggle-icon already is, so a squeezed row never shrinks the glyph
+   itself. */
+.plain-toggle-icon { flex: none; }
+/* Below 768px (PRD section 16 amended: "the two toggles may render
+   icon-only, with an accessible name, to fit one row"): the visible label
+   collapses to the same visually-hidden technique the BASE block's own
+   .visually-hidden class uses (position/clip, not display:none, so the
+   accessible name and aria-pressed state both survive for assistive tech;
+   duplicated rather than applying that class from JS, since neither button
+   is built with viewport in mind and a static rule here needs no JS
+   involvement at all). Icon plus padding alone still clears the 44px
+   floor via the min-width rule above. */
+@media (max-width: 767px) {
+  .pub-hero-nav .plain-toggle .pub-util-label,
+  .pub-hero-nav .theme-toggle span {
+    position: absolute; width: 1px; height: 1px;
+    margin: -1px; padding: 0; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+  .pub-hero-nav .btn { padding: 0 var(--s-2); gap: 0; }
+}
 .pub-header h1 {
   font-family: var(--font-display);
   font-weight: 900;
@@ -1183,32 +1232,13 @@ html.js-boot #static-root { display: none; }
 .pub-search-row { margin-bottom: var(--s-5); }
 .pub-search { width: 100%; min-width: 0; }
 
-/* Recently updated strip (Feature 3, Batch I): quiet, editorial, hairline
-   rules between entries. Archived entries get no extra treatment at all:
-   retirements are a trust signal here, not something to visually apologise
-   for, so .is-archived intentionally carries no rule of its own. */
-.pub-changelog-summary { cursor: pointer; list-style-position: outside; min-height: 24px; display: list-item; }
-.pub-changelog-details > ul { margin-top: var(--s-3); }
-.pub-changelog {
-  margin-bottom: var(--s-5);
-  padding: var(--s-5) var(--s-6);
-}
-.pub-changelog-list {
-  margin-top: var(--s-3);
-  list-style: none;
-  padding: 0;
-}
-.pub-changelog-item {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s-1) var(--s-3);
-  padding: var(--s-2) 0;
-  border-top: var(--bw-hair) solid var(--paper-edge);
-  font-size: var(--fs-14);
-}
-.pub-changelog-item:first-child { border-top: none; }
-.pub-changelog-date { flex: none; color: var(--ink-3); font-family: var(--font-sans); font-size: var(--fs-12); }
-.pub-changelog-detail { color: var(--ink-2); }
+/* The "Recently updated" strip (Feature 3, Batch I) that used to live here
+   is removed from the homepage in Phase 16 (Rocky, 2 Aug: "remove the
+   recently updated and move it"): it is now the static, generated
+   /changelog.html page (scripts/build-seo.mjs), linked from the footer's
+   legal and practice line below, and carries its own inline <style> in the
+   why-register.html/faq.html mould rather than a rule here. Nothing of
+   this page keeps even a hidden trace of it. */
 
 .pub-empty { color: var(--ink-2); padding: var(--s-10) 0; }
 
@@ -1539,13 +1569,10 @@ html.js-boot #static-root { display: none; }
    min-height (no extra vertical padding on the header or the section), so
    15 collapsed shelves stay well inside the page-height budget. */
 .pub-shelf-band { margin-bottom: var(--s-10); }
-/* Verifier fix round: two explicit rows (title+Expand all, then Plain
-   English+theme toggle), not one flex-wrap group of four items. Kept as a
-   pair each, the two rows both fit their own single line down to 375px;
-   left to wrap as one group of four they measured a full two internal
-   wraps at 375px, defeating the "one row folded in, ~92px" saving this fix
-   is meant to realise (PRD section 16 amended, "first shelf rows visible
-   within the first mobile viewport"). */
+/* Phase 16 retires the second row this header used to carry (Plain English
+   and the theme toggle, moved into the hero utility bar above): title and
+   Expand all are the whole header again, the shape it had before the
+   verifier fix round that first split it into two rows. */
 .pub-shelf-band-header {
   display: flex;
   flex-direction: column;
@@ -1571,7 +1598,6 @@ html.js-boot #static-root { display: none; }
   letter-spacing: var(--tr-tight);
   color: var(--ink);
 }
-.pub-shelf-band-controls { display: flex; flex-wrap: wrap; gap: var(--s-3); }
 .pub-shelf-match-count { margin: 0 0 var(--s-4); color: var(--ink-2); font-size: var(--fs-14); line-height: var(--lh-14); }
 
 .pub-shelves { display: flex; flex-direction: column; gap: var(--s-2); }
@@ -1936,12 +1962,11 @@ html.js-boot #static-root { display: none; }
 }
 
 /* Homepage FAQ slot (PRD section 16 item 5, filled in wave 14.3b): ten
-   native <details>/<summary> items, one per site Q&A, in the same quiet
-   editorial language as .pub-changelog above (hairline rules, list-style
-   marker on the summary, no panel chrome around the whole section since it
-   sits directly on the page like the shelf band, not boxed like the
-   changelog strip). All colour comes from the existing --ink/--paper-edge
-   tokens, so dark mode is automatic, the same as every other PUBLIC rule.
+   native <details>/<summary> items, one per site Q&A, quiet editorial
+   hairline rules, list-style marker on the summary, no panel chrome around
+   the whole section since it sits directly on the page like the shelf
+   band. All colour comes from the existing --ink/--paper-edge tokens, so
+   dark mode is automatic, the same as every other PUBLIC rule.
    No motion here at all, deliberately: details/summary toggles instantly by
    native browser behaviour, so there is nothing for the reduced-motion query
    to guard and nothing added to the motion inventory. */

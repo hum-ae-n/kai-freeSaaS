@@ -217,6 +217,29 @@ function chevronIcon() {
   return svg;
 }
 
+/** A "lines of text" glyph for the Plain English toggle (Phase 16, PRD
+    section 16 amended layout item 1): the same hand-built SVG technique as
+    chevronIcon/categoryIcon/themeIcon above, no icon font, no extra
+    request. Unlike the theme toggle, Plain English never had an icon of its
+    own before this wave; this is what lets it collapse to icon-only below
+    768px alongside the theme toggle rather than being the one item in the
+    bar with no compact form (see the PUBLIC block of styles.css for the
+    breakpoint and the visually-hidden label it swaps to). */
+function plainToggleIcon() {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  for (const [key, value] of Object.entries({
+    viewBox: '0 0 24 24', width: '16', height: '16', fill: 'none',
+    stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round',
+    'stroke-linejoin': 'round', 'aria-hidden': 'true', class: 'plain-toggle-icon',
+  })) svg.setAttribute(key, value);
+  for (const d of ['M4 7h16', 'M4 12h11', 'M4 17h14']) {
+    const path = document.createElementNS(SVG_NS, 'path');
+    path.setAttribute('d', d);
+    svg.append(path);
+  }
+  return svg;
+}
+
 /** Groups tools by category, insertion order preserved, the same grouping
     buildCardSections does internally. Called on the same array in the same
     order as the buildCardSections() call below, so the two orderings can
@@ -280,15 +303,43 @@ export function renderPublic(root, tools) {
       '.',
     ),
   );
-  // Utility nav (PRD section 16 amended, layout item 1, Phase 15): quiet
-  // links to My Stack and FAQ, pinned to the panel's top corner by CSS
-  // absolute positioning so it adds no vertical height at 375px and the
-  // 880px first-shelf budget below stays untouched. A plain child of
-  // `header`, so it inherits the hero's first-paint stagger rather than
-  // needing a second reveal call. Real internal links, no target=_blank.
+  // Plain English and theme toggle (Phase 16, PRD section 16 amended layout
+  // item 1, Rocky's 2 Aug direction: "buttons for plain english and light
+  // dark mode switch should be on the top bar really"): built here, ahead
+  // of heroNav below, so they can sit in it alongside My Stack and FAQ.
+  // They used to share a row with Expand all on the shelf-band header (see
+  // BUILD-PLAN's "verifier fix round" history); that row is retired below
+  // and its saved height is what pays for this bar (see this wave's own
+  // report for the measured before/after fold numbers).
+  const plainBtn = el('button', {
+    class: 'btn btn-ghost btn-lg plain-toggle', type: 'button', 'aria-pressed': String(plainMode),
+  }, plainToggleIcon(), el('span', { class: 'pub-util-label' }, 'Plain English'));
+  plainBtn.addEventListener('click', () => {
+    plainMode = !plainMode;
+    writePlainMode(plainMode);
+    plainBtn.setAttribute('aria-pressed', String(plainMode));
+    // Card body text (plain vs normal) is baked in at render time by
+    // client.js's card(), so this is the one action in this file that still
+    // rebuilds shelf DOM wholesale rather than toggling hidden/aria state.
+    shelves = buildShelves(active, plainMode);
+    applyFilter();
+  });
+  const themeBtn = themeToggleButton('btn-ghost btn-lg');
+
+  // Utility bar (PRD section 16 amended, layout item 1): My Stack, FAQ,
+  // Plain English and the light/dark toggle, in that order, all four at
+  // least 44px. Pinned to the panel's top corner by CSS absolute
+  // positioning so it adds no vertical height of its own at 375px, on top
+  // of whatever height the retired shelf-band row frees up. A plain child
+  // of `header`, so it inherits the hero's first-paint stagger rather than
+  // needing a second reveal call. My Stack/FAQ are real internal links, no
+  // target=_blank; the two toggles keep their existing behaviour, just
+  // relocated.
   const heroNav = el('nav', { class: 'pub-hero-nav', 'aria-label': 'Utility' },
     el('a', { href: '/my' }, 'My Stack'),
     el('a', { href: '/faq.html' }, 'FAQ'),
+    plainBtn,
+    themeBtn,
   );
   const header = el('header', { class: 'panel pub-header' },
     heroNav,
@@ -359,26 +410,6 @@ export function renderPublic(root, tools) {
   // never a modal"). discover.js owns everything rendered inside it once
   // opened.
   const discoverMount = el('div', { class: 'discover-mount', hidden: true });
-
-  // Verifier fix round (page-height budget, PRD section 16 amended, "first
-  // shelf rows visible within the first mobile viewport"): the Plain
-  // English and theme-toggle buttons no longer get their own toolbar row
-  // above the shelf band. They move into the shelf-band header itself,
-  // alongside Expand all, saving a full row's height on every viewport,
-  // mobile included.
-  const plainBtn = el('button', {
-    class: 'btn btn-ghost btn-lg plain-toggle', type: 'button', 'aria-pressed': String(plainMode),
-  }, 'Plain English');
-  plainBtn.addEventListener('click', () => {
-    plainMode = !plainMode;
-    writePlainMode(plainMode);
-    plainBtn.setAttribute('aria-pressed', String(plainMode));
-    // Card body text (plain vs normal) is baked in at render time by
-    // client.js's card(), so this is the one action in this file that still
-    // rebuilds shelf DOM wholesale rather than toggling hidden/aria state.
-    shelves = buildShelves(active, plainMode);
-    applyFilter();
-  });
 
   function scrollToShelfBand() {
     shelfBand.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
@@ -551,13 +582,6 @@ export function renderPublic(root, tools) {
     }
   });
 
-  /* --- recently updated strip (Feature 3, Batch I) -------------------------
-     Fetched separately from tools.json, non-blocking: a missing or broken
-     data/changelog.json must never stop the rest of the directory rendering,
-     it simply renders nothing (with a console.warn) instead. */
-  const changelogSection = el('section', { class: 'panel pub-changelog', hidden: true, 'aria-label': 'Recently updated' });
-  loadChangelog(changelogSection);
-
   /* --- category shelves (PRD section 16, "Category shelves", "Shelf
      mechanics") ---------------------------------------------------------- */
   const matchCountLine = el('p', { class: 'pub-shelf-match-count', hidden: true, 'aria-live': 'polite' });
@@ -574,23 +598,17 @@ export function renderPublic(root, tools) {
       syncExpandAllLabel();
     });
   });
-  // Two explicit rows, not one flex-wrap soup of four items: title+Expand
-  // all (which fit one line together down to 375px) stay paired exactly as
-  // before this fix round, and Plain English/theme toggle form their own
-  // second row underneath. Letting all four wrap as a single group instead
-  // measured two full internal wraps at 375px (roughly 146px), defeating
-  // the "~92px, one row" saving this fold is meant to realise; kept as two
-  // clean rows it measures close to that estimate instead.
+  // Title and Expand all, a single row (fits one line together down to
+  // 375px). Phase 16 retires the second row this header used to carry
+  // (Plain English and the theme toggle): both moved into the hero utility
+  // bar above, per PRD section 16 amended layout item 1, so this is the
+  // whole shelf-band header once again.
   const shelfBandTopRow = el('div', { class: 'pub-shelf-band-top' },
     el('h2', { class: 'pub-shelf-band-title' }, 'Browse all tools'),
     expandAllBtn,
   );
-  const shelfBandControls = el('div', { class: 'pub-shelf-band-controls' },
-    plainBtn, themeToggleButton('btn-ghost btn-lg'),
-  );
   const shelfBandHeader = el('div', { class: 'pub-shelf-band-header' },
     shelfBandTopRow,
-    shelfBandControls,
   );
   const shelvesWrap = el('div', { class: 'pub-shelves' });
   const shelfBand = el('section', {
@@ -801,7 +819,7 @@ export function renderPublic(root, tools) {
      permalink and the static crawler block read, so this text is never
      re-derived here: fetched, not computed. Stays hidden and costs nothing
      against the page-height budget if the fetch fails, same tolerance as
-     the changelog strip and persona packs just above. */
+     the persona packs just above. */
   const faqSection = el('section', { class: 'pub-faq', id: 'faq', 'aria-label': 'Frequently asked questions', hidden: true });
   loadFaqSection(faqSection);
 
@@ -872,11 +890,15 @@ export function renderPublic(root, tools) {
       ),
       // Good-practice block (PRD section 16 amended, layout item 6, Phase
       // 15): the legal/practice line and the company identity line, added
-      // below the existing lines rather than replacing any of them.
+      // below the existing lines rather than replacing any of them. Phase
+      // 16 adds Changelog: the "Recently updated" strip removed from this
+      // page (Rocky, 2 Aug) becomes its own linked page rather than
+      // vanishing outright.
       el('p', { class: 't-meta pub-footer-legal' },
         el('a', { href: '/privacy.html' }, 'Privacy'), ' · ',
         el('a', { href: '/contact.html' }, 'Contact'), ' · ',
         el('a', { href: '/faq.html' }, 'FAQ'), ' · ',
+        el('a', { href: '/changelog.html' }, 'Changelog'), ' · ',
         el('a', { href: '/why-register.html' }, 'Why we built My Stack'),
       ),
       el('p', { class: 't-meta pub-footer-company' },
@@ -891,7 +913,7 @@ export function renderPublic(root, tools) {
 
   shelves = buildShelves(active, plainMode);
   applyFilter();
-  root.replaceChildren(header, entryPaths, discoverMount, changelogSection, shelfBand, faqSection, footer);
+  root.replaceChildren(header, entryPaths, discoverMount, shelfBand, faqSection, footer);
   document.title = 'Free Stack · Kaipability';
 
   handleHashDeepLink();
@@ -1148,10 +1170,10 @@ function buildJudgeChipWrap(li, tool, judgeApi) {
 
 /** Persona-pack chips (PRD section 16, entry path 2). Fetched separately
     from tools.json, non-blocking: a missing or broken data/presets.json
-    leaves the Discover entry path fully usable, same tolerance the
-    changelog strip already has. Choosing a pack filters the shelves to that
-    pack's ids (via the same applyFilter() the search box calls); it never
-    navigates away. A second click on the active chip clears the filter.
+    leaves the Discover entry path fully usable, same tolerance the FAQ
+    slot has. Choosing a pack filters the shelves to that pack's ids (via
+    the same applyFilter() the search box calls); it never navigates away.
+    A second click on the active chip clears the filter.
     State lives in renderPublic's closure, not here, so it is threaded
     through as get/set pairs rather than duplicated as module-level
     variables. */
@@ -1202,56 +1224,14 @@ async function loadPersonaPacks(row, activeIds, state) {
   }
 }
 
-/** Newest-first, max 6 shown even if the file itself carries more (per the
-    spec's "up to 6 entries"). Any shape mismatch (not an array, malformed
-    entries) degrades to "render nothing", never a broken page. */
-async function loadChangelog(section) {
-  let entries;
-  try {
-    const res = await fetch('data/changelog.json');
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    if (!Array.isArray(data)) throw new Error('changelog.json is not an array');
-    entries = data.filter((e) => e && typeof e.date === 'string' && typeof e.detail === 'string').slice(0, 6);
-  } catch (cause) {
-    console.warn('Recently updated strip unavailable:', cause);
-    return;
-  }
-  if (!entries.length) return;
-
-  const list = entries.map((entry) => el('li', {
-    class: entry.kind === 'archived' ? 'pub-changelog-item is-archived' : 'pub-changelog-item',
-  },
-    el('span', { class: 'pub-changelog-date' }, formatChangelogDate(entry.date)),
-    el('span', { class: 'pub-changelog-detail' }, entry.detail),
-  ));
-
-  section.hidden = false;
-  // Collapsed by default (Rocky, 25 Jul): the strip is a trust signal for
-  // whoever wants it, not a headline. Native details keeps it keyboardable.
-  section.replaceChildren(
-    el('details', { class: 'pub-changelog-details' },
-      el('summary', { class: 'eyebrow pub-changelog-summary' }, 'Recently updated'),
-      el('ul', { class: 'pub-changelog-list' }, list),
-    ),
-  );
-}
-
-function formatChangelogDate(dateStr) {
-  const parsed = new Date(`${dateStr}T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) return dateStr;
-  return parsed.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-}
-
 /** Homepage FAQ slot (PRD section 16 item 5, filled in wave 14.3b): the ten
     site-level Q&As from data/faq.json, generated by scripts/build-seo.mjs
     from the same PRD section 18 canonical text as faq.html. Fetched
     separately from tools.json, non-blocking, same tolerance as
-    loadChangelog and loadPersonaPacks just above: a missing or broken file
-    leaves the slot hidden, never an error and never a blocked directory.
-    Each Q&A renders as its own native <details>/<summary> ("as native
-    details/summary items", not one details wrapping a list, the way the
-    changelog strip's single collapsible does), so the content sits in the
+    loadPersonaPacks above: a missing or broken file leaves the slot
+    hidden, never an error and never a blocked directory. Each Q&A renders
+    as its own native <details>/<summary> ("as native details/summary
+    items", not one details wrapping a list), so the content sits in the
     DOM whether open or not and every answer is reachable without opening
     every other one first. No motion is added anywhere here: details/summary
     toggles instantly by native browser behaviour, so there is nothing to
