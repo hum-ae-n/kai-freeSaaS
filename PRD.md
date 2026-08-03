@@ -2,8 +2,8 @@
 
 **Project:** `free-stack`
 **Owner:** Kaipability Ltd (Rocky Verma)
-**Version:** 1.8
-**Date:** 2 August 2026 (v1.0: 14 July 2026; v1.5: 30 July 2026; v1.6: 31 July 2026; v1.7: 1 August 2026; v1.8: 2 August 2026)
+**Version:** 1.9
+**Date:** 2 August 2026 (v1.0: 14 July 2026; v1.5: 30 July 2026; v1.6: 31 July 2026; v1.7: 1 August 2026; v1.8: 2 August 2026; v1.9: 2 August 2026)
 **Build tool:** Claude Code from this PRD
 **Deploy target:** Netlify via GitHub
 
@@ -473,7 +473,13 @@ This layout supersedes the Phase 12 homepage layout and its viewport ordering, w
    - **Sub-line: "89 tools with genuinely free tiers, honest limits, and at least two alternatives each. Nobody paid to be listed."** The count is computed at runtime, never hard-coded, and carries trust signal 1. The closing sentence is the differentiator: competitors can copy a list, they cannot copy not being paid.
    - Beneath it, the remaining two verifiable trust signals (no-affiliates line, curator identity) and the logo, as today.
    - **No money claim in the hero.** The `value` field sums to about £11,600 across 89 tools, which nobody adopts; quoting it as a saving would be the sort of number section 10 calls a bug the validator cannot catch. If a figure is ever led with, it is the core twelve (about £1,900 a year), and it is labelled as such.
-   - **Utility bar** (Phase 15's corner nav, extended in Phase 16): **My Stack**, **FAQ**, **Plain English** and the **light/dark toggle**, all four at 44px minimum. Plain English and the theme toggle move here out of the ways-in band, which retires that toolbar row entirely. **Net fold cost must be zero or negative**: the retired toolbar has to pay for the bar. Below 768px the two toggles may render icon-only, with an accessible name, to fit one row.
+   - **Utility bar** (Phase 15's corner nav, extended in Phase 16): **My Stack**, **FAQ**, **Plain English** and the **light/dark toggle**, all four at 44px minimum. Plain English and the theme toggle live here, not in the ways-in band, which retires that toolbar row entirely. Below 768px the two toggles may render icon-only, with an accessible name, to fit one row.
+   - **Fixed and self-compressing (16.4, Rocky: "this should be as a fixed top menu bar can compress to burger on scroll down").** The bar is `position: fixed` at the top of the viewport at every width, so the four controls are always one tap away rather than only at the top of the page. Once the reader has scrolled past the hero it **compresses**: the items collapse behind a single burger button that discloses them in a small panel. Rules:
+     - **The compressed state is a disclosure, not a decoration.** The burger is a real `<button>` with `aria-expanded` and `aria-controls`; opening moves focus into the panel; Escape closes it and returns focus to the burger; a click or tap outside closes it. This is the contract the Discover coach broke in Phase 14 and it is not optional.
+     - **Sticky shelf headers must clear it.** They currently stick at `top: 0` and would slide under a fixed bar, hiding the control that collapses the shelf. They stick below the bar instead, driven by the same custom property that sets the bar's height, so the two can never disagree.
+     - **Scroll state is a class toggle, not a scroll-linked animation.** Nothing may tween on scroll position: the inventory's ban on scroll-linked effects stands. Prefer a sentinel and an `IntersectionObserver`, the pattern the shelf headers already use, over a scroll handler.
+     - **Fold cost.** A fixed bar leaves the flow, so the hero must reserve its height or the bar covers the first content. Net cost must keep the first shelf header at or under the 880px budget; the hero's existing top padding is the natural place to pay for it.
+     - Reduced motion: the compress and the panel open are instant state changes, with no height or transform transition.
    - The hero background is motion inventory item 9 below. Hero content must remain legible over it at the section 12 contrast bar in both themes, and the background never affects layout.
 2. **Ways-in band**, replacing the three equal entry cards:
    - **Search, promoted to first-class**: the existing search input moves here, full width below 768px, placeholder count-bearing ("Search 89 tools: invoicing, design, CRM…", count computed at runtime, never hard-coded).
