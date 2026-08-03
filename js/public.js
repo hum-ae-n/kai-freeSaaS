@@ -428,7 +428,7 @@ export function renderPublic(root, tools) {
     el('p', { class: 'visually-hidden' }, heroSavingsSentence),
     el('div', { class: 'pub-savings-visible', 'aria-hidden': 'true' },
       el('div', { class: 'pub-fact pub-fact-money' },
-        el('p', { class: 'pub-fact-label' }, `Starter stack of ${coreTools.length} saves`),
+        el('p', { class: 'pub-fact-label' }, 'Starter stack'),
         savingsAmountEl,
       ),
       el('div', { class: 'pub-fact' },

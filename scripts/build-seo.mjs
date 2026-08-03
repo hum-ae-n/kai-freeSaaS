@@ -132,22 +132,9 @@ function groupByCategory(list) {
   return map;
 }
 
-/* --- savings ticker figures (Phase 17, PRD section 16 amended layout item
-   1's savings-ticker clause; BUILD-PLAN 17.1) --------------------------------
-   Mirrors js/public.js's own computation exactly (same COFFEE_CUP_PRICE_GBP
-   constant, same honesty-rule pairing), so the static crawler block a
-   non-JS visitor sees states the same figures the rendered hero counts up
-   to. Never a separate hard-coded total: both read straight from `active`,
-   the same array this whole generator already builds the rest of the
-   static block from. */
-const COFFEE_CUP_PRICE_GBP = 4;
-function computeSavingsFigures(active) {
-  const coreTools = active.filter((t) => t.type === 'core');
-  return savingsFigures(active);
-}
-function formatGbp(n) {
-  return `£${n.toLocaleString('en-GB')}`;
-}
+/* The savings figures and their formatter used to live here as a hand-kept
+   mirror of js/public.js. They now come from js/savings-copy.js, which both
+   sides import, so there is nothing left to keep in step by hand. */
 
 /* --- per-tool question and answer (PRD section 18, "Per-tool questions") --
    Derived mechanically from existing fields, never hand-maintained: the

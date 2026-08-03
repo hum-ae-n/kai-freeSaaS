@@ -1507,23 +1507,19 @@ html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
 .pub-savings-ticker { margin-top: var(--s-3); }
 /* Three facts side by side (Phase 17.2). Grid is right here, unlike the
    ceiling line this phase already had to un-flex: these are three discrete
-   blocks, not one sentence broken into fragments. Single column below 640px
-   so the figures stay large and legible on a phone rather than shrinking to
-   fit three abreast. */
+   blocks, not one sentence broken into fragments. Three abreast from 481px
+   up; the phone layout is the media query at the bottom of this section. */
 .pub-savings-visible {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--s-3);
+  gap: var(--s-2);
   max-width: none;
-  align-items: start;
+  align-items: stretch; /* ragged tile heights otherwise */
 }
 @media (min-width: 640px) { .pub-savings-visible { gap: var(--s-6); } }
 /* The framing sentence spans the full row beneath the three figures, so the
    ceiling can never be read without "if you used all N tools" and without
-   the realistic core figure, at any width. Stacking the three facts on a
-   phone was tried first and made the hero TALLER than the two lines it
-   replaced, breaching the height budget: the whole point is a row the eye
-   scans, so it stays a row everywhere and the figures scale instead. */
+   the realistic core figure, at any width. */
 .pub-fact-detail {
   grid-column: 1 / -1;
   margin: var(--s-1) 0 0;
@@ -1544,7 +1540,8 @@ html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
   margin-top: var(--s-1);
   font-family: var(--font-display);
   font-weight: 900;
-  font-size: clamp(21px, 4.1vw, 40px);
+  font-size: clamp(15px, 4.6vw, 40px);
+  white-space: nowrap; /* never "£1,8 / 96" */
   line-height: 1;
   color: var(--oxblood);
   font-variant-numeric: tabular-nums;
@@ -1555,6 +1552,34 @@ html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
   color: var(--ink-2);
   font-size: var(--fs-14);
   line-height: var(--lh-14);
+  overflow-wrap: break-word; /* "placements" overhangs a narrow column */
+  hyphens: auto;
+}
+/* Phone layout. Below 480px three tiles cannot hold a five-character currency
+   figure: at 375px the column is 95px and "£1,896" needs 106px at a legible
+   size. Shrinking the type made the lead figure illegible and wrapping it
+   produced "£1,8 / 96", so each fact becomes a full-width row, label left and
+   figure right. The eye still reads the three in order, which was the point.
+
+   This block must stay BELOW the base rules above. Media queries add no
+   specificity, so when it sat higher in the file every declaration here lost
+   to its unqualified twin and the phone layout silently did nothing.
+
+   Vertical padding is --s-1, not --s-2: three stacked rows cost more page
+   height than the row of three tiles they replace, which broke the 375px
+   budget. That budget has already moved twice this phase and moving it a
+   third time would make it decoration, so the height comes out of the rows
+   instead. The 26px figure still sets the row height. */
+@media (max-width: 480px) {
+  .pub-savings-visible { grid-template-columns: 1fr; gap: var(--s-1); }
+  .pub-fact {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-3);
+    padding: var(--s-1) var(--s-3);
+  }
+  .pub-fact-figure, .pub-savings-amount { margin-top: 0; font-size: 26px; }
 }
 
 .pub-savings-amount {
@@ -2352,7 +2377,22 @@ html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
    Inline-block plus vertical padding lifts each to the 44px floor without
    changing how the sentence reads. */
 @media (max-width: 768px) {
-  .pub-footer a { display: inline-block; padding: 12px 4px; margin: -4px 0; min-height: 44px; box-sizing: border-box; }
+  /* The negative margin cancels the padding on all four sides, not just the
+     vertical pair. With `margin: -4px 0` the 4px of horizontal padding was
+     real layout width, so every sentence rendered a visible gap before its
+     full stop: "Kaipability Ltd ." The tap area is unchanged, since only
+     the box's effect on surrounding text is pulled back. */
+  .pub-footer a { display: inline-block; padding: 12px 6px; margin: -12px -6px; min-height: 44px; box-sizing: border-box; }
+}
+/* .cli-footer is a flex ROW: logo beside text. That suits the client
+   deliverable, whose footer is two lines. The public footer carries seven
+   paragraphs, and on a phone the logo column left them roughly 215px of
+   measure, so "Want a stack chosen for your business?" broke across three
+   lines and every line below it sat indented beside an empty gutter. Below
+   600px the logo takes its own line and the text gets the full width. */
+@media (max-width: 600px) {
+  .pub-footer { flex-direction: column; gap: var(--s-3); }
+  .pub-footer > div { width: 100%; }
 }
 
 /* Homepage FAQ slot (PRD section 16 item 5, filled in wave 14.3b): ten

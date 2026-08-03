@@ -91,11 +91,9 @@ const activeCategories = new Set(active.map((t) => t.category)).size;
    data/tools.json, the same way js/public.js and scripts/build-seo.mjs
    compute their own figures, so every check below is against a freshly
    derived expectation rather than a literal copied out of the app. */
-const COFFEE_CUP_PRICE_GBP = 4; // mirrors js/public.js's own named constant
 const sumValue = (list) => list.reduce((total, t) => total + (Number.isFinite(t.value) ? t.value : 0), 0);
 const activeCeilingValue = sumValue(active);
 const activeCoreValue = sumValue(active.filter((t) => t.type === 'core'));
-const activeCoffees = Math.round(activeCeilingValue / COFFEE_CUP_PRICE_GBP / 100) * 100;
 const gbp = (n) => `£${n.toLocaleString('en-GB')}`;
 
 const browser = await chromium.launch();
@@ -493,6 +491,94 @@ const homeMobilePitches = await homeMobile.locator('.pub-entry-item .pub-entry-p
 check('homepage: entry paths still Discover-first at 375px',
   homeMobilePitches[0]?.startsWith('Discover:') && homeMobilePitches[1]?.toLowerCase().includes('shortlist'),
   homeMobilePitches.join(' | '));
+
+/* Phase 17.5, phone layout. Two defects shipped green through every check
+   above, so both get an assertion here.
+
+   1. The hero fact figures. Below 480px each fact is a full-width row,
+      label left and figure right, because three tiles cannot hold "£1,896"
+      at a legible size in a 95px column. The figure is `white-space:
+      nowrap`, so when the container is too narrow it does not wrap, it
+      OVERHANGS: the visible symptom is a currency figure printed outside
+      its own bordered tile, and document scrollWidth stays 375 throughout
+      because the overflow is clipped rather than scrolled. The check above
+      therefore cannot see it. Assert each figure's box against its own
+      tile's box instead.
+
+   2. The footer. .cli-footer is a flex row, logo beside text, which suits
+      the two-line client deliverable. The public footer carries seven
+      paragraphs, and on a phone the logo column left the text roughly
+      215px of measure: every line wrapped early and sat indented beside an
+      empty gutter. Assert the text block gets essentially the full
+      container width, which is only true once the footer stacks. */
+/* Wait for the count-ups to SETTLE before measuring. The lead figure grows
+   from "£0" to "£1,896" over SAVINGS_COUNT_MS, and a mid-count sample is a
+   shorter string: measured at "£432" the check passed on a layout that
+   overhangs at the resting value, which is the whole defect. Polled on the
+   expected resting text rather than slept on, so it cannot flake on a slow
+   run and cannot silently measure the wrong frame on a fast one. */
+await homeMobile.waitForFunction(
+  (want) => document.querySelector('.pub-savings-amount')?.textContent.trim() === want,
+  gbp(activeCoreValue),
+  { timeout: 5000 },
+);
+const factRowFit = await homeMobile.evaluate(() => {
+  return [...document.querySelectorAll('.pub-fact')].map((tile) => {
+    const figure = tile.querySelector('.pub-fact-figure, .pub-savings-amount');
+    const t = tile.getBoundingClientRect();
+    const f = figure.getBoundingClientRect();
+    return {
+      text: figure.textContent.trim(),
+      // Half a pixel of tolerance for sub-pixel layout, nothing more.
+      overhang: Math.round(Math.max(0, f.right - t.right, t.left - f.left)),
+    };
+  });
+});
+check('mobile: every hero fact figure sits inside its own tile at 375px (nowrap figures overhang silently, they never widen the page)',
+  factRowFit.length === 3 && factRowFit.every((r) => r.overhang === 0),
+  JSON.stringify(factRowFit));
+
+const mobileFooterFit = await homeMobile.evaluate(() => {
+  const footer = document.querySelector('.pub-footer');
+  const textBlock = footer.querySelector('div');
+  return {
+    footerW: Math.round(footer.getBoundingClientRect().width),
+    textW: Math.round(textBlock.getBoundingClientRect().width),
+    flexDirection: getComputedStyle(footer).flexDirection,
+  };
+});
+check('mobile: the public footer stacks at 375px so its text gets the full measure, not the gutter beside the logo',
+  mobileFooterFit.flexDirection === 'column'
+    && mobileFooterFit.textW >= mobileFooterFit.footerW * 0.95,
+  JSON.stringify(mobileFooterFit));
+
+/* The 44px floor on footer links (Rocky's 26 Jul phone test) is enforced by
+   padding plus a negative margin that cancels it. Get the margin wrong on
+   one axis and the links still measure 44px while a visible gap opens
+   before every full stop, which is exactly what shipped. So this checks
+   both halves: the tap target AND that the box does not push the text it
+   sits in. */
+const footerLinkBoxes = await homeMobile.evaluate(() => {
+  return [...document.querySelectorAll('.pub-footer a')].map((a) => {
+    const cs = getComputedStyle(a);
+    const px = (v) => Math.round(parseFloat(v) || 0);
+    return {
+      text: a.textContent.trim().slice(0, 20),
+      height: Math.round(a.getBoundingClientRect().height),
+      // Padding minus the margin that cancels it: 0 means the link occupies
+      // exactly the width its text would have occupied inline.
+      netLeft: px(cs.paddingLeft) + px(cs.marginLeft),
+      netRight: px(cs.paddingRight) + px(cs.marginRight),
+    };
+  });
+});
+check('mobile: every public footer link clears the 44px tap floor at 375px',
+  footerLinkBoxes.length > 0 && footerLinkBoxes.every((l) => l.height >= 44),
+  JSON.stringify(footerLinkBoxes.filter((l) => l.height < 44)));
+check('mobile: footer link tap padding is cancelled horizontally, so no gap opens before the full stop after a link',
+  footerLinkBoxes.every((l) => l.netLeft === 0 && l.netRight === 0),
+  JSON.stringify(footerLinkBoxes.filter((l) => l.netLeft !== 0 || l.netRight !== 0)));
+
 await homeMobile.close();
 
 // Phase 14.1: shared helper, used throughout the rest of this file. Every
