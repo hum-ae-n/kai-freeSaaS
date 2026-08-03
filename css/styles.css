@@ -1503,10 +1503,13 @@ html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
    visibly jitter sideways as the figure grows from one digit to five. */
 .pub-savings-ticker { margin-top: var(--s-4); }
 .pub-savings-ceiling-line {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: var(--s-1) var(--s-2);
+  /* Normal inline flow, deliberately NOT flex. Flex with a gap turned every
+     text fragment and the tool-count <strong> into separate flex items, so
+     the sentence rendered with visible holes either side of the number
+     ("used all  89  tools") that the identical count in the sub-line above
+     does not have. Flex was reaching for baseline alignment of the large
+     amount against the smaller text, which inline layout already does for
+     free: an inline-block sits on the baseline by default. */
   margin: 0;
   color: var(--ink);
   font-size: var(--fs-16);
@@ -1520,6 +1523,9 @@ html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
   line-height: 1;
   color: var(--oxblood);
   font-variant-numeric: tabular-nums;
+  display: inline-block;
+  vertical-align: baseline;
+  margin-right: var(--s-1);
 }
 .pub-savings-core-line {
   margin: var(--s-1) 0 0;
