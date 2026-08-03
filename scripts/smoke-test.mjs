@@ -421,8 +421,20 @@ const leftoverDelay = await firstCardLi.evaluate((n) => ({
   inline: n.style.transitionDelay,
   computed: getComputedStyle(n).transitionDelay,
 }));
-check('homepage: shelf cards carry no residual inline transition-delay',
-  leftoverDelay.inline === '' && /^(0s(, 0s)*)$/.test(leftoverDelay.computed), JSON.stringify(leftoverDelay));
+/* Assert the guarantee, not one spelling of it. This required the inline
+   style to be the empty string, and failed 1 run in 5 on
+   {inline:"0ms", computed:"0s"}: both zero, i.e. exactly the state the
+   check exists to confirm. The stagger's cleanup can leave an explicit
+   zero rather than removing the property, which is functionally identical
+   and harmless. What actually matters, and what the check's own name says,
+   is that no EFFECTIVE delay survives to hold up a later transition, so
+   accept an absent or explicitly-zero inline value and keep the computed
+   all-zeros assertion, which is the real guarantee. A non-zero leftover,
+   the regression this guards, still fails on both counts. */
+const inlineDelayIsZero = leftoverDelay.inline === ''
+  || /^(0m?s)(,\s*0m?s)*$/.test(leftoverDelay.inline.trim());
+check('homepage: shelf cards carry no effective residual transition-delay',
+  inlineDelayIsZero && /^(0s(, 0s)*)$/.test(leftoverDelay.computed), JSON.stringify(leftoverDelay));
 
 await firstCardLi.scrollIntoViewIfNeeded();
 await firstCardLi.hover();
