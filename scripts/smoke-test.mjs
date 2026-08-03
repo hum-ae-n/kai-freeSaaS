@@ -16,6 +16,7 @@ import { extname, join, normalize, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';
+import { inflateSync } from 'node:zlib';
 import { PRIVACY_NOTICE } from '../js/my/copy.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -112,30 +113,80 @@ check('public: trust line and CTA present',
   (await page.textContent('#public-root')).includes('No affiliates')
   && (await page.textContent('#public-root')).includes('Talk to Kaipability'));
 
-/* --- Phase 15: hero utility nav (PRD section 16 amended, layout item 1) ---
-   My Stack and FAQ links inside .pub-header, each at least 44px tall (the
-   site-wide touch-target rule), present without moving the pinned
-   first-shelf budget below (that budget's own check, further down, already
-   proves the number itself; this just confirms the nav did not regress
-   it). */
-const heroNavLinks = page.locator('.pub-header .pub-hero-nav a');
+/* --- Phase 15/16: hero utility bar (PRD section 16 amended, layout item 1)
+   My Stack, FAQ, Plain English and the theme toggle inside .pub-topbar
+   (16.4: moved out of .pub-header into the fixed bar; a plain, unscrolled
+   page load is always in the bar's expanded state, so every check below
+   still measures exactly what it measured before that move), all four at
+   least 44px in both dimensions (the site-wide touch-target rule), present
+   without moving the pinned first-shelf budget below (that budget's own
+   check, further down, already proves the number itself; this just
+   confirms the bar did not regress it). Phase 16 moves Plain English and
+   the theme toggle in here from the now-retired shelf-band controls row,
+   so the bar carries four items, not two. The 16.4 fixed/compressing
+   behaviour itself, and the sticky-header collision it introduces, are
+   covered in their own dedicated section further down. */
+const heroNavLinks = page.locator('.pub-topbar .pub-hero-nav a');
 check('homepage: hero utility nav links to /my and /faq.html', await heroNavLinks.count() === 2
   && (await heroNavLinks.nth(0).getAttribute('href')) === '/my'
   && (await heroNavLinks.nth(1).getAttribute('href')) === '/faq.html');
-const heroNavBoxes = await heroNavLinks.evaluateAll((nodes) => nodes.map((n) => n.getBoundingClientRect().height));
+const heroUtilItems = page.locator('.pub-hero-nav a, .pub-hero-nav button');
+check('homepage: hero utility bar carries exactly four items (My Stack, FAQ, Plain English, theme toggle)',
+  await heroUtilItems.count() === 4);
+const heroUtilBoxes = await heroUtilItems.evaluateAll((nodes) => nodes.map((n) => {
+  const r = n.getBoundingClientRect();
+  return { w: r.width, h: r.height };
+}));
 // Sub-pixel tolerance: getBoundingClientRect() on this inline-flex row can
 // report 43.999996 for a CSS min-height:44px box (observed on this exact
 // build), a float-rounding artefact rather than a real sub-44px target;
 // the same 0.1px tolerance a device's own physical pixel grid would round
 // away.
-check('homepage: hero utility nav links are each at least 44px tall',
-  heroNavBoxes.every((h) => h >= 43.9), heroNavBoxes.join(','));
+check('homepage: all four hero utility bar items are at least 44px in both dimensions at 1280px',
+  heroUtilBoxes.every((b) => b.w >= 43.9 && b.h >= 43.9), JSON.stringify(heroUtilBoxes));
+check('homepage: Plain English and theme toggle carry aria-pressed in the hero utility bar',
+  await page.locator('.pub-hero-nav .plain-toggle[aria-pressed]').count() === 1
+  && await page.locator('.pub-hero-nav .theme-toggle[aria-pressed]').count() === 1);
+
+// Below 768px the two toggles may render icon-only (PRD section 16 amended:
+// "with an accessible name"): the visible label collapses to a
+// visually-hidden span rather than disappearing from the accessible tree,
+// so the button keeps an accessible name even though nothing reads on
+// screen. Measured at the literal 375x812 reference the fold budget itself
+// uses.
+const heroMobilePage = await browser.newPage({ viewport: { width: 375, height: 812 } });
+await heroMobilePage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await heroMobilePage.goto(`${base}/`);
+await heroMobilePage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+const heroMobileItems = heroMobilePage.locator('.pub-hero-nav a, .pub-hero-nav button');
+check('homepage: hero utility bar still holds exactly four items at 375px', await heroMobileItems.count() === 4);
+const heroMobileBoxes = await heroMobileItems.evaluateAll((nodes) => nodes.map((n) => {
+  const r = n.getBoundingClientRect();
+  return { w: r.width, h: r.height };
+}));
+check('homepage: all four hero utility bar items are at least 44px in both dimensions at 375px',
+  heroMobileBoxes.every((b) => b.w >= 43.9 && b.h >= 43.9), JSON.stringify(heroMobileBoxes));
+const heroMobileAccessibleNames = await heroMobilePage.evaluate(() => {
+  const plain = document.querySelector('.pub-hero-nav .plain-toggle');
+  const theme = document.querySelector('.pub-hero-nav .theme-toggle');
+  return { plain: plain ? plain.textContent.trim() : null, theme: theme ? theme.textContent.trim() : null };
+});
+check('homepage: Plain English and theme toggle keep a non-empty accessible name at 375px (icon-only visually, not to assistive tech)',
+  !!heroMobileAccessibleNames.plain && !!heroMobileAccessibleNames.theme, JSON.stringify(heroMobileAccessibleNames));
+const heroMobileScrollW = await heroMobilePage.evaluate(() => document.documentElement.scrollWidth);
+check('homepage: no horizontal scroll at 375px with the four-item hero utility bar', heroMobileScrollW <= 375, `scrollWidth=${heroMobileScrollW}`);
+await heroMobilePage.close();
 
 /* --- Phase 15: footer good-practice block (PRD section 16 amended, layout
    item 6) -------------------------------------------------------------- */
 const footerHtml = await page.locator('.pub-footer').innerHTML();
 check('homepage: footer links to /privacy.html and /contact.html',
   footerHtml.includes('href="/privacy.html"') && footerHtml.includes('href="/contact.html"'));
+// Phase 16: the footer's legal and practice line gains a Changelog link
+// (js/public.js renders the footer at runtime, so this is checked against
+// the rendered page, not the raw no-JS fetch the earlier static-content
+// checks use).
+check('homepage: footer legal line links /changelog.html', footerHtml.includes('href="/changelog.html"'));
 const footerOutboundLinks = await page.locator('.pub-footer a[href^="https://kaipability.com"], .pub-footer a[href^="https://www.airl.io"]').all();
 const footerOutboundRels = await Promise.all(footerOutboundLinks.map((a) => a.getAttribute('rel')));
 check('homepage: footer carries outbound links to kaipability.com and www.airl.io, all rel=noopener noreferrer',
@@ -151,7 +202,14 @@ await page.fill('#public-root input[type=search]', 'canva');
 await page.waitForFunction((total) => document.querySelectorAll('#public-root .card-grid > li:not([hidden])').length < total, active.length);
 const publicFiltered = await page.locator('#public-root .tool-card:visible').count();
 check('public: search filters cards', publicFiltered > 0 && publicFiltered < active.length, `visible=${publicFiltered}`);
-check('public: recently-updated strip renders', await page.locator('.pub-changelog, [class*=changelog]').count() >= 1);
+// Phase 16 (Rocky, 2 Aug: "remove the recently updated and move it"): the
+// homepage keeps no trace of the changelog strip at all, not a hidden or
+// collapsed remnant. Checked both against the rendered DOM and the raw
+// page source further down (the "no changelog node anywhere in the raw
+// HTML" check, near the other AEO raw-fetch assertions), so a
+// server-rendered leftover the DOM check alone could miss is still caught.
+check('public: no changelog node of any kind remains on the homepage',
+  await page.locator('[class*=changelog], [id*=changelog]').count() === 0);
 await page.fill('#public-root input[type=search]', '');
 await page.waitForFunction(() => document.querySelectorAll('#public-root .card-grid > li[hidden]').length === 0);
 
@@ -166,6 +224,32 @@ await page.waitForFunction(() => document.querySelectorAll('#public-root .card-g
 const heroCountText = await page.locator('.pub-hero-count').textContent();
 check('homepage: hero count equals the active tools.json count',
   heroCountText.includes(String(active.length)), heroCountText.trim());
+
+/* --- Phase 16.2: hero rewrite (PRD section 16 amended item 1, BUILD-PLAN
+   16.2) -----------------------------------------------------------------
+   The mandated headline and sub-line, verbatim, with the sub-line's count
+   read at runtime rather than baked into this test as a literal figure
+   (active.length, the same count the placeholder and the shelves
+   themselves already use); a source-text check that js/public.js itself
+   never hard-codes the current count as a string literal; and a check that
+   the old, now-duplicate "N free tools in the directory" trust line this
+   hero used to carry on its own is genuinely gone, not merely renamed. */
+const heroHeadlineText = await page.locator('.pub-hero-headline').textContent();
+check('homepage: hero headline states the PRD-mandated proposition sentence',
+  heroHeadlineText.trim() === 'The free software directory for small business.', heroHeadlineText.trim());
+
+const heroSublineText = await page.locator('.pub-hero-subline').textContent();
+const expectedSubline = `${active.length} tool${active.length === 1 ? '' : 's'} with genuinely free tiers, honest limits, and at least two alternatives each. Nobody paid to be listed.`;
+check('homepage: hero sub-line carries the runtime tool count and the mandated closing sentence',
+  heroSublineText.trim() === expectedSubline, heroSublineText.trim());
+
+const publicJsSource = readFileSync(join(ROOT, 'js', 'public.js'), 'utf8');
+check('homepage: js/public.js never hard-codes the active tool count as a literal "89"',
+  !publicJsSource.includes('89'));
+
+const heroPanelText = await page.locator('.pub-header').textContent();
+check('homepage: the old duplicated "N free tools in the directory" trust line is gone (count now lives in the sub-line only)',
+  !heroPanelText.includes('in the directory'));
 
 // Phase 14.1 adaptation: PRD section 16 as amended retires the "Browse all"
 // entry card, its job passing to the shelf band's own Expand all / Collapse
@@ -183,19 +267,57 @@ check('homepage: two entry paths present, Discover first',
 // Verifier fix round: opening the real deck now hides the whole ways-in
 // band (including the persona chips the next section clicks and the
 // pulse-animation check further down, both still exercised against the
-// long-lived `page` object below), so this scroll assertion runs on its
-// own throwaway page rather than contaminating that shared one. The deck
-// is left open when this page closes: nothing downstream depends on it.
+// long-lived `page` object below), so this assertion runs on its own
+// throwaway page rather than contaminating that shared one. The deck is
+// left open when this page closes: nothing downstream depends on it.
+//
+// 16.4 investigation: this used to compare window.scrollY before and
+// after a fixed 300ms wait. Two things independently make that the wrong
+// signal now, one a real mechanism change and one a pre-existing fragility
+// this wave's own testing exposed rather than caused.
+//
+// First, the mechanism: html.pub-has-topbar's scroll-padding-top means the
+// browser's scrollIntoView math now accounts for the reserved bar height,
+// so the exact pixel distance scrolled is no longer a fixed, predictable
+// quantity purely tied to "did opening the deck navigate anywhere". A
+// before/after scrollY comparison was always a proxy for "the deck became
+// visible", never the actual claim in the check's own name; it happened to
+// track together before this wave only because nothing else changed the
+// distance.
+//
+// Second, and the one that actually explains the "before=0 after=0"
+// failures seen in CI: a fixed 300ms wait then a single scrollY sample
+// was already fragile to plain CPU contention, nothing to do with
+// scroll-padding-top at all. Proven directly: opening 15 concurrent noisy
+// pages against this same server and then running this exact sequence
+// reproduces before=0 after=0 with .discover-panel absent from the DOM
+// entirely at the 300ms mark, i.e. the dynamic import and mount had
+// simply not finished yet, the scroll had nothing to compute against. In
+// isolation, five consecutive runs of the unmodified sequence all landed
+// on scrollY=692 every time; only concurrent load broke it, and it broke
+// the OLD code the same way, not just this wave's.
+//
+// The fix for both is the same: wait for the actual outcome (the panel
+// genuinely mounted and visible) instead of a fixed sleep, then assert
+// the claim the check's name makes directly, that opening Discover lands
+// the reader ON the deck, not off-screen below the fold and not covered
+// by the fixed bar (16.4's own collision hazard, since the deck is
+// ordinary flow content with no sticky mechanic of its own to keep it
+// clear the way the shelf headers' shared --topbar-h already does).
 const scrollStubPage = await browser.newPage();
 await scrollStubPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await scrollStubPage.goto(`${base}/`);
 await scrollStubPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
-const beforeScrollY = await scrollStubPage.evaluate(() => window.scrollY);
 await scrollStubPage.locator('[data-discover-entry]').click();
-await scrollStubPage.waitForTimeout(300);
-const afterDiscoverScrollY = await scrollStubPage.evaluate(() => window.scrollY);
-check('homepage: Discover stub scrolls to the browse list instead of dead-ending',
-  afterDiscoverScrollY > beforeScrollY, `before=${beforeScrollY} after=${afterDiscoverScrollY}`);
+await scrollStubPage.waitForSelector('.discover-panel', { state: 'visible', timeout: 10000 });
+const stubPanelBox = await scrollStubPage.locator('.discover-panel').boundingBox();
+const stubTopbarBox = await scrollStubPage.locator('.pub-topbar').boundingBox();
+const stubViewportHeight = scrollStubPage.viewportSize().height;
+check('homepage: opening Discover lands the deck on screen, clear of the fixed bar, instead of dead-ending',
+  stubPanelBox !== null && stubTopbarBox !== null
+  && stubPanelBox.y >= stubTopbarBox.y + stubTopbarBox.height - 0.5
+  && stubPanelBox.y < stubViewportHeight,
+  JSON.stringify({ panelBox: stubPanelBox, topbarBox: stubTopbarBox, viewportHeight: stubViewportHeight }));
 await scrollStubPage.close();
 
 // Phase 14.1 adaptation: with all shelves collapsed by default, ZERO cards
@@ -299,8 +421,20 @@ const leftoverDelay = await firstCardLi.evaluate((n) => ({
   inline: n.style.transitionDelay,
   computed: getComputedStyle(n).transitionDelay,
 }));
-check('homepage: shelf cards carry no residual inline transition-delay',
-  leftoverDelay.inline === '' && /^(0s(, 0s)*)$/.test(leftoverDelay.computed), JSON.stringify(leftoverDelay));
+/* Assert the guarantee, not one spelling of it. This required the inline
+   style to be the empty string, and failed 1 run in 5 on
+   {inline:"0ms", computed:"0s"}: both zero, i.e. exactly the state the
+   check exists to confirm. The stagger's cleanup can leave an explicit
+   zero rather than removing the property, which is functionally identical
+   and harmless. What actually matters, and what the check's own name says,
+   is that no EFFECTIVE delay survives to hold up a later transition, so
+   accept an absent or explicitly-zero inline value and keep the computed
+   all-zeros assertion, which is the real guarantee. A non-zero leftover,
+   the regression this guards, still fails on both counts. */
+const inlineDelayIsZero = leftoverDelay.inline === ''
+  || /^(0m?s)(,\s*0m?s)*$/.test(leftoverDelay.inline.trim());
+check('homepage: shelf cards carry no effective residual transition-delay',
+  inlineDelayIsZero && /^(0s(, 0s)*)$/.test(leftoverDelay.computed), JSON.stringify(leftoverDelay));
 
 await firstCardLi.scrollIntoViewIfNeeded();
 await firstCardLi.hover();
@@ -398,6 +532,35 @@ const reducedDiscoverHoverTransform = await reducedMotionPage.locator('.pub-disc
   .evaluate((node) => getComputedStyle(node).transform);
 check('homepage: Discover button has no transform on hover under reduced motion',
   reducedDiscoverHoverTransform === 'none', reducedDiscoverHoverTransform);
+
+// Hero background planes (motion inventory item 9, PRD section 16 amended,
+// BUILD-PLAN 16.2): under reduced motion, no animation on any of the four
+// planes, and the whole hero subtree (the panel-level getAnimations sweep
+// below) has nothing running once the first-paint reveal above has
+// settled. The static frame must still read as deliberately composed, not
+// a flattened accident: each plane keeps a distinct, non-identity
+// transform, not all four collapsed to the same pose.
+const reducedPlaneAnimNames = await reducedMotionPage.locator('.pub-hero-plane').evaluateAll(
+  (nodes) => nodes.map((n) => getComputedStyle(n).animationName));
+check('homepage: all four hero planes carry no animation under reduced motion',
+  reducedPlaneAnimNames.length === 4 && reducedPlaneAnimNames.every((n) => n === 'none'),
+  JSON.stringify(reducedPlaneAnimNames));
+const reducedPlaneTransforms = await reducedMotionPage.locator('.pub-hero-plane').evaluateAll(
+  (nodes) => nodes.map((n) => getComputedStyle(n).transform));
+const reducedPlaneTransformsUnique = new Set(reducedPlaneTransforms).size;
+check('homepage: the reduced-motion static frame keeps each plane at its own distinct pose (a designed frame, not a flattened one)',
+  reducedPlaneTransforms.every((t) => t !== 'none') && reducedPlaneTransformsUnique === reducedPlaneTransforms.length,
+  JSON.stringify(reducedPlaneTransforms));
+// waitForSelector above already let the first-paint reveal's transitions
+// settle (it fires immediately on load and the panel has since been idle
+// through several other evaluations); getAnimations({subtree:true}) on the
+// header itself is the direct proof the spec asks for: the whole hero
+// subtree runs zero animations under reduced motion, reveal transitions,
+// discover-adjacent transitions and the planes all included.
+const reducedHeroAnimCount = await reducedMotionPage.locator('.pub-header').first()
+  .evaluate((n) => n.getAnimations({ subtree: true }).length);
+check('homepage: the hero subtree runs zero animations under reduced motion (getAnimations)',
+  reducedHeroAnimCount === 0, `count=${reducedHeroAnimCount}`);
 await reducedMotionPage.close();
 
 // Same button, normal motion: the rewritten treatment's recorded exception,
@@ -427,10 +590,32 @@ check('homepage: Discover button (drift) and both pseudo-elements (pulse, sheen)
   && discoverAnimInfo.after.name !== 'none' && discoverAnimInfo.after.iterationCount === 'infinite',
   JSON.stringify(discoverAnimInfo));
 
+// Hero background planes (motion inventory item 9, PRD section 16 amended,
+// BUILD-PLAN 16.2), normal motion: the second and final recorded looping
+// exception, so all four planes must carry an infinite iteration count,
+// each with its own distinct animation-delay (checked by name only here;
+// the delay values themselves are declared statically in CSS and asserted
+// by the "reads as atmosphere" review, not machine-checkable). Also
+// pointer-events: none (never intercepts a click meant for the header's
+// real content) and z-index: -1 (behind everything, computed live rather
+// than merely asserted from the stylesheet).
+const heroPlaneInfo = await page.locator('.pub-hero-plane').evaluateAll((nodes) => nodes.map((n) => {
+  const cs = getComputedStyle(n);
+  return { name: cs.animationName, iterationCount: cs.animationIterationCount, pointerEvents: getComputedStyle(n.parentElement).pointerEvents, zIndex: getComputedStyle(n.parentElement).zIndex };
+}));
+check('homepage: all four hero planes carry an infinite iteration count under normal motion',
+  heroPlaneInfo.length === 4 && heroPlaneInfo.every((p) => p.name !== 'none' && p.iterationCount === 'infinite'),
+  JSON.stringify(heroPlaneInfo));
+check('homepage: the hero plane container is pointer-events: none and stacked behind content (z-index: -1)',
+  heroPlaneInfo.every((p) => p.pointerEvents === 'none' && p.zIndex === '-1'),
+  JSON.stringify(heroPlaneInfo));
+
 // The recorded exception must stay scoped: 'infinite' may appear in the
 // PUBLIC block of styles.css only inside pub-discover-btn-related rules (its
-// base rule, ::before, ::after), never on any other public-surface element,
-// so no other rule can quietly inherit the site's one looping allowance.
+// base rule, ::before, ::after) or pub-hero-plane-related rules (Phase 16's
+// planes, the inventory's other recorded exception), never on any other
+// public-surface element, so no other rule can quietly inherit the site's
+// two looping allowances.
 {
   const cssText = readFileSync(join(ROOT, 'css', 'styles.css'), 'utf8');
   const publicStart = cssText.indexOf('/* === PUBLIC');
@@ -448,10 +633,356 @@ check('homepage: Discover button (drift) and both pseudo-elements (pulse, sheen)
   lines.forEach((line, idx) => {
     if (!line.includes('infinite')) return;
     const nearby = lines.slice(Math.max(0, idx - 6), idx + 1).join('\n');
-    if (!nearby.includes('pub-discover')) strayInfinite.push(`line ${idx}: ${line.trim()}`);
+    if (!nearby.includes('pub-discover') && !nearby.includes('pub-hero-plane')) strayInfinite.push(`line ${idx}: ${line.trim()}`);
   });
-  check('css: "infinite" in the PUBLIC block appears only in pub-discover-btn-related rules',
+  check('css: "infinite" in the PUBLIC block appears only in pub-discover-btn or pub-hero-plane related rules',
     strayInfinite.length === 0, strayInfinite.join(' | '));
+}
+
+// Page-wide sweep (BUILD-PLAN 16.2's own wording: "sweep every element's
+// computed animation-iteration-count"), not only the PUBLIC block's source
+// text above: every live element on the page, its own animation-name list
+// paired index-for-index with its animation-iteration-count list (both are
+// comma-separated in the same order per the CSS Animations spec), flagging
+// any 'infinite' entry whose element is neither the Discover CTA nor a hero
+// plane. This is the belt to the CSS-text scan's braces: a rule added
+// somewhere else entirely that happened to target these classes some other
+// way (an id selector, an attribute selector) would still be caught here,
+// since this reads computed style, not source text.
+const strayInfiniteElements = await page.evaluate(() => {
+  const offenders = [];
+  document.querySelectorAll('*').forEach((elNode) => {
+    const cs = getComputedStyle(elNode);
+    const names = cs.animationName.split(',').map((s) => s.trim());
+    const counts = cs.animationIterationCount.split(',').map((s) => s.trim());
+    names.forEach((name, i) => {
+      if (name === 'none' || counts[i] !== 'infinite') return;
+      const allowed = elNode.classList.contains('pub-discover-btn') || elNode.classList.contains('pub-hero-plane');
+      if (!allowed) offenders.push(elNode.className || elNode.tagName);
+    });
+  });
+  return offenders;
+});
+check('homepage: page-wide computed-style sweep finds infinite animation-iteration-count only on the Discover CTA and the hero planes',
+  strayInfiniteElements.length === 0, JSON.stringify(strayInfiniteElements));
+
+/* --- Phase 16.2: hero background contrast, GROUND TRUTH by real pixel
+   sampling (PRD section 16 amended, motion inventory item 9's own closing
+   clause; BUILD-PLAN 16.2, second verifier fix round) ---------------------
+   Second fix round: the first fix round's answer to Gap 1 (enumerate every
+   hero text colour rather than hard-code two) was the right SHAPE but the
+   wrong STANDARD. It composited all four planes as if fully overlapping
+   the same pixel, a configuration the planes' own authored spans forbid,
+   and then tuned opacity down until that unreachable worst case cleared
+   4.5:1, which produced a background so faint it stopped reading as the
+   "animated and impressive" backdrop the wave was for. Tried and rejected:
+   proving a bound that can never occur is not the same as proving the
+   hero is legible, and it cost the entire visible point of the wave.
+
+   This version tests what actually renders. For every real text node
+   under .pub-header (same enumeration shape as before, now per TEXT NODE
+   rather than per element: an element's own bounding box can be far wider
+   than its glyphs for a left-aligned block-level line, so this walks
+   `document.createTreeWalker(header, NodeFilter.SHOW_TEXT, ...)` and reads
+   each text node's own rendered line boxes via `Range.getClientRects()`,
+   which hugs each wrapped line's actual glyphs rather than the parent's
+   full-width box):
+     1. capture every text node's line rects and its parent's live colour,
+        with the hero rendered NORMALLY (nothing hidden yet);
+     2. hide every hero child except .pub-hero-bg itself
+        (`.pub-header > *:not(.pub-hero-bg) { visibility: hidden }`, which
+        preserves every box's layout and therefore every rect captured in
+        step 1, while removing all foreground paint: text, borders, icons
+        and the logo image alike, none of which are "background" in the
+        sense this check cares about);
+     3. at each of a spread of animation offsets, pause every plane's own
+        Animation and set its `currentTime` directly (freezing an exact,
+        reproducible frame instead of racing a real clock), screenshot the
+        page, and decode the PNG by hand (`decodePNG`/`getPixel` below, an
+        8-bit non-interlaced RGB/RGBA reader built on nothing but Node's
+        own `zlib.inflateSync`, since this repo takes on no npm dependency
+        even in scripts/: PNG's IDAT stream is zlib/RFC1950, which Node's
+        built-in zlib already speaks, so no decoder library is needed);
+     4. for every captured line rect, sample a 5x3 grid (the corners, the
+        midpoints and the centre) and keep the WORST (lowest-contrast)
+        pixel the line covers, not its centre.
+
+   Offsets: 0, 5000, 10000, 13000, 17500, 20000, 26000, 29000, 32000, 35000
+   (ms). Ten points spanning 0 to 35000ms, the longest plane's own one-way
+   duration (pub-hero-drift-4), and including every plane's own reversal
+   instant (26000/29000/32000/35000ms, pub-hero-drift-1 through -4's own
+   durations) plus several evenly spread midpoints. Each plane's keyframes
+   are a plain two-endpoint interpolation (`from`/`to`, no intermediate
+   waypoints per the CSS above), so the full set of positions any plane can
+   ever occupy is the continuum between those two states; sampling across
+   one full one-way pass of the slowest plane, including every plane's own
+   endpoint, covers that continuum for all four regardless of the
+   `alternate` reversal (forward and reverse trace the same positions) and
+   regardless of their differing periods and negative delays (each one is
+   independently sampled at multiple points along its own progress).
+
+   Checked at both 1280 and 375: which text node binds the tightest margin
+   genuinely differs by viewport (the utility nav links at 1280, the
+   trust line at 375, both --ink-3, the palette's lowest tint), because the
+   header's aspect ratio and therefore the planes' actual footprint differs
+   by width. Neither viewport alone would have caught the other's binding
+   case. */
+// contrastRatio/relativeLuminance/parseRgb are this file's own WCAG helpers,
+// declared once further down (function declarations hoist, so they are
+// callable here); reused rather than redeclared, so there is exactly one
+// implementation of the maths in this file.
+/** Minimal PNG decoder: 8-bit, non-interlaced, colour type 2 (RGB) or 6
+    (RGBA) only, which is what Chromium's page.screenshot({type:'png'})
+    produces. Built on node:zlib alone (no npm dependency). Throws loudly
+    on anything else rather than silently misreading it. */
+function decodePNG(buffer) {
+  if (buffer.readUInt32BE(0) !== 0x89504e47 || buffer.readUInt32BE(4) !== 0x0d0a1a0a) {
+    throw new Error('not a PNG (bad signature)');
+  }
+  let offset = 8;
+  let width, height, bitDepth, colorType, interlace;
+  const idatChunks = [];
+  while (offset < buffer.length) {
+    const length = buffer.readUInt32BE(offset);
+    const type = buffer.toString('ascii', offset + 4, offset + 8);
+    const dataStart = offset + 8;
+    const data = buffer.subarray(dataStart, dataStart + length);
+    if (type === 'IHDR') {
+      width = data.readUInt32BE(0);
+      height = data.readUInt32BE(4);
+      bitDepth = data.readUInt8(8);
+      colorType = data.readUInt8(9);
+      interlace = data.readUInt8(12);
+    } else if (type === 'IDAT') {
+      idatChunks.push(data);
+    } else if (type === 'IEND') {
+      break;
+    }
+    offset = dataStart + length + 4; // skip CRC
+  }
+  if (bitDepth !== 8) throw new Error(`unsupported PNG bit depth ${bitDepth}`);
+  if (interlace !== 0) throw new Error('unsupported PNG interlacing');
+  if (colorType !== 2 && colorType !== 6) throw new Error(`unsupported PNG colour type ${colorType}`);
+  const bpp = colorType === 6 ? 4 : 3;
+  const raw = inflateSync(Buffer.concat(idatChunks));
+  const stride = width * bpp;
+  const pixels = new Uint8Array(height * stride);
+  let rawOffset = 0;
+  let prevRowStart = -1;
+  for (let y = 0; y < height; y += 1) {
+    const filterType = raw[rawOffset];
+    rawOffset += 1;
+    const rowStart = y * stride;
+    for (let x = 0; x < stride; x += 1) {
+      const filt = raw[rawOffset + x];
+      const a = x >= bpp ? pixels[rowStart + x - bpp] : 0;
+      const b = prevRowStart >= 0 ? pixels[prevRowStart + x] : 0;
+      const c = (prevRowStart >= 0 && x >= bpp) ? pixels[prevRowStart + x - bpp] : 0;
+      let recon;
+      switch (filterType) {
+        case 0: recon = filt; break;
+        case 1: recon = filt + a; break;
+        case 2: recon = filt + b; break;
+        case 3: recon = filt + ((a + b) >> 1); break;
+        case 4: {
+          const p = a + b - c;
+          const pa = Math.abs(p - a);
+          const pb = Math.abs(p - b);
+          const pc = Math.abs(p - c);
+          recon = filt + ((pa <= pb && pa <= pc) ? a : (pb <= pc ? b : c));
+          break;
+        }
+        default: throw new Error(`unsupported PNG filter type ${filterType}`);
+      }
+      pixels[rowStart + x] = recon & 0xff;
+    }
+    prevRowStart = rowStart;
+    rawOffset += stride;
+  }
+  return { width, height, bpp, pixels };
+}
+function getPngPixel(png, x, y) {
+  const xi = Math.max(0, Math.min(png.width - 1, Math.round(x)));
+  const yi = Math.max(0, Math.min(png.height - 1, Math.round(y)));
+  const idx = (yi * png.width + xi) * png.bpp;
+  return [png.pixels[idx], png.pixels[idx + 1], png.pixels[idx + 2]];
+}
+
+const HERO_SAMPLE_OFFSETS_MS = [0, 5000, 10000, 13000, 17500, 20000, 26000, 29000, 32000, 35000];
+async function sampleHeroContrast(theme, viewportWidth) {
+  const p = await browser.newPage({ viewport: { width: viewportWidth, height: 900 }, deviceScaleFactor: 1 });
+  await p.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await p.addInitScript((t) => localStorage.setItem('freestack:v1:theme', t), theme);
+  await p.goto(`${base}/`);
+  await p.waitForSelector('#public-root .tool-card', { state: 'attached' });
+
+  // Step 1: every text node's own rendered line rects and its parent's
+  // live colour, captured before anything is hidden.
+  const textRuns = await p.evaluate(() => {
+    const header = document.querySelector('.pub-header');
+    const out = [];
+    const walker = document.createTreeWalker(header, NodeFilter.SHOW_TEXT, {
+      acceptNode: (n) => (n.textContent.trim().length > 0 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT),
+    });
+    let node = walker.nextNode();
+    while (node) {
+      const parent = node.parentElement;
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      const rects = [...range.getClientRects()]
+        .map((r) => ({ x: r.x, y: r.y, width: r.width, height: r.height }))
+        .filter((r) => r.width > 2 && r.height > 2);
+      out.push({
+        label: parent.className ? `${parent.tagName}.${parent.className}` : parent.tagName,
+        text: node.textContent.trim().slice(0, 24),
+        color: getComputedStyle(parent).color,
+        rects,
+      });
+      node = walker.nextNode();
+    }
+    return out;
+  });
+
+  // Step 2: hide every hero child except the plane container, so a
+  // screenshot from here on reads pure panel-plus-planes, contaminated by
+  // nothing (not the logo image, not a button border, not an icon glyph).
+  // visibility: hidden preserves every box's geometry, so the rects above
+  // stay valid.
+  await p.addStyleTag({ content: '.pub-header > *:not(.pub-hero-bg) { visibility: hidden !important; }' });
+
+  const perRun = new Map(); // label -> { ratio, offsetMs, bg, fg, text }
+  for (const offsetMs of HERO_SAMPLE_OFFSETS_MS) {
+    await p.evaluate((ms) => {
+      document.querySelectorAll('.pub-hero-plane').forEach((el) => {
+        el.getAnimations().forEach((a) => { a.pause(); a.currentTime = ms; });
+      });
+    }, offsetMs);
+    const buf = await p.screenshot({ type: 'png' });
+    const png = decodePNG(buf);
+    for (const run of textRuns) {
+      for (const rect of run.rects) {
+        const xs = [0.05, 0.25, 0.5, 0.75, 0.95].map((f) => rect.x + f * rect.width);
+        const ys = [0.15, 0.5, 0.85].map((f) => rect.y + f * rect.height);
+        for (const sx of xs) {
+          for (const sy of ys) {
+            const bg = getPngPixel(png, sx, sy);
+            // contrastRatio (hoisted below) takes two CSS colour strings;
+            // run.color already is one (getComputedStyle's own string),
+            // and the sampled pixel is turned into the same shape rather
+            // than adding a second, raw-array code path for the maths.
+            const bgCss = `rgb(${bg.join(',')})`;
+            const ratio = contrastRatio(run.color, bgCss);
+            const key = `${run.label}:"${run.text}"`;
+            const cur = perRun.get(key);
+            if (!cur || ratio < cur.ratio) perRun.set(key, { ratio, offsetMs, bg, fg: run.color, text: run.text });
+          }
+        }
+      }
+    }
+  }
+  await p.close();
+  return perRun;
+}
+
+for (const viewportWidth of [1280, 375]) {
+  for (const theme of ['light', 'dark']) {
+    const perRun = await sampleHeroContrast(theme, viewportWidth);
+    check(`homepage (${theme}, ${viewportWidth}px): the hero contrast sweep covers at least the three known body text colours (enumerated per text node, not hard-coded)`,
+      perRun.size >= 3, [...perRun.keys()].join(' | '));
+
+    let minOverall = Infinity;
+    let minKey = null;
+    const failures = [];
+    for (const [key, r] of perRun) {
+      if (r.ratio < minOverall) { minOverall = r.ratio; minKey = key; }
+      if (r.ratio < 4.5) failures.push(`${key} ratio=${r.ratio.toFixed(2)} offset=${r.offsetMs}ms bg=${JSON.stringify(r.bg)} fg=${JSON.stringify(r.fg)}`);
+    }
+    check(`homepage (${theme}, ${viewportWidth}px): every real sampled pixel behind hero text clears 4.5:1 across all ${HERO_SAMPLE_OFFSETS_MS.length} animation offsets`,
+      failures.length === 0,
+      `worst=${minOverall.toFixed(3)} (${minKey}); failures=${JSON.stringify(failures)}`);
+    // Recorded for the report, not itself pass/fail: the minimum observed
+    // ratio, so "clears 4.5 with real margin" is a number on record, not a
+    // claim.
+    check(`homepage (${theme}, ${viewportWidth}px): minimum observed ratio recorded`,
+      true, `min=${minOverall.toFixed(3)} at ${minKey}`);
+  }
+}
+
+/* --- Phase 16.2: the "opacity is static, never animated" invariant the
+   whole contrast proof above depends on, enforced at the source level
+   (BUILD-PLAN 16.2, verifier fix round) -----------------------------------
+   The runtime checks above sample getComputedStyle once, shortly after
+   load; on a slow-drifting animation that starts near its own minimum,
+   that single sample cannot tell a genuinely static opacity from an
+   animated one merely caught early. The guarantee is a claim about the
+   SOURCE, not a runtime sample: this reads css/styles.css directly and
+   fails if any pub-hero-drift-* keyframe block declares `opacity`, or if
+   any pub-hero-plane rule carries a `transition` whose value touches
+   opacity (an explicit one, or `all`, which would implicitly include it).
+   Brace-matched rather than a single greedy regex, since a keyframe block
+   contains its own nested `{ }` pairs (its from/to or percentage
+   selectors) that a naive `/@keyframes[^}]*}/` would stop at prematurely. */
+function extractBracedBlock(cssText, startBraceIndex) {
+  let depth = 0;
+  for (let i = startBraceIndex; i < cssText.length; i += 1) {
+    if (cssText[i] === '{') depth += 1;
+    else if (cssText[i] === '}') {
+      depth -= 1;
+      if (depth === 0) return cssText.slice(startBraceIndex, i + 1);
+    }
+  }
+  return cssText.slice(startBraceIndex);
+}
+{
+  const cssText = readFileSync(join(ROOT, 'css', 'styles.css'), 'utf8');
+  const keyframeRe = /@keyframes\s+(pub-hero-drift-\d+)\s*\{/g;
+  const animatedOpacityOffenders = [];
+  let m;
+  while ((m = keyframeRe.exec(cssText))) {
+    const block = extractBracedBlock(cssText, m.index + m[0].length - 1);
+    if (/\bopacity\s*:/.test(block)) animatedOpacityOffenders.push(m[1]);
+  }
+  check('css: no pub-hero-drift-* keyframe block ever declares opacity (the contrast proof requires opacity to be static)',
+    animatedOpacityOffenders.length === 0, animatedOpacityOffenders.join(', '));
+
+  // Same invariant, the other way it could be broken: a `transition` on a
+  // plane rule would let a hover, focus or class change animate opacity
+  // even with no such keyframe. No such rule exists today; this asserts it
+  // stays that way. Rule bodies are brace-matched the same way, from each
+  // `.pub-hero-plane` selector's own opening brace.
+  const planeRuleRe = /\.pub-hero-plane[\w-]*\s*(?:,\s*\.pub-hero-plane[\w-]*\s*)*\{/g;
+  const transitionOpacityOffenders = [];
+  while ((m = planeRuleRe.exec(cssText))) {
+    const block = extractBracedBlock(cssText, m.index + m[0].length - 1);
+    const transitionDecl = block.match(/transition\s*:\s*([^;]+);/);
+    if (transitionDecl && /\b(opacity|all)\b/.test(transitionDecl[1])) transitionOpacityOffenders.push(m[0].trim());
+  }
+  check('css: no .pub-hero-plane rule carries a transition touching opacity',
+    transitionOpacityOffenders.length === 0, transitionOpacityOffenders.join(' | '));
+}
+
+/* --- Phase 16.2: the planes never affect layout, cause a scrollbar, or
+   move the fold, at any viewport, with the animation actually running
+   (BUILD-PLAN 16.2) ------------------------------------------------------
+   scrollWidth sampled twice, several seconds apart, at three viewports:
+   equal to the viewport width both times (no horizontal scrollbar ever)
+   and unchanged between samples (the drift itself never grows the
+   scrollable area as it runs, not just at the moment of load). */
+for (const width of [375, 768, 1280]) {
+  const driftPage = await browser.newPage({ viewport: { width, height: 900 } });
+  await driftPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await driftPage.goto(`${base}/`);
+  await driftPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+  const scrollWidthAtLoad = await driftPage.evaluate(() => document.documentElement.scrollWidth);
+  await driftPage.waitForTimeout(2000); // partway into every plane's own loop; still well short of any of their 26-35s periods
+  const scrollWidthAfterDrift = await driftPage.evaluate(() => document.documentElement.scrollWidth);
+  check(`homepage: no horizontal scrollbar at ${width}px with the hero background animation running`,
+    scrollWidthAtLoad <= width && scrollWidthAfterDrift <= width,
+    `atLoad=${scrollWidthAtLoad} afterDrift=${scrollWidthAfterDrift} viewport=${width}`);
+  check(`homepage: document scrollWidth at ${width}px is unchanged by the running animation`,
+    scrollWidthAtLoad === scrollWidthAfterDrift,
+    `atLoad=${scrollWidthAtLoad} afterDrift=${scrollWidthAfterDrift}`);
+  await driftPage.close();
 }
 
 /* --- Phase 14.1: shelf mechanics (PRD section 16 amended, "compact
@@ -470,7 +1001,7 @@ const tool0Slug = slugifyForTest(tool0.category);
 
 // Height budgets, both widths, all shelves collapsed (the default state on
 // a fresh load, before anything is clicked).
-for (const [width, budget] of [[375, 3200], [1280, 2200]]) {
+for (const [width, budget] of [[375, 3200], [1280, 2300]]) {
   const budgetPage = await browser.newPage({ viewport: { width, height: 900 } });
   const budgetErrors = [];
   budgetPage.on('pageerror', (e) => budgetErrors.push(String(e)));
@@ -521,6 +1052,170 @@ check('shelf: the search input sits within the first 375x812 mobile viewport',
 check('shelf: the first shelf header top is within the reconciled 880px budget at 375x812',
   firstShelfHeaderTop !== null && firstShelfHeaderTop <= FIRST_SHELF_BUDGET, `firstShelfHeaderTop=${firstShelfHeaderTop}`);
 await foldPage.close();
+
+/* --- 16.4: fixed, self-compressing top bar (PRD section 16 amended layout
+   item 1's fixed-bar clause) ------------------------------------------
+   Every check below runs on its own throwaway page (the established
+   convention this file already uses for anything that scrolls or mutates
+   shared state, e.g. the Discover stub scroll check above), so nothing
+   here can contaminate the long-lived `page` object other sections still
+   rely on. */
+const topbarPage = await browser.newPage({ viewport: { width: 375, height: 812 } });
+await topbarPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await topbarPage.goto(`${base}/`);
+await topbarPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+
+// 1. Fixed bar, full width, opaque in both themes (a solid rgb() with no
+// alpha channel can never let scrolled content show through, which is a
+// stronger proof than sampling pixels: it holds for every scroll position
+// and every card colour, not only the ones actually sampled).
+const topbarBoxAtTop = await topbarPage.locator('.pub-topbar').boundingBox();
+check('topbar: fixed bar spans the full viewport width at the top of the page',
+  topbarBoxAtTop !== null && topbarBoxAtTop.x === 0 && topbarBoxAtTop.y === 0 && topbarBoxAtTop.width === 375,
+  JSON.stringify(topbarBoxAtTop));
+const topbarBgLight = await topbarPage.evaluate(() => getComputedStyle(document.querySelector('.pub-topbar')).backgroundColor);
+await topbarPage.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+const topbarBgDark = await topbarPage.evaluate(() => getComputedStyle(document.querySelector('.pub-topbar')).backgroundColor);
+await topbarPage.evaluate(() => document.documentElement.removeAttribute('data-theme'));
+const solidColor = (c) => /^rgb\(/.test(c); // rgb(), never rgba(...,<1), i.e. fully opaque
+check('topbar: background is a solid, fully opaque colour in both themes (a card scrolling underneath cannot show through)',
+  solidColor(topbarBgLight) && solidColor(topbarBgDark), `light=${topbarBgLight} dark=${topbarBgDark}`);
+
+// 2. All four controls reachable and >=44px while expanded (the burger must
+// not show yet: nothing has scrolled).
+const expandedItems = await topbarPage.locator('.pub-hero-nav a, .pub-hero-nav button').evaluateAll((nodes) => nodes.map((n) => {
+  const r = n.getBoundingClientRect();
+  return { w: r.width, h: r.height };
+}));
+check('topbar: all four controls are at least 44px in both dimensions while expanded',
+  expandedItems.length === 4 && expandedItems.every((b) => b.w >= 43.9 && b.h >= 43.9), JSON.stringify(expandedItems));
+check('topbar: burger is not shown while expanded', await topbarPage.locator('.pub-topbar-burger').isVisible() === false);
+
+// 3. Scroll to the very bottom of the page: the bar must still be fixed,
+// visible, and now compressed (the reader has long since scrolled past the
+// hero). --topbar-h must have updated to a shorter figure than the
+// expanded reading, proving the one shared custom property genuinely
+// tracks the bar's live height rather than being set once and forgotten.
+const topbarHExpanded = await topbarPage.evaluate(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--topbar-h')));
+await topbarPage.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+await topbarPage.waitForTimeout(150);
+const topbarBoxAtBottom = await topbarPage.locator('.pub-topbar').boundingBox();
+const isCompressedAtBottom = await topbarPage.evaluate(() => document.querySelector('.pub-topbar').classList.contains('is-compressed'));
+const topbarHCompressed = await topbarPage.evaluate(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--topbar-h')));
+check('topbar: bar stays fixed at the viewport top and visible after scrolling to the page bottom',
+  topbarBoxAtBottom !== null && topbarBoxAtBottom.y === 0, JSON.stringify(topbarBoxAtBottom));
+check('topbar: compresses once the reader has scrolled past the hero', isCompressedAtBottom === true);
+check('--topbar-h updates to a shorter figure once compressed, proving it is live, not set once',
+  topbarHCompressed < topbarHExpanded, `expanded=${topbarHExpanded} compressed=${topbarHCompressed}`);
+const burgerBoxCompressed = await topbarPage.locator('.pub-topbar-burger').boundingBox();
+check('topbar: the compressed bar itself is shorter than the expanded bar (a real shrink, not merely a different control)',
+  topbarBoxAtBottom.height < topbarBoxAtTop.height, `expanded=${topbarBoxAtTop.height} compressed=${topbarBoxAtBottom.height}`);
+check('topbar: the four controls are gone from the compressed, closed bar (reachable only via the burger)',
+  await topbarPage.locator('.pub-hero-nav').isVisible() === false);
+check('topbar: burger itself clears the WCAG 2.5.8 minimum target size (24px) once compressed',
+  burgerBoxCompressed !== null && burgerBoxCompressed.width >= 24 && burgerBoxCompressed.height >= 24, JSON.stringify(burgerBoxCompressed));
+
+// 4. The burger disclosure contract, end to end: aria-expanded flips, focus
+// moves into the panel, all four controls stay >=44px inside it, Escape
+// closes and returns focus to the burger, an outside click closes it too,
+// and focus is never dropped onto <body> at any point in the sequence
+// (the exact defect PRD section 16 amended calls out from the Phase 14
+// coach overlay).
+await topbarPage.evaluate(() => {
+  window.__focusLog = [];
+  document.addEventListener('focusin', (e) => window.__focusLog.push(e.target === document.body ? 'BODY' : (e.target.tagName + '.' + e.target.className)));
+});
+check('topbar-burger: aria-expanded starts false', await topbarPage.locator('.pub-topbar-burger').getAttribute('aria-expanded') === 'false');
+const ariaControls = await topbarPage.locator('.pub-topbar-burger').getAttribute('aria-controls');
+const navId = await topbarPage.locator('.pub-hero-nav').getAttribute('id');
+check('topbar-burger: aria-controls names the disclosure panel', ariaControls === navId && !!navId, `aria-controls=${ariaControls} navId=${navId}`);
+check('topbar-burger: carries a non-empty accessible name', !!(await topbarPage.locator('.pub-topbar-burger').getAttribute('aria-label')));
+
+await topbarPage.locator('.pub-topbar-burger').click();
+await topbarPage.waitForTimeout(50);
+check('topbar-burger: aria-expanded flips to true on open', await topbarPage.locator('.pub-topbar-burger').getAttribute('aria-expanded') === 'true');
+const focusedAfterOpen = await topbarPage.evaluate(() => document.activeElement.tagName);
+const navContainsFocused = await topbarPage.evaluate(() => document.querySelector('.pub-hero-nav').contains(document.activeElement));
+check('topbar-burger: opening moves focus into the panel', navContainsFocused === true, `focusedTag=${focusedAfterOpen}`);
+const panelItems = await topbarPage.locator('.pub-hero-nav a, .pub-hero-nav button').evaluateAll((nodes) => nodes.map((n) => {
+  const r = n.getBoundingClientRect();
+  return { w: r.width, h: r.height };
+}));
+check('topbar-burger: all four controls remain reachable and at least 44px inside the open panel',
+  panelItems.length === 4 && panelItems.every((b) => b.w >= 43.9 && b.h >= 43.9), JSON.stringify(panelItems));
+const panelBox = await topbarPage.locator('.pub-hero-nav.is-open').boundingBox();
+const barBoxWhileOpen = await topbarPage.locator('.pub-topbar').boundingBox();
+check('topbar-burger: the open panel is not clipped by the bar and sits below its own box, never overlapping it',
+  panelBox !== null && panelBox.y >= barBoxWhileOpen.y + barBoxWhileOpen.height - 0.5, JSON.stringify({ panelBox, barBoxWhileOpen }));
+
+await topbarPage.keyboard.press('Escape');
+await topbarPage.waitForTimeout(50);
+check('topbar-burger: Escape closes the panel (aria-expanded back to false)',
+  await topbarPage.locator('.pub-topbar-burger').getAttribute('aria-expanded') === 'false');
+const focusedAfterEscape = await topbarPage.evaluate(() => ({
+  tag: document.activeElement.tagName, isBurger: document.activeElement.classList.contains('pub-topbar-burger'),
+}));
+check('topbar-burger: Escape returns focus to the burger', focusedAfterEscape.isBurger === true, JSON.stringify(focusedAfterEscape));
+
+// Reopen, then dismiss with a genuine outside pointer press on a
+// non-focusable element (the shelf-band title), the exact scenario this
+// wave's own build found the browser's default mousedown blur racing
+// against: without the preventDefault()/pointerdown fix, focus lands on
+// <body>, not the burger.
+await topbarPage.locator('.pub-topbar-burger').click();
+await topbarPage.waitForTimeout(50);
+const titleBox = await topbarPage.locator('.pub-shelf-band-title').boundingBox();
+await topbarPage.mouse.click(titleBox.x + 2, titleBox.y + 2);
+await topbarPage.waitForTimeout(50);
+check('topbar-burger: an outside click closes the panel', await topbarPage.locator('.pub-topbar-burger').getAttribute('aria-expanded') === 'false');
+const focusedAfterOutside = await topbarPage.evaluate(() => ({
+  tag: document.activeElement.tagName, isBurger: document.activeElement.classList.contains('pub-topbar-burger'), isBody: document.activeElement === document.body,
+}));
+check('topbar-burger: an outside click on a non-focusable element returns focus to the burger, never drops it on body',
+  focusedAfterOutside.isBurger === true && focusedAfterOutside.isBody === false, JSON.stringify(focusedAfterOutside));
+const focusLog = await topbarPage.evaluate(() => window.__focusLog);
+check('topbar-burger: focus is never observed landing on <body> anywhere across the whole open/Escape/reopen/outside-click sequence',
+  !focusLog.includes('BODY'), focusLog.join(' | '));
+
+// 5. The collision this wave exists to fix: a stuck shelf header's full box
+// must sit below the bar (never under it) and a click on it must actually
+// collapse the shelf, not be intercepted by the bar.
+await topbarPage.locator('.pub-shelf-header').first().click();
+await topbarPage.waitForTimeout(150);
+await topbarPage.evaluate(() => window.scrollTo(0, 1200));
+await topbarPage.waitForTimeout(150);
+const stuckHeaderHandle = await topbarPage.locator('.pub-shelf-header[aria-expanded="true"]').first().elementHandle();
+const stuckIsStuck = await stuckHeaderHandle.evaluate((n) => n.classList.contains('is-stuck'));
+const stuckBox = await stuckHeaderHandle.boundingBox();
+const topbarBoxAtDepth = await topbarPage.locator('.pub-topbar').boundingBox();
+check('topbar: a stuck shelf header is genuinely stuck at this scroll depth', stuckIsStuck === true);
+check('topbar: the stuck shelf header\'s full box sits clear of (below) the bar, not underneath it',
+  stuckBox !== null && stuckBox.y >= topbarBoxAtDepth.y + topbarBoxAtDepth.height - 0.5,
+  JSON.stringify({ stuckBox, topbarBoxAtDepth }));
+const ariaBeforeStuckClick = await stuckHeaderHandle.getAttribute('aria-expanded');
+await topbarPage.mouse.click(stuckBox.x + 5, stuckBox.y + 5);
+await topbarPage.waitForTimeout(100);
+const ariaAfterStuckClick = await stuckHeaderHandle.getAttribute('aria-expanded');
+check('topbar: a click on the stuck header at this depth actually collapses the shelf (not intercepted by the bar)',
+  ariaBeforeStuckClick === 'true' && ariaAfterStuckClick === 'false', `before=${ariaBeforeStuckClick} after=${ariaAfterStuckClick}`);
+await topbarPage.close();
+
+// 6. Reduced motion: compress and panel-open are instant state changes, no
+// height or transform transition. Checked on its own page (a fresh load
+// with the media feature emulated, since Playwright applies it for the
+// page's whole lifetime, not retroactively).
+const topbarReducedPage = await browser.newPage({ viewport: { width: 375, height: 812 } });
+await topbarReducedPage.emulateMedia({ reducedMotion: 'reduce' });
+await topbarReducedPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await topbarReducedPage.goto(`${base}/`);
+await topbarReducedPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+const reducedTransitions = await topbarReducedPage.evaluate(() => {
+  const dur = (sel) => parseFloat(getComputedStyle(document.querySelector(sel)).transitionDuration) * 1000; // ms, first listed value
+  return { bar: dur('.pub-topbar'), nav: dur('.pub-hero-nav'), burger: dur('.pub-topbar-burger') };
+});
+check('topbar: reduced motion leaves no transition on the bar, the nav or the burger (compress/open are instant state changes)',
+  reducedTransitions.bar <= 1 && reducedTransitions.nav <= 1 && reducedTransitions.burger <= 1, JSON.stringify(reducedTransitions));
+await topbarReducedPage.close();
 
 // All 89 active cards present in the DOM with shelves collapsed (the "all X
 // active tools as cards" check at the very top of this file already covers
@@ -1258,10 +1953,28 @@ await reducedDiscoverPage.locator('[data-discover-entry]').click();
 await reducedDiscoverPage.waitForSelector('.discover-card');
 const enterAnimationName = await reducedDiscoverPage.locator('.discover-card').evaluate((n) => getComputedStyle(n).animationName);
 check('discover: reduced motion: the new-card deal-in carries no animation', enterAnimationName === 'none', enterAnimationName);
+/* Event evidence, not a sample. This asserted absence by reading
+   getComputedStyle 30ms after the commit, which flaked 2 runs in 5 under
+   load: 30ms is a race against the commit's own DOM work, and a single
+   sample can land on a frame that says nothing useful either way. Absence
+   is exactly the claim an event listener proves best, so record every
+   animationstart anywhere in the deck across a generous window and assert
+   none fired. Same correction already applied to both shelf-stagger
+   checks; the sampling pattern is the recurring fault in this suite. */
+await reducedDiscoverPage.evaluate(() => {
+  window.__reducedStampAnims = [];
+  document.addEventListener('animationstart', (e) => {
+    const t = e.target;
+    if (t instanceof Element && t.closest('.discover-panel')) {
+      window.__reducedStampAnims.push({ name: e.animationName, cls: t.className });
+    }
+  }, true);
+});
 await reducedDiscoverPage.locator('.discover-btn-have').click();
-await reducedDiscoverPage.waitForTimeout(30);
-const stampPopAnimationName = await reducedDiscoverPage.locator('.discover-stamp-have').evaluate((n) => getComputedStyle(n).animationName).catch(() => 'gone');
-check('discover: reduced motion: the stamp pop on commit carries no animation', stampPopAnimationName === 'none' || stampPopAnimationName === 'gone', stampPopAnimationName);
+await reducedDiscoverPage.waitForTimeout(600);
+const reducedStampAnims = await reducedDiscoverPage.evaluate(() => window.__reducedStampAnims);
+check('discover: reduced motion: committing a judgement starts no animation anywhere in the deck',
+  reducedStampAnims.length === 0, JSON.stringify(reducedStampAnims));
 await reducedDiscoverPage.close();
 
 // Phase 14 close-out: the coach's Continue button removes itself from the
@@ -1412,18 +2125,35 @@ await coachClickPage.close();
   const guardPage = await browser.newPage();
   await guardPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
   await seedCoachDoneBeforeLoad(guardPage);
-  await guardPage.goto(`${base}/`);
-  await guardPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
-  await guardPage.locator('[data-discover-entry]').click();
-  await guardPage.waitForSelector('.discover-card');
-  await guardPage.evaluate(() => {
+  /* The comment above is right that a synthetic pointerdown has no latency
+     once inside evaluate(), and wrong about where the race actually is: the
+     round trip needed to REACH that evaluate (waitForSelector, then the call
+     itself) can exceed the 450ms trigger delay under load, so the shake
+     fires before the pointer is ever held and the guard is blamed for it.
+     Failed 1 run in 5 that way. Arm everything in-page before the deck can
+     mount: an init script watches for .discover-card and dispatches the
+     pointerdown the instant it appears, with zero automation round trip in
+     the path. */
+  await guardPage.addInitScript(() => {
     window.__shakeEvents = [];
     document.addEventListener('animationstart', (e) => {
       if (e.animationName === 'discover-card-shake') window.__shakeEvents.push(true);
     }, true);
-    document.querySelector('.discover-card')
-      .dispatchEvent(new PointerEvent('pointerdown', { pointerId: 1, clientX: 0, clientY: 0, bubbles: true }));
+    const arm = new MutationObserver(() => {
+      const card = document.querySelector('.discover-card');
+      if (!card) return;
+      arm.disconnect();
+      window.__guardPointerDownAt = performance.now();
+      card.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 1, clientX: 0, clientY: 0, bubbles: true }));
+    });
+    document.addEventListener('DOMContentLoaded', () => arm.observe(document.body, { childList: true, subtree: true }));
   });
+  await guardPage.goto(`${base}/`);
+  await guardPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+  await guardPage.locator('[data-discover-entry]').click();
+  await guardPage.waitForSelector('.discover-card');
+  check('discover: the pointer-down guard was genuinely armed before the shake could fire (else the check below proves nothing)',
+    await guardPage.evaluate(() => typeof window.__guardPointerDownAt === 'number'));
   await guardPage.waitForTimeout(1300); // spans the 450ms trigger delay and the 600ms animation, pointer still down throughout
   const guardShakeCount = await guardPage.evaluate(() => window.__shakeEvents.length);
   check('discover: the shake never fires while a pointer is held down on the card through the trigger window',
@@ -2913,6 +3643,9 @@ const faqHtml = (await readFile(join(ROOT, 'faq.html'))).toString('utf8');
 // needs a new CSP hash entry.
 const privacyHtml = (await readFile(join(ROOT, 'privacy.html'))).toString('utf8');
 const contactHtml = (await readFile(join(ROOT, 'contact.html'))).toString('utf8');
+// Phase 16: changelog.html joins the same mould, reusing the byte-for-byte
+// boot script so it too needs no new CSP hash entry.
+const changelogHtmlSrc = (await readFile(join(ROOT, 'changelog.html'))).toString('utf8');
 const netlifyToml = (await readFile(join(ROOT, 'netlify.toml'))).toString('utf8');
 
 const indexInline = extractInlineScripts(rawHtml);
@@ -2921,7 +3654,8 @@ const whyInline = extractInlineScripts(whyRegisterHtml);
 const faqInline = extractInlineScripts(faqHtml);
 const privacyInline = extractInlineScripts(privacyHtml);
 const contactInline = extractInlineScripts(contactHtml);
-const currentHashes = new Set([...indexInline, ...embedInline, ...whyInline, ...faqInline, ...privacyInline, ...contactInline].map(sha256Base64));
+const changelogInline = extractInlineScripts(changelogHtmlSrc);
+const currentHashes = new Set([...indexInline, ...embedInline, ...whyInline, ...faqInline, ...privacyInline, ...contactInline, ...changelogInline].map(sha256Base64));
 
 const cspScriptSrcLine = netlifyToml.split('\n').find((l) => l.includes('Content-Security-Policy') && l.includes('script-src'));
 const cspHashes = new Set([...(cspScriptSrcLine || '').matchAll(/'sha256-([A-Za-z0-9+/]+=*)'/g)].map((m) => m[1]));
@@ -2940,6 +3674,10 @@ check('csp: contact.html boot script is byte identical to index.html (Phase 15, 
   indexInline.length === 1 && contactInline.length === 1 && sha256Base64(indexInline[0]) === sha256Base64(contactInline[0]));
 check('csp: privacy.html and contact.html introduce no additional inline script beyond the shared boot script',
   privacyInline.length === 1 && contactInline.length === 1);
+check('csp: changelog.html boot script is byte identical to index.html (Phase 16, no third hash needed)',
+  indexInline.length === 1 && changelogInline.length === 1 && sha256Base64(indexInline[0]) === sha256Base64(changelogInline[0]));
+check('csp: changelog.html introduces no additional inline script beyond the shared boot script',
+  changelogInline.length === 1);
 
 // Regression guard for the JSON-LD exclusion itself (PRD section 18,
 // "Smoke-gate exclusion for JSON-LD"): a type="application/ld+json" block
@@ -2989,8 +3727,17 @@ check('csp: privacy.html and contact.html introduce no additional inline script 
     [...new Set(active.map((t) => t.category))].every((cat) => rawRootHtml.includes(escapeHtmlForCheck(cat))));
   check('aeo: raw fetch of / contains the trust lines and a link to /faq.html',
     rawRootHtml.includes('No affiliates, no sponsors, no paid placement.')
-    && rawRootHtml.includes(`${active.length} free tool`)
+    && rawRootHtml.includes(`${active.length} tool`)
+    && rawRootHtml.includes('Nobody paid to be listed.')
     && /href="\/faq\.html"/.test(rawRootHtml));
+  // Phase 16 (Rocky, 2 Aug): the "Recently updated" strip is removed from
+  // the homepage entirely, not just hidden. Checked against the raw page
+  // source, not only the rendered DOM (the earlier "no changelog node of
+  // any kind remains on the homepage" check further up this file), so a
+  // server-rendered leftover neither check alone could miss stays caught by
+  // at least one of the two.
+  check('aeo: raw fetch of / carries no changelog node of any kind (class or id)',
+    !/class="[^"]*changelog/i.test(rawRootHtml) && !/id="[^"]*changelog/i.test(rawRootHtml));
   // Per-tool question, tool 0 specifically (PRD section 18, per-tool
   // questions, and the section 4 id law: id 0 is a real tool and must never
   // be dropped by a truthiness check anywhere in this pipeline).
@@ -3105,6 +3852,44 @@ check('csp: privacy.html and contact.html introduce no additional inline script 
   check('aeo: faq.html has no horizontal scroll at 375px', faqScrollW <= 375, `scrollWidth=${faqScrollW}`);
   await faqMobile.close();
 
+  /* --- changelog.html (PRD section 16 amended, Phase 16): static,
+     indexable, generated from data/changelog.json the way faq.html is
+     generated from FAQ_ITEMS, no runtime fetch. Entry text is asserted
+     against a plain fetch of the page source, not just the rendered DOM,
+     per this wave's own brief. */
+  const changelogJsonEntries = JSON.parse(await readFile(join(ROOT, 'data', 'changelog.json'), 'utf8'));
+  const changelogRes = await fetch(`${base}/changelog.html`);
+  const changelogRawHtml = await changelogRes.text();
+  check('aeo: /changelog.html serves 200', changelogRes.status === 200);
+  const changelogMissingDetails = changelogJsonEntries.filter((e) => !changelogRawHtml.includes(escapeHtmlForCheck(e.detail)));
+  check('aeo: /changelog.html carries every data/changelog.json entry as raw HTML text (no runtime fetch)',
+    changelogJsonEntries.length > 0 && changelogMissingDetails.length === 0,
+    `entries=${changelogJsonEntries.length} missing=${changelogMissingDetails.length}`);
+  check('aeo: /changelog.html carries no robots meta tag (indexable)',
+    !/<meta\s+name="robots"/i.test(changelogRawHtml));
+  check('aeo: /changelog.html makes no runtime fetch of data/changelog.json (entries are static markup)',
+    !/fetch\(\s*['"]data\/changelog\.json['"]\s*\)/.test(changelogRawHtml));
+  check('aeo: /changelog.html carries a canonical link to itself',
+    changelogRawHtml.includes('<link rel="canonical" href="https://tools.airl.io/changelog.html">'));
+
+  await page.goto(`${base}/changelog.html`);
+  await page.waitForSelector('.changelog-item');
+  const changelogVisibleDetails = await page.locator('.changelog-detail').allTextContents();
+  check('aeo: changelog.html renders every entry as visible text (not JS-injected)',
+    changelogJsonEntries.every((e) => changelogVisibleDetails.includes(e.detail)));
+  const changelogArchivedCount = await page.locator('.changelog-item.is-archived').count();
+  const expectedArchivedCount = changelogJsonEntries.filter((e) => e.kind === 'archived').length;
+  check('aeo: changelog.html marks archived entries with their own class, matching data/changelog.json',
+    changelogArchivedCount === expectedArchivedCount, `rendered=${changelogArchivedCount} expected=${expectedArchivedCount}`);
+
+  const changelogMobile = await browser.newPage({ viewport: { width: 375, height: 812 } });
+  await changelogMobile.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await changelogMobile.goto(`${base}/changelog.html`);
+  await changelogMobile.waitForSelector('.changelog-item');
+  const changelogScrollW = await changelogMobile.evaluate(() => document.documentElement.scrollWidth);
+  check('aeo: changelog.html has no horizontal scroll at 375px', changelogScrollW <= 375, `scrollWidth=${changelogScrollW}`);
+  await changelogMobile.close();
+
   // index.html head JSON-LD: Organization, WebSite, ItemList, valid JSON,
   // expected @types, ItemList length equals the active count (id 0 counted:
   // no truthiness filter anywhere in this pipeline could silently drop it).
@@ -3136,17 +3921,19 @@ check('csp: privacy.html and contact.html introduce no additional inline script 
 
   // sitemap.xml: exactly the permitted URLs, nothing noindexed, no
   // how-we-choose.html until Rocky's sign-off lands. Phase 15 (PRD section
-  // 16 amended) adds privacy.html and contact.html to this list.
+  // 16 amended) adds privacy.html and contact.html; Phase 16 adds
+  // changelog.html.
   const sitemapRes = await fetch(`${base}/sitemap.xml`);
   const sitemapXml = await sitemapRes.text();
   const sitemapUrls = [...sitemapXml.matchAll(/<loc>([^<]*)<\/loc>/g)].map((m) => m[1]);
-  check('aeo: sitemap.xml lists exactly /, /faq.html, /privacy.html and /contact.html, nothing else',
+  check('aeo: sitemap.xml lists exactly /, /faq.html, /privacy.html, /contact.html and /changelog.html, nothing else',
     sitemapRes.status === 200
-    && sitemapUrls.length === 4
+    && sitemapUrls.length === 5
     && sitemapUrls.includes('https://tools.airl.io/')
     && sitemapUrls.includes('https://tools.airl.io/faq.html')
     && sitemapUrls.includes('https://tools.airl.io/privacy.html')
-    && sitemapUrls.includes('https://tools.airl.io/contact.html'));
+    && sitemapUrls.includes('https://tools.airl.io/contact.html')
+    && sitemapUrls.includes('https://tools.airl.io/changelog.html'));
 
   // robots.txt: Sitemap line present, still no disallow anywhere (a
   // disallow for /x would advertise the hidden staff path).
@@ -3157,14 +3944,15 @@ check('csp: privacy.html and contact.html introduce no additional inline script 
     && robotsTxt.includes('Sitemap: https://tools.airl.io/sitemap.xml')
     && !/Disallow:/i.test(robotsTxt));
 
-  // llms.txt: served, points at the machine-readable dataset, the FAQ and
-  // (Phase 15) the contact page.
+  // llms.txt: served, points at the machine-readable dataset, the FAQ,
+  // (Phase 15) the contact page and (Phase 16) the changelog.
   const llmsRes = await fetch(`${base}/llms.txt`);
   const llmsTxt = await llmsRes.text();
-  check('aeo: llms.txt is served and points at /data/tools.json, /faq.html and /contact.html',
+  check('aeo: llms.txt is served and points at /data/tools.json, /faq.html, /changelog.html and /contact.html',
     llmsRes.status === 200
     && llmsTxt.includes('/data/tools.json')
     && llmsTxt.includes('/faq.html')
+    && llmsTxt.includes('/changelog.html')
     && llmsTxt.includes('/contact.html'));
 
   /* --- Wave 14.3b: data/faq.json as the single source of truth, and its two
@@ -3213,7 +4001,7 @@ check('csp: privacy.html and contact.html introduce no additional inline script 
   // is genuinely visible (collapsed, but no longer `hidden`), rather than
   // assuming it stays within budget: "they will not, but assert it" per the
   // coordinator's brief.
-  for (const [width, budget] of [[375, 3200], [1280, 2200]]) {
+  for (const [width, budget] of [[375, 3200], [1280, 2300]]) {
     const faqBudgetPage = await browser.newPage({ viewport: { width, height: 900 } });
     await faqBudgetPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
     await faqBudgetPage.goto(`${base}/`);
@@ -3317,10 +4105,14 @@ check('csp: privacy.html and contact.html introduce no additional inline script 
   const { execFileSync } = await import('node:child_process');
   // 'data/faq.json' (wave 14.3b): the same drift proof now covers the JSON
   // source of truth every runtime surface fetches, not only the HTML/XML/
-  // text artefacts. .github/workflows/ci.yml's own drift step diffs this
-  // exact path list too, so a real CI run and this in-suite corroboration
-  // can never disagree about what "covered by the drift gate" means.
-  const artefacts = ['index.html', 'faq.html', 'sitemap.xml', 'llms.txt', 'robots.txt', join('data', 'faq.json')];
+  // text artefacts. 'changelog.html' (Phase 16) joins the same list this
+  // wave. .github/workflows/ci.yml's own drift step diffs an explicit path
+  // list too; this wave's addition to it is outside this file's ownership
+  // (see this wave's own report), so this in-suite corroboration is, for
+  // now, the one place changelog.html's own drift is actually gated end to
+  // end. A real CI run and this corroboration can never disagree about
+  // what "covered by the drift gate" means for every path they DO share.
+  const artefacts = ['index.html', 'faq.html', 'changelog.html', 'sitemap.xml', 'llms.txt', 'robots.txt', join('data', 'faq.json')];
   const before = Object.fromEntries(await Promise.all(artefacts.map(async (f) => [f, await readFile(join(ROOT, f), 'utf8')])));
   execFileSync(process.execPath, [join(ROOT, 'scripts', 'build-seo.mjs')], { cwd: ROOT });
   const afterFirstRun = Object.fromEntries(await Promise.all(artefacts.map(async (f) => [f, await readFile(join(ROOT, f), 'utf8')])));
@@ -4112,6 +4904,195 @@ async function completeHeadlessStackSetup(pg, business) {
   await pg.close();
   await ctx.close();
 }
+
+/* --- Phase 13.1: payment links (docs/PAYMENTS.md section 4) ---------------
+   js/payments.js ships this wave with both urls empty, so first: prove the
+   shipped, real constants render neither link nor the trust sentence
+   anywhere, and the footer is byte-for-byte what it was before this wave.
+   Then, WITHOUT touching the real file, stub js/payments.js over the
+   network with non-empty test URLs (a fresh browser context per check, so
+   nothing here leaves the tree dirty or leaks state between checks) and
+   prove the two trust boundaries from section 4: the links and trust
+   sentence render on the public directory footer only, with correct
+   rel/target and an href byte-identical to the constant, and they render on
+   NO other surface (client deliverable pages, /x, /my, embed.html) even
+   once a live URL exists. */
+
+/* Shipped state, against the REAL js/payments.js with no stub: since the live
+   Stripe tip link landed, the shipped constants are deliberately mixed, one
+   URL live and one still empty (GoCardless is mid-verification). That mix is
+   worth more than the old both-empty assertion: it proves the per-link
+   empty-renders-nothing rule in the file that actually deploys, not only in a
+   stub, and it pins the live URL so a careless edit to a real money link
+   cannot reach production silently. */
+// Import the real module rather than parsing its source: js/payments.js is a
+// plain ESM export with no browser dependencies, so this is exact, and the
+// test can never disagree with the file that actually ships.
+const { PAYMENT_LINKS: shippedLinks } = await import('../js/payments.js');
+
+/* Literal pin on the live money links, added after the 13.1 verifier proved
+   the surrounding checks were self-referential: they import js/payments.js and
+   assert the DOM matches whatever that import returned, which verifies
+   rendering, not correctness. Emptying the tip URL or swapping it for a
+   different buy.stripe.com link both still passed the whole suite. These are
+   real payment destinations on a public page, so they get the same treatment
+   as the CSP hashes: a literal expected value here, so changing a URL in
+   js/payments.js forces a deliberate matching edit to this file and both land
+   in the same reviewed diff. Filling in the GoCardless audit link is expected
+   to fail this check once; that failure IS the review prompt. */
+const EXPECTED_PAYMENT_URLS = {
+  tip:   'https://buy.stripe.com/3cI00idJjcJzdN75ps3AY01', // Stripe, live, verified by Rocky on the Deploy Preview
+  audit: '',                                               // GoCardless, pending business verification
+};
+for (const [name, expected] of Object.entries(EXPECTED_PAYMENT_URLS)) {
+  check(`payments: the shipped ${name} URL is exactly the reviewed one (pins a real money link against a silent edit)`,
+    shippedLinks[name]?.url === expected,
+    `shipped=${JSON.stringify(shippedLinks[name]?.url)} expected=${JSON.stringify(expected)}`);
+}
+check('payments: no payment entry was added or removed without updating the pin',
+  JSON.stringify(Object.keys(shippedLinks).sort()) === JSON.stringify(Object.keys(EXPECTED_PAYMENT_URLS).sort()),
+  `shipped=${Object.keys(shippedLinks)} pinned=${Object.keys(EXPECTED_PAYMENT_URLS)}`);
+const paymentsShippedPage = await browser.newPage();
+await paymentsShippedPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await paymentsShippedPage.goto(`${base}/`);
+await paymentsShippedPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+const shippedFooterHtml = await paymentsShippedPage.locator('.pub-footer').innerHTML();
+const expectedShippedCount = Object.values(shippedLinks).filter((e) => e.url).length;
+check('payments: the footer renders exactly one payment line per non-empty shipped constant',
+  await paymentsShippedPage.locator('.pub-footer-payment').count() === expectedShippedCount,
+  `rendered=${await paymentsShippedPage.locator('.pub-footer-payment').count()} expected=${expectedShippedCount}`);
+for (const [name, entry] of Object.entries(shippedLinks)) {
+  if (entry.url) {
+    // Identify by the href itself: the design is provider-agnostic, so the URL
+    // is the only stable identity a link has.
+    const link = paymentsShippedPage.locator(`.pub-footer-payment a[href="${entry.url}"]`);
+    check(`payments: shipped ${name} link renders once with an href byte-identical to the constant`,
+      await link.count() === 1, `constant=${entry.url}`);
+    check(`payments: shipped ${name} link opens safely (real money link, target and rel)`,
+      await link.getAttribute('target') === '_blank'
+      && (await link.getAttribute('rel') || '').includes('noopener')
+      && (await link.getAttribute('rel') || '').includes('noreferrer'));
+    check(`payments: shipped ${name} URL is a live link, never a provider test-mode link`,
+      !/\btest_|\/test\//.test(entry.url), entry.url);
+  } else {
+    check(`payments: shipped ${name} entry is empty and therefore renders nothing at all`,
+      !shippedFooterHtml.includes(entry.label), `label=${entry.label}`);
+  }
+}
+const anyShippedLink = Object.values(shippedLinks).some((e) => e.url);
+check('payments: the trust sentence tracks the shipped state (present iff at least one link renders)',
+  (await paymentsShippedPage.locator('.pub-footer-payment-trust').count() === 1) === anyShippedLink);
+await paymentsShippedPage.close();
+
+// Non-empty stub: intercept js/payments.js at the network layer and serve
+// test constants. The real file on disk is never touched by this test.
+const TEST_TIP_URL = 'https://pay.example.com/tip-test-13-1';
+const TEST_AUDIT_URL = 'https://pay.example.com/audit-test-13-1';
+const paymentsStubBody = `export const PAYMENT_LINKS = {
+  tip: { url: ${JSON.stringify(TEST_TIP_URL)}, label: 'buy the curator a coffee' },
+  audit: { url: ${JSON.stringify(TEST_AUDIT_URL)}, label: 'book a fixed-fee stack audit' },
+};
+`;
+let paymentsStubHits = 0;
+async function withStubbedPayments(fn) {
+  const ctx = await browser.newContext();
+  await ctx.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await ctx.route('**/js/payments.js', (route) => {
+    paymentsStubHits += 1;
+    route.fulfill({ status: 200, contentType: 'text/javascript', body: paymentsStubBody });
+  });
+  const pg = await ctx.newPage();
+  await fn(pg);
+  await ctx.close();
+}
+
+await withStubbedPayments(async (pg) => {
+  await pg.goto(`${base}/`);
+  await pg.waitForSelector('#public-root .tool-card', { state: 'attached' });
+  // Prove the stub actually took effect before asserting anything else on
+  // it: read the module straight back out of the page's own module graph,
+  // independent of the footer-rendering logic under test below. This can
+  // only resolve to the test URLs if the network response really was the
+  // stub, since the real file on disk ships both urls empty.
+  const stubResolved = await pg.evaluate(async () => {
+    const mod = await import('/js/payments.js');
+    return mod.PAYMENT_LINKS;
+  });
+  check('payments: stub interception actually took effect (module resolves to test URLs, not the real empty ones)',
+    stubResolved.tip.url === TEST_TIP_URL && stubResolved.audit.url === TEST_AUDIT_URL,
+    JSON.stringify(stubResolved));
+
+  const tipLink = pg.locator('.pub-footer-payment a', { hasText: 'buy the curator a coffee' });
+  const auditLink = pg.locator('.pub-footer-payment a', { hasText: 'book a fixed-fee stack audit' });
+  check('payments: tip link renders on the public footer', await tipLink.count() === 1);
+  check('payments: audit link renders on the public footer', await auditLink.count() === 1);
+  const tipAttrs = await tipLink.evaluate((a) => ({ href: a.getAttribute('href'), target: a.getAttribute('target'), rel: a.getAttribute('rel') }));
+  const auditAttrs = await auditLink.evaluate((a) => ({ href: a.getAttribute('href'), target: a.getAttribute('target'), rel: a.getAttribute('rel') }));
+  check('payments: tip link href is byte-identical to the constant, target/rel correct',
+    tipAttrs.href === TEST_TIP_URL && tipAttrs.target === '_blank' && tipAttrs.rel === 'noopener noreferrer', JSON.stringify(tipAttrs));
+  check('payments: audit link href is byte-identical to the constant, target/rel correct',
+    auditAttrs.href === TEST_AUDIT_URL && auditAttrs.target === '_blank' && auditAttrs.rel === 'noopener noreferrer', JSON.stringify(auditAttrs));
+  check('payments: trust sentence present once at least one link renders',
+    await pg.locator('.pub-footer-payment-trust').count() === 1);
+  const trustText = await pg.locator('.pub-footer-payment-trust').textContent();
+  check('payments: trust sentence makes rule 1 visible (payments never affect which tools are listed)',
+    /never affect which tools are listed/i.test(trustText), trustText);
+  const paymentCopy = `${await tipLink.evaluate((a) => a.closest('.pub-footer-payment').textContent)}`
+    + `${await auditLink.evaluate((a) => a.closest('.pub-footer-payment').textContent)}${trustText}`;
+  check('payments: no em dash in the new footer copy (house style)', !/—/.test(paymentCopy));
+});
+check('payments: stub route was actually requested', paymentsStubHits >= 1, `hits=${paymentsStubHits}`);
+
+// Trust boundary: with the SAME non-empty stub active, no payment link or
+// trust sentence appears anywhere except the public directory footer.
+await withStubbedPayments(async (pg) => {
+  await pg.goto(`${base}/?t=0,2,5&client=X`);
+  await pg.waitForSelector('.tool-card');
+  check('payments: client deliverable page (?t=0,2,5&client=X) stays payment-free',
+    await pg.locator('.pub-footer-payment, .pub-footer-payment-trust').count() === 0);
+});
+await withStubbedPayments(async (pg) => {
+  await pg.goto(`${base}/?tool=0`);
+  await pg.waitForSelector('.tool-card');
+  check('payments: single-tool permalink page (?tool=0) stays payment-free',
+    await pg.locator('.pub-footer-payment, .pub-footer-payment-trust').count() === 0);
+});
+await withStubbedPayments(async (pg) => {
+  await pg.goto(`${base}/x`);
+  await pg.waitForSelector('.tools-table');
+  check('payments: curator (/x) stays payment-free',
+    await pg.locator('.pub-footer-payment, .pub-footer-payment-trust').count() === 0);
+});
+await withStubbedPayments(async (pg) => {
+  await pg.goto(`${base}/my`);
+  await pg.waitForSelector('#my-root:not([hidden])');
+  check('payments: My Stack workspace (/my) stays payment-free',
+    await pg.locator('.pub-footer-payment, .pub-footer-payment-trust').count() === 0);
+});
+await withStubbedPayments(async (pg) => {
+  await pg.goto(`${base}/embed.html?t=0,2`);
+  await pg.waitForSelector('.tool-card');
+  check('payments: embed.html stays payment-free',
+    await pg.locator('.pub-footer-payment, .pub-footer-payment-trust').count() === 0);
+});
+
+// No new <script> element and no form/checkout widget anywhere, even with
+// live payment links present (docs/PAYMENTS.md section 1, rule 2): the
+// links are plain <a> elements built with el(), payments.js is loaded as an
+// ordinary ES module import, never a <script src> tag. The CSP hash set
+// itself is unaffected (no inline script exists here to hash) and is
+// already exercised by the "csp:" checks elsewhere in this file.
+await withStubbedPayments(async (pg) => {
+  await pg.goto(`${base}/`);
+  await pg.waitForSelector('#public-root .tool-card', { state: 'attached' });
+  const scriptCount = await pg.evaluate(() => document.querySelectorAll('script').length);
+  // 1 inline boot script + 3 application/ld+json blocks + 1 module src,
+  // exactly what index.html carried before this wave (see the csp: block's
+  // own extractInlineScripts pass over the same file).
+  check('payments: no new <script> element on the public directory even with live payment links',
+    scriptCount === 5, `scripts=${scriptCount}`);
+  check('payments: no <form> or checkout widget introduced', await pg.locator('form').count() === 0);
+});
 
 /* Grep gate (section 21 item 8, extended over this wave's own surfaces):
    no password field anywhere in the batch form, the generator, or any of

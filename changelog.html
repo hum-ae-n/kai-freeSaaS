@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Changelog · Free Stack by Kaipability</title>
+  <meta name="description" content="What has been added, retired or repriced in the Free Stack directory of free software for UK small businesses.">
+  <link rel="canonical" href="https://tools.airl.io/changelog.html">
+  <link rel="icon" type="image/png" href="design-system/assets/kaipability-mark.png">
+
+  <!-- No-flash-of-wrong-theme boot script, byte-identical to index.html's:
+       kept identical on purpose so the CSP script-src hash already
+       allow-listed for index.html's boot script covers this page too,
+       without a second hash entry in netlify.toml (why-register.html,
+       faq.html, privacy.html and contact.html all do the same). Also
+       stamps js-boot on the root (Phase 15.4), which only hides anything
+       on index.html's own #static-root; harmless here. If this ever needs
+       to diverge from index.html's copy, it must get its own hash there. -->
+  <script>
+    try {
+      var t = localStorage.getItem('freestack:v1:theme');
+      if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+      document.documentElement.classList.add('js-boot');
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="css/styles.css">
+
+  <!-- Page-specific layout only: colours, type and spacing tokens all come
+       from design-system/colors_and_type.css via css/styles.css, unedited
+       by this generator. style-src already allows 'unsafe-inline' in
+       netlify.toml's CSP (PRD-REGISTER section 10), so this inline block
+       needs no hash entry and changes the CSP value not at all. -->
+  <style>
+    .changelog-wrap { max-width: var(--content-max); margin: 0 auto; padding: var(--s-8) var(--s-6) var(--s-24); }
+    .changelog-back { font-size: var(--fs-14); display: inline-block; margin-bottom: var(--s-6); }
+    .changelog-header { padding: var(--s-8) var(--s-6); margin-bottom: var(--s-10); }
+    .changelog-header .logo { height: 32px; width: auto; margin-bottom: var(--s-6); display: block; }
+    .changelog-list { list-style: none; margin: 0; padding: 0; max-width: var(--measure); }
+    .changelog-item { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-3); padding: var(--s-3) 0; border-top: var(--bw-hair) solid var(--paper-edge); font-size: var(--fs-14); }
+    .changelog-item:first-child { border-top: none; }
+    .changelog-date { flex: none; color: var(--ink-3); font-family: var(--font-sans); font-size: var(--fs-12); }
+    .changelog-detail { color: var(--ink-2); }
+    .changelog-empty { color: var(--ink-2); }
+    .changelog-footer { display: flex; align-items: center; gap: var(--s-4); flex-wrap: wrap; padding-top: var(--s-8); margin-top: var(--s-16); border-top: var(--border); }
+    .changelog-footer .logo { height: 26px; width: auto; }
+  </style>
+</head>
+<body>
+  <noscript>
+    <div class="app-message">This page needs no JavaScript to read, but the theme toggle and site chrome need it enabled.</div>
+  </noscript>
+
+  <div class="changelog-wrap">
+    <a class="changelog-back" href="/">&larr; Free Stack</a>
+    <header class="panel changelog-header">
+      <img class="logo" src="design-system/assets/kaipability-logo-lockup.png" alt="Kaipability">
+      <p class="eyebrow">Free Stack</p>
+      <h1>Changelog</h1>
+      <p class="t-lede">What has been added, retired or repriced in the directory.</p>
+    </header>
+    <ul class="changelog-list">
+      <li class="changelog-item is-archived">
+        <span class="changelog-date">23 Jul</span>
+        <span class="changelog-detail">Retired OPITO / GWO / HSE / Charities Commission Free Training from the directory</span>
+      </li>
+      <li class="changelog-item is-archived">
+        <span class="changelog-date">23 Jul</span>
+        <span class="changelog-detail">Retired ICO.org.uk GDPR Guidance from the directory</span>
+      </li>
+      <li class="changelog-item is-archived">
+        <span class="changelog-date">23 Jul</span>
+        <span class="changelog-detail">Retired NCSC Cyber Essentials Guidance from the directory</span>
+      </li>
+      <li class="changelog-item is-archived">
+        <span class="changelog-date">23 Jul</span>
+        <span class="changelog-detail">Retired HMRC Tools (MTD, Self Assessment) from the directory</span>
+      </li>
+      <li class="changelog-item">
+        <span class="changelog-date">23 Jul</span>
+        <span class="changelog-detail">Added Airtable Free to Business Operations</span>
+      </li>
+      <li class="changelog-item">
+        <span class="changelog-date">23 Jul</span>
+        <span class="changelog-detail">Added Slack Free to Communication</span>
+      </li>
+      <li class="changelog-item">
+        <span class="changelog-date">23 Jul</span>
+        <span class="changelog-detail">Added Postman Free to Developer &amp; Web</span>
+      </li>
+      <li class="changelog-item">
+        <span class="changelog-date">23 Jul</span>
+        <span class="changelog-detail">Added Docker Personal to Developer &amp; Web</span>
+      </li>
+      <li class="changelog-item">
+        <span class="changelog-date">23 Jul</span>
+        <span class="changelog-detail">Added Render Free to Developer &amp; Web</span>
+      </li>
+      <li class="changelog-item">
+        <span class="changelog-date">23 Jul</span>
+        <span class="changelog-detail">Added Google Colab Free to Developer &amp; Web</span>
+      </li>
+      <li class="changelog-item">
+        <span class="changelog-date">23 Jul</span>
+        <span class="changelog-detail">Added VS Code / VSCodium to Developer &amp; Web</span>
+      </li>
+      <li class="changelog-item">
+        <span class="changelog-date">23 Jul</span>
+        <span class="changelog-detail">Added Supabase Free to Developer &amp; Web</span>
+      </li>
+    </ul>
+    <footer class="changelog-footer">
+      <img class="logo" src="design-system/assets/kaipability-logo-lockup.png" alt="">
+      <span class="t-meta">Curated by Kaipability Ltd. No affiliate links, no sponsored placements.</span>
+    </footer>
+  </div>
+</body>
+</html>

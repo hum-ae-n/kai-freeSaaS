@@ -14,6 +14,7 @@ Kaipability Ltd maintains this directory from real client work. Every tool lists
 
 - Full machine-readable dataset: https://tools.airl.io/data/tools.json
 - Frequently asked questions: https://tools.airl.io/faq.html
+- Changelog (additions, retirements and price changes): https://tools.airl.io/changelog.html
 - Contact: https://tools.airl.io/contact.html
 
 ## Note on this file

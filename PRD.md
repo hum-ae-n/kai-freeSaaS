@@ -2,8 +2,8 @@
 
 **Project:** `free-stack`
 **Owner:** Kaipability Ltd (Rocky Verma)
-**Version:** 1.7
-**Date:** 1 August 2026 (v1.0: 14 July 2026; v1.5: 30 July 2026; v1.6: 31 July 2026; v1.7: 1 August 2026)
+**Version:** 1.9
+**Date:** 2 August 2026 (v1.0: 14 July 2026; v1.5: 30 July 2026; v1.6: 31 July 2026; v1.7: 1 August 2026; v1.8: 2 August 2026; v1.9: 2 August 2026)
 **Build tool:** Claude Code from this PRD
 **Deploy target:** Netlify via GitHub
 
@@ -468,13 +468,25 @@ The root path `/` remains the public, read-only, indexable directory established
 
 This layout supersedes the Phase 12 homepage layout and its viewport ordering, which measured roughly 92,000px tall at 375px with no tool visible at the fold. The fix is collapse, never removal: **every active tool's card is built and attached to the DOM at load, exactly as before.** Top to bottom, one order at every viewport:
 
-1. **Hero**, tightened but unchanged in content: logo, title, strapline, the three verifiable trust signals (runtime tool count, no-affiliates line, curator identity). Phase 15 adds a **utility nav** pinned to the hero panel's top corner: quiet links to **My Stack** (`/my`) and **FAQ** (`/faq.html`), each a 44px minimum target. The nav overlays the panel's existing padding (absolute positioning within the hero), so it adds no vertical height at 375px and the 880px first-shelf budget below is untouched. It is part of the hero's first-paint stagger, never a separate animation.
+1. **Hero** (rewritten in Phase 16 on Rocky's direction: "the first section should be distinctive and say what Free Stack is, call it what it is"). It states the proposition, not just the brand:
+   - **Headline: "The free software directory for small business."** Says what the thing is, in the words a stranger would use.
+   - **Sub-line: "89 tools with genuinely free tiers, honest limits, and at least two alternatives each. Nobody paid to be listed."** The count is computed at runtime, never hard-coded, and carries trust signal 1. The closing sentence is the differentiator: competitors can copy a list, they cannot copy not being paid.
+   - Beneath it, the remaining two verifiable trust signals (no-affiliates line, curator identity) and the logo, as today.
+   - **No money claim in the hero.** The `value` field sums to about £11,600 across 89 tools, which nobody adopts; quoting it as a saving would be the sort of number section 10 calls a bug the validator cannot catch. If a figure is ever led with, it is the core twelve (about £1,900 a year), and it is labelled as such.
+   - **Utility bar** (Phase 15's corner nav, extended in Phase 16): **My Stack**, **FAQ**, **Plain English** and the **light/dark toggle**, all four at 44px minimum. Plain English and the theme toggle live here, not in the ways-in band, which retires that toolbar row entirely. Below 768px the two toggles may render icon-only, with an accessible name, to fit one row.
+   - **Fixed and self-compressing (16.4, Rocky: "this should be as a fixed top menu bar can compress to burger on scroll down").** The bar is `position: fixed` at the top of the viewport at every width, so the four controls are always one tap away rather than only at the top of the page. Once the reader has scrolled past the hero it **compresses**: the items collapse behind a single burger button that discloses them in a small panel. Rules:
+     - **The compressed state is a disclosure, not a decoration.** The burger is a real `<button>` with `aria-expanded` and `aria-controls`; opening moves focus into the panel; Escape closes it and returns focus to the burger; a click or tap outside closes it. This is the contract the Discover coach broke in Phase 14 and it is not optional.
+     - **Sticky shelf headers must clear it.** They currently stick at `top: 0` and would slide under a fixed bar, hiding the control that collapses the shelf. They stick below the bar instead, driven by the same custom property that sets the bar's height, so the two can never disagree.
+     - **Scroll state is a class toggle, not a scroll-linked animation.** Nothing may tween on scroll position: the inventory's ban on scroll-linked effects stands. Prefer a sentinel and an `IntersectionObserver`, the pattern the shelf headers already use, over a scroll handler.
+     - **Fold cost.** A fixed bar leaves the flow, so the hero must reserve its height or the bar covers the first content. Net cost must keep the first shelf header at or under the 880px budget; the hero's existing top padding is the natural place to pay for it.
+     - Reduced motion: the compress and the panel open are instant state changes, with no height or transform transition.
+   - The hero background is motion inventory item 9 below. Hero content must remain legible over it at the section 12 contrast bar in both themes, and the background never affects layout.
 2. **Ways-in band**, replacing the three equal entry cards:
    - **Search, promoted to first-class**: the existing search input moves here, full width below 768px, placeholder count-bearing ("Search 89 tools: invoicing, design, CRM…", count computed at runtime, never hard-coded).
    - **Discover entry**: button plus one-line pitch, behaviour unchanged (§17).
    - **Persona chips**: behaviour unchanged.
    - The "Browse all" entry card is retired; its job passes to the shelves plus an **Expand all / Collapse all** toggle on the shelf-band header.
-3. **Discover mount and changelog strip**, as today.
+3. **Discover mount.** The "Recently updated" changelog strip is **removed from the homepage** in Phase 16 (Rocky, 2 Aug: "remove the recently updated and move it") and becomes its own page at **`/changelog.html`**, generated by `scripts/build-seo.mjs` from `data/changelog.json` the way `faq.html` is generated from `data/faq.json`: static, crawlable, no runtime fetch, listed in `sitemap.xml`, linked from the footer's legal and practice line. The homepage keeps no trace of it, not a collapsed one.
 4. **Category shelves**: one `section` per category. Each collapsed shelf is a single row whose header is a real `<button>` (44px minimum) carrying the category icon, name, count ("AI Assistants · 6 tools") and a chevron. (The muted scent line of tool names shipped in 14.1 was removed in 15.6 on Rocky's mobile finesse pass: truncated to two or three words on a phone it added noise, not scent, and the icon-title-count row reads cleaner without it. Search still finds every tool name, so nothing is less discoverable.) `aria-expanded` on the button, `aria-controls` naming the grid. Expanding reveals that category's full card grid.
 5. **FAQ section**: the section 18 question-led content, as native `<details>`/`<summary>` items in the changelog strip's visual language. `<details>` content is in the DOM whether open or not.
 6. **Footer**, now reachable and, since Phase 15, carrying the site's good-practice block alongside the existing curator identity, Kaipability CTA and My Stack lines:
@@ -495,7 +507,7 @@ This layout supersedes the Phase 12 homepage layout and its viewport ordering, w
 
 ### Page height budgets
 
-With all shelves collapsed, total page height is at most **3,200px at 375px wide** and **2,200px at 1280px wide**, with the search input visible within the first mobile viewport and the first shelf header's top at most **880px at 375x812**. These are acceptance numbers. (The original clause asked for the first shelf rows inside the 812px viewport itself; the mandated hero trust signals and the ways-in band honestly occupy most of the first screen, and the reconciled 880px budget, measured 863px as built, puts the shelves one thumb-flick away rather than one full screen. Recorded in the BUILD-PLAN changelog.)
+With all shelves collapsed, total page height is at most **3,200px at 375px wide** and **2,300px at 1280px wide**, with the search input visible within the first mobile viewport and the first shelf header's top at most **880px at 375x812**. These are acceptance numbers. (The 1280px figure was 2,200 until Phase 13.1. The footer has since grown from three lines to seven, every one of them deliberate: My Stack and its reasoning, the Privacy/Contact/FAQ line, the company identity line and now the payment lines. Trimming further would mean deleting content that was specifically asked for. The number that actually protects the compact landing is the 880px first-shelf budget, which is untouched at a measured 863px: a footer below every shelf cannot make the top of the page feel long. Reconciled to 2,300 with headroom for the pending GoCardless line, and recorded in the BUILD-PLAN changelog rather than quietly raised.) (The original clause asked for the first shelf rows inside the 812px viewport itself; the mandated hero trust signals and the ways-in band honestly occupy most of the first screen, and the reconciled 880px budget, measured 863px as built, puts the shelves one thumb-flick away rather than one full screen. Recorded in the BUILD-PLAN changelog.)
 
 ### Grid quick-judge and list parity
 
@@ -507,7 +519,7 @@ Judgement state (§17) is not deck-private. On the browse list:
 
 ### Motion inventory
 
-This list is exhaustive. Any motion not named here is banned on the public surface: no parallax, no looping or ambient motion (item 8 carries the single recorded exception, for the primary CTA only), no scroll-linked effects, no autoplaying anything. The budget moves from unseen entrances to user-initiated responses. Two tokens land in `design-system/colors_and_type.css`:
+This list is exhaustive. Any motion not named here is banned on the public surface: no parallax, no looping or ambient motion (items 8 and 9 carry the only two recorded exceptions, the primary CTA and the hero background, one element each), no scroll-linked effects, no autoplaying anything. The budget moves from unseen entrances to user-initiated responses. Two tokens land in `design-system/colors_and_type.css`:
 
 ```css
 --ease-swift:  cubic-bezier(0.22, 1, 0.36, 1);    /* entrances and responses */
@@ -524,6 +536,8 @@ This list is exhaustive. Any motion not named here is banned on the public surfa
 6. **Theme-toggle cross-fade**: the theme attribute swap runs in the same guarded View Transition helper, giving a roughly 250ms full-page cross-fade. Unsupported or reduced motion: instant swap as today.
 7. **Hover lift and focus**: cards lift `translateY(-3px)` with a border-colour shift to oxblood, 180ms, `--ease-swift`, hover-capable devices only. Site-wide `:focus-visible`: 2px oxblood outline, 2px offset, zero duration (focus never lags). Reduced motion: colour change only, no translate.
 8. **Discover button, house CTA treatment** (Phase 15, rewritten 15.4 on Rocky's direction after his phone test, reference the airl.io hero CTA): the Start Discover button is the one deliberate, recorded exception to this section's ban on looping and ambient motion, because it is the page's single primary call to action and Rocky judged the bounded version flat. Exactly one element may loop, this one. The treatment, matching the airl.io house CTA: a three-stop brand-red gradient background (derived from the design-system's own red tokens, tones near the airl.io reference's bright-to-deep range) sized around 220% and drifting slowly via background-position (roughly 5.5s, ease-in-out, alternate, infinite); a soft glow-and-scale pulse (roughly 2.8s, infinite); and a sheen sweep crossing the face every few seconds (roughly 3.8s, infinite). On hover or focus-visible: the pulse pauses, the button lifts about 2px with a brand-red glow shadow; on press, scale to 0.97. While the deck is open the ways-in band is hidden, which also stops the loop; it resumes when the band returns, which is correct for an ambient treatment (the Phase 15 no-replay guard applied to the old one-shot pulse and is retired with it). Reduced motion: every animation off, a static mid-gradient face, no sheen, no scale or lift; colour and shadow response only. No other element may ever cite this exception.
+
+9. **Hero background, drifting stack planes** (Phase 16, Rocky's direction that the hero be "animated and impressive"): the **second and final** recorded exception to this section's ban on ambient looping motion, and like item 8 it is scoped to exactly one element. Three or four translucent parallelogram planes in the oxblood and cream brand range, layered behind the hero content, drifting and settling on independent loops of **20s or slower** with low opacity. Slow enough to read as atmosphere rather than activity: if it draws the eye away from the headline it is wrong. Constraints, all binding: CSS transforms and opacity only (no canvas, no library, no `requestAnimationFrame`, no image asset); `pointer-events: none` and behind all content; it must never affect layout, cause a scrollbar, or move the fold; hero text must clear the section 12 contrast bar against the busiest frame of the animation in both themes, verified at the extremes and not only at rest. Under `prefers-reduced-motion: reduce` the planes hold a single static composed frame, which must itself look deliberate, since it is what a meaningful share of visitors will see. No other element may cite this exception.
 
 Deck card physics (§17) and the client-mode motion (Phase 7.6) stay in force alongside this inventory, unchanged.
 
@@ -711,7 +725,7 @@ The OG tags are unchanged: they serve the shared client link, a different audien
 
 ### `sitemap.xml`, `robots.txt`, `llms.txt`
 
-- `sitemap.xml` lists `/`, `/faq.html`, `/privacy.html` and `/contact.html` (both since Phase 15), and `/how-we-choose.html` once published. It deliberately excludes `/my`, `/x`, `/embed.html`, `/why-register.html` and every parameterised URL.
+- `sitemap.xml` lists `/`, `/faq.html`, `/privacy.html`, `/contact.html` (both since Phase 15), `/changelog.html` (since Phase 16), and `/how-we-choose.html` once published. It deliberately excludes `/my`, `/x`, `/embed.html`, `/why-register.html` and every parameterised URL.
 - `robots.txt` gains one line: `Sitemap: https://tools.airl.io/sitemap.xml`. Nothing is disallowed; a disallow line for `/x` would advertise the path (Phase 10.12 law).
 - `llms.txt`: a short markdown file describing the site and its trust rules, pointing at `/data/tools.json` (the full machine-readable dataset), `/faq.html` and, once live, `/how-we-choose.html`. Honest assessment, recorded so nobody oversells it later: crawler pickup is thin and Google does not support it; it ships because the payload already exists and costs near zero. A cheap bet, not a strategy.
 

@@ -52,7 +52,7 @@
  * all; they only toggle the `hidden` IDL property on individual <li> cards
  * and on whole shelf <section>s, which is what makes shelf collapse "CSS
  * only" and the rendered DOM "a superset of the previous layout's" (PRD
- * section 16, "Shelf mechanics"): every one of the 89 active cards is always
+ * section 16, "Shelf mechanics"): every one of the active cards is always
  * attached, nothing is ever lazily fetched, deferred or removed. This also
  * retires the per-category scroll-reveal system 12.1 built in this file
  * (revealOnIntersect for categories past the first): with shelves collapsed
@@ -78,6 +78,7 @@
  */
 import { el, themeToggleButton, readPlainMode, writePlainMode, withViewTransition } from './data-loader.js';
 import { buildCardSections, categoryIcon } from './client.js';
+import { PAYMENT_LINKS } from './payments.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -216,6 +217,50 @@ function chevronIcon() {
   return svg;
 }
 
+/** A "lines of text" glyph for the Plain English toggle (Phase 16, PRD
+    section 16 amended layout item 1): the same hand-built SVG technique as
+    chevronIcon/categoryIcon/themeIcon above, no icon font, no extra
+    request. Unlike the theme toggle, Plain English never had an icon of its
+    own before this wave; this is what lets it collapse to icon-only below
+    768px alongside the theme toggle rather than being the one item in the
+    bar with no compact form (see the PUBLIC block of styles.css for the
+    breakpoint and the visually-hidden label it swaps to). */
+function plainToggleIcon() {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  for (const [key, value] of Object.entries({
+    viewBox: '0 0 24 24', width: '16', height: '16', fill: 'none',
+    stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round',
+    'stroke-linejoin': 'round', 'aria-hidden': 'true', class: 'plain-toggle-icon',
+  })) svg.setAttribute(key, value);
+  for (const d of ['M4 7h16', 'M4 12h11', 'M4 17h14']) {
+    const path = document.createElementNS(SVG_NS, 'path');
+    path.setAttribute('d', d);
+    svg.append(path);
+  }
+  return svg;
+}
+
+/** A plain three-line hamburger glyph for the compressed top bar's
+    disclosure trigger (16.4), the same hand-built SVG technique as every
+    other icon in this file: no icon font, no extra request. The button
+    itself carries the real accessible name and aria-expanded/aria-controls
+    (see the topbar wiring below); this glyph is purely decorative,
+    aria-hidden. */
+function burgerIcon() {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  for (const [key, value] of Object.entries({
+    viewBox: '0 0 24 24', width: '20', height: '20', fill: 'none',
+    stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round',
+    'aria-hidden': 'true',
+  })) svg.setAttribute(key, value);
+  for (const d of ['M4 6h16', 'M4 12h16', 'M4 18h16']) {
+    const path = document.createElementNS(SVG_NS, 'path');
+    path.setAttribute('d', d);
+    svg.append(path);
+  }
+  return svg;
+}
+
 /** Groups tools by category, insertion order preserved, the same grouping
     buildCardSections does internally. Called on the same array in the same
     order as the buildCardSections() call below, so the two orderings can
@@ -263,15 +308,19 @@ export function renderPublic(root, tools) {
   // the nodes it already holds.
   let shelves = [];
 
-  /* --- hero (PRD section 16, "Hero") ---------------------------------------
-     Tightened but unchanged in content: the live count (derived from the
-     same active-tools filter the shelves themselves use, never a separate
-     hard-coded figure), the no-affiliates line verbatim, and the curator
-     identity with its existing link. */
+  /* --- hero (PRD section 16 amended, layout item 1, Phase 16 rewrite) ------
+     Rocky's 2 Aug direction, "the first section should be distinctive and
+     say what Free Stack is, call it what it is": the headline now states
+     the proposition in a stranger's words, and the live tool count (never a
+     separate hard-coded figure) moves into the sub-line, which is trust
+     signal 1 made prose rather than a stat line of its own. The two
+     remaining verifiable trust signals (no-affiliates, curator identity)
+     stay put underneath; the old standalone count paragraph this div used
+     to carry first is retired here, since restating the count a second time
+     directly under the sub-line that already states it would be pure
+     duplication (see this wave's own report for what the hero rendered
+     before this change). */
   const heroTrust = el('div', { class: 'pub-hero-trust' },
-    el('p', { class: 'pub-hero-trust-item pub-hero-count' },
-      el('strong', {}, String(active.length)),
-      active.length === 1 ? ' free tool in the directory.' : ' free tools in the directory.'),
     el('p', { class: 'pub-hero-trust-item trust-line' }, 'No affiliates, no sponsors, no paid placement.'),
     el('p', { class: 'pub-hero-trust-item pub-hero-curator' },
       'Curated by ',
@@ -279,21 +328,238 @@ export function renderPublic(root, tools) {
       '.',
     ),
   );
-  // Utility nav (PRD section 16 amended, layout item 1, Phase 15): quiet
-  // links to My Stack and FAQ, pinned to the panel's top corner by CSS
-  // absolute positioning so it adds no vertical height at 375px and the
-  // 880px first-shelf budget below stays untouched. A plain child of
-  // `header`, so it inherits the hero's first-paint stagger rather than
-  // needing a second reveal call. Real internal links, no target=_blank.
-  const heroNav = el('nav', { class: 'pub-hero-nav', 'aria-label': 'Utility' },
+  // The headline states what the thing is; the sub-line carries the runtime
+  // count (never hard-coded, computed from the same `active` array the
+  // shelves and the search placeholder already use) plus the closing
+  // sentence, the differentiator a competitor could not copy just by
+  // copying the list. .pub-hero-count on the <strong> keeps the class name
+  // BUILD-PLAN 16.2 already gave this figure, now scoped to where the count
+  // actually lives rather than a whole paragraph of its own.
+  const heroSubline = el('p', { class: 'subtitle pub-hero-subline' },
+    el('strong', { class: 'pub-hero-count' }, String(active.length)),
+    ` tool${active.length === 1 ? '' : 's'} with genuinely free tiers, honest limits, and at least two alternatives each. Nobody paid to be listed.`,
+  );
+  // Drifting stack planes (motion inventory item 9, PRD section 16 amended):
+  // the second and final recorded exception to the ban on looping ambient
+  // motion, built here purely as inert decoration (aria-hidden, no text, no
+  // interactive content) so it never enters the accessibility tree or the
+  // tab order. Four parallelogram planes, CSS transform/opacity only (see
+  // the PUBLIC block of styles.css for the keyframes, the reduced-motion
+  // static frame and the worked contrast proof); this function only ever
+  // builds the same four inert nodes, once, on mount.
+  const heroBg = el('div', { class: 'pub-hero-bg', 'aria-hidden': 'true' },
+    el('div', { class: 'pub-hero-plane pub-hero-plane-1' }),
+    el('div', { class: 'pub-hero-plane pub-hero-plane-2' }),
+    el('div', { class: 'pub-hero-plane pub-hero-plane-3' }),
+    el('div', { class: 'pub-hero-plane pub-hero-plane-4' }),
+  );
+  // Plain English and theme toggle (Phase 16, PRD section 16 amended layout
+  // item 1, Rocky's 2 Aug direction: "buttons for plain english and light
+  // dark mode switch should be on the top bar really"): built here, ahead
+  // of heroNav below, so they can sit in it alongside My Stack and FAQ.
+  // They used to share a row with Expand all on the shelf-band header (see
+  // BUILD-PLAN's "verifier fix round" history); that row is retired below
+  // and its saved height is what pays for this bar (see this wave's own
+  // report for the measured before/after fold numbers).
+  const plainBtn = el('button', {
+    class: 'btn btn-ghost btn-lg plain-toggle', type: 'button', 'aria-pressed': String(plainMode),
+  }, plainToggleIcon(), el('span', { class: 'pub-util-label' }, 'Plain English'));
+  plainBtn.addEventListener('click', () => {
+    plainMode = !plainMode;
+    writePlainMode(plainMode);
+    plainBtn.setAttribute('aria-pressed', String(plainMode));
+    // Card body text (plain vs normal) is baked in at render time by
+    // client.js's card(), so this is the one action in this file that still
+    // rebuilds shelf DOM wholesale rather than toggling hidden/aria state.
+    shelves = buildShelves(active, plainMode);
+    applyFilter();
+  });
+  const themeBtn = themeToggleButton('btn-ghost btn-lg');
+
+  // Utility bar (PRD section 16 amended, layout item 1): My Stack, FAQ,
+  // Plain English and the light/dark toggle, in that order, all four at
+  // least 44px. Since 16.4 this nav lives inside the fixed .pub-topbar
+  // below, not inside `header`: it is no longer part of the hero's one-time
+  // entrance (it is always-visible chrome now, not content that fades in),
+  // and a position: fixed descendant of `header` would be trapped by
+  // .pub-reveal's own transform during that entrance (a transform on any
+  // ancestor creates a new containing block for a fixed descendant), which
+  // would visibly drag the bar along with the hero's fade-in for that one
+  // frame window. My Stack/FAQ are real internal links, no target=_blank;
+  // the two toggles keep their existing behaviour, just relocated.
+  const heroNav = el('nav', { class: 'pub-hero-nav', id: 'pub-topbar-nav', 'aria-label': 'Utility' },
     el('a', { href: '/my' }, 'My Stack'),
     el('a', { href: '/faq.html' }, 'FAQ'),
+    plainBtn,
+    themeBtn,
   );
+
+  /* --- fixed, self-compressing top bar (16.4, PRD section 16 amended layout
+     item 1's fixed-bar clause) ------------------------------------------
+     .pub-topbar holds heroNav (visible directly while expanded) and
+     topbarBurger (visible only once compressed). Which is which is CSS
+     only, keyed off the classes/attributes toggled below; the four control
+     nodes themselves are never duplicated between the bar and the
+     disclosure. */
+  const topbarBurger = el('button', {
+    class: 'pub-topbar-burger', type: 'button',
+    'aria-expanded': 'false', 'aria-controls': 'pub-topbar-nav', 'aria-label': 'Menu',
+  }, burgerIcon());
+  const topbar = el('div', { class: 'pub-topbar' }, topbarBurger, heroNav);
+  // The bar covers no control by construction wherever content is already
+  // in its resting scroll position (the sticky shelf header fix above), but
+  // scrollIntoView({block: 'start'}) is a different hazard entirely: this
+  // page already calls it on the Discover mount, a shelf's own header (the
+  // "wasStuck" collapse case) and the #cat- hash deep link, every one of
+  // them aligning some element's top edge to scrollY's literal zero, which
+  // is now the bar's own box, not empty space. Proven live in this wave's
+  // own testing: without this, the Discover panel's close button ends up
+  // roughly half covered by the bar the instant the deck opens.
+  // scroll-padding-top is the general fix, a scroll-container property
+  // scrollIntoView already honours natively, so every call site above is
+  // covered at once without hunting each one down individually; the class
+  // scopes it to this page only (curator, client and My Stack never mount
+  // this bar and must not gain scroll padding they have no use for).
+  document.documentElement.classList.add('pub-has-topbar');
+  // the shelf headers already use. Scrolling it above the viewport is "the
+  // reader has scrolled past the hero", the spec's own wording for when to
+  // compress.
+  const heroEndSentinel = el('div', { class: 'pub-topbar-sentinel', 'aria-hidden': 'true' });
+
+  let topbarPanelOpen = false;
+  function closeTopbarPanel(focusBurger) {
+    // focusBurger: true forces it (Escape's own contract: "returns focus to
+    // the burger" unconditionally); 'auto' only if focus is actually about
+    // to be dropped (see below); false never moves focus at all (the
+    // scroll-back-to-expanded path, where nothing is hidden so nothing is
+    // at risk). Computed BEFORE the nav is hidden: once .is-compressed
+    // without .is-open takes effect (the CSS above), a focused descendant
+    // of a display:none subtree is dropped straight to <body> by the
+    // browser itself, the exact defect the Phase 14 coach dismissal
+    // shipped with (PRD section 16 amended, "Focus must never be dropped
+    // on body"). Moving focus to the burger first, whenever it was inside
+    // the panel, is what keeps every close route safe regardless of which
+    // one fired.
+    const hadFocusInside = heroNav.contains(document.activeElement);
+    if (!topbarPanelOpen) return;
+    topbarPanelOpen = false;
+    heroNav.classList.remove('is-open');
+    topbarBurger.setAttribute('aria-expanded', 'false');
+    document.removeEventListener('keydown', onTopbarKeydown);
+    document.removeEventListener('pointerdown', onOutsideTopbarPointerdown, true);
+    if (focusBurger === true || (focusBurger === 'auto' && hadFocusInside)) {
+      topbarBurger.focus({ preventScroll: true });
+    }
+  }
+  function onTopbarKeydown(event) {
+    if (event.key === 'Escape') { event.preventDefault(); closeTopbarPanel(true); }
+  }
+  // pointerdown, deliberately not click: a tap or click on any target,
+  // focusable or not, blurs whatever currently holds focus as part of the
+  // BROWSER's own default action for that pointer press, and that default
+  // action runs before a same-tick 'click' listener ever sees the event,
+  // often landing focus on <body> first if the pressed target is not
+  // itself focusable. Proven in this wave's own testing: an outside click
+  // listener on 'click' measured hadFocusInside as false (activeElement was
+  // already <body> by the time it ran) for exactly this reason, which is
+  // the whole defect this contract exists to prevent. 'pointerdown' fires
+  // before that default blur, so closeTopbarPanel below still sees the
+  // real, pre-blur activeElement and can win the race by moving focus to
+  // the burger itself before the browser moves it to <body>.
+  function onOutsideTopbarPointerdown(event) {
+    if (heroNav.contains(event.target) || topbarBurger.contains(event.target)) return;
+    // Winning the race needs one more thing beyond firing early: even
+    // caught here, ahead of the browser's own blur, that blur (and any
+    // fresh focus the pressed target claims for itself) is still QUEUED as
+    // this same pointerdown's default action and would run right after this
+    // handler returns, undoing an explicit focus() call made now. Measured
+    // in this wave's own testing: without preventDefault() here, the burger
+    // received focus for one instant and lost it again to <body> a moment
+    // later. preventDefault() is scoped to exactly the case that needs it,
+    // focus genuinely inside the panel about to be closed: an outside click
+    // on ordinary page furniture (a shelf, a card, plain text) never
+    // legitimately depended on the browser's default mousedown focus
+    // behaviour anyway, and a click on a real link or button elsewhere
+    // still activates normally, since that activation is the CLICK event's
+    // own default action, a separate thing this never touches.
+    if (heroNav.contains(document.activeElement)) event.preventDefault();
+    closeTopbarPanel('auto');
+  }
+  function openTopbarPanel() {
+    if (topbarPanelOpen) return;
+    topbarPanelOpen = true;
+    heroNav.classList.add('is-open');
+    topbarBurger.setAttribute('aria-expanded', 'true');
+    // "Opening moves focus into the panel": the first real control (My
+    // Stack), not the <nav> element itself, since every item here is
+    // already a focusable link or button and landing on the first one is
+    // the standard disclosure-menu contract, more informative to a screen
+    // reader than a bare, tabindex="-1" container would be.
+    const firstControl = heroNav.querySelector('a, button');
+    if (firstControl) firstControl.focus({ preventScroll: true });
+    document.addEventListener('keydown', onTopbarKeydown);
+    document.addEventListener('pointerdown', onOutsideTopbarPointerdown, true);
+  }
+  topbarBurger.addEventListener('click', () => {
+    if (topbarPanelOpen) closeTopbarPanel(true); else openTopbarPanel();
+  });
+
+  // Compress trigger (motion inventory's ban on scroll-linked effects: a
+  // class toggle from an IntersectionObserver, never a scroll handler
+  // tweening anything). Direction-aware the same way the shelf headers'
+  // own is-stuck detection already is: !isIntersecting alone is true both
+  // for a sentinel scrolled above the viewport (genuinely past the hero)
+  // and for one still below it (not there yet), so the sentinel's own top
+  // edge is compared against the root's to disambiguate.
+  if (typeof IntersectionObserver === 'function') {
+    new IntersectionObserver(([entry]) => {
+      const rootTop = entry.rootBounds ? entry.rootBounds.top : 0;
+      const scrolledPast = !entry.isIntersecting && entry.boundingClientRect.top < rootTop;
+      if (scrolledPast === topbar.classList.contains('is-compressed')) return;
+      topbar.classList.toggle('is-compressed', scrolledPast);
+      // Scrolling back above the hero always reveals the four controls
+      // inline again (the CSS gates the hidden rule on .is-compressed, so
+      // leaving that state shows heroNav regardless of .is-open): nothing
+      // is hidden here, so this never risks dropping focus, hence false.
+      if (!scrolledPast) closeTopbarPanel(false);
+    }, { threshold: 0 }).observe(heroEndSentinel);
+  }
+
+  // --topbar-h (16.4): the bar's own live rendered height, read off the
+  // real DOM box rather than hand-computed from tokens, so it can never
+  // drift out of sync with a later CSS tweak to the bar's padding. Drives
+  // the sticky shelf headers' own top offset (see the PUBLIC block of
+  // styles.css) so the two can never disagree about where the obstruction
+  // ends, compressed or not. --topbar-fold-reserve is a SEPARATE property,
+  // frozen from this same first reading: the page always starts unscrolled
+  // (so the bar is always expanded at mount), and that first height is
+  // what the hero's own padding-top must reserve permanently, never
+  // updated again as the bar later shrinks on scroll, or a reader who
+  // scrolls down and back up would see the hero's padding visibly chase
+  // the compressing bar. The 44px fallback (used before the first
+  // observer callback runs, and forever on an engine with no
+  // ResizeObserver) is not a guess: it is the bar's own designed height at
+  // zero vertical padding, so the fallback and the measured value agree.
+  let topbarFoldReserveSet = false;
+  function measureTopbar(height) {
+    const h = `${Math.ceil(height)}px`;
+    document.documentElement.style.setProperty('--topbar-h', h);
+    if (!topbarFoldReserveSet) {
+      document.documentElement.style.setProperty('--topbar-fold-reserve', h);
+      topbarFoldReserveSet = true;
+    }
+  }
+  if (typeof ResizeObserver === 'function') {
+    new ResizeObserver((entries) => measureTopbar(entries[0].target.getBoundingClientRect().height)).observe(topbar);
+  } else {
+    measureTopbar(44);
+  }
+
   const header = el('header', { class: 'panel pub-header' },
-    heroNav,
+    heroBg,
     el('img', { class: 'logo', src: 'design-system/assets/kaipability-logo-lockup.png', alt: 'Kaipability' }),
-    el('h1', {}, 'Free Stack'),
-    el('p', { class: 'subtitle' }, 'Curated free software for small business'),
+    el('h1', { class: 'pub-hero-headline' }, 'The free software directory for small business.'),
+    heroSubline,
     heroTrust,
   );
 
@@ -358,26 +624,6 @@ export function renderPublic(root, tools) {
   // never a modal"). discover.js owns everything rendered inside it once
   // opened.
   const discoverMount = el('div', { class: 'discover-mount', hidden: true });
-
-  // Verifier fix round (page-height budget, PRD section 16 amended, "first
-  // shelf rows visible within the first mobile viewport"): the Plain
-  // English and theme-toggle buttons no longer get their own toolbar row
-  // above the shelf band. They move into the shelf-band header itself,
-  // alongside Expand all, saving a full row's height on every viewport,
-  // mobile included.
-  const plainBtn = el('button', {
-    class: 'btn btn-ghost btn-lg plain-toggle', type: 'button', 'aria-pressed': String(plainMode),
-  }, 'Plain English');
-  plainBtn.addEventListener('click', () => {
-    plainMode = !plainMode;
-    writePlainMode(plainMode);
-    plainBtn.setAttribute('aria-pressed', String(plainMode));
-    // Card body text (plain vs normal) is baked in at render time by
-    // client.js's card(), so this is the one action in this file that still
-    // rebuilds shelf DOM wholesale rather than toggling hidden/aria state.
-    shelves = buildShelves(active, plainMode);
-    applyFilter();
-  });
 
   function scrollToShelfBand() {
     shelfBand.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
@@ -550,13 +796,6 @@ export function renderPublic(root, tools) {
     }
   });
 
-  /* --- recently updated strip (Feature 3, Batch I) -------------------------
-     Fetched separately from tools.json, non-blocking: a missing or broken
-     data/changelog.json must never stop the rest of the directory rendering,
-     it simply renders nothing (with a console.warn) instead. */
-  const changelogSection = el('section', { class: 'panel pub-changelog', hidden: true, 'aria-label': 'Recently updated' });
-  loadChangelog(changelogSection);
-
   /* --- category shelves (PRD section 16, "Category shelves", "Shelf
      mechanics") ---------------------------------------------------------- */
   const matchCountLine = el('p', { class: 'pub-shelf-match-count', hidden: true, 'aria-live': 'polite' });
@@ -573,23 +812,17 @@ export function renderPublic(root, tools) {
       syncExpandAllLabel();
     });
   });
-  // Two explicit rows, not one flex-wrap soup of four items: title+Expand
-  // all (which fit one line together down to 375px) stay paired exactly as
-  // before this fix round, and Plain English/theme toggle form their own
-  // second row underneath. Letting all four wrap as a single group instead
-  // measured two full internal wraps at 375px (roughly 146px), defeating
-  // the "~92px, one row" saving this fold is meant to realise; kept as two
-  // clean rows it measures close to that estimate instead.
+  // Title and Expand all, a single row (fits one line together down to
+  // 375px). Phase 16 retires the second row this header used to carry
+  // (Plain English and the theme toggle): both moved into the hero utility
+  // bar above, per PRD section 16 amended layout item 1, so this is the
+  // whole shelf-band header once again.
   const shelfBandTopRow = el('div', { class: 'pub-shelf-band-top' },
     el('h2', { class: 'pub-shelf-band-title' }, 'Browse all tools'),
     expandAllBtn,
   );
-  const shelfBandControls = el('div', { class: 'pub-shelf-band-controls' },
-    plainBtn, themeToggleButton('btn-ghost btn-lg'),
-  );
   const shelfBandHeader = el('div', { class: 'pub-shelf-band-header' },
     shelfBandTopRow,
-    shelfBandControls,
   );
   const shelvesWrap = el('div', { class: 'pub-shelves' });
   const shelfBand = el('section', {
@@ -800,9 +1033,40 @@ export function renderPublic(root, tools) {
      permalink and the static crawler block read, so this text is never
      re-derived here: fetched, not computed. Stays hidden and costs nothing
      against the page-height budget if the fetch fails, same tolerance as
-     the changelog strip and persona packs just above. */
+     the persona packs just above. */
   const faqSection = el('section', { class: 'pub-faq', id: 'faq', 'aria-label': 'Frequently asked questions', hidden: true });
   loadFaqSection(faqSection);
+
+  /* --- payment links (docs/PAYMENTS.md section 4, PRD-adjacent Phase 13.1)
+     Public directory footer only: js/payments.js is the one place a
+     provider URL may live, and an empty url there means the matching
+     element below is simply never built, not hidden with CSS. el()'s own
+     null-child skip (js/data-loader.js) is what makes that "not built"
+     invisible at the call site too: a null passed into the footer's
+     children below is dropped, so shipping both urls empty (this wave's
+     state) leaves the footer byte-for-byte what it was before this file
+     existed, no empty paragraph, no stray separator. The trust sentence
+     (trust rule 1 made visible) only exists when at least one link does:
+     a sentence about payments that are not there yet would read as noise. */
+  const tipLine = PAYMENT_LINKS.tip.url
+    ? el('p', { class: 't-meta pub-footer-payment' },
+        'Free forever. If it saved you money, ',
+        el('a', { href: PAYMENT_LINKS.tip.url, target: '_blank', rel: 'noopener noreferrer' }, PAYMENT_LINKS.tip.label),
+        '.',
+      )
+    : null;
+  const auditLine = PAYMENT_LINKS.audit.url
+    ? el('p', { class: 't-meta pub-footer-payment' },
+        'Or ',
+        el('a', { href: PAYMENT_LINKS.audit.url, target: '_blank', rel: 'noopener noreferrer' }, PAYMENT_LINKS.audit.label),
+        '.',
+      )
+    : null;
+  const paymentTrustLine = (tipLine || auditLine)
+    ? el('p', { class: 't-meta pub-footer-payment-trust' },
+        'Payments support the site and buy Kaipability’s time. They never affect which tools are listed.',
+      )
+    : null;
 
   /* --- footer ---------------------------------------------------------------
      The one CTA line points a visitor who wants a curated selection at
@@ -821,6 +1085,13 @@ export function renderPublic(root, tools) {
         el('a', { href: 'https://kaipability.com', target: '_blank', rel: 'noopener noreferrer' }, 'Talk to Kaipability'),
         '.',
       ),
+      // Payment links (docs/PAYMENTS.md section 4, Phase 13.1): tipLine,
+      // auditLine and paymentTrustLine are all built above as null when
+      // their url is empty, and el()'s null-child skip means a null here
+      // adds nothing to the DOM at all, not an empty or hidden node.
+      tipLine,
+      auditLine,
+      paymentTrustLine,
       // Workspace entry point (PRD-REGISTER section 2, "a quiet link on the
       // public directory") plus the Wave D awareness page link (section 12,
       // "linked from the public directory footer"): both quiet text, same
@@ -833,11 +1104,15 @@ export function renderPublic(root, tools) {
       ),
       // Good-practice block (PRD section 16 amended, layout item 6, Phase
       // 15): the legal/practice line and the company identity line, added
-      // below the existing lines rather than replacing any of them.
+      // below the existing lines rather than replacing any of them. Phase
+      // 16 adds Changelog: the "Recently updated" strip removed from this
+      // page (Rocky, 2 Aug) becomes its own linked page rather than
+      // vanishing outright.
       el('p', { class: 't-meta pub-footer-legal' },
         el('a', { href: '/privacy.html' }, 'Privacy'), ' · ',
         el('a', { href: '/contact.html' }, 'Contact'), ' · ',
         el('a', { href: '/faq.html' }, 'FAQ'), ' · ',
+        el('a', { href: '/changelog.html' }, 'Changelog'), ' · ',
         el('a', { href: '/why-register.html' }, 'Why we built My Stack'),
       ),
       el('p', { class: 't-meta pub-footer-company' },
@@ -852,7 +1127,13 @@ export function renderPublic(root, tools) {
 
   shelves = buildShelves(active, plainMode);
   applyFilter();
-  root.replaceChildren(header, entryPaths, discoverMount, changelogSection, shelfBand, faqSection, footer);
+  // topbar is a sibling of `header`, never a child of it (see heroNav's own
+  // comment above): position: fixed does not care where in the DOM it
+  // lives, only that no ancestor establishes a containing block for it, so
+  // it is mounted first here purely for readable source order, top of page
+  // to bottom. heroEndSentinel sits immediately after `header`, the
+  // boundary the compress observer watches.
+  root.replaceChildren(topbar, header, heroEndSentinel, entryPaths, discoverMount, shelfBand, faqSection, footer);
   document.title = 'Free Stack · Kaipability';
 
   handleHashDeepLink();
@@ -1109,10 +1390,10 @@ function buildJudgeChipWrap(li, tool, judgeApi) {
 
 /** Persona-pack chips (PRD section 16, entry path 2). Fetched separately
     from tools.json, non-blocking: a missing or broken data/presets.json
-    leaves the Discover entry path fully usable, same tolerance the
-    changelog strip already has. Choosing a pack filters the shelves to that
-    pack's ids (via the same applyFilter() the search box calls); it never
-    navigates away. A second click on the active chip clears the filter.
+    leaves the Discover entry path fully usable, same tolerance the FAQ
+    slot has. Choosing a pack filters the shelves to that pack's ids (via
+    the same applyFilter() the search box calls); it never navigates away.
+    A second click on the active chip clears the filter.
     State lives in renderPublic's closure, not here, so it is threaded
     through as get/set pairs rather than duplicated as module-level
     variables. */
@@ -1163,56 +1444,14 @@ async function loadPersonaPacks(row, activeIds, state) {
   }
 }
 
-/** Newest-first, max 6 shown even if the file itself carries more (per the
-    spec's "up to 6 entries"). Any shape mismatch (not an array, malformed
-    entries) degrades to "render nothing", never a broken page. */
-async function loadChangelog(section) {
-  let entries;
-  try {
-    const res = await fetch('data/changelog.json');
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    if (!Array.isArray(data)) throw new Error('changelog.json is not an array');
-    entries = data.filter((e) => e && typeof e.date === 'string' && typeof e.detail === 'string').slice(0, 6);
-  } catch (cause) {
-    console.warn('Recently updated strip unavailable:', cause);
-    return;
-  }
-  if (!entries.length) return;
-
-  const list = entries.map((entry) => el('li', {
-    class: entry.kind === 'archived' ? 'pub-changelog-item is-archived' : 'pub-changelog-item',
-  },
-    el('span', { class: 'pub-changelog-date' }, formatChangelogDate(entry.date)),
-    el('span', { class: 'pub-changelog-detail' }, entry.detail),
-  ));
-
-  section.hidden = false;
-  // Collapsed by default (Rocky, 25 Jul): the strip is a trust signal for
-  // whoever wants it, not a headline. Native details keeps it keyboardable.
-  section.replaceChildren(
-    el('details', { class: 'pub-changelog-details' },
-      el('summary', { class: 'eyebrow pub-changelog-summary' }, 'Recently updated'),
-      el('ul', { class: 'pub-changelog-list' }, list),
-    ),
-  );
-}
-
-function formatChangelogDate(dateStr) {
-  const parsed = new Date(`${dateStr}T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) return dateStr;
-  return parsed.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-}
-
 /** Homepage FAQ slot (PRD section 16 item 5, filled in wave 14.3b): the ten
     site-level Q&As from data/faq.json, generated by scripts/build-seo.mjs
     from the same PRD section 18 canonical text as faq.html. Fetched
     separately from tools.json, non-blocking, same tolerance as
-    loadChangelog and loadPersonaPacks just above: a missing or broken file
-    leaves the slot hidden, never an error and never a blocked directory.
-    Each Q&A renders as its own native <details>/<summary> ("as native
-    details/summary items", not one details wrapping a list, the way the
-    changelog strip's single collapsible does), so the content sits in the
+    loadPersonaPacks above: a missing or broken file leaves the slot
+    hidden, never an error and never a blocked directory. Each Q&A renders
+    as its own native <details>/<summary> ("as native details/summary
+    items", not one details wrapping a list), so the content sits in the
     DOM whether open or not and every answer is reachable without opening
     every other one first. No motion is added anywhere here: details/summary
     toggles instantly by native browser behaviour, so there is nothing to
