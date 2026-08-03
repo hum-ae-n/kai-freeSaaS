@@ -246,5 +246,6 @@ scripts/og-card.html      source for assets/og-image.png, screenshotted by hand
 assets/og-image.png       social preview image (Slack/WhatsApp/iMessage link previews)
 docs/how-we-choose.md     draft copy on selection criteria, pending Rocky's sign-off (see TODO.md)
 docs/PAYMENTS.md          provider-agnostic build instructions for Phase 13 payment links, gated on Rocky's provider setup
+docs/build-notes/         narrative build records: session logs, the reasoning behind decisions, never served (see its README for what lives where)
 .github/workflows/ci.yml  runs the validator, the register crypto vectors, the SEO drift gate and the smoke suite on push and PR
 ```
