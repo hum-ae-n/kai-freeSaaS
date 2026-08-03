@@ -2,8 +2,8 @@
 
 **Project:** `free-stack`
 **Owner:** Kaipability Ltd (Rocky Verma)
-**Version:** 1.9
-**Date:** 2 August 2026 (v1.0: 14 July 2026; v1.5: 30 July 2026; v1.6: 31 July 2026; v1.7: 1 August 2026; v1.8: 2 August 2026; v1.9: 2 August 2026)
+**Version:** 2.0
+**Date:** 2 August 2026 (v1.0: 14 July 2026; v1.5: 30 July 2026; v1.6: 31 July 2026; v1.7: 1 August 2026; v1.8: 2 August 2026; v1.9: 2 August 2026; v2.0: 3 August 2026)
 **Build tool:** Claude Code from this PRD
 **Deploy target:** Netlify via GitHub
 
@@ -472,7 +472,10 @@ This layout supersedes the Phase 12 homepage layout and its viewport ordering, w
    - **Headline: "The free software directory for small business."** Says what the thing is, in the words a stranger would use.
    - **Sub-line: "89 tools with genuinely free tiers, honest limits, and at least two alternatives each. Nobody paid to be listed."** The count is computed at runtime, never hard-coded, and carries trust signal 1. The closing sentence is the differentiator: competitors can copy a list, they cannot copy not being paid.
    - Beneath it, the remaining two verifiable trust signals (no-affiliates line, curator identity) and the logo, as today.
-   - **No money claim in the hero.** The `value` field sums to about £11,600 across 89 tools, which nobody adopts; quoting it as a saving would be the sort of number section 10 calls a bug the validator cannot catch. If a figure is ever led with, it is the core twelve (about £1,900 a year), and it is labelled as such.
+   - **Savings ticker (Phase 17, Rocky: "a roller that spins that shows the maximum amount of money you save in pounds and Starbucks coffees").** A single figure that counts up on arrival, in the hero, with the coffee equivalent beneath it. Both numbers are computed at runtime from `tools.json`, never hard-coded, exactly as the tool count is.
+     - **The honesty rule that governs it.** The `value` field sums to about £11,600 across 89 tools, and nobody adopts 89 tools. Section 10 calls a figure nobody would pay a bug the validator cannot catch, so the ceiling figure may only ever appear **labelled as a ceiling**, and never alone: it is always accompanied by the realistic figure, the core twelve at about £1,900 a year. "Up to £11,646 a year across all 89 tools. A starter stack of twelve saves about £1,900." Both true, and the pairing is what makes the big number honest rather than a promise.
+     - **The coffee equivalent states its own divisor**: "that is about 2,900 coffees at £4 a cup". The site does not assert what a given chain charges; it shows its working, which is the same standard the `value` field is held to.
+     - **The count-up is an entrance, not a loop.** It runs once on arrival and rests, which puts it in motion inventory item 1's family (first-paint reveal) and creates **no third ambient exception**: items 8 and 9 remain the only two, and a perpetually spinning roller is still banned. Under `prefers-reduced-motion: reduce` the final figures render immediately with no counting.
    - **Utility bar** (Phase 15's corner nav, extended in Phase 16): **My Stack**, **FAQ**, **Plain English** and the **light/dark toggle**, all four at 44px minimum. Plain English and the theme toggle live here, not in the ways-in band, which retires that toolbar row entirely. Below 768px the two toggles may render icon-only, with an accessible name, to fit one row.
    - **Fixed and self-compressing (16.4, Rocky: "this should be as a fixed top menu bar can compress to burger on scroll down").** The bar is `position: fixed` at the top of the viewport at every width, so the four controls are always one tap away rather than only at the top of the page. Once the reader has scrolled past the hero it **compresses**: the items collapse behind a single burger button that discloses them in a small panel. Rules:
      - **The compressed state is a disclosure, not a decoration.** The burger is a real `<button>` with `aria-expanded` and `aria-controls`; opening moves focus into the panel; Escape closes it and returns focus to the burger; a click or tap outside closes it. This is the contract the Discover coach broke in Phase 14 and it is not optional.
