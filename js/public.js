@@ -171,7 +171,7 @@ function revealFirstPaint(node, index, reduced) {
    frame of this ever runs, so there is nothing for the reduced-motion
    sweep to find. */
 const SAVINGS_COUNT_MS = 1100;
-/* Phase 17.2 (Rocky: the count, the pounds and the coffees "load one after the other so
+/* Phase 17.2 (Rocky: the figures "load one after the other so
    eye scans"): each figure takes its own start offset, so the three read
    left to right as a sequence rather than three things moving at once. The
    stagger is the whole point of the change: a reader's eye is led across the
@@ -379,33 +379,18 @@ export function renderPublic(root, tools) {
   const heroSubline = el('p', { class: 'subtitle pub-hero-subline' },
     'Honest limits, at least two alternatives for every tool, and nobody paid to be listed.',
   );
-  /* --- savings ticker (Phase 17, PRD section 16 amended layout item 1's
-     savings-ticker clause, Rocky, 3 Aug: "a roller that spins that shows
-     the maximum amount of money you save in pounds and Starbucks
-     coffees... a ticker on the hero section") --------------------------
-     Beneath the sub-line. Every figure is derived from `active` at
-     runtime, never a separate hard-coded total, exactly like the count
-     above. The honesty rule (PRD section 10, "a figure nobody would pay
-     is a bug the validator cannot catch"): the ceiling sums every active
-     tool's value and nobody adopts all of them, so it is only ever built
-     labelled as a ceiling ("if you used all N tools") and paired with the
-     realistic core-twelve figure in the very SAME element (savingsTicker
-     below), never split across two nodes that could exist independently
-     of each other. COFFEE_CUP_PRICE_GBP is the one named constant the
-     coffee line's own copy states as its divisor: the site never asserts
-     what a given chain charges, only shows its working, the same standard
-     the `value` field itself is held to. */
-  const COFFEE_CUP_PRICE_GBP = 4;
+  /* Every figure here derives from `active` at runtime, never a hard-coded
+     total, exactly like the tool count. The honesty rule (PRD section 10,
+     "a figure nobody would pay is a bug the validator cannot catch"): the
+     ceiling sums every active tool's value and nobody adopts all of them,
+     so the tiles lead with the realistic starter-stack figure and the
+     ceiling appears only in the detail line, explicitly framed. */
   const coreTools = active.filter((t) => t.type === 'core');
   const sumValue = (list) => list.reduce((total, t) => total + (Number.isFinite(t.value) ? t.value : 0), 0);
   const savingsCeiling = sumValue(active);
   const savingsCore = sumValue(coreTools);
-  // Rounded to the nearest hundred purely for a readable "roughly" figure:
-  // the coffee equivalent is already an approximation once a flat £4 cup
-  // price is assumed. The ceiling and core figures above stay exact, since
-  // those two are what the honesty rule, and the smoke suite's mutation
-  // test, hold to an exact computed sum.
-  const savingsCoffees = Math.round(savingsCeiling / COFFEE_CUP_PRICE_GBP / 100) * 100;
+  // Both figures stay exact: they are what the honesty rule, and the smoke
+  // suite's mutation test, hold to an exact computed sum.
   // Accessibility (item 4 of the phase brief): the accessible name is set
   // from the start as one settled sentence, never `aria-live`, so a screen
   // reader announces it once regardless of how the animated digits below
@@ -416,43 +401,51 @@ export function renderPublic(root, tools) {
   // arrival is more informative than an off-live-region node a screen
   // reader may still expose to "browse mode" navigation as a fragment of
   // rendered digits with no framing words attached.
-  const savingsSentence = `Up to ${money(savingsCeiling)} a year, if you used all `
-    + `${active.length} tools. A starter stack of ${coreTools.length} saves `
-    + `${money(savingsCore)}, roughly ${savingsCoffees.toLocaleString('en-GB')} `
-    + `coffees at ${money(COFFEE_CUP_PRICE_GBP)} a cup.`;
+  const savingsSentence = `A starter stack of ${coreTools.length} tools saves `
+    + `${money(savingsCore)} a year. If you used all ${active.length} tools the `
+    + `ceiling is ${money(savingsCeiling)} a year. ${active.length} tools listed, `
+    + `and zero paid placements.`;
   /* Three facts, read left to right (Phase 17.2, Rocky: "make the facts
-     three columns", the count, the pounds and the coffees loading one after another so
+     three columns", the figures loading one after another so
      eye scans"). The container keeps the .pub-savings-ticker class the
      honesty checks already target: every one of them asserts on this
      element's aggregate text, so the ceiling still cannot render without
      its "if you used all N tools" framing or without the core figure, which
      is exactly the guarantee that must survive a layout change. */
+  /* Three facts as tiles, per Rocky's 3 Aug mock-up. They lead with the
+     REALISTIC figure, not the ceiling: a starter stack is what a business
+     actually adopts, so it is the number that belongs in the largest type.
+     The ceiling still appears, subordinated to the detail line beneath, so
+     the maximum Rocky asked for is present without being the headline
+     claim. "Paid placements: 0" replaces the coffee equivalent (17.3): the
+     coffee gag only impressed off the ceiling, invited quibbles about what
+     a cup actually costs on a page whose whole claim is honest figures,
+     and this is the one fact a competitor structurally cannot print. */
   const savingsAmountEl = el('span', { class: 'pub-savings-amount' }, money(0));
   const toolCountEl = el('span', { class: 'pub-fact-figure' }, '0');
-  const coffeeCountEl = el('span', { class: 'pub-fact-figure' }, '0');
   const savingsTicker = el('div', { class: 'pub-savings-ticker pub-hero-facts' },
     el('p', { class: 'visually-hidden' }, savingsSentence),
     el('div', { class: 'pub-savings-visible', 'aria-hidden': 'true' },
-      el('div', { class: 'pub-fact' },
-        toolCountEl,
-        el('p', { class: 'pub-fact-label' }, `free tool${active.length === 1 ? '' : 's'}`),
-      ),
       el('div', { class: 'pub-fact pub-fact-money' },
+        el('p', { class: 'pub-fact-label' }, `Starter stack of ${coreTools.length} saves`),
         savingsAmountEl,
-        el('p', { class: 'pub-fact-label' }, 'a year, at most'),
       ),
       el('div', { class: 'pub-fact' },
-        coffeeCountEl,
-        el('p', { class: 'pub-fact-label' }, 'coffees'),
+        el('p', { class: 'pub-fact-label' }, 'Tools listed'),
+        toolCountEl,
+      ),
+      el('div', { class: 'pub-fact' },
+        el('p', { class: 'pub-fact-label' }, 'Paid placements'),
+        el('span', { class: 'pub-fact-figure' }, '0'),
       ),
       el('p', { class: 'pub-fact-detail' },
-        'That is if you used all ',
-        el('strong', {}, String(active.length)),
-        ' tools. A starter stack of ',
+        'A year, on the ',
         el('strong', {}, String(coreTools.length)),
-        ' saves ',
-        el('strong', {}, money(savingsCore)),
-        `, or about ${savingsCoffees.toLocaleString('en-GB')} coffees at ${money(COFFEE_CUP_PRICE_GBP)} a cup.`,
+        ' core tools. If you used all ',
+        el('strong', {}, String(active.length)),
+        ' tools the ceiling is ',
+        el('strong', {}, money(savingsCeiling)),
+        ' a year.',
       ),
     ),
   );
@@ -672,23 +665,10 @@ export function renderPublic(root, tools) {
     measureTopbar(44);
   }
 
-  const header = el('header', { class: 'panel pub-header' },
-    heroBg,
-    el('img', { class: 'logo', src: 'design-system/assets/kaipability-logo-lockup.png', alt: 'Kaipability' }),
-    el('h1', { class: 'pub-hero-headline' }, 'The free software directory for small business.'),
-    heroSubline,
-    savingsTicker,
-    heroTrust,
-  );
-
-  /* --- ways-in band (PRD section 16, "Ways-in band") -----------------------
-     Search promoted to first-class, full width, its placeholder count
-     computed at runtime, above the Discover and persona-pack entry items.
-     The "Browse all" entry card is retired: its job passes to the shelves
-     below plus the Expand all / Collapse all toggle on the shelf-band
-     header. Mobile vs desktop ordering of the two remaining entry items is
-     handled by CSS layout alone (see the PUBLIC block of styles.css), never
-     by rendering the markup twice. */
+  /* Declared before the header assembles, because the header now renders
+     the search row itself (17.3): a const referenced from an earlier line
+     is a temporal dead zone error, which took the whole page down until
+     the smoke suite could not even find a card. */
   const searchInput = el('input', {
     class: 'input pub-search', type: 'search',
     placeholder: `Search ${active.length} tool${active.length === 1 ? '' : 's'}: invoicing, design, CRM…`,
@@ -709,7 +689,32 @@ export function renderPublic(root, tools) {
     clearTimeout(filterDebounceTimer);
     filterDebounceTimer = setTimeout(() => withViewTransition(applyFilter), FILTER_VT_DEBOUNCE_MS);
   });
-  const searchRow = el('div', { class: 'pub-search-row' }, searchInput);
+  const browseAllBtn = el('button', { class: 'btn btn-ghost pub-browse-all', type: 'button' },
+    `Browse all ${active.length}`);
+  browseAllBtn.addEventListener('click', () => {
+    withViewTransition(() => expandAllShelves(true));
+    shelfBand.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+  });
+  const searchRow = el('div', { class: 'pub-search-row' }, searchInput, browseAllBtn);
+
+  const header = el('header', { class: 'panel pub-header' },
+    heroBg,
+    el('img', { class: 'logo', src: 'design-system/assets/kaipability-logo-lockup.png', alt: 'Kaipability' }),
+    el('h1', { class: 'pub-hero-headline' }, 'The free software directory for small business.'),
+    heroSubline,
+    searchRow,
+    savingsTicker,
+    heroTrust,
+  );
+
+  /* --- ways-in band (PRD section 16, "Ways-in band") -----------------------
+     Search promoted to first-class, full width, its placeholder count
+     computed at runtime, above the Discover and persona-pack entry items.
+     The "Browse all" entry card is retired: its job passes to the shelves
+     below plus the Expand all / Collapse all toggle on the shelf-band
+     header. Mobile vs desktop ordering of the two remaining entry items is
+     handled by CSS layout alone (see the PUBLIC block of styles.css), never
+     by rendering the markup twice. */
 
   // PRD section 16: "Discover entry: button plus one-line pitch" and
   // "Persona chips: behaviour unchanged". Neither calls for the heading and
@@ -733,8 +738,12 @@ export function renderPublic(root, tools) {
     personaChipRow,
   );
 
+  /* searchRow is NOT in here any more (17.3). .pub-entry is what the
+     deck-open hide targets, so keeping search out of it means search stays
+     usable while the deck is open: the cost flagged when that hide landed
+     at 15.1 ("a reader who wants to search has to close the deck first")
+     is resolved rather than merely documented. */
   const entryPaths = el('section', { class: 'pub-entry', 'aria-label': 'Ways to find a tool' },
-    searchRow,
     el('div', { class: 'pub-entry-grid' }, discoverItem, personaItem),
   );
 
@@ -1264,10 +1273,8 @@ export function renderPublic(root, tools) {
   // Savings ticker count-up (Phase 17): fires once here, on mount, after
   // `reduced` above is known; never re-triggered by any later redraw (a
   // plainMode toggle rebuilds the shelves, never the header).
-  animateFigure(toolCountEl, active.length, reduced, { delayMs: 0 });
-  animateFigure(savingsAmountEl, savingsCeiling, reduced, { delayMs: FACT_STAGGER_MS, format: money });
-  animateFigure(coffeeCountEl, savingsCoffees, reduced,
-    { delayMs: FACT_STAGGER_MS * 2, format: (n) => n.toLocaleString('en-GB') });
+  animateFigure(savingsAmountEl, savingsCore, reduced, { delayMs: 0, format: money });
+  animateFigure(toolCountEl, active.length, reduced, { delayMs: FACT_STAGGER_MS });
 
   loadPersonaPacks(personaChipRow, activeIds, {
     setPersonaIds: (ids) => { activePersonaIds = ids; },

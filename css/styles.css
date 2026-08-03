@@ -1421,6 +1421,9 @@ html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
    full-width row above the entry-path grid, on every viewport, not only
    below 768px (the PRD's floor, not a ceiling: there is no reason to shrink
    it back down again once there is room to spare). */
+.pub-header .pub-search-row { margin-top: var(--s-3); display: flex; gap: var(--s-2); align-items: stretch; flex-wrap: wrap; }
+.pub-header .pub-search { flex: 1 1 16rem; min-width: 0; }
+.pub-header .pub-browse-all { flex: 0 0 auto; white-space: nowrap; }
 .pub-search-row { margin-bottom: var(--s-5); }
 .pub-search { width: 100%; min-width: 0; }
 
@@ -1501,7 +1504,7 @@ html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
    nothing running to begin with. font-variant-numeric: tabular-nums keeps
    every digit the same width while the count-up runs, so the line does not
    visibly jitter sideways as the figure grows from one digit to five. */
-.pub-savings-ticker { margin-top: var(--s-4); }
+.pub-savings-ticker { margin-top: var(--s-3); }
 /* Three facts side by side (Phase 17.2). Grid is right here, unlike the
    ceiling line this phase already had to un-flex: these are three discrete
    blocks, not one sentence broken into fragments. Single column below 640px
@@ -1523,24 +1526,31 @@ html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
    scans, so it stays a row everywhere and the figures scale instead. */
 .pub-fact-detail {
   grid-column: 1 / -1;
-  margin: var(--s-2) 0 0;
+  margin: var(--s-1) 0 0;
   max-width: none;
   color: var(--ink-2);
   font-size: var(--fs-14);
   line-height: var(--lh-14);
 }
-.pub-fact { min-width: 0; }
+.pub-fact {
+  min-width: 0;
+  padding: var(--s-2);
+  border: var(--border);
+  border-radius: var(--radius-sm, 4px);
+  background: color-mix(in srgb, var(--paper) 70%, transparent);
+}
 .pub-fact-figure, .pub-savings-amount {
   display: block;
+  margin-top: var(--s-1);
   font-family: var(--font-display);
   font-weight: 900;
-  font-size: clamp(22px, 4.4vw, 46px);
+  font-size: clamp(21px, 4.1vw, 40px);
   line-height: 1;
   color: var(--oxblood);
   font-variant-numeric: tabular-nums;
 }
 .pub-fact-label {
-  margin: var(--s-1) 0 0;
+  margin: 0;
   max-width: none;
   color: var(--ink-2);
   font-size: var(--fs-14);
@@ -1612,27 +1622,27 @@ html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
   left: -14%;
   background: var(--oxblood);
   transform: rotate(-6deg) translate(0%, 0%);
-  animation: pub-hero-drift-1 21s ease-in-out infinite alternate;
+  animation: pub-hero-drift-1 20s ease-in-out infinite alternate;
 }
 .pub-hero-plane-2 {
   left: 18%;
   background: var(--paper-2);
   transform: rotate(5deg) translate(0%, 0%);
-  animation: pub-hero-drift-2 25s ease-in-out infinite alternate;
+  animation: pub-hero-drift-2 21s ease-in-out infinite alternate;
   animation-delay: -9s; /* negative delay: starts partway through its own loop, so the four planes never read as synchronised */
 }
 .pub-hero-plane-3 {
   left: 46%;
   background: var(--oxblood-deep);
   transform: rotate(-4deg) translate(0%, 0%);
-  animation: pub-hero-drift-3 23s ease-in-out infinite alternate;
+  animation: pub-hero-drift-3 20s ease-in-out infinite alternate;
   animation-delay: -14s;
 }
 .pub-hero-plane-4 {
   left: 70%;
   background: var(--paper-edge);
   transform: rotate(7deg) translate(0%, 0%);
-  animation: pub-hero-drift-4 27s ease-in-out infinite alternate;
+  animation: pub-hero-drift-4 22s ease-in-out infinite alternate;
   animation-delay: -21s;
 }
 @keyframes pub-hero-drift-1 {

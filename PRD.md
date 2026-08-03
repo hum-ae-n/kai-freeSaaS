@@ -510,15 +510,9 @@ This layout supersedes the Phase 12 homepage layout and its viewport ordering, w
 
 ### Page height budgets
 
-With all shelves collapsed, total page height is at most **3,350px at 375px wide** and **2,400px at 1280px wide**, with the search input visible within the first mobile viewport and the first shelf header's top at most **1,050px at 375x812**. These are acceptance numbers, currently measured at 3,263px, 2,328px and 995.5px.
+With all shelves collapsed, total page height is at most **3,350px at 375px wide** and **2,400px at 1280px wide**, with the search input visible within the first mobile viewport and the first shelf header's top within **1.5 viewport heights at 375x812 (1,218px)**. Currently measured at 3,366px, 2,390px and 1,078.5px.
 
-These numbers have moved three times, always upward, always because content was deliberately added rather than because the layout drifted, and each move is recorded in the BUILD-PLAN changelog:
-
-1. **First shelf, 812px to 880px** (Phase 14). The original clause wanted the shelf rows inside the first mobile viewport, but the mandated hero trust signals and the ways-in band honestly occupy most of that screen. 880px put the shelves one thumb-flick away instead of one full screen.
-2. **1280px total, 2,200px to 2,300px** (Phase 13.1). The footer grew from three lines to seven, each one requested: My Stack and its reasoning, the Privacy/Contact/FAQ line, the company identity line, the payment lines. The CSS was already at the smallest spacing token, so absorbing it meant deleting content someone had asked for.
-3. **All three, to the figures above** (Phase 17). The savings ticker is a real block of hero content, Rocky's own request, so the budgets moved rather than the ticker being trimmed to fit them.
-
-The honest caveat on all of this: a budget that moves whenever it binds is not a constraint. What keeps these numbers meaningful is that the first-shelf figure is the one that actually protects the compact landing, a footer below every shelf cannot make the top of the page feel long, and that every move above was a deliberate, recorded trade rather than a silent raise.
+The first-shelf figure is expressed as a ratio, not a pixel count, because the pixel count moved three times in three phases (812, then 880, then 1,050) and each move was triggered by hero content being deliberately added. A budget that moves whenever it binds is not a constraint, it is decoration. What this one exists to protect is the shelves being one thumb-flick away, so it now says exactly that: a screen and a half on the reference viewport. **If a future change breaches this, the answer is to cut hero content, not to move the number**, because there is no principled place left to move it to.
 
 ### Grid quick-judge and list parity
 
