@@ -62,6 +62,15 @@ Schema is defined in PRD section 4. Beyond what the PRD states, know these:
 - **`urls[].domain`** is a bare hostname (`claude.ai`), never a full URL. It drives favicon lookup per PRD section 8.
 - **`value`** is an honest annual GBP equivalent of a commercial alternative, not the price of the tool's own paid tier. See PRD section 10. A number nobody would pay is a bug even though the validator cannot catch it.
 
+## Stylesheet notes
+
+`css/styles.css` is one long hand written file with no preprocessor and no scoping, so **source order is the only tie-breaker** and the file is long enough that a rule and its duplicate can sit hundreds of lines apart. Two consequences, both of which shipped as defects in Phase 17.5:
+
+- **A `@media` block adds no specificity.** Put a responsive override ABOVE the unqualified rule it means to override and it loses every declaration silently, while still appearing in DevTools and still looking like it works. Responsive blocks belong below the base rules they modify.
+- **Duplicate selectors win by being later.** A leftover `.pub-savings-amount` block from an earlier layout beat the shared rule that named it, so the hero's lead figure rendered a size nobody had chosen. When a selector appears twice, one of them is almost always stale: delete it rather than adding a third rule on top.
+
+If a layout change measures as though it did nothing, check for a later rule before assuming the change was wrong.
+
 ## Security requirements
 
 - **The `client` URL parameter is attacker controlled and is reflected into the page.** Insert it with `textContent` or `createTextNode`. Never `innerHTML`, never template it into an HTML string. `?client=<img src=x onerror=alert(1)>` must render as literal text.
