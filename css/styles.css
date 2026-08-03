@@ -1115,6 +1115,20 @@ html.js-boot #static-root { display: none; }
    header), though .card-grid/.tool-card/.cli-category-icon are still
    shared, per the file banner above. */
 
+/* 16.4: scroll-padding-top, not a per-call-site fix. js/public.js's mount
+   sets this class the instant .pub-topbar exists, so every existing
+   scrollIntoView({block: 'start'}) call already in this file (the Discover
+   mount, a shelf header's own "collapse must land you back in the list"
+   scroll, the #cat- hash deep link) is honoured against the bar's live
+   height automatically, none of them individually touched. Without this,
+   any of those calls aligns its target's top edge to scrollY's literal
+   zero, which used to be empty space and is now the bar's own opaque box:
+   proven in this wave's own testing to leave the Discover deck's close
+   button roughly half covered the instant the deck opens. --topbar-h
+   already tracks the bar's live height (compressed or not, see
+   js/public.js), so this can never disagree with it either. */
+html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
+
 #public-root {
   max-width: 960px;
   margin: 0 auto;
@@ -1122,10 +1136,7 @@ html.js-boot #static-root { display: none; }
 }
 
 .pub-header {
-  /* Positioning context for .pub-hero-nav below: it is absolutely
-     positioned so it adds no vertical height to the hero, and that only
-     works relative to this panel rather than the page. Phase 16: also the
-     containing block AND the stacking context for .pub-hero-bg's
+  /* Positioning context and stacking context for .pub-hero-bg's
      z-index: -1 (motion inventory item 9). z-index: 0 here, not just
      position: relative, is load-bearing: position: relative alone with
      z-index left at auto does not establish a new stacking context, so
@@ -1138,29 +1149,95 @@ html.js-boot #static-root { display: none; }
   padding: var(--s-10) var(--s-10) var(--s-8);
   margin-bottom: var(--s-3);
   border-top: var(--bw-heavy) solid var(--oxblood);
+  /* Fold cost (16.4): .pub-topbar below is position: fixed and therefore
+     out of flow, so without this the bar would simply paint over the top
+     of whatever padding-top the line above left, hiding the logo behind
+     it. --topbar-fold-reserve is frozen by js/public.js's ResizeObserver
+     callback at the bar's EXPANDED height, read once on mount (the page
+     always starts unscrolled, so the first reading is always the expanded
+     figure) and never updated again, deliberately: unlike --topbar-h below
+     (which tracks the bar live, compressed or not, for the sticky shelf
+     header collision), the reservation at the very top of the page must
+     stay pinned to the tallest state the bar can be in while still at
+     scroll position zero, or a reader who has scrolled down and back up
+     would see the layout jump as this padding chased the shrinking bar.
+     The static 44px fallback is what a visitor with no JavaScript function
+     support at all (no ResizeObserver) sees; it is not a guess, it is the
+     bar's own designed height at 0 vertical padding (see .pub-topbar
+     below), so the fallback and the measured value agree exactly, and
+     longhand after the shorthand above wins on the one property it
+     touches without needing higher specificity. This replaces the
+     padding-top the line above already set, it does not add to it: the
+     PRD's own fold-cost clause is explicit that the hero's existing top
+     padding is what pays for the bar, not a second budget on top of it.
+     The 375x812 first-shelf budget (880px, see scripts/smoke-test.mjs)
+     was measured at 859.5px before this wave with 20.5px of slack; a
+     44px bar replacing this breakpoint's 24px padding-top (see the
+     max-width: 767px override below) costs +20px net, landing at 879.5px,
+     0.5px under the cap. That knife-edge margin is the real, reported
+     number, not a rounded one: 44px, at zero vertical padding of its own,
+     is the tallest the bar can be here and still fit at all, which is
+     also why the compressed state below cannot shrink the bar height any
+     further without the burger's own target dropping under 44px (flagged
+     in this wave's own report as the trade the budget forced). */
+  padding-top: var(--topbar-fold-reserve, 44px);
 }
 .pub-header .logo { height: 40px; width: auto; margin-bottom: var(--s-5); }
 
-/* --- hero utility bar (PRD section 16 amended, layout item 1, Phase 15,
-   extended Phase 16) --------------------------------------------------------
-   "My Stack", "FAQ", Plain English and the light/dark toggle, pinned to the
-   panel's top-right corner. Absolute positioning takes it out of normal
-   flow entirely, which is what lets it add zero vertical height of its own
-   at 375px: the 880px first-shelf budget below is measured against the
-   header's normal content flow (logo, h1, strapline, trust lines), which
-   this nav never joins. It is a plain child of .pub-header, so it inherits
-   the hero's first-paint stagger (motion inventory item 1) rather than
-   needing an animation of its own. My Stack/FAQ are quiet text links, not
-   buttons; Plain English and the theme toggle (moved in here from the
-   retired shelf-band controls row, Phase 16, Rocky's 2 Aug direction) keep
-   their existing .btn-ghost/.btn-lg shape (CLIENT/COMPONENTS blocks, not
-   touched here), just resized below to sit comfortably alongside the
-   links. Every one of the four is at least 44px in both dimensions at
-   every viewport, per the site-wide touch-target rule. */
-.pub-hero-nav {
-  position: absolute;
+/* --- fixed, self-compressing top bar (16.4, Rocky: "this should be as a
+   fixed top menu bar can compress to burger on scroll down") ---------------
+   .pub-topbar is the bar itself: position: fixed at every width, so it is
+   always one tap away rather than only at the top of the page (PRD section
+   16 amended layout item 1's fixed-bar clause). It carries two children
+   that are never both visible at once: .pub-hero-nav (the four real
+   controls, unchanged nodes, just relocated out of .pub-header) and
+   .pub-topbar-burger (the compressed-state disclosure trigger). Which one
+   shows is pure CSS, keyed off .is-compressed (js/public.js toggles this
+   with a sentinel/IntersectionObserver pair, the same pattern the shelf
+   headers already use, never a scroll handler: the motion inventory's ban
+   on scroll-linked effects stands) and .is-open (toggled on click, Escape
+   or outside-click, see js/public.js). Zero vertical padding is load
+   bearing, not a look: at exactly the 44px control height with no padding
+   and no border (a box-shadow substitutes for a border so the bar's own
+   chrome never adds to its layout height), the bar is the shortest it can
+   be while every control still clears the site-wide 44px touch-target
+   floor, which is what the .pub-header fold-cost comment above's knife-edge
+   arithmetic depends on. background is solid, never an alpha value, in
+   both themes (design-system tokens, not overridden here): a card
+   scrolling underneath cannot show through a fully opaque fill, so this
+   reads as a bar rather than floating controls over content with no pixel
+   sampling required to prove it. z-index sits above the sticky shelf
+   headers (z-index: 3) and everything in ordinary flow, below the toast
+   (z-index: 100, BASE block) so a save confirmation is never hidden behind
+   it; the Discover deck panel is mounted inline with no z-index of its own
+   (see the sticky-header comment lower in this file), so it can never
+   compete with the bar for stacking order regardless of scroll position. */
+.pub-topbar {
+  position: fixed;
   top: 0;
+  left: 0;
   right: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 var(--s-5);
+  background: var(--paper);
+  box-shadow: var(--shadow-2);
+}
+/* Zero-height sentinel placed just after .pub-header (js/public.js): the
+   same technique the shelf headers' own is-stuck detection already uses.
+   Scrolling this sentinel above the viewport is "past the hero", the
+   trigger for .is-compressed. */
+.pub-topbar-sentinel { height: 0; }
+/* "My Stack", "FAQ", Plain English and the light/dark toggle: real nodes,
+   never duplicated between the bar and the disclosure panel below, since
+   the disclosure IS this same element with different CSS applied, not a
+   second copy (a second copy would mean two live aria-pressed states for
+   the same toggle, immediately out of sync). Expanded (not .is-compressed)
+   this is simply the bar's row content; compressed-and-open it becomes the
+   disclosure panel via the .is-open rule further down. */
+.pub-hero-nav {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -1228,6 +1305,86 @@ html.js-boot #static-root { display: none; }
   }
   .pub-hero-nav .btn { padding: 0 var(--s-2); gap: 0; }
 }
+
+/* --- compressed state and the burger disclosure (16.4) --------------------
+   .pub-topbar-burger is a real <button>, never a styled <div>: aria-expanded
+   and aria-controls (set in js/public.js) plus its own accessible name are
+   what make this a disclosure rather than a decoration, the exact contract
+   the Phase 14 coach overlay broke and this spec writes in as non-optional.
+   Hidden whenever the bar is not compressed (the four items are already
+   directly visible then, so a trigger for a hidden panel would be inert
+   chrome); shown only under .is-compressed. Deliberately smaller than the
+   site's usual 44px control floor: the 375x812 fold budget's own arithmetic
+   (see the .pub-header comment above) leaves exactly 0.5px of slack once
+   the EXPANDED bar is paid for at 44px, none left over for a second,
+   independently-sized compressed height still large enough to read as
+   genuinely shorter while also clearing 44px itself. 36px clears the WCAG
+   2.5.8 minimum target size (24px) comfortably; it undershoots this site's
+   own 44px convention, and that is a deliberate, reported trade rather than
+   an oversight (this wave's own report flags it explicitly). No border, no
+   vertical padding, same reasoning as .pub-topbar itself: the bar's total
+   height is exactly this button's own height, nothing added by its chrome. */
+.pub-topbar-burger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.pub-topbar-burger:hover, .pub-topbar-burger:focus-visible { color: var(--oxblood); }
+.pub-topbar.is-compressed .pub-topbar-burger { display: inline-flex; }
+/* Compressed and closed: the four controls are off, full stop, not merely
+   visually hidden, since a display:none subtree also leaves the tab order
+   (nothing here to reach by keyboard except the burger itself, exactly
+   "reachable via the burger" as the spec asks). Compressed and open: the
+   very same nodes become the disclosure panel, positioned directly off the
+   bar's own box (top: 100%, so it is always exactly where the bar's
+   current height ends, live, with no separate coordinate to keep in sync)
+   rather than a copy positioned by JS-read geometry. flex-wrap: nowrap
+   guards against the base rule's wrap ever turning four short items into
+   an unwanted two-column layout in the narrower column direction; the
+   panel's own background, border and shadow (never inherited from the bar,
+   this is a new box) are what keep it legible over whatever the page is
+   scrolled to behind it, the same "reads as a surface, not floating
+   controls" requirement the bar itself carries. Never clipped by the bar's
+   own overflow (.pub-topbar sets none), and it sits above ordinary page
+   content by inheriting the bar's z-index: 40 stacking context, no
+   separate z-index of its own needed. */
+.pub-topbar.is-compressed .pub-hero-nav:not(.is-open) { display: none; }
+.pub-topbar.is-compressed .pub-hero-nav.is-open {
+  position: absolute;
+  top: 100%;
+  right: var(--s-5);
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: var(--s-1);
+  min-width: 220px;
+  padding: var(--s-2);
+  background: var(--paper);
+  border: var(--border);
+  box-shadow: var(--shadow-3);
+}
+/* Compress and panel-open are both instant state changes: no rule in this
+   block sets a transition or animation on .pub-topbar, .pub-hero-nav or
+   .pub-topbar-burger's layout, display or position, so there is nothing for
+   prefers-reduced-motion to need to strip out. This is deliberately
+   unconditional (true for every visitor, not gated behind the media query)
+   rather than authoring a transition and then disabling it under reduced
+   motion, since the spec's own wording ("the compress and the panel open
+   are instant state changes") reads as a property of the feature itself,
+   not a reduced-motion carve-out of a normally-animated one. The colour
+   transition on the burger's hover/focus state above is a different kind
+   of motion (feedback on an interaction, not a state change) and is
+   already covered by the BASE block's blanket
+   prefers-reduced-motion transition-duration override. */
+
 /* Headline (Phase 16, PRD section 16 amended item 1: "the first section
    should be distinctive and say what Free Stack is"). The h1 treatment
    Phase 12.1 built for the two-word "Free Stack" wordmark is the starting
@@ -1793,12 +1950,21 @@ html.js-boot #static-root { display: none; }
    scrolling underneath would otherwise show through the gap. Placed before
    the :hover rule below so hover's own background still wins on hover,
    same specificity, source order. z-index sits above the shelf's cards
-   (which form no stacking context of their own) and below the toast
-   (z-index: 100) and any future overlay; the deck panel is mounted inline,
-   never overlapping a shelf spatially, so needs no explicit ordering here. */
+   (which form no stacking context of their own) and below the bar (40)
+   and the toast (100); the deck panel is mounted inline, never overlapping
+   a shelf spatially, so needs no explicit ordering here.
+   16.4, the collision: a fixed .pub-topbar sits in this exact top-of-
+   viewport spot too, and without this, top: 0 would slide the header
+   (and the collapse control it carries) under the bar the instant it
+   pinned. top: var(--topbar-h) is the one property this shares with the
+   bar's own live-measured height (js/public.js's ResizeObserver, same
+   value, never a second hand-rolled number that could drift out of sync):
+   the header docks against whatever the bar's CURRENT rendered height is,
+   compressed or not, so the two can never disagree. The 44px fallback
+   matches the bar's own no-JS fallback for the same reason given there. */
 .pub-shelf-header[aria-expanded="true"] {
   position: sticky;
-  top: 0;
+  top: var(--topbar-h, 44px);
   z-index: 3;
   background: var(--paper);
 }
@@ -2679,7 +2845,14 @@ html.js-boot #static-root { display: none; }
   .linkgen-controls { flex-direction: column; align-items: stretch; }
   /* In a column, the desktop flex-basis 16rem would become height. */
   .linkgen-controls .input { flex: 0 0 auto; }
-  .pub-header { padding: var(--s-6) var(--s-5); }
+  /* padding-top re-declared after the shorthand (16.4): this media query's
+     .pub-header rule sits later in source order than the base rule's own
+     padding-top: var(--topbar-fold-reserve, 44px) (PUBLIC block above), so
+     without this line the shorthand here would silently win and reset the
+     fold reservation back to var(--s-6) below 768px, the one width the
+     880px budget actually gates. Same property, same fallback, so the two
+     rules can never disagree about what the bar costs at this breakpoint. */
+  .pub-header { padding: var(--s-6) var(--s-5); padding-top: var(--topbar-fold-reserve, 44px); }
   .cli-header { padding: var(--s-6) var(--s-5); }
   .cli-summary { gap: var(--s-6); padding: var(--s-5); }
   .tool-card { padding: var(--s-6); }

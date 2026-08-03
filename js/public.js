@@ -240,6 +240,27 @@ function plainToggleIcon() {
   return svg;
 }
 
+/** A plain three-line hamburger glyph for the compressed top bar's
+    disclosure trigger (16.4), the same hand-built SVG technique as every
+    other icon in this file: no icon font, no extra request. The button
+    itself carries the real accessible name and aria-expanded/aria-controls
+    (see the topbar wiring below); this glyph is purely decorative,
+    aria-hidden. */
+function burgerIcon() {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  for (const [key, value] of Object.entries({
+    viewBox: '0 0 24 24', width: '20', height: '20', fill: 'none',
+    stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round',
+    'aria-hidden': 'true',
+  })) svg.setAttribute(key, value);
+  for (const d of ['M4 6h16', 'M4 12h16', 'M4 18h16']) {
+    const path = document.createElementNS(SVG_NS, 'path');
+    path.setAttribute('d', d);
+    svg.append(path);
+  }
+  return svg;
+}
+
 /** Groups tools by category, insertion order preserved, the same grouping
     buildCardSections does internally. Called on the same array in the same
     order as the buildCardSections() call below, so the two orderings can
@@ -357,22 +378,185 @@ export function renderPublic(root, tools) {
 
   // Utility bar (PRD section 16 amended, layout item 1): My Stack, FAQ,
   // Plain English and the light/dark toggle, in that order, all four at
-  // least 44px. Pinned to the panel's top corner by CSS absolute
-  // positioning so it adds no vertical height of its own at 375px, on top
-  // of whatever height the retired shelf-band row frees up. A plain child
-  // of `header`, so it inherits the hero's first-paint stagger rather than
-  // needing a second reveal call. My Stack/FAQ are real internal links, no
-  // target=_blank; the two toggles keep their existing behaviour, just
-  // relocated.
-  const heroNav = el('nav', { class: 'pub-hero-nav', 'aria-label': 'Utility' },
+  // least 44px. Since 16.4 this nav lives inside the fixed .pub-topbar
+  // below, not inside `header`: it is no longer part of the hero's one-time
+  // entrance (it is always-visible chrome now, not content that fades in),
+  // and a position: fixed descendant of `header` would be trapped by
+  // .pub-reveal's own transform during that entrance (a transform on any
+  // ancestor creates a new containing block for a fixed descendant), which
+  // would visibly drag the bar along with the hero's fade-in for that one
+  // frame window. My Stack/FAQ are real internal links, no target=_blank;
+  // the two toggles keep their existing behaviour, just relocated.
+  const heroNav = el('nav', { class: 'pub-hero-nav', id: 'pub-topbar-nav', 'aria-label': 'Utility' },
     el('a', { href: '/my' }, 'My Stack'),
     el('a', { href: '/faq.html' }, 'FAQ'),
     plainBtn,
     themeBtn,
   );
+
+  /* --- fixed, self-compressing top bar (16.4, PRD section 16 amended layout
+     item 1's fixed-bar clause) ------------------------------------------
+     .pub-topbar holds heroNav (visible directly while expanded) and
+     topbarBurger (visible only once compressed). Which is which is CSS
+     only, keyed off the classes/attributes toggled below; the four control
+     nodes themselves are never duplicated between the bar and the
+     disclosure. */
+  const topbarBurger = el('button', {
+    class: 'pub-topbar-burger', type: 'button',
+    'aria-expanded': 'false', 'aria-controls': 'pub-topbar-nav', 'aria-label': 'Menu',
+  }, burgerIcon());
+  const topbar = el('div', { class: 'pub-topbar' }, topbarBurger, heroNav);
+  // The bar covers no control by construction wherever content is already
+  // in its resting scroll position (the sticky shelf header fix above), but
+  // scrollIntoView({block: 'start'}) is a different hazard entirely: this
+  // page already calls it on the Discover mount, a shelf's own header (the
+  // "wasStuck" collapse case) and the #cat- hash deep link, every one of
+  // them aligning some element's top edge to scrollY's literal zero, which
+  // is now the bar's own box, not empty space. Proven live in this wave's
+  // own testing: without this, the Discover panel's close button ends up
+  // roughly half covered by the bar the instant the deck opens.
+  // scroll-padding-top is the general fix, a scroll-container property
+  // scrollIntoView already honours natively, so every call site above is
+  // covered at once without hunting each one down individually; the class
+  // scopes it to this page only (curator, client and My Stack never mount
+  // this bar and must not gain scroll padding they have no use for).
+  document.documentElement.classList.add('pub-has-topbar');
+  // the shelf headers already use. Scrolling it above the viewport is "the
+  // reader has scrolled past the hero", the spec's own wording for when to
+  // compress.
+  const heroEndSentinel = el('div', { class: 'pub-topbar-sentinel', 'aria-hidden': 'true' });
+
+  let topbarPanelOpen = false;
+  function closeTopbarPanel(focusBurger) {
+    // focusBurger: true forces it (Escape's own contract: "returns focus to
+    // the burger" unconditionally); 'auto' only if focus is actually about
+    // to be dropped (see below); false never moves focus at all (the
+    // scroll-back-to-expanded path, where nothing is hidden so nothing is
+    // at risk). Computed BEFORE the nav is hidden: once .is-compressed
+    // without .is-open takes effect (the CSS above), a focused descendant
+    // of a display:none subtree is dropped straight to <body> by the
+    // browser itself, the exact defect the Phase 14 coach dismissal
+    // shipped with (PRD section 16 amended, "Focus must never be dropped
+    // on body"). Moving focus to the burger first, whenever it was inside
+    // the panel, is what keeps every close route safe regardless of which
+    // one fired.
+    const hadFocusInside = heroNav.contains(document.activeElement);
+    if (!topbarPanelOpen) return;
+    topbarPanelOpen = false;
+    heroNav.classList.remove('is-open');
+    topbarBurger.setAttribute('aria-expanded', 'false');
+    document.removeEventListener('keydown', onTopbarKeydown);
+    document.removeEventListener('pointerdown', onOutsideTopbarPointerdown, true);
+    if (focusBurger === true || (focusBurger === 'auto' && hadFocusInside)) {
+      topbarBurger.focus({ preventScroll: true });
+    }
+  }
+  function onTopbarKeydown(event) {
+    if (event.key === 'Escape') { event.preventDefault(); closeTopbarPanel(true); }
+  }
+  // pointerdown, deliberately not click: a tap or click on any target,
+  // focusable or not, blurs whatever currently holds focus as part of the
+  // BROWSER's own default action for that pointer press, and that default
+  // action runs before a same-tick 'click' listener ever sees the event,
+  // often landing focus on <body> first if the pressed target is not
+  // itself focusable. Proven in this wave's own testing: an outside click
+  // listener on 'click' measured hadFocusInside as false (activeElement was
+  // already <body> by the time it ran) for exactly this reason, which is
+  // the whole defect this contract exists to prevent. 'pointerdown' fires
+  // before that default blur, so closeTopbarPanel below still sees the
+  // real, pre-blur activeElement and can win the race by moving focus to
+  // the burger itself before the browser moves it to <body>.
+  function onOutsideTopbarPointerdown(event) {
+    if (heroNav.contains(event.target) || topbarBurger.contains(event.target)) return;
+    // Winning the race needs one more thing beyond firing early: even
+    // caught here, ahead of the browser's own blur, that blur (and any
+    // fresh focus the pressed target claims for itself) is still QUEUED as
+    // this same pointerdown's default action and would run right after this
+    // handler returns, undoing an explicit focus() call made now. Measured
+    // in this wave's own testing: without preventDefault() here, the burger
+    // received focus for one instant and lost it again to <body> a moment
+    // later. preventDefault() is scoped to exactly the case that needs it,
+    // focus genuinely inside the panel about to be closed: an outside click
+    // on ordinary page furniture (a shelf, a card, plain text) never
+    // legitimately depended on the browser's default mousedown focus
+    // behaviour anyway, and a click on a real link or button elsewhere
+    // still activates normally, since that activation is the CLICK event's
+    // own default action, a separate thing this never touches.
+    if (heroNav.contains(document.activeElement)) event.preventDefault();
+    closeTopbarPanel('auto');
+  }
+  function openTopbarPanel() {
+    if (topbarPanelOpen) return;
+    topbarPanelOpen = true;
+    heroNav.classList.add('is-open');
+    topbarBurger.setAttribute('aria-expanded', 'true');
+    // "Opening moves focus into the panel": the first real control (My
+    // Stack), not the <nav> element itself, since every item here is
+    // already a focusable link or button and landing on the first one is
+    // the standard disclosure-menu contract, more informative to a screen
+    // reader than a bare, tabindex="-1" container would be.
+    const firstControl = heroNav.querySelector('a, button');
+    if (firstControl) firstControl.focus({ preventScroll: true });
+    document.addEventListener('keydown', onTopbarKeydown);
+    document.addEventListener('pointerdown', onOutsideTopbarPointerdown, true);
+  }
+  topbarBurger.addEventListener('click', () => {
+    if (topbarPanelOpen) closeTopbarPanel(true); else openTopbarPanel();
+  });
+
+  // Compress trigger (motion inventory's ban on scroll-linked effects: a
+  // class toggle from an IntersectionObserver, never a scroll handler
+  // tweening anything). Direction-aware the same way the shelf headers'
+  // own is-stuck detection already is: !isIntersecting alone is true both
+  // for a sentinel scrolled above the viewport (genuinely past the hero)
+  // and for one still below it (not there yet), so the sentinel's own top
+  // edge is compared against the root's to disambiguate.
+  if (typeof IntersectionObserver === 'function') {
+    new IntersectionObserver(([entry]) => {
+      const rootTop = entry.rootBounds ? entry.rootBounds.top : 0;
+      const scrolledPast = !entry.isIntersecting && entry.boundingClientRect.top < rootTop;
+      if (scrolledPast === topbar.classList.contains('is-compressed')) return;
+      topbar.classList.toggle('is-compressed', scrolledPast);
+      // Scrolling back above the hero always reveals the four controls
+      // inline again (the CSS gates the hidden rule on .is-compressed, so
+      // leaving that state shows heroNav regardless of .is-open): nothing
+      // is hidden here, so this never risks dropping focus, hence false.
+      if (!scrolledPast) closeTopbarPanel(false);
+    }, { threshold: 0 }).observe(heroEndSentinel);
+  }
+
+  // --topbar-h (16.4): the bar's own live rendered height, read off the
+  // real DOM box rather than hand-computed from tokens, so it can never
+  // drift out of sync with a later CSS tweak to the bar's padding. Drives
+  // the sticky shelf headers' own top offset (see the PUBLIC block of
+  // styles.css) so the two can never disagree about where the obstruction
+  // ends, compressed or not. --topbar-fold-reserve is a SEPARATE property,
+  // frozen from this same first reading: the page always starts unscrolled
+  // (so the bar is always expanded at mount), and that first height is
+  // what the hero's own padding-top must reserve permanently, never
+  // updated again as the bar later shrinks on scroll, or a reader who
+  // scrolls down and back up would see the hero's padding visibly chase
+  // the compressing bar. The 44px fallback (used before the first
+  // observer callback runs, and forever on an engine with no
+  // ResizeObserver) is not a guess: it is the bar's own designed height at
+  // zero vertical padding, so the fallback and the measured value agree.
+  let topbarFoldReserveSet = false;
+  function measureTopbar(height) {
+    const h = `${Math.ceil(height)}px`;
+    document.documentElement.style.setProperty('--topbar-h', h);
+    if (!topbarFoldReserveSet) {
+      document.documentElement.style.setProperty('--topbar-fold-reserve', h);
+      topbarFoldReserveSet = true;
+    }
+  }
+  if (typeof ResizeObserver === 'function') {
+    new ResizeObserver((entries) => measureTopbar(entries[0].target.getBoundingClientRect().height)).observe(topbar);
+  } else {
+    measureTopbar(44);
+  }
+
   const header = el('header', { class: 'panel pub-header' },
     heroBg,
-    heroNav,
     el('img', { class: 'logo', src: 'design-system/assets/kaipability-logo-lockup.png', alt: 'Kaipability' }),
     el('h1', { class: 'pub-hero-headline' }, 'The free software directory for small business.'),
     heroSubline,
@@ -943,7 +1127,13 @@ export function renderPublic(root, tools) {
 
   shelves = buildShelves(active, plainMode);
   applyFilter();
-  root.replaceChildren(header, entryPaths, discoverMount, shelfBand, faqSection, footer);
+  // topbar is a sibling of `header`, never a child of it (see heroNav's own
+  // comment above): position: fixed does not care where in the DOM it
+  // lives, only that no ancestor establishes a containing block for it, so
+  // it is mounted first here purely for readable source order, top of page
+  // to bottom. heroEndSentinel sits immediately after `header`, the
+  // boundary the compress observer watches.
+  root.replaceChildren(topbar, header, heroEndSentinel, entryPaths, discoverMount, shelfBand, faqSection, footer);
   document.title = 'Free Stack · Kaipability';
 
   handleHashDeepLink();

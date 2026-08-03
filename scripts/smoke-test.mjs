@@ -114,14 +114,19 @@ check('public: trust line and CTA present',
   && (await page.textContent('#public-root')).includes('Talk to Kaipability'));
 
 /* --- Phase 15/16: hero utility bar (PRD section 16 amended, layout item 1)
-   My Stack, FAQ, Plain English and the theme toggle inside .pub-header,
-   all four at least 44px in both dimensions (the site-wide touch-target
-   rule), present without moving the pinned first-shelf budget below
-   (that budget's own check, further down, already proves the number
-   itself; this just confirms the bar did not regress it). Phase 16 moves
-   Plain English and the theme toggle in here from the now-retired
-   shelf-band controls row, so the bar carries four items, not two. */
-const heroNavLinks = page.locator('.pub-header .pub-hero-nav a');
+   My Stack, FAQ, Plain English and the theme toggle inside .pub-topbar
+   (16.4: moved out of .pub-header into the fixed bar; a plain, unscrolled
+   page load is always in the bar's expanded state, so every check below
+   still measures exactly what it measured before that move), all four at
+   least 44px in both dimensions (the site-wide touch-target rule), present
+   without moving the pinned first-shelf budget below (that budget's own
+   check, further down, already proves the number itself; this just
+   confirms the bar did not regress it). Phase 16 moves Plain English and
+   the theme toggle in here from the now-retired shelf-band controls row,
+   so the bar carries four items, not two. The 16.4 fixed/compressing
+   behaviour itself, and the sticky-header collision it introduces, are
+   covered in their own dedicated section further down. */
+const heroNavLinks = page.locator('.pub-topbar .pub-hero-nav a');
 check('homepage: hero utility nav links to /my and /faq.html', await heroNavLinks.count() === 2
   && (await heroNavLinks.nth(0).getAttribute('href')) === '/my'
   && (await heroNavLinks.nth(1).getAttribute('href')) === '/faq.html');
@@ -262,19 +267,57 @@ check('homepage: two entry paths present, Discover first',
 // Verifier fix round: opening the real deck now hides the whole ways-in
 // band (including the persona chips the next section clicks and the
 // pulse-animation check further down, both still exercised against the
-// long-lived `page` object below), so this scroll assertion runs on its
-// own throwaway page rather than contaminating that shared one. The deck
-// is left open when this page closes: nothing downstream depends on it.
+// long-lived `page` object below), so this assertion runs on its own
+// throwaway page rather than contaminating that shared one. The deck is
+// left open when this page closes: nothing downstream depends on it.
+//
+// 16.4 investigation: this used to compare window.scrollY before and
+// after a fixed 300ms wait. Two things independently make that the wrong
+// signal now, one a real mechanism change and one a pre-existing fragility
+// this wave's own testing exposed rather than caused.
+//
+// First, the mechanism: html.pub-has-topbar's scroll-padding-top means the
+// browser's scrollIntoView math now accounts for the reserved bar height,
+// so the exact pixel distance scrolled is no longer a fixed, predictable
+// quantity purely tied to "did opening the deck navigate anywhere". A
+// before/after scrollY comparison was always a proxy for "the deck became
+// visible", never the actual claim in the check's own name; it happened to
+// track together before this wave only because nothing else changed the
+// distance.
+//
+// Second, and the one that actually explains the "before=0 after=0"
+// failures seen in CI: a fixed 300ms wait then a single scrollY sample
+// was already fragile to plain CPU contention, nothing to do with
+// scroll-padding-top at all. Proven directly: opening 15 concurrent noisy
+// pages against this same server and then running this exact sequence
+// reproduces before=0 after=0 with .discover-panel absent from the DOM
+// entirely at the 300ms mark, i.e. the dynamic import and mount had
+// simply not finished yet, the scroll had nothing to compute against. In
+// isolation, five consecutive runs of the unmodified sequence all landed
+// on scrollY=692 every time; only concurrent load broke it, and it broke
+// the OLD code the same way, not just this wave's.
+//
+// The fix for both is the same: wait for the actual outcome (the panel
+// genuinely mounted and visible) instead of a fixed sleep, then assert
+// the claim the check's name makes directly, that opening Discover lands
+// the reader ON the deck, not off-screen below the fold and not covered
+// by the fixed bar (16.4's own collision hazard, since the deck is
+// ordinary flow content with no sticky mechanic of its own to keep it
+// clear the way the shelf headers' shared --topbar-h already does).
 const scrollStubPage = await browser.newPage();
 await scrollStubPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
 await scrollStubPage.goto(`${base}/`);
 await scrollStubPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
-const beforeScrollY = await scrollStubPage.evaluate(() => window.scrollY);
 await scrollStubPage.locator('[data-discover-entry]').click();
-await scrollStubPage.waitForTimeout(300);
-const afterDiscoverScrollY = await scrollStubPage.evaluate(() => window.scrollY);
-check('homepage: Discover stub scrolls to the browse list instead of dead-ending',
-  afterDiscoverScrollY > beforeScrollY, `before=${beforeScrollY} after=${afterDiscoverScrollY}`);
+await scrollStubPage.waitForSelector('.discover-panel', { state: 'visible', timeout: 10000 });
+const stubPanelBox = await scrollStubPage.locator('.discover-panel').boundingBox();
+const stubTopbarBox = await scrollStubPage.locator('.pub-topbar').boundingBox();
+const stubViewportHeight = scrollStubPage.viewportSize().height;
+check('homepage: opening Discover lands the deck on screen, clear of the fixed bar, instead of dead-ending',
+  stubPanelBox !== null && stubTopbarBox !== null
+  && stubPanelBox.y >= stubTopbarBox.y + stubTopbarBox.height - 0.5
+  && stubPanelBox.y < stubViewportHeight,
+  JSON.stringify({ panelBox: stubPanelBox, topbarBox: stubTopbarBox, viewportHeight: stubViewportHeight }));
 await scrollStubPage.close();
 
 // Phase 14.1 adaptation: with all shelves collapsed by default, ZERO cards
@@ -997,6 +1040,170 @@ check('shelf: the search input sits within the first 375x812 mobile viewport',
 check('shelf: the first shelf header top is within the reconciled 880px budget at 375x812',
   firstShelfHeaderTop !== null && firstShelfHeaderTop <= FIRST_SHELF_BUDGET, `firstShelfHeaderTop=${firstShelfHeaderTop}`);
 await foldPage.close();
+
+/* --- 16.4: fixed, self-compressing top bar (PRD section 16 amended layout
+   item 1's fixed-bar clause) ------------------------------------------
+   Every check below runs on its own throwaway page (the established
+   convention this file already uses for anything that scrolls or mutates
+   shared state, e.g. the Discover stub scroll check above), so nothing
+   here can contaminate the long-lived `page` object other sections still
+   rely on. */
+const topbarPage = await browser.newPage({ viewport: { width: 375, height: 812 } });
+await topbarPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await topbarPage.goto(`${base}/`);
+await topbarPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+
+// 1. Fixed bar, full width, opaque in both themes (a solid rgb() with no
+// alpha channel can never let scrolled content show through, which is a
+// stronger proof than sampling pixels: it holds for every scroll position
+// and every card colour, not only the ones actually sampled).
+const topbarBoxAtTop = await topbarPage.locator('.pub-topbar').boundingBox();
+check('topbar: fixed bar spans the full viewport width at the top of the page',
+  topbarBoxAtTop !== null && topbarBoxAtTop.x === 0 && topbarBoxAtTop.y === 0 && topbarBoxAtTop.width === 375,
+  JSON.stringify(topbarBoxAtTop));
+const topbarBgLight = await topbarPage.evaluate(() => getComputedStyle(document.querySelector('.pub-topbar')).backgroundColor);
+await topbarPage.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+const topbarBgDark = await topbarPage.evaluate(() => getComputedStyle(document.querySelector('.pub-topbar')).backgroundColor);
+await topbarPage.evaluate(() => document.documentElement.removeAttribute('data-theme'));
+const solidColor = (c) => /^rgb\(/.test(c); // rgb(), never rgba(...,<1), i.e. fully opaque
+check('topbar: background is a solid, fully opaque colour in both themes (a card scrolling underneath cannot show through)',
+  solidColor(topbarBgLight) && solidColor(topbarBgDark), `light=${topbarBgLight} dark=${topbarBgDark}`);
+
+// 2. All four controls reachable and >=44px while expanded (the burger must
+// not show yet: nothing has scrolled).
+const expandedItems = await topbarPage.locator('.pub-hero-nav a, .pub-hero-nav button').evaluateAll((nodes) => nodes.map((n) => {
+  const r = n.getBoundingClientRect();
+  return { w: r.width, h: r.height };
+}));
+check('topbar: all four controls are at least 44px in both dimensions while expanded',
+  expandedItems.length === 4 && expandedItems.every((b) => b.w >= 43.9 && b.h >= 43.9), JSON.stringify(expandedItems));
+check('topbar: burger is not shown while expanded', await topbarPage.locator('.pub-topbar-burger').isVisible() === false);
+
+// 3. Scroll to the very bottom of the page: the bar must still be fixed,
+// visible, and now compressed (the reader has long since scrolled past the
+// hero). --topbar-h must have updated to a shorter figure than the
+// expanded reading, proving the one shared custom property genuinely
+// tracks the bar's live height rather than being set once and forgotten.
+const topbarHExpanded = await topbarPage.evaluate(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--topbar-h')));
+await topbarPage.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+await topbarPage.waitForTimeout(150);
+const topbarBoxAtBottom = await topbarPage.locator('.pub-topbar').boundingBox();
+const isCompressedAtBottom = await topbarPage.evaluate(() => document.querySelector('.pub-topbar').classList.contains('is-compressed'));
+const topbarHCompressed = await topbarPage.evaluate(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--topbar-h')));
+check('topbar: bar stays fixed at the viewport top and visible after scrolling to the page bottom',
+  topbarBoxAtBottom !== null && topbarBoxAtBottom.y === 0, JSON.stringify(topbarBoxAtBottom));
+check('topbar: compresses once the reader has scrolled past the hero', isCompressedAtBottom === true);
+check('--topbar-h updates to a shorter figure once compressed, proving it is live, not set once',
+  topbarHCompressed < topbarHExpanded, `expanded=${topbarHExpanded} compressed=${topbarHCompressed}`);
+const burgerBoxCompressed = await topbarPage.locator('.pub-topbar-burger').boundingBox();
+check('topbar: the compressed bar itself is shorter than the expanded bar (a real shrink, not merely a different control)',
+  topbarBoxAtBottom.height < topbarBoxAtTop.height, `expanded=${topbarBoxAtTop.height} compressed=${topbarBoxAtBottom.height}`);
+check('topbar: the four controls are gone from the compressed, closed bar (reachable only via the burger)',
+  await topbarPage.locator('.pub-hero-nav').isVisible() === false);
+check('topbar: burger itself clears the WCAG 2.5.8 minimum target size (24px) once compressed',
+  burgerBoxCompressed !== null && burgerBoxCompressed.width >= 24 && burgerBoxCompressed.height >= 24, JSON.stringify(burgerBoxCompressed));
+
+// 4. The burger disclosure contract, end to end: aria-expanded flips, focus
+// moves into the panel, all four controls stay >=44px inside it, Escape
+// closes and returns focus to the burger, an outside click closes it too,
+// and focus is never dropped onto <body> at any point in the sequence
+// (the exact defect PRD section 16 amended calls out from the Phase 14
+// coach overlay).
+await topbarPage.evaluate(() => {
+  window.__focusLog = [];
+  document.addEventListener('focusin', (e) => window.__focusLog.push(e.target === document.body ? 'BODY' : (e.target.tagName + '.' + e.target.className)));
+});
+check('topbar-burger: aria-expanded starts false', await topbarPage.locator('.pub-topbar-burger').getAttribute('aria-expanded') === 'false');
+const ariaControls = await topbarPage.locator('.pub-topbar-burger').getAttribute('aria-controls');
+const navId = await topbarPage.locator('.pub-hero-nav').getAttribute('id');
+check('topbar-burger: aria-controls names the disclosure panel', ariaControls === navId && !!navId, `aria-controls=${ariaControls} navId=${navId}`);
+check('topbar-burger: carries a non-empty accessible name', !!(await topbarPage.locator('.pub-topbar-burger').getAttribute('aria-label')));
+
+await topbarPage.locator('.pub-topbar-burger').click();
+await topbarPage.waitForTimeout(50);
+check('topbar-burger: aria-expanded flips to true on open', await topbarPage.locator('.pub-topbar-burger').getAttribute('aria-expanded') === 'true');
+const focusedAfterOpen = await topbarPage.evaluate(() => document.activeElement.tagName);
+const navContainsFocused = await topbarPage.evaluate(() => document.querySelector('.pub-hero-nav').contains(document.activeElement));
+check('topbar-burger: opening moves focus into the panel', navContainsFocused === true, `focusedTag=${focusedAfterOpen}`);
+const panelItems = await topbarPage.locator('.pub-hero-nav a, .pub-hero-nav button').evaluateAll((nodes) => nodes.map((n) => {
+  const r = n.getBoundingClientRect();
+  return { w: r.width, h: r.height };
+}));
+check('topbar-burger: all four controls remain reachable and at least 44px inside the open panel',
+  panelItems.length === 4 && panelItems.every((b) => b.w >= 43.9 && b.h >= 43.9), JSON.stringify(panelItems));
+const panelBox = await topbarPage.locator('.pub-hero-nav.is-open').boundingBox();
+const barBoxWhileOpen = await topbarPage.locator('.pub-topbar').boundingBox();
+check('topbar-burger: the open panel is not clipped by the bar and sits below its own box, never overlapping it',
+  panelBox !== null && panelBox.y >= barBoxWhileOpen.y + barBoxWhileOpen.height - 0.5, JSON.stringify({ panelBox, barBoxWhileOpen }));
+
+await topbarPage.keyboard.press('Escape');
+await topbarPage.waitForTimeout(50);
+check('topbar-burger: Escape closes the panel (aria-expanded back to false)',
+  await topbarPage.locator('.pub-topbar-burger').getAttribute('aria-expanded') === 'false');
+const focusedAfterEscape = await topbarPage.evaluate(() => ({
+  tag: document.activeElement.tagName, isBurger: document.activeElement.classList.contains('pub-topbar-burger'),
+}));
+check('topbar-burger: Escape returns focus to the burger', focusedAfterEscape.isBurger === true, JSON.stringify(focusedAfterEscape));
+
+// Reopen, then dismiss with a genuine outside pointer press on a
+// non-focusable element (the shelf-band title), the exact scenario this
+// wave's own build found the browser's default mousedown blur racing
+// against: without the preventDefault()/pointerdown fix, focus lands on
+// <body>, not the burger.
+await topbarPage.locator('.pub-topbar-burger').click();
+await topbarPage.waitForTimeout(50);
+const titleBox = await topbarPage.locator('.pub-shelf-band-title').boundingBox();
+await topbarPage.mouse.click(titleBox.x + 2, titleBox.y + 2);
+await topbarPage.waitForTimeout(50);
+check('topbar-burger: an outside click closes the panel', await topbarPage.locator('.pub-topbar-burger').getAttribute('aria-expanded') === 'false');
+const focusedAfterOutside = await topbarPage.evaluate(() => ({
+  tag: document.activeElement.tagName, isBurger: document.activeElement.classList.contains('pub-topbar-burger'), isBody: document.activeElement === document.body,
+}));
+check('topbar-burger: an outside click on a non-focusable element returns focus to the burger, never drops it on body',
+  focusedAfterOutside.isBurger === true && focusedAfterOutside.isBody === false, JSON.stringify(focusedAfterOutside));
+const focusLog = await topbarPage.evaluate(() => window.__focusLog);
+check('topbar-burger: focus is never observed landing on <body> anywhere across the whole open/Escape/reopen/outside-click sequence',
+  !focusLog.includes('BODY'), focusLog.join(' | '));
+
+// 5. The collision this wave exists to fix: a stuck shelf header's full box
+// must sit below the bar (never under it) and a click on it must actually
+// collapse the shelf, not be intercepted by the bar.
+await topbarPage.locator('.pub-shelf-header').first().click();
+await topbarPage.waitForTimeout(150);
+await topbarPage.evaluate(() => window.scrollTo(0, 1200));
+await topbarPage.waitForTimeout(150);
+const stuckHeaderHandle = await topbarPage.locator('.pub-shelf-header[aria-expanded="true"]').first().elementHandle();
+const stuckIsStuck = await stuckHeaderHandle.evaluate((n) => n.classList.contains('is-stuck'));
+const stuckBox = await stuckHeaderHandle.boundingBox();
+const topbarBoxAtDepth = await topbarPage.locator('.pub-topbar').boundingBox();
+check('topbar: a stuck shelf header is genuinely stuck at this scroll depth', stuckIsStuck === true);
+check('topbar: the stuck shelf header\'s full box sits clear of (below) the bar, not underneath it',
+  stuckBox !== null && stuckBox.y >= topbarBoxAtDepth.y + topbarBoxAtDepth.height - 0.5,
+  JSON.stringify({ stuckBox, topbarBoxAtDepth }));
+const ariaBeforeStuckClick = await stuckHeaderHandle.getAttribute('aria-expanded');
+await topbarPage.mouse.click(stuckBox.x + 5, stuckBox.y + 5);
+await topbarPage.waitForTimeout(100);
+const ariaAfterStuckClick = await stuckHeaderHandle.getAttribute('aria-expanded');
+check('topbar: a click on the stuck header at this depth actually collapses the shelf (not intercepted by the bar)',
+  ariaBeforeStuckClick === 'true' && ariaAfterStuckClick === 'false', `before=${ariaBeforeStuckClick} after=${ariaAfterStuckClick}`);
+await topbarPage.close();
+
+// 6. Reduced motion: compress and panel-open are instant state changes, no
+// height or transform transition. Checked on its own page (a fresh load
+// with the media feature emulated, since Playwright applies it for the
+// page's whole lifetime, not retroactively).
+const topbarReducedPage = await browser.newPage({ viewport: { width: 375, height: 812 } });
+await topbarReducedPage.emulateMedia({ reducedMotion: 'reduce' });
+await topbarReducedPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await topbarReducedPage.goto(`${base}/`);
+await topbarReducedPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+const reducedTransitions = await topbarReducedPage.evaluate(() => {
+  const dur = (sel) => parseFloat(getComputedStyle(document.querySelector(sel)).transitionDuration) * 1000; // ms, first listed value
+  return { bar: dur('.pub-topbar'), nav: dur('.pub-hero-nav'), burger: dur('.pub-topbar-burger') };
+});
+check('topbar: reduced motion leaves no transition on the bar, the nav or the burger (compress/open are instant state changes)',
+  reducedTransitions.bar <= 1 && reducedTransitions.nav <= 1 && reducedTransitions.burger <= 1, JSON.stringify(reducedTransitions));
+await topbarReducedPage.close();
 
 // All 89 active cards present in the DOM with shelves collapsed (the "all X
 // active tools as cards" check at the very top of this file already covers
