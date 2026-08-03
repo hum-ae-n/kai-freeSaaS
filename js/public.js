@@ -78,6 +78,7 @@
  */
 import { el, themeToggleButton, readPlainMode, writePlainMode, withViewTransition, money } from './data-loader.js';
 import { buildCardSections, categoryIcon } from './client.js';
+import { savingsFigures, savingsSentence } from './savings-copy.js';
 import { PAYMENT_LINKS } from './payments.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -385,12 +386,15 @@ export function renderPublic(root, tools) {
      ceiling sums every active tool's value and nobody adopts all of them,
      so the tiles lead with the realistic starter-stack figure and the
      ceiling appears only in the detail line, explicitly framed. */
+  /* Figures and the canonical sentence both come from js/savings-copy.js,
+     imported by scripts/build-seo.mjs too. Two hand-written copies of one
+     sentence drifted at 17.3 (the crawler block kept advertising coffees
+     after the rendered hero dropped them), so the sentence now has exactly
+     one definition and the drift cannot be expressed. */
   const coreTools = active.filter((t) => t.type === 'core');
-  const sumValue = (list) => list.reduce((total, t) => total + (Number.isFinite(t.value) ? t.value : 0), 0);
-  const savingsCeiling = sumValue(active);
-  const savingsCore = sumValue(coreTools);
-  // Both figures stay exact: they are what the honesty rule, and the smoke
-  // suite's mutation test, hold to an exact computed sum.
+  const figures = savingsFigures(active);
+  const savingsCeiling = figures.ceiling;
+  const savingsCore = figures.core;
   // Accessibility (item 4 of the phase brief): the accessible name is set
   // from the start as one settled sentence, never `aria-live`, so a screen
   // reader announces it once regardless of how the animated digits below
@@ -401,10 +405,7 @@ export function renderPublic(root, tools) {
   // arrival is more informative than an off-live-region node a screen
   // reader may still expose to "browse mode" navigation as a fragment of
   // rendered digits with no framing words attached.
-  const savingsSentence = `A starter stack of ${coreTools.length} tools saves `
-    + `${money(savingsCore)} a year. If you used all ${active.length} tools the `
-    + `ceiling is ${money(savingsCeiling)} a year. ${active.length} tools listed, `
-    + `and zero paid placements.`;
+  const heroSavingsSentence = savingsSentence(figures);
   /* Three facts, read left to right (Phase 17.2, Rocky: "make the facts
      three columns", the figures loading one after another so
      eye scans"). The container keeps the .pub-savings-ticker class the
@@ -424,7 +425,7 @@ export function renderPublic(root, tools) {
   const savingsAmountEl = el('span', { class: 'pub-savings-amount' }, money(0));
   const toolCountEl = el('span', { class: 'pub-fact-figure' }, '0');
   const savingsTicker = el('div', { class: 'pub-savings-ticker pub-hero-facts' },
-    el('p', { class: 'visually-hidden' }, savingsSentence),
+    el('p', { class: 'visually-hidden' }, heroSavingsSentence),
     el('div', { class: 'pub-savings-visible', 'aria-hidden': 'true' },
       el('div', { class: 'pub-fact pub-fact-money' },
         el('p', { class: 'pub-fact-label' }, `Starter stack of ${coreTools.length} saves`),

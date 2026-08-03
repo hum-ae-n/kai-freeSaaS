@@ -305,6 +305,20 @@ check('homepage: the trust fact tile states zero paid placements',
 // settled sentence, present from the start, never aria-live; the animated
 // digits and their visible siblings are aria-hidden, so the count-up is
 // never read digit-by-digit or announced repeatedly.
+/* The static crawler block and the rendered hero must state the SAME
+   sentence. This check was specified at 17.1 and never written, and at 17.3
+   the two drifted: the block kept advertising a coffee equivalent the hero
+   had dropped, so crawlers and no-JS readers were told something the page no
+   longer said. Both now import js/savings-copy.js, which makes the drift
+   inexpressible rather than merely detectable, and this asserts it. */
+const staticHeroSentence = readFileSync(join(ROOT, 'index.html'), 'utf8');
+const renderedSavingsSentence = (await page.locator('.pub-savings-ticker .visually-hidden')
+  .first().textContent()).trim();
+check('homepage: the static crawler block states the SAME savings sentence the hero renders',
+  staticHeroSentence.includes(renderedSavingsSentence), renderedSavingsSentence);
+check('homepage: the static crawler block carries no retired coffee copy',
+  !/coffee/i.test(staticHeroSentence));
+
 const savingsHiddenSentence = await page.locator('.pub-savings-ticker .visually-hidden').first().textContent();
 check("homepage: the ticker's accessible sentence states the final figures up front",
   savingsHiddenSentence.includes(gbp(activeCeilingValue)) && savingsHiddenSentence.includes(gbp(activeCoreValue))
@@ -3874,7 +3888,7 @@ check('csp: changelog.html introduces no additional inline script beyond the sha
   check('aeo: raw fetch of / contains the trust lines and a link to /faq.html',
     rawRootHtml.includes('No affiliates, no sponsors, no paid placement.')
     && rawRootHtml.includes(`${active.length} tool`)
-    && rawRootHtml.includes('Nobody paid to be listed.')
+    && rawRootHtml.includes('nobody paid to be listed.')
     && /href="\/faq\.html"/.test(rawRootHtml));
   // Phase 17 (BUILD-PLAN 17.1: "the static crawler block states the same
   // figures"): a non-JS visitor's only view of the savings ticker is this
@@ -3884,11 +3898,13 @@ check('csp: changelog.html introduces no additional inline script beyond the sha
   // without its "if you used all N tools" framing or without the core
   // figure in the same paragraph, and the coffee line names its divisor.
   check('aeo: raw fetch of / states the savings ceiling with its "if you used all N tools" framing',
-    rawRootHtml.includes(gbp(activeCeilingValue)) && rawRootHtml.includes(`if you used all ${active.length} tool`));
+    rawRootHtml.includes(gbp(activeCeilingValue))
+    && new RegExp(`if you used all ${active.length} tool`, 'i').test(rawRootHtml));
   check('aeo: raw fetch of / states the savings ceiling beside the realistic core figure',
     rawRootHtml.includes(gbp(activeCeilingValue)) && rawRootHtml.includes(gbp(activeCoreValue)));
-  check('aeo: raw fetch of / states the coffee line\'s own divisor',
-    rawRootHtml.includes(gbp(COFFEE_CUP_PRICE_GBP)) && /coffee/i.test(rawRootHtml));
+  // Coffees retired at 17.3; the crawler block carries the replacement fact.
+  check('aeo: raw fetch of / states the zero-paid-placements fact',
+    /zero paid placements/i.test(rawRootHtml));
   // Phase 16 (Rocky, 2 Aug): the "Recently updated" strip is removed from
   // the homepage entirely, not just hidden. Checked against the raw page
   // source, not only the rendered DOM (the earlier "no changelog node of
