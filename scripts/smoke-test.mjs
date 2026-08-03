@@ -1941,10 +1941,28 @@ await reducedDiscoverPage.locator('[data-discover-entry]').click();
 await reducedDiscoverPage.waitForSelector('.discover-card');
 const enterAnimationName = await reducedDiscoverPage.locator('.discover-card').evaluate((n) => getComputedStyle(n).animationName);
 check('discover: reduced motion: the new-card deal-in carries no animation', enterAnimationName === 'none', enterAnimationName);
+/* Event evidence, not a sample. This asserted absence by reading
+   getComputedStyle 30ms after the commit, which flaked 2 runs in 5 under
+   load: 30ms is a race against the commit's own DOM work, and a single
+   sample can land on a frame that says nothing useful either way. Absence
+   is exactly the claim an event listener proves best, so record every
+   animationstart anywhere in the deck across a generous window and assert
+   none fired. Same correction already applied to both shelf-stagger
+   checks; the sampling pattern is the recurring fault in this suite. */
+await reducedDiscoverPage.evaluate(() => {
+  window.__reducedStampAnims = [];
+  document.addEventListener('animationstart', (e) => {
+    const t = e.target;
+    if (t instanceof Element && t.closest('.discover-panel')) {
+      window.__reducedStampAnims.push({ name: e.animationName, cls: t.className });
+    }
+  }, true);
+});
 await reducedDiscoverPage.locator('.discover-btn-have').click();
-await reducedDiscoverPage.waitForTimeout(30);
-const stampPopAnimationName = await reducedDiscoverPage.locator('.discover-stamp-have').evaluate((n) => getComputedStyle(n).animationName).catch(() => 'gone');
-check('discover: reduced motion: the stamp pop on commit carries no animation', stampPopAnimationName === 'none' || stampPopAnimationName === 'gone', stampPopAnimationName);
+await reducedDiscoverPage.waitForTimeout(600);
+const reducedStampAnims = await reducedDiscoverPage.evaluate(() => window.__reducedStampAnims);
+check('discover: reduced motion: committing a judgement starts no animation anywhere in the deck',
+  reducedStampAnims.length === 0, JSON.stringify(reducedStampAnims));
 await reducedDiscoverPage.close();
 
 // Phase 14 close-out: the coach's Continue button removes itself from the
@@ -2095,18 +2113,35 @@ await coachClickPage.close();
   const guardPage = await browser.newPage();
   await guardPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
   await seedCoachDoneBeforeLoad(guardPage);
-  await guardPage.goto(`${base}/`);
-  await guardPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
-  await guardPage.locator('[data-discover-entry]').click();
-  await guardPage.waitForSelector('.discover-card');
-  await guardPage.evaluate(() => {
+  /* The comment above is right that a synthetic pointerdown has no latency
+     once inside evaluate(), and wrong about where the race actually is: the
+     round trip needed to REACH that evaluate (waitForSelector, then the call
+     itself) can exceed the 450ms trigger delay under load, so the shake
+     fires before the pointer is ever held and the guard is blamed for it.
+     Failed 1 run in 5 that way. Arm everything in-page before the deck can
+     mount: an init script watches for .discover-card and dispatches the
+     pointerdown the instant it appears, with zero automation round trip in
+     the path. */
+  await guardPage.addInitScript(() => {
     window.__shakeEvents = [];
     document.addEventListener('animationstart', (e) => {
       if (e.animationName === 'discover-card-shake') window.__shakeEvents.push(true);
     }, true);
-    document.querySelector('.discover-card')
-      .dispatchEvent(new PointerEvent('pointerdown', { pointerId: 1, clientX: 0, clientY: 0, bubbles: true }));
+    const arm = new MutationObserver(() => {
+      const card = document.querySelector('.discover-card');
+      if (!card) return;
+      arm.disconnect();
+      window.__guardPointerDownAt = performance.now();
+      card.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 1, clientX: 0, clientY: 0, bubbles: true }));
+    });
+    document.addEventListener('DOMContentLoaded', () => arm.observe(document.body, { childList: true, subtree: true }));
   });
+  await guardPage.goto(`${base}/`);
+  await guardPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+  await guardPage.locator('[data-discover-entry]').click();
+  await guardPage.waitForSelector('.discover-card');
+  check('discover: the pointer-down guard was genuinely armed before the shake could fire (else the check below proves nothing)',
+    await guardPage.evaluate(() => typeof window.__guardPointerDownAt === 'number'));
   await guardPage.waitForTimeout(1300); // spans the 450ms trigger delay and the 600ms animation, pointer still down throughout
   const guardShakeCount = await guardPage.evaluate(() => window.__shakeEvents.length);
   check('discover: the shake never fires while a pointer is held down on the card through the trigger window',
