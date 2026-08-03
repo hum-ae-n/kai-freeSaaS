@@ -76,7 +76,7 @@
  * client mode's own entrance (Phase 4, `#client-root`) is untouched since
  * the selector only ever matches inside a shelf.
  */
-import { el, themeToggleButton, readPlainMode, writePlainMode, withViewTransition } from './data-loader.js';
+import { el, themeToggleButton, readPlainMode, writePlainMode, withViewTransition, money } from './data-loader.js';
 import { buildCardSections, categoryIcon } from './client.js';
 import { PAYMENT_LINKS } from './payments.js';
 
@@ -153,6 +153,35 @@ function revealFirstPaint(node, index, reduced) {
   const clearDelay = () => { node.style.transitionDelay = ''; };
   node.addEventListener('transitionend', clearDelay, { once: true });
   setTimeout(clearDelay, delayMs + 600); // fallback buffer covers the 480ms entrance itself
+}
+
+/* --- motion: savings ticker count-up (Phase 17, PRD section 16 amended
+   layout item 1's savings-ticker clause; BUILD-PLAN 17.1) -----------------
+   "Runs ONCE on arrival, then rests forever. Not a loop." A plain rAF
+   loop that terminates itself once SAVINGS_COUNT_MS has elapsed is not the
+   banned `animation: infinite` the exception sweep above polices: it
+   belongs to motion inventory item 1's first-paint family (an entrance,
+   not ambient motion), and introduces no third exception alongside items
+   8 and 9. Ease-out cubic decelerates into the final figure rather than a
+   linear count that reads as mechanical. The very last write is always
+   money(target), never whatever the eased interpolation happened to land
+   on that frame, so the resting figure can never be a rounding artefact of
+   the animation, per the phase brief's own wording. Under reduced motion
+   the final figure is written once, synchronously, with no rAF at all: no
+   frame of this ever runs, so there is nothing for the reduced-motion
+   sweep to find. */
+const SAVINGS_COUNT_MS = 1100;
+function animateSavingsCeiling(node, target, reduced) {
+  if (reduced) { node.textContent = money(target); return; }
+  const start = performance.now();
+  function step(now) {
+    const progress = Math.min(1, (now - start) / SAVINGS_COUNT_MS);
+    const eased = 1 - (1 - progress) ** 3;
+    node.textContent = money(Math.round(target * eased));
+    if (progress < 1) requestAnimationFrame(step);
+    else node.textContent = money(target); // exact, never an eased-interpolation artefact
+  }
+  requestAnimationFrame(step);
 }
 
 /* --- motion: shelf-expansion stagger (motion inventory item 2, "the
@@ -338,6 +367,66 @@ export function renderPublic(root, tools) {
   const heroSubline = el('p', { class: 'subtitle pub-hero-subline' },
     el('strong', { class: 'pub-hero-count' }, String(active.length)),
     ` tool${active.length === 1 ? '' : 's'} with genuinely free tiers, honest limits, and at least two alternatives each. Nobody paid to be listed.`,
+  );
+  /* --- savings ticker (Phase 17, PRD section 16 amended layout item 1's
+     savings-ticker clause, Rocky, 3 Aug: "a roller that spins that shows
+     the maximum amount of money you save in pounds and Starbucks
+     coffees... a ticker on the hero section") --------------------------
+     Beneath the sub-line. Every figure is derived from `active` at
+     runtime, never a separate hard-coded total, exactly like the count
+     above. The honesty rule (PRD section 10, "a figure nobody would pay
+     is a bug the validator cannot catch"): the ceiling sums every active
+     tool's value and nobody adopts all of them, so it is only ever built
+     labelled as a ceiling ("if you used all N tools") and paired with the
+     realistic core-twelve figure in the very SAME element (savingsTicker
+     below), never split across two nodes that could exist independently
+     of each other. COFFEE_CUP_PRICE_GBP is the one named constant the
+     coffee line's own copy states as its divisor: the site never asserts
+     what a given chain charges, only shows its working, the same standard
+     the `value` field itself is held to. */
+  const COFFEE_CUP_PRICE_GBP = 4;
+  const coreTools = active.filter((t) => t.type === 'core');
+  const sumValue = (list) => list.reduce((total, t) => total + (Number.isFinite(t.value) ? t.value : 0), 0);
+  const savingsCeiling = sumValue(active);
+  const savingsCore = sumValue(coreTools);
+  // Rounded to the nearest hundred purely for a readable "roughly" figure:
+  // the coffee equivalent is already an approximation once a flat £4 cup
+  // price is assumed. The ceiling and core figures above stay exact, since
+  // those two are what the honesty rule, and the smoke suite's mutation
+  // test, hold to an exact computed sum.
+  const savingsCoffees = Math.round(savingsCeiling / COFFEE_CUP_PRICE_GBP / 100) * 100;
+  // Accessibility (item 4 of the phase brief): the accessible name is set
+  // from the start as one settled sentence, never `aria-live`, so a screen
+  // reader announces it once regardless of how the animated digits below
+  // are updating; those digits (savingsAmountEl, inside
+  // .pub-savings-visible) are `aria-hidden`, so the count-up itself is
+  // never read digit-by-digit or announced sixty-odd times over. Chosen
+  // over aria-live="off" because a static, complete sentence read on
+  // arrival is more informative than an off-live-region node a screen
+  // reader may still expose to "browse mode" navigation as a fragment of
+  // rendered digits with no framing words attached.
+  const savingsSentence = `Up to ${money(savingsCeiling)} a year, if you used all `
+    + `${active.length} tools. A starter stack of ${coreTools.length} saves `
+    + `${money(savingsCore)}, roughly ${savingsCoffees.toLocaleString('en-GB')} `
+    + `coffees at ${money(COFFEE_CUP_PRICE_GBP)} a cup.`;
+  const savingsAmountEl = el('span', { class: 'pub-savings-amount' }, money(0));
+  const savingsTicker = el('div', { class: 'pub-savings-ticker' },
+    el('p', { class: 'visually-hidden' }, savingsSentence),
+    el('div', { class: 'pub-savings-visible', 'aria-hidden': 'true' },
+      el('p', { class: 'pub-savings-ceiling-line' },
+        savingsAmountEl,
+        ' a year, if you used all ',
+        el('strong', {}, String(active.length)),
+        ' tools.',
+      ),
+      el('p', { class: 'pub-savings-core-line' },
+        'A starter stack of ',
+        el('strong', {}, String(coreTools.length)),
+        ' saves ',
+        el('strong', {}, money(savingsCore)),
+        `, roughly ${savingsCoffees.toLocaleString('en-GB')} coffees at ${money(COFFEE_CUP_PRICE_GBP)} a cup.`,
+      ),
+    ),
   );
   // Drifting stack planes (motion inventory item 9, PRD section 16 amended):
   // the second and final recorded exception to the ban on looping ambient
@@ -560,6 +649,7 @@ export function renderPublic(root, tools) {
     el('img', { class: 'logo', src: 'design-system/assets/kaipability-logo-lockup.png', alt: 'Kaipability' }),
     el('h1', { class: 'pub-hero-headline' }, 'The free software directory for small business.'),
     heroSubline,
+    savingsTicker,
     heroTrust,
   );
 
@@ -1143,6 +1233,10 @@ export function renderPublic(root, tools) {
   // static content, never rebuilt after this.
   const reduced = prefersReducedMotion();
   [header, discoverItem, personaItem].forEach((node, i) => revealFirstPaint(node, i, reduced));
+  // Savings ticker count-up (Phase 17): fires once here, on mount, after
+  // `reduced` above is known; never re-triggered by any later redraw (a
+  // plainMode toggle rebuilds the shelves, never the header).
+  animateSavingsCeiling(savingsAmountEl, savingsCeiling, reduced);
 
   loadPersonaPacks(personaChipRow, activeIds, {
     setPersonaIds: (ids) => { activePersonaIds = ids; },

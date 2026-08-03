@@ -1488,6 +1488,47 @@ html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
    js/public.js's heroSubline): the selector targets the class directly. */
 .pub-hero-count { color: var(--ink); font-family: var(--font-sans); }
 
+/* --- savings ticker (Phase 17, PRD section 16 amended layout item 1's
+   savings-ticker clause; BUILD-PLAN 17.1) -----------------------------------
+   Sits beneath .pub-hero-subline, above the two trust-signal lines (see
+   js/public.js's header build). The visible figure counts up once on
+   arrival via js/public.js's animateSavingsCeiling, a terminating rAF
+   loop, never a CSS `infinite` animation: nothing in this block carries an
+   `animation` or `transition` declaration, so it introduces no third
+   ambient exception alongside items 8 and 9 (the exception sweep further
+   down this file greps this exact block and would fail if it did), and the
+   reduced-motion sweep has nothing here to disable either, since there is
+   nothing running to begin with. font-variant-numeric: tabular-nums keeps
+   every digit the same width while the count-up runs, so the line does not
+   visibly jitter sideways as the figure grows from one digit to five. */
+.pub-savings-ticker { margin-top: var(--s-4); }
+.pub-savings-ceiling-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--s-1) var(--s-2);
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--fs-16);
+  line-height: var(--lh-16);
+  max-width: none;
+}
+.pub-savings-amount {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(28px, 5.2vw, 44px);
+  line-height: 1;
+  color: var(--oxblood);
+  font-variant-numeric: tabular-nums;
+}
+.pub-savings-core-line {
+  margin: var(--s-1) 0 0;
+  color: var(--ink-2);
+  font-size: var(--fs-14);
+  line-height: var(--lh-14);
+  max-width: none;
+}
+
 /* Contrast proof for motion inventory item 9, and the reasoning behind the
    two numbers below, since both were arrived at the hard way.
 

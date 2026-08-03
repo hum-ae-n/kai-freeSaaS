@@ -131,6 +131,30 @@ function groupByCategory(list) {
   return map;
 }
 
+/* --- savings ticker figures (Phase 17, PRD section 16 amended layout item
+   1's savings-ticker clause; BUILD-PLAN 17.1) --------------------------------
+   Mirrors js/public.js's own computation exactly (same COFFEE_CUP_PRICE_GBP
+   constant, same honesty-rule pairing), so the static crawler block a
+   non-JS visitor sees states the same figures the rendered hero counts up
+   to. Never a separate hard-coded total: both read straight from `active`,
+   the same array this whole generator already builds the rest of the
+   static block from. */
+const COFFEE_CUP_PRICE_GBP = 4;
+function computeSavingsFigures(active) {
+  const coreTools = active.filter((t) => t.type === 'core');
+  const sumValue = (list) => list.reduce((total, t) => total + (Number.isFinite(t.value) ? t.value : 0), 0);
+  const ceiling = sumValue(active);
+  const core = sumValue(coreTools);
+  // Rounded to the nearest hundred for a readable "roughly" figure, the
+  // same rounding js/public.js applies to its own coffee line; the ceiling
+  // and core figures stay exact.
+  const coffees = Math.round(ceiling / COFFEE_CUP_PRICE_GBP / 100) * 100;
+  return { ceiling, core, coreCount: coreTools.length, coffees };
+}
+function formatGbp(n) {
+  return `£${n.toLocaleString('en-GB')}`;
+}
+
 /* --- per-tool question and answer (PRD section 18, "Per-tool questions") --
    Derived mechanically from existing fields, never hand-maintained: the
    question from the tool's name, the answer assembled from free_limit
@@ -245,11 +269,24 @@ function buildStaticBlockHtml(active, intros) {
   // separate hard-coded figure; the old standalone count sentence this
   // block used to carry is retired along with its live-page counterpart,
   // since the sub-line now states it once.
+  //
+  // Phase 17 adds the savings ticker's own sentence (BUILD-PLAN 17.1: "the
+  // static crawler block states the same figures"): the ceiling never
+  // appears without its "if you used all N tools" framing or without the
+  // core figure beside it, the same honesty-rule pairing js/public.js's
+  // savingsSentence states, computed here from the same `active` array so
+  // the two can never drift apart.
+  const savings = computeSavingsFigures(active);
+  const savingsHtml = `    <p>Up to ${formatGbp(savings.ceiling)} a year, if you used all `
+    + `${active.length} tool${active.length === 1 ? '' : 's'}. A starter stack of ${savings.coreCount} saves `
+    + `${formatGbp(savings.core)}, roughly ${savings.coffees.toLocaleString('en-GB')} coffees at `
+    + `${formatGbp(COFFEE_CUP_PRICE_GBP)} a cup.</p>\n`;
   const heroHtml = (
     '  <header>\n'
     + '    <p class="eyebrow">Free Stack</p>\n'
     + '    <h1>The free software directory for small business.</h1>\n'
     + `    <p>${active.length} tool${active.length === 1 ? '' : 's'} with genuinely free tiers, honest limits, and at least two alternatives each. Nobody paid to be listed.</p>\n`
+    + savingsHtml
     + '    <p>No affiliates, no sponsors, no paid placement.</p>\n'
     + '    <p>Curated by <a href="https://kaipability.com">Kaipability Ltd</a>.</p>\n'
     + '  </header>'

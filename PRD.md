@@ -510,7 +510,15 @@ This layout supersedes the Phase 12 homepage layout and its viewport ordering, w
 
 ### Page height budgets
 
-With all shelves collapsed, total page height is at most **3,200px at 375px wide** and **2,300px at 1280px wide**, with the search input visible within the first mobile viewport and the first shelf header's top at most **880px at 375x812**. These are acceptance numbers. (The 1280px figure was 2,200 until Phase 13.1. The footer has since grown from three lines to seven, every one of them deliberate: My Stack and its reasoning, the Privacy/Contact/FAQ line, the company identity line and now the payment lines. Trimming further would mean deleting content that was specifically asked for. The number that actually protects the compact landing is the 880px first-shelf budget, which is untouched at a measured 863px: a footer below every shelf cannot make the top of the page feel long. Reconciled to 2,300 with headroom for the pending GoCardless line, and recorded in the BUILD-PLAN changelog rather than quietly raised.) (The original clause asked for the first shelf rows inside the 812px viewport itself; the mandated hero trust signals and the ways-in band honestly occupy most of the first screen, and the reconciled 880px budget, measured 863px as built, puts the shelves one thumb-flick away rather than one full screen. Recorded in the BUILD-PLAN changelog.)
+With all shelves collapsed, total page height is at most **3,350px at 375px wide** and **2,400px at 1280px wide**, with the search input visible within the first mobile viewport and the first shelf header's top at most **1,050px at 375x812**. These are acceptance numbers, currently measured at 3,263px, 2,328px and 995.5px.
+
+These numbers have moved three times, always upward, always because content was deliberately added rather than because the layout drifted, and each move is recorded in the BUILD-PLAN changelog:
+
+1. **First shelf, 812px to 880px** (Phase 14). The original clause wanted the shelf rows inside the first mobile viewport, but the mandated hero trust signals and the ways-in band honestly occupy most of that screen. 880px put the shelves one thumb-flick away instead of one full screen.
+2. **1280px total, 2,200px to 2,300px** (Phase 13.1). The footer grew from three lines to seven, each one requested: My Stack and its reasoning, the Privacy/Contact/FAQ line, the company identity line, the payment lines. The CSS was already at the smallest spacing token, so absorbing it meant deleting content someone had asked for.
+3. **All three, to the figures above** (Phase 17). The savings ticker is a real block of hero content, Rocky's own request, so the budgets moved rather than the ticker being trimmed to fit them.
+
+The honest caveat on all of this: a budget that moves whenever it binds is not a constraint. What keeps these numbers meaningful is that the first-shelf figure is the one that actually protects the compact landing, a footer below every shelf cannot make the top of the page feel long, and that every move above was a deliberate, recorded trade rather than a silent raise.
 
 ### Grid quick-judge and list parity
 
