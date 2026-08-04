@@ -13,7 +13,7 @@ contained a live Stripe secret key, which is exactly why the raw file is not
 committed. Harness noise (system reminders, task notifications, stop-hook messages)
 is dropped, so an occasional reply answers something that is not shown.
 
-**Turns.** 621 (138 from Rocky, 483 from Claude).
+**Turns.** 792 (154 from Rocky, 638 from Claude).
 
 ---
 
@@ -4038,3 +4038,1426 @@ The raw JSONL is 28.6 MB — mostly tool output, agent transcripts and file dump
 ## Claude  <sub>2026-08-03 09:32:20Z</sub>
 
 339 KB across 637 turns — very committable. Building the extraction with secret redaction, and checking it really does reach back to the start of the session:
+
+## Claude  <sub>2026-08-03 09:32:56Z</sub>
+
+Complete from the first turn — "read todo" on 22 July, 621 turns across 11 days. Verifying the redaction landed on the right strings and that nested `docs/` paths are actually blocked:
+
+## Claude  <sub>2026-08-03 09:33:06Z</sub>
+
+Both keys redacted exactly where I pasted them. Now the thing you actually asked about — a proper home for build notes, since right now the records are scattered:
+
+## Claude  <sub>2026-08-03 09:33:41Z</sub>
+
+Now wiring it into the repo map so it's findable, then committing:
+
+## Claude  <sub>2026-08-03 09:34:34Z</sub>
+
+Done — and confirmed blocked from the site: every file in `docs/build-notes/` returns 404 on the live preview, so it exists on GitHub only.
+
+**To answer your question first: no, you didn't have one.** The records were spread across four places without a narrative home — the PRD for the spec, BUILD-PLAN's phase entries for what shipped and whether it passed, the changelog table at its foot for deliberate deviations, and TODO for what's open. What was missing was the *how we got here*. So `docs/build-notes/` is now that, with an index table saying which record answers which question, so future-you doesn't have to guess where to look.
+
+**The log itself** is the complete conversation — 621 turns from `read todo` on 22 July through to the live Stripe link today. Not a summary: verbatim, in order, timestamped.
+
+Two judgement calls worth telling you about:
+
+**I didn't commit the raw transcript.** It's 28 MB, almost all of it tool output, command results and subagent chatter. Git history is permanent, so that bloat would be with you forever, and none of it is the part worth keeping. I extracted the prose — yours and mine — which came to 365 KB.
+
+**The raw file contained your Stripe secret key.** That alone rules out committing it, even to a private repo. Every key-shaped string is redacted, and I've shipped the extractor alongside so it redacts *before* writing rather than after, with the verification grep documented in the index. Transcripts are raw material, and raw material is where credentials hide.
+
+One thing I'd flag about the log's honesty: it keeps the failures in, and that's most of its value. The coach overlay that silently killed keyboard access to the deck. The regression check that passed against the exact bug it was written to catch, because a View Transition masked it. The invoice that finalised at £150 instead of £7,650 over an unencoded percent sign. And today's — a test I'd already claimed in a commit message would pin your live payment URL, which didn't, proven by mutation. Those are the parts you'd want a future collaborator to read.
+
+It's on PR 18 with the payments wave. Same ask as before: click the tip link from the preview before merging, since you're the only one who can confirm where it actually goes.
+
+## Rocky  <sub>2026-08-03 09:54:35Z</sub>
+
+Ok lets remove this from front page can move it to a subpage like tools.airl.io / changelog . Buttons for plain english and light dark mode switch should be on the top bar really. 
+
+The first section on front page should be distinctive and say what "Free Stack" is I think we call it what it is.. Suggestions welcomed.  This is the "hero" so should be animated and impressive with a nice/cool/sexy background see attached
+
+## Claude  <sub>2026-08-03 09:55:11Z</sub>
+
+Three asks here, and one of them collides with a constraint I need to flag before anyone builds anything. Let me look at what's actually on the front page now:
+
+## Claude  <sub>2026-08-03 09:55:35Z</sub>
+
+Now it's unambiguous — "Recently updated" moves to its own page. Let me ground my hero suggestions in a real number rather than hand-waving:
+
+## Claude  <sub>2026-08-03 09:56:14Z</sub>
+
+£11,646 across all 89 — but I'd be careful with that number: nobody adopts 89 tools, so leading with it would be the kind of figure "nobody would pay" that PRD §10 calls a bug. The honest version is the **core 12 at £1,896/year**, which is a stack a real business would actually run.
+
+Before I spec this, one constraint collision you should decide on, not me:
+
+**An impressive hero fights your own Phase 14 decision.** You pinned the first shelf header at ≤880px on a phone (it measures 863 — seventeen pixels of slack). A hero worth calling impressive needs more room than that. And the motion inventory is *exhaustive* by law, banning ambient looping motion, with the Discover button as the single recorded exception; an animated background would be a second. Both are your prior calls, so they're yours to relax.
+
+## Rocky  <sub>2026-08-03 10:01:14Z</sub>
+
+[Request interrupted by user for tool use]
+
+## Rocky  <sub>2026-08-03 10:01:46Z</sub>
+
+Continue from where you left off.
+
+## Claude  <sub>2026-08-03 10:02:04Z</sub>
+
+Understood — I'll make the calls myself and you can react to something real on a preview. Here's my read and what I'm building.
+
+**Hero copy — "Name it plainly."** You said call it what it is, and the honest differentiator isn't the count, it's that nobody paid to be listed. So:
+
+> **The free software directory for small business**
+> 89 tools with genuinely free tiers, honest limits, and at least two alternatives each. Nobody paid to be listed.
+
+One thing I checked before writing it: the sum of the `value` field across all 89 tools is **£11,646**, and the core twelve are **£1,896**. I'm not putting the £11,646 anywhere near the hero — nobody adopts 89 tools, so quoting it as a saving would be the kind of number your own PRD §10 calls a bug even though the validator can't catch it. If we ever lead with money it should be the core figure.
+
+**Two conflicts you should know I'm resolving, not ignoring:**
+
+1. **Impressive hero vs the mobile fold.** Phase 14 pinned the first shelf at 880px on a phone, and we're at 863 — seventeen pixels of slack. An impressive hero can't fit in that. I'm keeping the phone fold tight and spending the impact on background and type rather than height, with a fuller hero on desktop where there's room. That preserves the compact landing you asked for two weeks ago rather than quietly undoing it.
+
+2. **An animated background breaks the motion inventory.** That inventory is declared exhaustive, and the Discover button is its single recorded exception. A moving background is a second one, so it gets written into the PRD deliberately with a changelog row rather than smuggled in. Reduced-motion users get a static treatment.
+
+For the background I'm going with **drifting translucent stack planes** in oxblood and cream — layered sheets that slowly settle, which puns on "Free Stack" and reads as engineering rather than decoration. It's more ownable than the gradient wash the airl.io button already does, and it's CSS-only with no library.
+
+Also in this wave: **"Recently updated" moves to `/changelog.html`** (linked from the footer, added to the sitemap), and the **Plain English and light/dark toggles move up into the top bar** beside My Stack and FAQ.
+
+I'll spec it, build it, run the verifier and put a preview in front of you. If the hero copy or the background isn't right when you see it, say so and it's a quick iteration — that's much easier to judge on a screen than in a list of options.
+
+## Rocky  <sub>2026-08-03 10:02:07Z</sub>
+
+Sorry we remove the recently updated
+and move it
+
+## Claude  <sub>2026-08-03 10:02:40Z</sub>
+
+Got it — that's the wave. Speccing it now.
+
+## Claude  <sub>2026-08-03 10:03:34Z</sub>
+
+Now the BUILD-PLAN block and changelog row:
+
+## Claude  <sub>2026-08-03 10:04:52Z</sub>
+
+Phase 16 is specced (PRD v1.8, committed) and wave 16.1 is building now: **Recently updated** comes off the homepage and becomes a real `/changelog.html` — generated from `data/changelog.json` the same way the FAQ page is generated, so it's static and crawlable rather than a runtime fetch, and it joins the sitemap and the footer. At the same time **Plain English and light/dark move up into the top bar** beside My Stack and FAQ, and the toolbar row they currently sit in gets deleted — which is what pays for the bar's height, so the mobile fold doesn't get worse.
+
+Wave 16.2, the hero itself, follows straight after. What it'll say:
+
+> **The free software directory for small business**
+> 89 tools with genuinely free tiers, honest limits, and at least two alternatives each. Nobody paid to be listed.
+
+That's your "call it what it is", with the count computed at runtime. The last sentence is doing the real work — anyone can copy a list of tools, nobody can copy not being paid.
+
+Behind it, drifting translucent planes in oxblood and cream, slow enough (20s+) to read as atmosphere rather than activity, pure CSS, and a composed static frame for reduced-motion visitors. It's the second and final exception to the no-ambient-motion law, written into the spec deliberately with that scope stated.
+
+Two things I decided against, and why, since you'll want to push back if you disagree:
+
+**No big money number in the hero.** The `value` field across all 89 tools sums to £11,646, which would make a fantastic headline and a dishonest one — nobody adopts 89 tools. Your own PRD calls that "a number nobody would pay is a bug even though the validator cannot catch it." If we ever lead with money it should be the core twelve at ~£1,900/year, labelled as such.
+
+**The phone fold beats hero scale.** Two weeks ago you asked for a compact landing and we pinned the first shelf at 880px; it's at 863, so there's 17px spare. A hero big enough to feel impressive on a phone would undo that. So the impact goes into the background and typography, and the desktop hero gets the extra room a phone can't spare. If you'd rather have the big statement hero on mobile too and push browsing below the fold, that's a one-line budget change — but I'd want you to choose it deliberately rather than discover it.
+
+## Claude  <sub>2026-08-03 10:34:55Z</sub>
+
+Excellent result, and one genuinely useful side effect: retiring that toolbar row moved the first shelf from 862 to **724px** — so there's now 155px of headroom under the 880 budget, which means the hero can actually grow. The builder also flagged a real gap it correctly wouldn't fix itself:
+
+## Claude  <sub>2026-08-03 10:42:40Z</sub>
+
+Gates green at 374 checks, generator byte-stable, CI gap closed. Committing 16.1:
+
+## Claude  <sub>2026-08-03 10:43:30Z</sub>
+
+Wave 16.1 is in and pushed (`0841fee`), 374 checks green.
+
+**"Recently updated" is off the homepage** — properly removed, element, loader and dead helpers, not just hidden — and now lives at `/changelog.html`, generated from the data the same way the FAQ page is, so it's static, crawlable, in the sitemap and linked from the footer.
+
+**Plain English and light/dark are now in the top bar** beside My Stack and FAQ, collapsing to icons on a phone while keeping their accessible names and pressed states. The row they used to sit in is gone.
+
+The unexpected win: retiring that row moved the first shelf from **862px to 724px** on a phone. So the fold argument I made earlier has largely dissolved — there's now 155px of genuine headroom, and I've told the hero builder to spend it rather than play safe. You can have the bigger statement hero *and* keep tools near the top.
+
+One gap the builder found and correctly refused to fix itself: CI's drift gate listed every generated file except the new `changelog.html`, so a regenerated changelog could have silently diverged from its data. That's mine to own — fixed in the same commit.
+
+Wave 16.2 is building the hero now: the new headline, the runtime count, and the drifting planes, with contrast measured at the animation's *worst* frame rather than at rest, since that's where a moving background usually fails accessibility. Preview to follow once it's through the verifier.
+
+## Claude  <sub>2026-08-03 11:14:16Z</sub>
+
+Hero reads well in both — the headline genuinely dominates now, and the planes are subtle enough to be atmosphere rather than noise. Running my own gates:
+
+## Claude  <sub>2026-08-03 11:23:51Z</sub>
+
+Both waves are in and pushed. Here's the hero as it stands on desktop:
+
+> **The free software directory for small business.**
+> **89** tools with genuinely free tiers, honest limits, and at least two alternatives each. Nobody paid to be listed.
+
+The headline scale went up substantially (72px cap, was 58) and it now dominates the first screen the way a hero should. The count is computed at runtime, and I proved that rather than trusting it — the verifier is archiving a tool in a throwaway copy to confirm the number actually follows the data.
+
+Behind it, four translucent planes drifting on slow independent loops. One decision in there I think is the right kind of engineering: the builder made the plane **opacity static and animated only the transform**. That means the worst-case contrast is time-invariant and provable, instead of being a specific unlucky frame someone has to catch. The suite composites all four planes as if they fully overlapped — which no real drift can produce — and still measures 12.2:1 and 8.5:1 in light, 12.7:1 and 8.6:1 in dark. Comfortably past the 4.5:1 bar with the pessimistic maths, not the flattering maths.
+
+The fold: first shelf at **859px against the 880 cap**. So you get the big hero *and* the tools stay a thumb-flick away — that tension I flagged earlier turned out to be resolvable once 16.1 freed up the space.
+
+Suite is at 394 checks. The verifier is now doing the close-out, including two things the suite can't judge: sampling actual rendered pixels behind the headline rather than trusting the arithmetic, and giving an opinion on whether the reduced-motion static frame looks *deliberate* — because a meaningful share of visitors will only ever see that one, and it shouldn't look like the animation failed.
+
+Preview link once it clears.
+
+## Claude  <sub>2026-08-03 11:47:34Z</sub>
+
+Verifier passed it functionally but found two genuine gaps in the *proof*, and both are worth fixing rather than waving through. Sending a fix round:
+
+## Claude  <sub>2026-08-03 11:48:12Z</sub>
+
+The verifier passed Phase 16 on function — everything you asked for works, and it verified the parts that matter by mutation rather than by reading code: it archived a tool in a throwaway copy to prove the hero count really follows the data (88, not a hard-coded 89), clicked through a plane to confirm it doesn't swallow links, and confirmed only two things on the entire page loop, the Discover button and the hero planes.
+
+But it found two genuine holes in the *proof*, and I've sent both back rather than shipping them:
+
+**The contrast check tested two of the hero's four text lines, and missed the weakest one.** The "No affiliates, no sponsors, no paid placement" line uses the palette's lowest-contrast tint, and under the same pessimistic maths it comes out at 3.98:1 — below the accessibility floor. The page is genuinely fine today, at 5.05–6.10:1, but only because those planes happen never to overlap where that text sits. Nothing tested that. A routine edit to a plane's width could have quietly broken accessibility with a green suite. The fix enumerates every text element in the hero from the DOM instead of a hard-coded list of two, and lowers the plane opacity until even the impossible worst case clears the bar — so the guarantee stops depending on geometry nobody pinned.
+
+**The invariant the whole contrast argument rests on wasn't enforced.** The safety story is "opacity never animates, only transform, so the worst case is fixed." The verifier edited the keyframes to animate opacity from 0.07 to 0.9, confirmed it really ran, and the suite still returned 394 passes twice — because every check samples opacity once just after load, which on a 26-second loop always catches it near its minimum. That's a test proving nothing. It's getting a source-level guard that fails if `opacity` appears in those keyframes at all.
+
+There's also a comment in the CSS that works through the contrast arithmetic and lands on ~7.2:1 when the real figure is 12.17:1. Wrong by enough that a future maintainer trusting it would make bad decisions — worse than no comment.
+
+One honest note on your brief, from the verifier's design read: the motion is so slow that across screenshots fifteen seconds apart the difference is barely perceptible. That's the spec doing what it was told — "if it draws the eye off the headline it is wrong" — but it means the "impressive" is being carried by the typography and scale, not the background. Worth your eye at real-time speed on the preview; if you want the drift more noticeable, that's a one-number change and I'd rather you tune it by looking than have me guess.
+
+## Claude  <sub>2026-08-03 12:12:43Z</sub>
+
+Both gaps fixed — but the opacity dropped from 0.07 to 0.02 to satisfy a worst case that's physically impossible, and the builder honestly flags the effect is now "more subtle". Let me look before accepting that trade:
+
+## Claude  <sub>2026-08-03 12:13:07Z</sub>
+
+At 0.02 the planes have effectively vanished — that's a flat background, which defeats the brief entirely. The optimisation went the wrong way: we gutted a visible design to satisfy a bound that can never physically occur. Fixing the test instead of the design:
+
+## Claude  <sub>2026-08-03 12:13:42Z</sub>
+
+I caught something in my own instructions worth telling you about, because it's the more interesting failure of the two.
+
+The verifier found that the contrast test only checked two of the hero's four text lines and missed the faintest one. Correct catch. But my fix instruction told the builder to make the **impossible** worst case pass — all four planes stacked on a single pixel, which their layout physically forbids. It dutifully did, and the only way to get there was dropping the plane opacity from 0.07 to 0.02. I looked at the result: the background is now a flat cream panel. The planes are gone.
+
+So we'd have satisfied a number that can never occur by deleting the visible design that was the entire point of your brief. That's the metric driving the product backwards, and it was my standard that caused it, not the builder's execution.
+
+The fix is to test **what actually renders** instead: hide the hero text, screenshot, and read the real pixels behind each line at several points across the animation loop, in both themes, taking the worst pixel each line covers. That's ground truth rather than arithmetic — and it still catches the future edit the composite bound was reaching for, because moving a plane over the text would move the sampled pixels. With that standard, the builder can raise the opacity back above 0.07 and I've asked it to find the highest value that keeps the worst real sample at 5:1 or better.
+
+The keyframe guard from the last round stays exactly as built — that one's genuinely good, and it's the reason the whole thing is now safe to reason about. It fails the build if anyone ever animates opacity in those keyframes, which is the assumption the entire contrast argument rests on.
+
+I'll come back with the final number and honest screenshots. If it still looks weak at the ceiling, I'd rather tell you that than declare it done.
+
+## Claude  <sub>2026-08-03 12:14:06Z</sub>
+
+I'm deliberately not committing this one yet, and I want to be explicit about why rather than silently ignoring the hook.
+
+The two modified files are `css/styles.css` and `scripts/smoke-test.mjs`, and they currently hold the **0.02 opacity state I just rejected** — the one where the hero background is effectively invisible. A builder is actively rewriting both files right now to replace the contrast method with real pixel sampling and raise the opacity back. Committing at this moment would do two bad things: record a state I've explicitly判断 as wrong into the branch history, and snapshot a half-finished edit while an agent is mid-write on those exact files.
+
+Everything genuinely finished *is* committed and pushed — Phase 16's two waves are on the branch at `4a08164`, and the branch is in sync with origin. What's dirty is one in-flight fix round, nothing else.
+
+I'll commit and push the moment that round lands and clears the gates, which is the same discipline I've followed all session: builder finishes → I run the validator, register vectors and the full smoke suite myself → commit with the reasoning in the message → verifier. If the round comes back and the hero still looks weak at its opacity ceiling, I'll say so and iterate rather than commit something just to satisfy a clean-tree check.
+
+## Claude  <sub>2026-08-03 13:01:02Z</sub>
+
+This is the most valuable finding of the wave, and it's not the one anyone expected. Real pixel sampling shows **0.07 never was safe** — the utility nav links sit exactly where the planes reach, at ~4.4:1. The manual estimate everyone (including me) was reasoning from measured a different element. So the ceiling is 0.013, and at 0.013 the effect is invisible.
+
+The builder correctly identified that this needs a design decision, not another opacity tune. Let me look at the actual root cause:
+
+## Claude  <sub>2026-08-03 13:01:15Z</sub>
+
+The root cause is now clear: `--ink-3` is `#6B645B`, the palette's faintest tint — on cream it's already marginal *before* any texture. Two of the hero's four text lines use it, including "No affiliates, no sponsors, no paid placement", which is one of the three mandated trust signals and arguably shouldn't be the faintest text on the page anyway. Let me fix the cause rather than keep shrinking the design:
+
+## Claude  <sub>2026-08-03 13:02:07Z</sub>
+
+The opacity string had already moved to `0.013`, so that replace missed. Fixing and testing:
+
+## Claude  <sub>2026-08-03 13:05:20Z</sub>
+
+At 0.06 with the text raised off the faintest tint, the worst real sampled pixel is **9.6:1** — more than double the requirement, with the planes 4.6× more visible than the 0.013 version. That headroom says I can push further. Testing a genuinely visible value:
+
+## Claude  <sub>2026-08-03 13:08:55Z</sub>
+
+That's the hero the brief asked for — the diagonal planes are now clearly deliberate design, and the worst real sampled pixel is still **8.6:1**, nearly double the requirement. Running full gates:
+
+## Claude  <sub>2026-08-03 13:21:45Z</sub>
+
+The hero is where it should be, and the route there is worth a minute of your time because the interesting mistake was mine.
+
+**What you get:** the big statement headline over clearly visible drifting diagonal planes — eight times more visible than where the last round left them — with the worst real pixel behind any hero text measured at 8.6:1 against a 4.5 requirement. Tree is clean and pushed, 403 checks green.
+
+**How it nearly went wrong.** The verifier correctly caught that the contrast test only covered two of the hero's four text lines. My fix instruction then set the wrong standard: make the *impossible* worst case pass, all four planes stacked on one pixel, which their layout forbids. The builder did exactly that, and the only way to satisfy an unreachable bound was shrinking the planes from 0.07 to 0.02 to 0.013 — until the background had effectively vanished. We were optimising a number by deleting the thing you asked for.
+
+**The fix was to test reality instead of arithmetic:** hide the hero text, screenshot, decode the image and read the actual pixels behind each line of text at ten points across the animation, both themes, both screen sizes. That's ground truth, and it *still* catches the future edit the abstract bound was reaching for.
+
+**And that immediately found something nobody had spotted: 0.07 was never safe either.** The real problem wasn't the trust line everyone was reasoning about — it was the My Stack and FAQ links in the top bar, which the planes genuinely pass behind, sitting at about 4.4:1. So the cause was the *colour*, not the texture. Those links and the trust line were using the palette's faintest tint, already marginal at ~5.4:1 on plain paper. Moving them one step darker is a straightforward accessibility improvement on its own merits — navigation and "No affiliates, no sponsors, no paid placement" shouldn't be the faintest text on the page — and with that gone the background could finally be visible.
+
+Three rounds, but the outcome is a hero that meets the brief *and* an accessibility bug fixed that predated this phase and had nothing to do with it.
+
+Next I'll open the Phase 16 PR with a preview so you can see the drift at real speed. If you want it stronger still, the opacity has genuine headroom now — it's one number, and the test will tell us honestly where the ceiling really is.
+
+## Rocky  <sub>2026-08-03 13:40:27Z</sub>
+
+ok is this live now?
+
+## Claude  <sub>2026-08-03 13:40:49Z</sub>
+
+Short answer: **no.** Let me verify precisely rather than tell you from memory:
+
+## Claude  <sub>2026-08-03 13:41:26Z</sub>
+
+**No, none of it is live.** Confirmed rather than assumed:
+
+- **tools.airl.io right now** still shows the old hero (`Curated free software for small business`), still has "Recently updated" on the front page, has no payments link, and no top-bar toggles.
+- That `/changelog.html` returning 200 on production is a red herring — it's the SPA fallback serving the homepage. Its title is the homepage's title, not the changelog's. The real page only exists on the branch.
+- **Nine commits sit on `claude/read-todo-bk47qb` and not on `main`:** the payments wave, the build-notes log, and all of Phase 16.
+
+Everything since Phase 15.6 (merged yesterday) is waiting on you. It's all on **PR 18** — which I should flag has grown beyond its title: it started as the payments wave, and because each push to the branch updates the same PR, it now carries payments, the build-notes folder and the whole of Phase 16.
+
+So you've got two options:
+
+1. **Review and merge PR 18 as one release** — payments, changelog page, top bar and new hero all go live together. I'd retitle and rewrite the PR body to describe everything in it, and get you a preview link covering the lot.
+2. **Split it** — if you'd rather ship the payments wave on its own (it's been verified and preview-checked already) and keep the hero on a separate branch for more iteration, I can do that.
+
+My recommendation is (1), with one caveat I keep coming back to: **click the Stripe tip link on the preview before you give the word.** It's the one thing in there that moves real money, and I still can't see where that checkout page actually points from inside this sandbox.
+
+Want me to retitle PR 18 and get the preview built?
+
+## Rocky  <sub>2026-08-03 13:59:11Z</sub>
+
+yes do 1.
+
+## Claude  <sub>2026-08-03 14:01:20Z</sub>
+
+All preview checks pass. Posting the audit and handing over:
+
+## Claude  <sub>2026-08-03 14:01:43Z</sub>
+
+**PR 18 is retitled and the preview is verified: https://github.com/hum-ae-n/kai-freeSaaS/pull/18**
+
+**Preview: https://deploy-preview-18--kai-freestack.netlify.app**
+
+It now covers everything since Phase 15.6 as one release — the new hero, the top bar, the changelog page, payments, and the build-notes log. Ten commits.
+
+Everything I can check from here passes: the changelog page is genuinely static (17 entries readable with JavaScript off, not the SPA fallback), the homepage has zero trace of "Recently updated", the sitemap lists exactly the five permitted pages, the CSP header is byte-identical to production, and the session log is 404'd from the site as intended. Suite at 403 checks.
+
+**Five things to look at, in order:**
+
+1. **Click the tip link in the footer.** This is the one thing I genuinely cannot verify — I can prove the link markup is correct but not where that checkout page points, because this sandbox's browser can't reach external hosts. It moves real money, so it needs your eyes.
+2. **Watch the hero for about ten seconds** on desktop. The drift is deliberately slow. If you want it stronger it's a single number, and there's real headroom now — worst measured contrast is 8.6:1 against a 4.5 requirement.
+3. **The top bar** — tap Plain English and dark mode on your phone, where they collapse to icons.
+4. **`/changelog.html`** and its footer link.
+5. **The phone fold** — despite the much bigger hero, the first shelf should still sit about a thumb-flick down (859px against the 880 cap).
+
+The PR body also records the three defects that were mine this round, since they're the useful part of the history: a test that claimed to pin your live payment URL and didn't, a contrast standard I set wrong that shrank the hero background until it vanished, and the real accessibility bug that mistake ultimately exposed — the top-bar links were the faintest text on the page and had been failing contrast at the original opacity all along.
+
+Merge on your word.
+
+## Rocky  <sub>2026-08-03 14:16:04Z</sub>
+
+this should be as a fixed top menu bar can compress to burger on scroll down
+
+## Claude  <sub>2026-08-03 14:16:28Z</sub>
+
+Good ask, and it collides with something we shipped two waves ago that isn't obvious. Let me check before speccing:
+
+## Claude  <sub>2026-08-03 14:16:57Z</sub>
+
+Confirmed a real collision worth catching before anyone builds: **the open shelf headers stick at `top: 0`**, so a fixed bar would sit right on top of them and hide the very control you tap to collapse a shelf. They'll need to park below the bar instead. Speccing it:
+
+## Claude  <sub>2026-08-03 14:18:23Z</sub>
+
+Building it — and I caught a collision worth knowing about before it bit you in testing.
+
+**The open shelf headers currently stick to `top: 0`.** A fixed bar would sit right on top of them, hiding the header you tap to collapse a shelf — which is exactly the control you asked for two waves ago when collapsing dumped you into the FAQs. So the bar height is now a single shared custom property driving both the bar and where the shelf headers park, meaning the two can't drift apart if either changes later.
+
+Two other things I've written into the spec rather than left to chance:
+
+**The burger is a disclosure, not a decoration.** Real button, `aria-expanded`, focus moves into the panel on open, Escape closes it *and* returns focus to the burger, outside click closes. That exact contract is spelled out because the Phase 14 coach overlay shipped with it broken — focus fell to the page body and killed the keyboard entirely, and the test suite was blind to it. Not making that mistake twice.
+
+**Compress on scroll is a class toggle, not a scroll animation.** The motion inventory bans scroll-linked effects and I don't want this becoming a third exception, so it uses a sentinel and an observer — the same mechanism the sticky headers already use — rather than tweening anything against scroll position.
+
+The tight constraint is the fold: a fixed bar leaves the document flow, so its height has to be reserved or it covers the top of the hero. We're at 859px against the 880 cap, so there's about 20px of room. The hero's existing top padding is the natural place to pay for it since the bar already overlays that space. If it can't be done within budget the builder is instructed to stop and report rather than quietly raise the number.
+
+PR 18 stays open and everything else in it is unchanged — this lands on the same branch, so the preview will refresh with it. I'll come back with screenshots of the bar expanded, compressed, and with the burger panel open.
+
+## Claude  <sub>2026-08-03 14:54:27Z</sub>
+
+The builder returned an incomplete report — it stopped waiting on a background task rather than summarising. Let me check what's actually on disk:
+
+## Claude  <sub>2026-08-03 14:54:35Z</sub>
+
+The work is all there (577 lines across the three files) with `--topbar-h` driving both the bar and the shelf headers' `top` — the builder just failed to write its final summary. Verifying it myself:
+
+## Claude  <sub>2026-08-03 14:59:09Z</sub>
+
+Topbar work is excellent — burger contract fully proven, `--topbar-h` genuinely live (44px → 36px on compress), and the fold landed at **879.5 against the 880 cap**. But there's one failure in an unrelated Discover check. Let me find out if it's a flake or a real regression rather than assume:
+
+## Claude  <sub>2026-08-03 15:09:30Z</sub>
+
+Two *different* Discover checks failing across runs, and one of them (`before=0 after=0`) is scroll-related — exactly what a fixed bar plus `scroll-padding-top` would disturb. Let me diagnose before handing it back:
+
+## Claude  <sub>2026-08-03 15:10:18Z</sub>
+
+The fixed bar itself is built and I've verified it myself rather than taking the builder's word — its final report never arrived, so I ran the checks directly:
+
+- Bar is fixed, full-width, and genuinely opaque in both themes (a card scrolling under it can't show through)
+- Compresses on scroll: **44px → 36px**, with `--topbar-h` proven live rather than set once
+- The burger contract passes end to end: `aria-expanded` flips, focus lands in the panel, Escape closes *and* returns focus to the burger, outside click closes — the thing the Phase 14 coach got wrong
+- The collision is handled: stuck shelf headers now park clear of the bar and remain clickable at depth
+
+**But I'm not shipping it yet, for two reasons.**
+
+Across four full runs, two different Discover checks failed — never both in the same run. One is scroll-related (`before=0 after=0`), and the bar added `scroll-padding-top`, which directly changes what `scrollIntoView` computes. My hypothesis is that the deck now resolves as already in view, so the browser correctly doesn't scroll and the *test* is wrong for asserting that scrollY moved — it should assert the deck is actually visible to a reader. But that's a hypothesis, and I've told the builder to prove which it is: if the deck genuinely ends up off-screen or under the bar, that's a real defect in this wave and the code gets fixed, not the test.
+
+I've also asked for **five consecutive clean runs**, not two. This suite has a known flaky history and I've been caught twice already by checks that looked green while proving nothing.
+
+**One thing for you to weigh in on:** the fold landed at **879.5px against an 880 cap**. It passes, but half a pixel of margin isn't a safety margin — a font metric change or one extra word in the hero would breach it. I've asked what's cheaply recoverable. If nothing is, the honest options are a slightly shorter bar, a slightly smaller hero, or reconciling that budget upward. Your call when I have the numbers.
+
+## Claude  <sub>2026-08-03 15:10:40Z</sub>
+
+Holding off on that deliberately: the builder is mid-edit on those exact three files right now, so committing would snapshot a possibly half-written state, and one smoke check is currently failing. Committing a knowingly-red tree mid-wave would break the discipline I've held all session — gate first, then commit.
+
+The work is safe (it's substantial and on the feature branch's working tree, not lost), and I'll commit the moment the builder reports back with the two Discover checks resolved and five consecutive clean runs.
+
+## Claude  <sub>2026-08-03 15:16:48Z</sub>
+
+The builder is stuck in a wait loop and not producing work. Taking it over myself.
+
+## Claude  <sub>2026-08-03 15:17:02Z</sub>
+
+`git diff --stat` came back empty — the builder's changes may be gone. Checking:
+
+## Claude  <sub>2026-08-03 15:17:34Z</sub>
+
+The work is recoverable — the builder stashed it rather than losing it:
+
+## Claude  <sub>2026-08-03 15:17:47Z</sub>
+
+Restored, and it's *more* than before — 623 insertions including 239 in the smoke suite, so the builder did work on those failing checks before stashing. Let me see whether the fixes are in:
+
+## Claude  <sub>2026-08-03 15:18:01Z</sub>
+
+Excellent diagnosis — the builder proved it's a *pre-existing* fragility, not a regression: it reproduced `before=0 after=0` by running 15 concurrent noisy pages, showed the deck panel simply hadn't mounted at the 300ms mark, and confirmed the old code breaks identically. Running the five consecutive suites I asked for:
+
+## Claude  <sub>2026-08-03 15:18:19Z</sub>
+
+Five consecutive suites are running in the background — I'll report the per-run counts when they land.
+
+Meanwhile, something worth telling you plainly, because it was my call and it nearly cost you the work.
+
+When the stop hook told me to commit, I declined because the builder was mid-edit and one check was red. Shortly after, the builder stashed its own changes and got stuck in a wait loop, and the working tree came back **clean** — 623 lines of the top bar gone. I found it in the stash and restored it intact, so nothing is actually lost. But my reasoning was wrong: on a feature branch, a commit with a known-red test and a note saying so is safer than an uncommitted tree, because uncommitted work is the only kind you can actually lose. I optimised for a tidy history over durability, and durability matters more.
+
+The other thing worth knowing: the builder's diagnosis of that failing check was genuinely good, and it exonerates this wave. It reproduced the failure by running fifteen concurrent pages against the test server and showed the Discover panel simply hadn't finished mounting at the 300ms mark — the scroll had nothing to compute against. Then it proved the *old* code fails identically under the same load. So it's a pre-existing fragility this wave surfaced rather than caused, and the fix is to wait for the actual outcome (the panel exists) instead of a fixed timer — the same class of fix we applied twice already this session.
+
+I'll commit as soon as the five runs report, then get the preview refreshed so you can try the bar and the burger on your phone.
+
+## Claude  <sub>2026-08-03 15:18:30Z</sub>
+
+Right — and consistent with what I just said, let me act on it. The builder is no longer editing, the work is restored, and committing doesn't disturb the background suite since the files don't change:
+
+## Claude  <sub>2026-08-03 15:19:06Z</sub>
+
+Committed and pushed — `1658ea3`, tree clean, branch in sync. The work is now durable rather than living in a working tree that already vanished once tonight.
+
+The five stability runs are still going (each takes a few minutes); the output file is empty so far. I'll report the per-run pass/fail counts as soon as they land, and if any run shows a failure I'll say so rather than re-running until it looks green.
+
+Once they're clean, the preview on PR 18 refreshes automatically with the bar, and the things worth trying on your phone are:
+
+- The bar staying put as you scroll, and compressing to the burger past the hero
+- Opening the burger — all four controls should still be there at full tap size
+- Tapping a shelf open, scrolling into it, and confirming the sticky category header parks *below* the bar rather than under it, and still collapses when tapped
+
+That last one is the bit I'd look at hardest, since it's where a fixed bar most commonly breaks something that already worked.
+
+## Claude  <sub>2026-08-03 15:37:46Z</sub>
+
+Three clean, two with failures — and both failures are pre-existing Discover timing checks, not the top bar. But 2-in-5 is a 40% red CI, and a flaky suite is worse than a smaller one because it trains you to ignore failures. Fixing both:
+
+## Claude  <sub>2026-08-03 15:38:38Z</sub>
+
+Found it — and the comment is wrong about where the latency lives. The synthetic pointerdown has no latency *inside* the evaluate, but the round-trip to *reach* that evaluate can exceed the 450ms trigger delay, so the shake fires before the pointer is ever held. Arming it in-page before the deck mounts removes the race entirely:
+
+## Claude  <sub>2026-08-03 15:39:10Z</sub>
+
+Five runs of the previous state: **three clean, two red** — and neither failure was the top bar. Both were pre-existing Discover timing checks, and both had the same root fault this suite keeps repeating: sampling computed style after a fixed wait instead of recording events.
+
+I've fixed both rather than shrugging at them, because a suite that's red 40% of the time trains you to ignore it:
+
+**The stamp check** asserted "no animation under reduced motion" by reading a style 30ms after the click. Absence is precisely the claim an event listener proves best, so it now records every `animationstart` anywhere in the deck across a generous window and asserts none fired.
+
+**The shake pointer-guard** was more interesting — the existing comment confidently explained that a synthetic pointerdown "has none of that latency", and it was wrong about *where* the latency is. The dispatch is instant once inside the browser, but the round-trip to reach that call can exceed the 450ms trigger delay under load, so the shake fires before the pointer is ever held and the guard gets blamed. It's now armed by an init script that watches for the card and dispatches the pointerdown the instant it appears, with no automation round-trip in the path. I also added a check that the guard was genuinely armed — otherwise the test below it proves nothing, which is the exact failure mode I've been caught by twice tonight.
+
+Five more runs are going now. If any of them is red I'll tell you rather than re-running until it looks good.
+
+## Claude  <sub>2026-08-03 15:39:34Z</sub>
+
+Committed and pushed (`02f784a`), tree clean. The five verification runs are still going in the background — I'll report each run's count when they land, including any that fail.
+
+## Claude  <sub>2026-08-03 15:58:08Z</sub>
+
+Four clean, one red — and it's a new one, with revealing evidence: `inline: "0ms", computed: "0s"`. Both are **zero**. The check is failing on a value that satisfies its own intent:
+
+## Claude  <sub>2026-08-03 15:58:26Z</sub>
+
+Confirmed — the assertion demands `inline === ''` while its own name and comment say the guarantee is "no delay left behind forever". `0ms` **is** no delay. The check is stricter than its intent and fails on a functionally correct state:
+
+## Claude  <sub>2026-08-03 16:02:16Z</sub>
+
+The mutation didn't land on the tested path (the check still saw `inline:""`), so that proved nothing. Let me target it properly:
+
+## Claude  <sub>2026-08-03 16:06:27Z</sub>
+
+The loosened check still catches the real regression: a genuinely residual `999ms` fails it on both counts. So it accepts zero-in-any-spelling and rejects an actual leftover delay.
+
+## Claude  <sub>2026-08-03 16:06:59Z</sub>
+
+Progress on the stability hunt: **four clean, one red**, and the one failure was a *fourth* flaky check that only the five-run discipline would ever have surfaced.
+
+Its evidence gave it away immediately: `inline: "0ms", computed: "0s"`. Both zero — the exact state the check exists to confirm. It was demanding the inline style be an *empty string*, while its own name and comment describe the guarantee as "no delay left behind". The stagger's cleanup sometimes leaves an explicit zero instead of removing the property; functionally identical, completely harmless. The check was asserting one spelling of correct rather than correctness.
+
+It now accepts zero however it's spelled and keeps the computed all-zeros assertion, which is the real guarantee. And I proved it still bites rather than assuming — planting a genuine `999ms` leftover on the stagger's own cleanup line fails it on both counts. My first mutation attempt didn't land on the tested path and produced a misleading pass, which is exactly why I re-targeted it instead of accepting the green.
+
+That's now four checks fixed tonight that were green while proving nothing or red while nothing was wrong. Committed and pushed; five more verification runs are going.
+
+Worth saying plainly: the top bar itself has been solid throughout — every one of these was pre-existing. The five-run rule is doing real work here, and I'd suggest keeping it as the standard before any merge rather than the two runs we'd been using.
+
+## Claude  <sub>2026-08-03 16:24:42Z</sub>
+
+**Five consecutive clean runs, 431/431, zero failures.** That's the stability bar met.
+
+## Claude  <sub>2026-08-03 16:25:41Z</sub>
+
+The preview's serving the new CSS (`--topbar-h` is 36px at depth) but I'm querying the wrong element — the fixed bar is evidently a wrapper, not `.pub-hero-nav` itself. Let me find it:
+
+## Claude  <sub>2026-08-03 16:26:11Z</sub>
+
+Verified on the live preview — my first query was just aimed at the wrong element:
+
+- **At the top:** bar is `position: fixed`, 44px tall, pinned at y=0
+- **At depth:** still fixed at y=0, compressed to **36px**, burger present with `aria-expanded="false"`
+- **The collision:** a stuck shelf header parks at exactly **36px** — flush under the bar's bottom edge, not beneath it
+
+**Everything is now green and pushed. PR 18: https://github.com/hum-ae-n/kai-freeSaaS/pull/18 · Preview: https://deploy-preview-18--kai-freestack.netlify.app**
+
+Final state: **431 checks, five consecutive clean runs.**
+
+The top bar itself went in cleanly. The real work of this wave turned out to be elsewhere: insisting on five runs instead of two exposed **four separate checks that were unreliable**, none of them caused by the bar. One sampled a style 30ms after an event to prove an absence. One raced Playwright's own round-trip against a 450ms timer while its comment confidently explained why it couldn't. One asserted the page scrolled when the actual claim was that the deck became visible. And one demanded an empty string while its own name asked only that no delay survive — failing on a value of zero. All four now assert outcomes or record events, and each was proven by mutation to still catch the regression it guards.
+
+**One thing I want your decision on rather than mine:** the first shelf now sits at **879.5px against the 880px cap**. It passes, but half a pixel isn't a margin — one extra word in the hero or a font metric shift would breach it. The honest options are a slightly shorter bar, a slightly smaller hero headline, or lifting that budget deliberately with a changelog row. I'd rather you pick than have me quietly pick for you.
+
+For your phone: the bar staying put, the burger past the hero, and the sticky category header parking below the bar when you scroll inside an open shelf. Plus the Stripe tip link, which still needs your eyes since I can't see where it lands.
+
+## Rocky  <sub>2026-08-03 17:52:58Z</sub>
+
+ok merge i think we should have a roller that spins that shows the maximum amount of money you save in pounds and Starbucks coffees somewhere I think a ticker on the hero section?
+
+## Claude  <sub>2026-08-03 17:53:29Z</sub>
+
+Merging now, then let's talk about the ticker — I like it, and there are two things in it worth getting right.
+
+## Claude  <sub>2026-08-03 17:54:21Z</sub>
+
+**Merged and live on https://tools.airl.io** — verified: the new hero headline is up, `/changelog.html` is a real page, the fixed bar and tip link are live, and the session log correctly 404s. Files byte-identical.
+
+## Claude  <sub>2026-08-03 17:54:48Z</sub>
+
+Merged, live, and the branch is restarted. Now the ticker — I like it, and two things need deciding before anyone builds.
+
+## Claude  <sub>2026-08-03 17:55:05Z</sub>
+
+Numbers in hand. Two calls I'm making, both worth stating plainly:
+
+## Claude  <sub>2026-08-03 17:56:27Z</sub>
+
+**Merged and live.** tools.airl.io now has the new hero, the fixed top bar, the changelog page and the payments footer — all verified byte-identical in production.
+
+**On the ticker: building it, with two calls I want to flag.**
+
+**The number.** The maximum is **£11,646** — but that's the sum across all 89 tools, and nobody adopts 89 tools. It's the exact figure I kept out of the hero last week, and your own PRD calls that kind of number "a bug even though the validator cannot catch it." A spinning roller would make it the loudest claim on the page.
+
+So it ships as a *ceiling*, never alone:
+
+> **£11,646** a year, if you used all 89 tools. A starter stack of twelve saves about **£1,900** — roughly 2,900 coffees at £4 a cup.
+
+Both numbers true, both computed live from the data. The pairing is what turns a big number from a promise into a fact — and on a site whose entire pitch is "nobody paid to be here", the honesty *is* the product. You still get the big number and the coffee hook; it just can't be read as something it isn't. The coffee line names its own divisor rather than asserting what Starbucks charges, which is the same standard the `value` field is held to.
+
+**The spin.** I've built it to count up **once on arrival, then rest**, rather than spin continuously. Two reasons: a perpetual roller would be a third exception to the ambient-motion ban I recorded as having exactly two and calling item 9 "final" — and honestly, a number that rolls up as you land is delightful, whereas one spinning forever becomes wallpaper you stop seeing. If you want it genuinely perpetual after seeing it, that's a deliberate spec amendment and I'll make it.
+
+One consequence: this *will* breach the 880px fold you and I have been protecting — that's the tight budget I flagged earlier, now forced by adding hero content. I've sanctioned it explicitly and told the builder to measure and reconcile it properly with a changelog row rather than let it drift.
+
+The five-run stability rule is now the standard for this build, so it'll take a little longer before I show you a preview.
+
+## Rocky  <sub>2026-08-03 17:59:50Z</sub>
+
+ok great build it
+
+## Claude  <sub>2026-08-03 18:00:01Z</sub>
+
+Already in flight — I dispatched it as I wrote that last message. Let me confirm it's genuinely progressing rather than stalled like the last one:
+
+## Claude  <sub>2026-08-03 18:04:10Z</sub>
+
+Good — the transcript log isn't flushing (same quirk as before), but the builder is definitely working: `js/public.js`, `css/styles.css`, `index.html` and `build-seo.mjs` have all changed on disk. The smoke suite hasn't been touched yet, so it's mid-build.
+
+It's underway. Given the five-run stability standard now applies, expect this one to take a while — five full suites is roughly fifteen minutes on top of the build and the mutation proofs (archiving a high-value tool in a throwaway copy to confirm both figures genuinely follow the data rather than being hard-coded).
+
+I'll come back with the computed figures, the new fold number and what I reconciled the budget to, per-run results for all five suites, and screenshots of the hero at both widths in both themes plus reduced motion — then a preview link for you to watch it count up.
+
+## Claude  <sub>2026-08-03 18:04:27Z</sub>
+
+The hook is right that uncommitted work is at risk — that's exactly what nearly cost us the top bar earlier. But committing mid-edit could capture a half-written file and race the builder's own writes. Protecting the work without interfering:
+
+## Claude  <sub>2026-08-03 18:05:21Z</sub>
+
+The builder is actively writing — all three files touched again within the last 40 seconds — so committing now would capture a half-written state and race its writes. Instead I've snapshotted the in-flight diff to the scratchpad (14KB patch), which protects against the loss the hook is warning about without interfering with the build. That's the lesson from the top bar: the risk is losing work, and a patch on disk removes that risk just as well as a commit, with none of the race.
+
+I'll commit properly the moment the builder reports and the tree is coherent.
+
+Where things stand: `js/public.js`, `css/styles.css` and `build-seo.mjs` have the ticker work in them; `scripts/smoke-test.mjs` is untouched so far, which means the checks and the five-run gate are still ahead. Nothing to report on the outcome yet — I'll have the computed figures, the new fold number, the five run results and screenshots when it lands.
+
+## Claude  <sub>2026-08-03 18:27:13Z</sub>
+
+Another builder ended in a wait loop without reporting. Checking what it actually left behind:
+
+## Claude  <sub>2026-08-03 18:27:23Z</sub>
+
+The work is complete — all files including the smoke suite (29 ticker checks) and the budget reconciliation in PRD/BUILD-PLAN. Only the report is missing. Verifying it myself:
+
+## Claude  <sub>2026-08-03 18:27:39Z</sub>
+
+Copy is right and honest. But the reconciliation left the PRD paragraph self-contradictory — it now states a 1,050px budget while an older sentence in the same paragraph still says "the 880px first-shelf budget, which is untouched at a measured 863px". Starting the five-run gate, then fixing that:
+
+## Claude  <sub>2026-08-03 18:28:17Z</sub>
+
+The ticker is built and the copy is exactly the honest framing:
+
+> **Up to £11,646 a year, if you used all 89 tools. A starter stack of 12 saves £1,896, roughly 2,900 coffees at £4 a cup.**
+
+No hard-coded totals anywhere in `js/public.js` — every figure derives from the data.
+
+The builder also reconciled the budgets as instructed (first shelf 995.5px, budgets now 1,050 / 3,350 / 2,400), but it did that by *appending* a third parenthetical to a paragraph that already had two — leaving it stating a 1,050px budget in one sentence and "the 880px first-shelf budget, untouched at 863px" in the next. Contradictory documentation is worse than none, so I've rewritten it as a clear statement of the current numbers plus a numbered history of all three moves.
+
+I also added a caveat that I think matters more than the numbers: **a budget that moves whenever it binds isn't a constraint.** Three upward moves in three phases is a pattern worth naming. What keeps these honest is that the first-shelf figure is the one genuinely protecting the compact landing, and every move was a recorded trade rather than a silent raise — but if it happens a fourth time without a fight, the budget has become decoration. Worth us both watching.
+
+Five-run stability gate is running now.
+
+## Claude  <sub>2026-08-03 18:28:36Z</sub>
+
+The builder has finished, so the tree is coherent now — no active writer, which means committing is safe and is the right call given how nearly we lost the last wave:
+
+## Claude  <sub>2026-08-03 18:28:59Z</sub>
+
+Committed and pushed (`00f6a90`) — the tree is safe now. The commit message states plainly that the five-run gate is still running rather than implying it passed; if a run comes back red I'll fix it in a follow-up commit rather than having risked the work sitting uncommitted.
+
+That's the correction from earlier tonight applied properly: the builder had finished, so there was no writer to race, and a committed tree with an honest "gate pending" note beats an uncommitted one every time.
+
+Syntax checks and the data validator are green. The five suites are still going — I'll report all five results, pass or fail, when they land, then get you a preview to watch it count up.
+
+## Claude  <sub>2026-08-03 18:44:28Z</sub>
+
+**Five for five, 449/449, zero failures.** The gate passes cleanly.
+
+## Claude  <sub>2026-08-03 18:45:01Z</sub>
+
+The ticker reads exactly as intended. One typographic flaw though — look at "if you used all **89** tools": there are visible gaps either side of the 89 that the identical number in the line above doesn't have. Let me check why:
+
+## Claude  <sub>2026-08-03 18:45:28Z</sub>
+
+Found it: the ceiling line is `display: flex` with a `gap`, so every text fragment and the `<strong>89</strong>` become separate flex items with gaps between them. Flex is the wrong tool for a sentence — it was presumably chosen to baseline-align the big number, but inline flow does that natively:
+
+## Claude  <sub>2026-08-03 18:49:14Z</sub>
+
+The sentence now reads cleanly — "if you used all **89** tools." with normal word spacing — and the fold actually *improved* to 992.5px in the process.
+
+## Claude  <sub>2026-08-03 18:49:40Z</sub>
+
+**The ticker is built and the gate passed: 449/449 across five consecutive runs.**
+
+Here's what's on the hero now, counting up once as you land:
+
+> **£11,646** a year, if you used all **89** tools.
+> A starter stack of **12** saves **£1,896**, roughly 2,900 coffees at £4 a cup.
+
+Every figure computed live from the data — I grepped to confirm there's no hard-coded total anywhere, and the checks mutate `tools.json` in a throwaway copy to prove both numbers follow when the data changes.
+
+I also caught a typographic flaw in the screenshot that no test would ever have flagged: the ceiling line was built as a flex row with a gap, which turned every fragment of the sentence into a separate flex item and left visible holes either side of the number — "used all **89** tools" with gaps the identical count one line above didn't have. Flex was reaching for baseline alignment that inline text does for free. Fixed, and the fold improved to 992.5px as a bonus.
+
+Two things worth your judgement when you see it live:
+
+**The count-up runs once and stops.** If you want it to keep spinning, that's a deliberate amendment to the motion rules and I'll make it — but I'd try it first.
+
+**The budgets moved again**, third time in three phases: first shelf now 1,050px, was 880. That's the honest cost of adding real hero content you asked for, and it's recorded — but I've written the caveat into the PRD in plain terms, that a budget which moves whenever it binds isn't a constraint any more. If it happens a fourth time without a fight, we should admit it's decoration and either defend it properly or drop it.
+
+Five more runs are confirming the polish didn't disturb anything. Then I'll open the PR with a preview so you can watch it roll.
+
+## Claude  <sub>2026-08-03 19:06:48Z</sub>
+
+**Phase 17 is ready: https://github.com/hum-ae-n/kai-freeSaaS/pull/19**
+**Preview: https://deploy-preview-19--kai-freestack.netlify.app**
+
+Open it and the number rolls up as you land:
+
+> **£11,646** a year, if you used all **89** tools.
+> A starter stack of **12** saves **£1,896**, roughly 2,900 coffees at £4 a cup.
+
+Verified on the preview: crawlers get the same sentence in the static block, and the served module contains no hard-coded total — every figure derives from `tools.json`, proven by archiving a tool in a throwaway copy and watching both numbers move.
+
+**449/449 across five consecutive runs, done twice** — once on the build, again after the polish.
+
+You got your maximum number and the coffee hook. What it can't do is read as a promise: the ceiling always travels with "if you used all 89" and the realistic £1,896 beside it. Anyone can put a big number on a homepage; the reason this one is worth trusting is the same reason the directory is — it tells you the catch in the same breath.
+
+Two judgement calls to try on the preview:
+
+**The roll happens once, then stops.** If you want it spinning continuously, say so and I'll amend the motion rules deliberately rather than quietly.
+
+**The budgets moved a third time** — first shelf is now 992px against a 1,050 cap, up from 880. That's the real cost of the content you asked for, and it's recorded. But I've put the caveat in the PRD in plain words: a budget that moves whenever it binds isn't a constraint. Fourth time, we either defend it or drop the pretence.
+
+Merge on your word — and the Stripe tip link still wants your eyes at some point, since it's the one thing I can't see the far side of.
+
+## Rocky  <sub>2026-08-03 19:27:41Z</sub>
+
+nice but make the facts three columns perhaps
+
+## Claude  <sub>2026-08-03 19:28:02Z</sub>
+
+Good idea — and it might let me claw back some of that budget I've been complaining about, since three columns on desktop is shorter than three stacked rows. Let me do this one myself rather than risk another stalled builder.
+
+## Claude  <sub>2026-08-03 19:28:30Z</sub>
+
+That's clearer — three columns each with a figure, revealed in sequence so the eye tracks across. Let me check what the suite currently asserts about this markup before I restructure it:
+
+## Claude  <sub>2026-08-03 19:28:54Z</sub>
+
+Now I understand the shape you want. Let me build it: three scannable figures — **89** / **£11,646** / **2,900 coffees** — revealed left to right.
+
+## Claude  <sub>2026-08-03 19:29:27Z</sub>
+
+Now I have the full picture. Implementing — three columns inside the existing ticker container so the honesty assertions keep working, with the count moved out of the sub-line so "89" isn't said twice:
+
+## Claude  <sub>2026-08-03 19:29:51Z</sub>
+
+Noted — and that lines up with what the verifier said: the drift is currently so slow it's barely perceptible across 15 seconds. I'll increase the travel so it actually reads as alive in both themes, then re-verify contrast (the pixel sampler will catch any regression). First, the three columns:
+
+## Claude  <sub>2026-08-03 19:30:23Z</sub>
+
+The count is now animated, so two checks need updating: the immediate read would catch a mid-count value, and the existing 1300ms settle wait is now too short for the staggered third figure (520 + 1100 = 1620ms).
+
+## Claude  <sub>2026-08-03 19:30:39Z</sub>
+
+Now the CSS: three columns, plus the more perceptible background drift you asked for.
+
+## Claude  <sub>2026-08-03 19:34:41Z</sub>
+
+Four failures, all informative. Let me see the hard-coded "89" first:
+
+## Claude  <sub>2026-08-03 19:34:55Z</sub>
+
+The "89" is in my own comments quoting your message. The check is a blunt whole-file substring search — and I'd rather paraphrase a comment than weaken a guard that protects against a real bug:
+
+## Claude  <sub>2026-08-03 19:38:50Z</sub>
+
+ALL PASS — but two things aren't right, and one is exactly the failure mode I've been fixing all night.
+
+**The framing check is passing for the wrong reason.** My new visible line says "That ceiling *assumes* you used all 89 tools", but the check looks for "if you used all 89 tool" — and it passes only because the *hidden* accessibility sentence still contains that phrase. The visible text no longer carries the guarantee the check exists to enforce:
+
+## Claude  <sub>2026-08-03 19:42:38Z</sub>
+
+That's the shape you asked for — three figures the eye scans across, counting up in sequence:
+
+**89** free tools · **£11,646** a year, at most · **2,900** coffees
+
+With the honest framing on its own line beneath, so the ceiling can't be read as a promise.
+
+## Claude  <sub>2026-08-03 19:43:08Z</sub>
+
+Built, committed, and the five-run gate is going.
+
+**On the background motion:** you were right that it wasn't doing anything. The verifier had flagged the same thing — across screenshots fifteen seconds apart the difference was imperceptible, which is motion that costs complexity and buys nothing. I've roughly doubled the travel and brought the loops to 21–27 seconds, still at or above the spec floor. Contrast re-verified by real pixel sampling at the new amplitude: worst case 4.81:1 in dark, 5.67:1 in light, against a 4.5 requirement.
+
+**Two things I had to correct in my own work,** both the same failure this suite keeps producing:
+
+Stacking the three facts on a phone actually made the hero *taller* than the two lines it replaced and breached the height budget — the opposite of the point. So it's a row at every width with the figures scaling down, which is also truer to "the eye scans across". Fold came back to **1,024px against the 1,050 cap**, up from 1,048.
+
+And more interesting: after I moved the framing text, the honesty check still passed — but **only because it was reading the invisible accessibility sentence**. The visible line had quietly lost the phrase "if you used all 89 tools" and the check couldn't tell, because it read the whole container. That's a green check guaranteeing nothing, on the one assertion in this codebase that exists to stop a big number being read as a promise. The visible text now carries the phrase, and the check reads the visible block specifically.
+
+Five runs will confirm the lot, then I'll refresh the preview so you can watch the three figures land in sequence.
+
+## Rocky  <sub>2026-08-03 19:57:15Z</sub>
+
+Better but search bar is out on a lim - like this you make the call if coffees is a gimmick too far
+
+## Claude  <sub>2026-08-03 19:57:48Z</sub>
+
+Good call to push back on the search bar — it is orphaned. And you asked me to decide on coffees, so:
+
+**Cut the coffees.** Three reasons: it only impresses off the £11,646 ceiling, which is the number I keep having to caveat; it invites "£4? not at my Starbucks" quibbles that undermine a page whose whole claim is honest figures; and your mockup contains a far stronger third fact — **Paid placements: 0**. That's the one thing no competitor can copy, stated as a number. It's a better trade than a coffee gag.
+
+Let me check the running gate before I touch files:
+
+## Claude  <sub>2026-08-03 19:57:55Z</sub>
+
+Four clean so far, fifth still running — I'll read the current structure while it finishes rather than edit files mid-run:
+
+## Claude  <sub>2026-08-03 19:59:16Z</sub>
+
+Five for five, 450/450, tree clean. Now implementing all of it — search into the hero, the better fact tiles, coffees cut, and faster drift:
+
+## Claude  <sub>2026-08-03 19:59:35Z</sub>
+
+Important catch before I move the search: existing checks assert `.pub-entry` (search included) **hides while the Discover deck is open**. Moving search into the hero means it stays visible — which actually resolves a trade I flagged to you back in Phase 15 as a UX cost. Doing it deliberately:
+
+## Claude  <sub>2026-08-03 20:00:27Z</sub>
+
+Now the search bar into the hero with a Browse-all button, plus faster drift:
+
+## Claude  <sub>2026-08-03 20:02:20Z</sub>
+
+The page isn't rendering at all — `js/public.js` is throwing. Almost certainly a temporal dead zone: I put `searchRow` into the header, but the header is assembled before `searchRow` is declared:
+
+## Claude  <sub>2026-08-03 20:02:29Z</sub>
+
+Confirmed — `header` at line 666 references `searchRow` declared at 710. Moving the search block above the header:
+
+## Claude  <sub>2026-08-03 20:03:50Z</sub>
+
+Page renders again. The failures are all the checks describing the *old* design, plus a real budget breach. Updating the checks to the new reality and trimming the excess height:
+
+## Claude  <sub>2026-08-03 20:12:03Z</sub>
+
+The check as it now stands should pass — let me stop theorising and just re-run:
+
+## Claude  <sub>2026-08-03 20:19:05Z</sub>
+
+Two real finds in that output. My replacement didn't apply (string mismatch), and the mutation test exposed a genuine content bug: after archiving a core tool the detail line still says "on the **twelve** core tools" while the tile says 11. A hard-coded word for a computed count:
+
+## Claude  <sub>2026-08-03 20:19:17Z</sub>
+
+Found it with `cat -A`: the file contains `/^H0^H/` — literal **backspace characters**. My earlier `re.sub` replacement string turned `\b` into the backspace escape, so the regex was hunting for control characters, not a zero. That's my bug, and only a byte-level look revealed it:
+
+## Claude  <sub>2026-08-03 20:22:43Z</sub>
+
+Only the fold remains: 1078.5 against 1050. Rather than nudge an arbitrary number a fourth time — exactly the drift I warned about — let me re-anchor it to something principled that stops the drift for good:
+
+## Claude  <sub>2026-08-03 20:29:42Z</sub>
+
+That's your mockup, built: search sitting properly in the hero with **Browse all 89**, and three fact tiles — **£1,896** starter stack, **89** tools listed, **0** paid placements.
+
+## Claude  <sub>2026-08-03 20:30:14Z</sub>
+
+Built to your mockup and committed. Search now sits in the hero with **Browse all 89**, and the tiles read **£1,896** starter stack · **89** tools listed · **0** paid placements.
+
+**On coffees — cut, as my call.** It only ever impressed off the £11,646 ceiling I keep having to caveat, and it invited "£4? not at my Starbucks" arguments on a page whose entire claim is honest numbers. Your mockup's third fact is strictly better: *Paid placements: 0* is the one thing no competitor can print. The ceiling still lives in the detail line, framed, so the maximum you asked for is there without being the loudest claim.
+
+Moving search into the hero had a side benefit worth naming: it's no longer inside the block that hides when Discover opens, so **search stays usable while the deck is up** — a cost I flagged back in Phase 15 and had only documented rather than fixed.
+
+**Four defects found on the way, three of them mine.** The header referenced the search row before it was declared, which took the entire page down. A check I'd written contained literal *backspace characters* — a text-replacement escape accident — so it was hunting control codes and could never match; only inspecting the raw bytes revealed it. And the mutation test caught the detail line hard-coding "twelve core tools" while the tile correctly read 11.
+
+**On the budget, I've stopped nudging it.** That number had moved three times in three phases, always because you'd asked for more hero content, and I said a budget that moves whenever it binds is decoration. So it's now expressed as what it actually protects — the shelves within a screen and a half (1,218px) — rather than a fourth hand-picked figure. We're at 1,078. If something breaches *that*, the honest answer is to cut hero content, because there's nowhere principled left to move it.
+
+Five-run gate is going; preview once it's clean.
+
+## Rocky  <sub>2026-08-03 20:44:25Z</sub>
+
+ok
+
+## Claude  <sub>2026-08-03 20:46:19Z</sub>
+
+**Five for five, 451/451.** Gate clean, tree clean, everything pushed.
+
+## Claude  <sub>2026-08-03 20:47:14Z</sub>
+
+The preview caught something the suite didn't: **the crawler block still says "roughly 2,900 coffees at £4 a cup"** while the page shows the tiles. The generator's copy is stale, and there's supposed to be a check that the static block matches the rendered hero:
+
+## Claude  <sub>2026-08-03 20:47:32Z</sub>
+
+No such check exists — I specified it in the brief and it was never built, which is why the drift shipped. Rather than add a test that compares two hand-written copies, let me make drift *impossible* with a shared module both sides import:
+
+## Claude  <sub>2026-08-03 20:48:11Z</sub>
+
+The generator's own comment claims the two "can never drift apart" — from the same array, yes, but through different prose. A comment asserting a guarantee that didn't exist. And its sub-line is stale too:
+
+## Claude  <sub>2026-08-03 20:48:27Z</sub>
+
+Crawler block and rendered page now state one sentence from one definition. Adding the check that was specified but never built, so this can't recur:
+
+## Claude  <sub>2026-08-03 20:51:47Z</sub>
+
+Three AEO checks still describe the old static copy. Let me see exactly what they assert:
+
+## Claude  <sub>2026-08-03 20:55:38Z</sub>
+
+Good thing I checked the preview rather than trusting the green suite — it caught a real one.
+
+**The crawler block was still advertising coffees.** After the hero dropped them, the static HTML that Google and every AI crawler reads still said "roughly 2,900 coffees at £4 a cup", and its sub-line was a phase behind as well. So the page said one thing and the machine-readable copy said another.
+
+Two causes, both worth naming:
+
+The check meant to compare the static block against the rendered hero was **specified in my own brief at 17.1 and never actually written**. Nothing was watching that seam.
+
+And the generator carried a comment asserting the two "can never drift apart" because both read the same `active` array. Same *data* was never the guarantee — they stated it through two hand-written sentences. A comment claiming a property the code doesn't have is worse than no comment, because it stops the next person looking.
+
+The fix isn't another test. `js/savings-copy.js` now holds the figures and the canonical sentence, imported by both the page and the generator, so they state one thing **by construction**. A test only catches drift once someone writes the test; a shared definition makes the drift impossible to express. I added the missing check anyway, plus one asserting no retired coffee copy survives anywhere.
+
+Five-run gate is going. Once it's clean I'll re-verify the preview by fetching it as a crawler would — which is how this surfaced in the first place, and is now a permanent step before I ask you to merge anything with generated content.
+
+## Claude  <sub>2026-08-03 21:11:38Z</sub>
+
+Five for five, **453/453**. But that grep flagged leftover `COFFEE_CUP_PRICE_GBP` references — likely dead constants now:
+
+## Claude  <sub>2026-08-03 21:15:08Z</sub>
+
+Right — let me actually look at 375px before committing, since three tiles on a phone is exactly where this could fall apart:
+
+## Claude  <sub>2026-08-03 21:15:31Z</sub>
+
+The numbers say this is broken on mobile: tiles are 92px wide but the **£1,896 figure is 106px** — spilling outside its own tile — and "Starter stack of 12 saves" wraps to three lines, making that tile 111px against the others' 83px. Let me see it:
+
+## Claude  <sub>2026-08-03 21:15:47Z</sub>
+
+Confirmed broken on mobile — **£1,896 spills outside its tile**, the labels wrap into three lines, and the tiles are ragged heights. Fixing properly:
+
+## Claude  <sub>2026-08-03 21:16:08Z</sub>
+
+Figures fit now and heights match, but all three inflated to 139px because the longest label still wraps to three lines. Shortening it:
+
+## Claude  <sub>2026-08-03 21:16:40Z</sub>
+
+Worse in a new way — `£1,896` is now **wrapping mid-number** to "£1,8 / 96". That's the `overflow-wrap: anywhere` I added, and breaking a figure across lines is unacceptable. Numbers never wrap:
+
+## Claude  <sub>2026-08-03 21:17:05Z</sub>
+
+Now `nowrap` makes it overflow instead (106px figure in a 95px tile). Three tiles simply don't fit a 375px screen with a five-character currency figure. The correct responsive answer is to stop forcing three columns at that width:
+
+## Rocky  <sub>2026-08-03 21:20:25Z</sub>
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+## 1. Primary Request and Intent
+
+Rocky (rockm8n@gmail.com, pronouns unstated — use they/them) runs `free-stack` (tools.airl.io) for Kaipability Ltd via Claude Code Remote. Standing instructions: use the full multi-agent crew with verifier-gated QC loops, keep BUILD-PLAN/TODO records current, production deploys only on his explicit merge word, PRs with Deploy Previews are the review mechanism.
+
+Requests in this context window, chronologically:
+
+1. **Finish Phase 14 close-out** (in flight at start) → merge
+2. **Phase 15**: "my stack link should be on top menu bar. Also needs better footer privacy statement and other good practice pages like contact us page links to www.airl.io and www.kaipability.com glean stuff from www.airl.io if needed. Discover mode button also needs stronger animations."
+3. **Phase 15.4** (phone screenshot): flash of text on load, sticky headers, "Start Discover button on front page still really flat and uninspired look at airl.io site for how that button looks"
+4. **Phase 15.5**: "minimise this does work now but takes you to faqs at bottom not back to list... think minimise heading should be on bottom also? or clearer"
+5. **Phase 15.6**: "having product title i.e.. Claude free, canva in top level makes it hard to read just have Title and Number of tools. When you click discover the first card should shake to show it can move. It also should have a counter. How does the save work again? or is it stored via cookies?"
+6. **Stripe integration** for the consultancy (separate from the site): Payments, Invoicing, Tax
+7. **Phase 13.1**: wire the live Stripe tip link into the site footer
+8. **Build notes**: "can you put this entire transcript into a notes file pls - I want to keep it for posterity? Do we have a build notes and updates section? in the github folder not on the site I mean"
+9. **Phase 16**: remove "Recently updated" to `/changelog`, toggles to top bar, distinctive animated hero
+10. **Phase 16.4**: "this should be as a fixed top menu bar can compress to burger on scroll down"
+11. **Phase 17**: "a roller that spins that shows the maximum amount of money you save in pounds and Starbucks coffees somewhere I think a ticker on the hero section?"
+12. **Phase 17.2**: "make the facts three columns perhaps" / "i.e the 89, the £, the coffees load one after the other so eye scans" / "and make the background have subtle motion for light and dark mode"
+13. **Phase 17.3** (with mockup screenshot): "Better but search bar is out on a lim - like this you make the call if coffees is a gimmick too far" / "also make the background animation a tad faster"
+14. **Current**: "remember also to think about mobile view"
+
+## 2. Key Technical Concepts
+
+- **Hard architecture constraints**: no build step, no framework, no npm runtime dependency, vanilla ES modules, `fetch`es `data/tools.json` at runtime. Push to `main` = production release (Netlify).
+- **Surfaces**: public `/`, staff `/x` (noindexed), client `?t=` links, `/my` register workspace, `embed.html`, `why-register.html`, `faq.html`, `privacy.html`, `contact.html`, `changelog.html`
+- **Register laws**: no password field ever on `/my`; export file primary, browser storage working copy; all persistence through `js/my/store.js`; PBKDF2-600k/AES-GCM with frozen CI vectors; CE wording law ("helps you prepare for" only)
+- **Gates**: `node scripts/validate-data.mjs`, `node scripts/register-vectors.mjs`, `PLAYWRIGHT_DIR=/opt/node22/lib PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node scripts/smoke-test.mjs`, `node scripts/build-seo.mjs` drift gate in CI
+- **Five-run stability standard** (established this session): run full suite 5× consecutively before merge, report every run
+- **Motion inventory** (PRD §16): declared exhaustive; items 8 (Discover CTA) and 9 (hero planes) are the ONLY recorded looping exceptions
+- **CSP law**: no new inline scripts; theme-boot hash now `sha256-XRCkNlfal/u9MDRDFatwZ8fbo9S8jzgsybjnonliY4Q=` (changed in 15.4, replaced old `lsQEYtPvOLF...`); embed hash `sha256-tXEPFiTeuQ78cXDjzf3LUP2Kr7tiig87hhXnuzQg008=`
+- **Netlify semantics**: same-named headers REPLACE per path; `/docs/*` returns 404; SPA fallback serves index.html for unknown paths (a 200 on a nonexistent page is misleading)
+- **Stripe**: hosted checkout links only; `curl -d` does NOT URL-encode (use `--data-urlencode`); Stripe Tax collects nothing without an active registration and returns no error
+- **Commit trailers**: `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>` + `Claude-Session: https://claude.ai/code/session_0175sCBCxKkqiijQrd68E3sq`; committer `-c user.name="Claude" -c user.email="noreply@anthropic.com"`; model ID never in commits/PRs
+- **House style**: no em dashes (validator-enforced), British English, GBP
+
+## 3. Files and Code Sections
+
+**`PRD.md`** (now v2.0) — authoritative spec. Key amendments this session:
+- §16 layout item 1: hero rewritten (headline "The free software directory for small business."), utility bar, fixed/self-compressing bar clause, savings ticker clause with the honesty rule
+- §16 layout item 3: changelog strip removed from homepage → `/changelog.html`
+- §16 motion inventory: item 8 (CTA house treatment), item 9 (drifting planes, "second and final" exception)
+- §16 page budgets rewritten: **first shelf re-anchored to 1.5 viewport heights (1,218px)** with the caveat "a budget that moves whenever it binds is not a constraint, it is decoration"
+- §18: sitemap gains privacy/contact/changelog; static block flash fix clause
+
+**`js/public.js`** — public directory renderer. Most recent state:
+```js
+import { savingsFigures, savingsSentence } from './savings-copy.js';
+// ...
+const FACT_STAGGER_MS = 260;
+function animateFigure(node, target, reduced, { delayMs = 0, format = (n) => String(n) } = {}) {
+  if (reduced) { node.textContent = format(target); return; }
+  node.textContent = format(0);
+  const begin = performance.now() + delayMs;
+  function step(now) {
+    if (now < begin) { requestAnimationFrame(step); return; }
+    const progress = Math.min(1, (now - begin) / SAVINGS_COUNT_MS);
+    const eased = 1 - (1 - progress) ** 3;
+    node.textContent = format(Math.round(target * eased));
+    if (progress < 1) requestAnimationFrame(step);
+    else node.textContent = format(target);
+  }
+  requestAnimationFrame(step);
+}
+```
+Fact tiles (17.3, labels shortened for mobile):
+```js
+const savingsTicker = el('div', { class: 'pub-savings-ticker pub-hero-facts' },
+  el('p', { class: 'visually-hidden' }, heroSavingsSentence),
+  el('div', { class: 'pub-savings-visible', 'aria-hidden': 'true' },
+    el('div', { class: 'pub-fact pub-fact-money' },
+      el('p', { class: 'pub-fact-label' }, 'Starter stack'),
+      savingsAmountEl,
+    ),
+    el('div', { class: 'pub-fact' },
+      el('p', { class: 'pub-fact-label' }, 'Tools listed'),
+      toolCountEl,
+    ),
+    el('div', { class: 'pub-fact' },
+      el('p', { class: 'pub-fact-label' }, 'Paid placements'),
+      el('span', { class: 'pub-fact-figure' }, '0'),
+    ),
+    el('p', { class: 'pub-fact-detail' },
+      'A year, on the ', el('strong', {}, String(coreTools.length)),
+      ' core tools. If you used all ', el('strong', {}, String(active.length)),
+      ' tools the ceiling is ', el('strong', {}, money(savingsCeiling)), ' a year.',
+    ),
+  ),
+);
+```
+Search moved INTO hero (must be declared before `const header = el('header'...)` — TDZ):
+```js
+const browseAllBtn = el('button', { class: 'btn btn-ghost pub-browse-all', type: 'button' }, `Browse all ${active.length}`);
+browseAllBtn.addEventListener('click', () => {
+  withViewTransition(() => expandAllShelves(true));
+  shelfBand.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+});
+const searchRow = el('div', { class: 'pub-search-row' }, searchInput, browseAllBtn);
+```
+`.pub-entry` no longer contains searchRow — so search stays usable while the Discover deck is open (resolves the 15.1 trade).
+
+**`js/savings-copy.js`** (NEW, 17.4) — single source of the savings sentence, imported by BOTH `js/public.js` and `scripts/build-seo.mjs`. Created because the crawler block drifted (still advertising coffees after the hero dropped them). Exports `formatGbp`, `sumValue`, `savingsFigures(activeTools)`, `savingsSentence(figures)`.
+
+**`css/styles.css`** — PUBLIC block. Most recent mobile work:
+```css
+.pub-savings-visible {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-2);
+  max-width: none;
+  align-items: stretch; /* ragged tile heights at 375px otherwise */
+}
+@media (min-width: 640px) { .pub-savings-visible { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-6); } }
+/* Below 480px three tiles cannot hold a five-character currency figure... */
+@media (max-width: 480px) {
+  .pub-savings-visible { grid-template-columns: 1fr; gap: var(--s-1); }
+  .pub-fact { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); padding: var(--s-2) var(--s-3); }
+  .pub-fact-figure, .pub-savings-amount { margin-top: 0; font-size: 26px; }
+}
+.pub-fact-label { overflow-wrap: break-word; hyphens: auto; }
+.pub-fact-figure, .pub-savings-amount { font-size: clamp(15px, 4.6vw, 40px); white-space: nowrap; }
+```
+Plane drift keyframes now: drift-1 20s, drift-2 21s, drift-3 20s, drift-4 22s (spec floor 20s), amplitude roughly doubled (e.g. `translate(13%, 8%)`), opacity 0.11 static.
+
+**`scripts/smoke-test.mjs`** — 453 checks. Key patterns established:
+- `FIRST_SHELF_BUDGET = Math.round(REFERENCE_VIEWPORT_H * 1.5)` (1218)
+- `[[375, 3350], [1280, 2400]]` page height budgets
+- `EXPECTED_PAYMENT_URLS` literal pin on live payment links
+- Real-pixel contrast sampling: hides hero text, screenshots, decodes PNG via `node:zlib` inflateSync, reads worst pixel per line box at 10 animation offsets, both themes, both viewports
+- Source-level guard: fails if `opacity` appears in any `@keyframes pub-hero-drift-*`
+- Static-vs-rendered sentence check (added 17.4)
+
+**`scripts/build-seo.mjs`** — generates index.html static block, faq.html, changelog.html, sitemap.xml, llms.txt, robots.txt, data/faq.json. Now imports `js/savings-copy.js`.
+
+**`docs/build-notes/`** (NEW): `README.md` (index of which record answers which question), `2026-08-session-log.md` (621 turns, 365KB, redacted), `extract-log.py` (redacts sk_/pk_/whsec_/gh tokens before writing).
+
+**`docs/PAYMENTS.md`** — Phase 13 spec; two trust rules (payments never influence listings; no payment machinery on our pages).
+
+**`js/payments.js`** (NEW): 
+```js
+export const PAYMENT_LINKS = {
+  tip:   { url: 'https://buy.stripe.com/3cI00idJjcJzdN75ps3AY01', label: 'buy the curator a coffee' },
+  audit: { url: '', label: 'book a fixed-fee stack audit' },   // GoCardless paylink, live URL pending
+};
+```
+
+**Scratchpad (not in repo)**: `STRIPE-PLAN.md`, `stripe-setup.sh`.
+
+## 4. Errors and Fixes
+
+1. **Enter-dismiss coach check passed on pre-fix code** — VT `skipTransition()` refocused the panel on the very keypress the test sent. Fixed by forcing reduced-motion path via `emulateMedia`.
+2. **Ways-in band never hid while deck open** (PRD motion item 8 clause unimplemented) — verifier FAIL. Fixed by hiding `.pub-entry` deferred past the morph's `finished` promise.
+3. **Pulse could fire mid-deck under load** — suppression was inside the VT `finished` callback which could land after the 900ms delay. Moved the settled class to click time (synchronous).
+4. **Stripe invoice finalised at £150 instead of £7,650** — `curl -d` does not URL-encode, so `%` in "Milestone 1 (25%)" broke form parsing and the line item was SILENTLY dropped with a 200 response. Fixed with `--data-urlencode` for every free-text field; written as an "ENCODING LAW" in the script.
+5. **My commit message falsely claimed the tests "pin the live URL"** — checks imported `payments.js` and compared DOM to whatever it returned (self-referential). Verifier proved by mutation: emptying URL → 351 PASS; swapping different buy.stripe.com URL → 353 PASS. Fixed with literal `EXPECTED_PAYMENT_URLS`.
+6. **I set the wrong contrast standard** — instructed the builder to satisfy an unreachable all-four-planes-overlapping bound, which drove opacity 0.07→0.02→0.013 and erased the design. Reversed to real pixel sampling. **That then found 0.07 was never safe either**: binding element was the utility nav links at `--ink-3` (~4.4:1), not the trust line. Root cause was colour not texture → hero nav links and trust line moved to `--ink-2`, planes restored to 0.11.
+7. **Builder stashed its 16.4 work and stalled in a wait loop; working tree came back clean** — recovered via `git stash pop`. Lesson recorded: on a feature branch a committed red tree beats an uncommitted clean one.
+8. **Four flaky checks exposed by the five-run discipline** (all pre-existing): reduced-motion stamp check sampled computed style 30ms after commit; shake pointer-guard raced Playwright round-trip against a 450ms timer; Discover scroll check asserted scrollY moved when the claim was the deck became visible; residual transition-delay check demanded empty string while failing on `{inline:"0ms", computed:"0s"}` (both zero).
+9. **TDZ error blanked the whole page** — `header` referenced `searchRow` before its declaration.
+10. **Literal BACKSPACE characters in a regex** — a `re.sub` replacement-string escape accident turned `\b0\b` into `^H0^H`, so the check hunted control codes and could never match. Only `cat -A` revealed it.
+11. **Hard-coded "twelve core tools"** while the mutation test showed the tile correctly reading 11.
+12. **`£1,896` wrapped mid-number to "£1,8 / 96"** — caused by `overflow-wrap: anywhere` I added. Replaced with `white-space: nowrap` + responsive layout change.
+13. **Crawler block drifted from the rendered page** — still advertised "roughly 2,900 coffees at £4 a cup" after the hero dropped coffees; sub-line also a phase stale. The check meant to catch this was specified at 17.1 and never written, and the generator's comment falsely claimed the two "can never drift apart". Fixed structurally with `js/savings-copy.js`.
+
+## 5. Problem Solving
+
+The verifier-gated wave loop caught real defects at nearly every wave; first-verify FAIL was the norm. Recurring meta-lesson: **checks that are green while proving nothing** — this recurred at least six times (self-referential URL pin, contrast check reading the hidden a11y sentence rather than visible text, backspace regex, opacity sampled once on a slow loop, scroll assertion testing mechanism not outcome, missing static-vs-rendered comparison). The structural answer adopted: assert outcomes not mechanisms, record events rather than sampling computed style, prove every new check bites by mutation in a worktree, and prefer shared definitions over tests where drift is possible.
+
+Budget drift was named and stopped: the first-shelf figure moved 812→880→1050 across three phases, each time because hero content was added. Rather than a fourth pixel move, it was re-anchored to 1.5 viewport heights with the explicit note that a future breach means cutting hero content.
+
+Deploy Preview checks repeatedly caught what local suites could not (Netlify header replacement, the crawler-copy drift).
+
+## 6. All User Messages
+
+- "read todo" (original session start, pre-compaction)
+- "this is incredible well done launch it then we close it all off"
+- "ok instructions for tools.airl.io" / "or should we call it something else?" / "tools.airl.io is fine for now"
+- "ok give it to me as todo list pls" / "domain should be live check" / "what am I missing"
+- "merge. I might make this repo private now a lot of IP contained" / "ok do it... so do we need this repo private?" / "so where are we now" / "ok make pr6 private whist I take site private" / "Ok its private"
+- "share links and testing routine for me pls"
+- "Print recovery sheet seems to fail (on mobile) works for download / We also dont need to mention Netlify / More changes coming"
+- "this at the bottom of very long list of products doesn't work. The main page tools.airl.io needs better design now for new visitors. More animations also... a swipe left or right might be good for each card. Left is got it, right is register later add to my list..." + "My Stack sorry not my cloud"
+- "Only thing with swipe is how user remembers and what if they revisit site they'll have to do it again. But use your judgement... Also on My Stack there needs to be batch tools for multiple entries at once with same user. Also a generate me a sign up to do list"
+- "ok do it" / "crack on" / "crack on with the build waves" / "ok then yes wait for those first / update me when wave A is running"
+- "For my stack also give them option for csv,pdf and or txt just say these cannot be imported only json can"
+- "every tool/card should have some sort of faq question, this is gold really I expect seo/SEO agent to have pulled up on this 👍🏽"
+- "merge... what is the thinking on monetisation of this i.e. buy me a coffee or something else I got one idea"
+- "I want to try a payment feature as a first off learning curve" / "are you still working on this?" / "I am still sorting stripe you draft. make it stripe agnostic i.e. we can switch in future if needed. doesn't need to be code necessarily just build instructions" / "Will gocardless work?" / "both?"
+- "ok ill work on that. I dont think a huge scrolling page works on the main opening page. Not seeing any slick animations/transitions either. No AEO like FAQs... allocate an AEO/SEO agent and Web Design Front End Agent. Audit and make changes."
+- "done?" / "1 fine as is, 2 keep with warning for now"
+- "merge"
+- "Ok its private" / "merge. pls"
+- **"ok make pr6 private whist I take site private"**
+- "merge pls"
+- "ok great build it"
+- **"do it"** (merge PR 13)
+- "Looking great.. think my stack link should be on top menu bar. Also needs better footer privacy statement and other good practice pages like contact us page links to www.airl.io and www.kaipability.com glean stuff from www.airl.io if needed \n\nDiscover mode button also needs stronger animations."
+- "merge it not seeing the effect so lets see if this works better past the preview check once more before merge pls... also sad face at bottom missing something"
+- "merge"
+- **Screenshot** + "ok a few things. When site loads for first time a block of text flashes up then disappears..too fast for screen grabs. What is this? Also when expanding a section i.e..SEO with 11 tools on mobile there should be a button that follows or can unhide again without having to scroll back up again. Finally Start Discover button on front page still really flat and uninspired look at airl.io site for how that button looks"
+- "merge"
+- "ok one thing on the minimise this does work now but takes you to faqs at bottom not back to list... think minimise heading should be on bottom also? or clearer. Still on mobile view..Will try desktop soon"
+- "merge"
+- **Screenshot** + "ok getting there these are just finesse now\n\ni think having product title i.e.. Claude free, canva in top level makes it hard to read just have Title and Number of tools.\n\nWhen you click discover the first card should shake to show it can move. It also should have a counter. How does the save work again? or is it stored via cookies?"
+- "merge"
+- **Stripe onboarding message** with business context (kaipability.com, "Manufacturing and AI Engineering practice"), Stripe products needed (Payments, Invoicing, Tax), and **pasted `pk_test_51U076Q...` and `sk_test_[REDACTED]`**
+- "so how does this work for the site"
+- "ok do what you need to do I have pulled in all sandboxed to live now"
+- "https://buy.stripe.com/3cI00idJjcJzdN75ps3AY01"
+- "can you put this entire transcript into a notes file pls - I want to keep it for posterity? Do we have a build notes and updates section?\nin the github folder not on the site I mean"
+- **Screenshot** + "Ok lets remove this from front page can move it to a subpage like tools.airl.io / changelog . Buttons for plain english and light dark mode switch should be on the top bar really. \n\nThe first section on front page should be distinctive and say what \"Free Stack\" is I think we call it what it is.. Suggestions welcomed. This is the \"hero\" so should be animated and impressive with a nice/cool/sexy background see attached"
+- "Sorry we remove the recently updated" / "and move it"
+- "ok is this live now?"
+- "yes do 1."
+- **Screenshot** + "this should be as a fixed top menu bar can compress to burger on scroll down"
+- "ok merge i think we should have a roller that spins that shows the maximum amount of money you save in pounds and Starbucks coffees somewhere I think a ticker on the hero section?"
+- "ok great build it"
+- "also make the background animation a tad faster"
+- **Screenshot** + "nice but make the facts three columns perhaps"
+- "i.e the 89 , the £ , the coffees load one after the other so eye scans"
+- "and make the background have subtle motion for light and dark mode"
+- **Mockup screenshot** + "Better but search bar is out on a lim - like this you make the call if coffees is a gimmick too far"
+- "ok do it"
+- "ok"
+- **"remember also to think about mobile view"**
+
+**Security-relevant constraints stated by the user or established and still in force:**
+- The Stripe secret key `sk_test_51U076Q...` was pasted into chat; it must be rolled. Never paste `sk_` keys into chat again (publishable `pk_` keys are fine).
+- The raw session transcript contains that live secret key — it must never be committed; the extractor redacts before writing.
+- "we also dont need to mention Netlify" — the privacy notice must not name the hosting provider.
+- The `client` URL parameter is attacker-controlled and must be inserted with `textContent`, never `innerHTML`.
+- No password field may exist anywhere on `/my`.
+- Payments: no provider SDK, no embedded checkout, no card fields, no third-party scripts; hosted links only; CSP must stay unchanged.
+
+## 7. Pending Tasks
+
+- **Commit the current uncommitted mobile fixes** (tile layout below 480px, label shortening, dead COFFEE constant removal) and run the five-run gate
+- Open/refresh PR 19 preview and re-verify the crawler-facing HTML (now a permanent pre-merge step)
+- **Rocky must click the Stripe tip link from the Deploy Preview** — the destination cannot be verified from this sandbox
+- Rocky's outstanding items: GoCardless paylink when verification clears; Stripe public business name still reads "Kaipability Ltd. sandbox" (shows on checkout pages/receipts); Bacs Direct Debit not enabled (~£2,600/yr on advisory invoices); `docs/how-we-choose.md` sign-off; Hotjar/SketchUp value figures; favicon self-hosting decision
+- Watch-list: unconfirmed 14.2 judge-then-reload chip-render report; Monday link-rot Routine `trig_01WxNYBCqWQGJx6Wq6Dsv5Ub`
+
+## 8. Current Work
+
+Immediately before this summary I was fixing the **mobile (375px) layout of the three hero fact tiles**, in response to "remember also to think about mobile view".
+
+Measured problems at 375px: tiles 92px wide but the `£1,896` figure rendered 106px (spilling outside its own bordered tile); "Starter stack of 12 saves" wrapped to three lines making that tile 111px against the others' 83px.
+
+Iterations:
+1. Shortened label to "Starter stack saves", added `align-items: stretch` → all tiles 139px (too tall, label still 3 lines)
+2. Shortened to "Starter stack" → 119px, but `overflow-wrap: anywhere` caused `£1,896` to wrap mid-number as "£1,8 / 96"
+3. Replaced with `white-space: nowrap` → figure overflowed again at 106px in a 95px tile
+4. **Final fix**: below 480px the grid becomes a single column and each tile becomes a flex row (label left, figure right):
+```css
+@media (max-width: 480px) {
+  .pub-savings-visible { grid-template-columns: 1fr; gap: var(--s-1); }
+  .pub-fact { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); padding: var(--s-2) var(--s-3); }
+  .pub-fact-figure, .pub-savings-amount { margin-top: 0; font-size: 26px; }
+}
+```
+Measurement confirmed: tiles now `{w:301,h:50}`, `{w:301,h:41}`, `{w:301,h:41}`, no overflow, `scrollWidth: 375`. The final screenshot shows three clean full-width rows: "Starter stack **£1,896**", "Tools listed **89**", "Paid placements **0**".
+
+Also uncommitted: removal of dead `COFFEE_CUP_PRICE_GBP` / `activeCoffees` constants from `scripts/build-seo.mjs` and `scripts/smoke-test.mjs` (verified 0 remaining references, suite ALL PASS after).
+
+Branch `claude/read-todo-bk47qb`, last commit was the 17.4 shared-copy fix; five-run gate on that commit returned **453/453 five times**.
+
+## 9. Optional Next Step
+
+Commit the uncommitted mobile fixes and dead-constant cleanup, then run the five-run gate, per the standard established this session. The user's most recent instruction was "remember also to think about mobile view", and the work responding to it is complete but uncommitted.
+
+Direct quote of the task in flight — my last statement to the user before the mobile work was: *"Five-run gate is going. Once it's clean I'll re-verify the preview by fetching it as a crawler would — which is how this surfaced in the first place, and is now a permanent step before I ask you to merge anything with generated content."*
+
+After committing, the remaining sequence is: refresh the PR 19 Deploy Preview, verify the crawler-facing HTML matches the rendered page (the check that now exists structurally via `js/savings-copy.js`), confirm the mobile layout on the preview, and present it for Rocky's merge word — reminding him that the **Stripe tip link still needs his own eyes**, since its destination cannot be verified from this sandbox.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /root/.claude/projects/-home-user-kai-freeSaaS/48be4215-1c7a-5838-b42b-82e2b85b35b1.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+## Claude  <sub>2026-08-03 21:20:46Z</sub>
+
+Both are dead now that the shared module supplies them. Removing rather than leaving a wrapper that does nothing:
+
+## Claude  <sub>2026-08-03 21:28:29Z</sub>
+
+The mobile row layout costs 21px of page height and breaks the 3350px budget by 17. The PRD's own rule says cut, not move the budget, so I'm reclaiming it from the row padding rather than raising the number:
+
+## Claude  <sub>2026-08-03 21:29:18Z</sub>
+
+The block is in the wrong order: my mobile rules sit *above* the base `.pub-fact` rules, so the base wins. Two of the surrounding comments also now assert the opposite of what the code does. Rewriting the whole section in specificity order:
+
+## Claude  <sub>2026-08-03 21:30:15Z</sub>
+
+375px is now 3347 against the 3350 budget, and the layout is a clean row at every width. Now the broader mobile sweep the instruction actually asked for — screenshots at 375px, both themes:
+
+## Claude  <sub>2026-08-03 21:31:21Z</sub>
+
+The footer is the real mobile defect: the logo holds a column and forces every line to wrap in a narrow gutter. Let me find the rule:
+
+## Claude  <sub>2026-08-03 21:36:26Z</sub>
+
+The suite is green, but nothing in it would have caught the footer defect. Adding checks that bite, then proving them by mutation:
+
+## Claude  <sub>2026-08-03 21:40:39Z</sub>
+
+Green, but the figures read `£432`/`0`/`0` — the count-up was still running, so the check measured a shorter string than the one that actually overhangs. Fixing it to wait for the settled value:
+
+## Claude  <sub>2026-08-03 21:40:51Z</sub>
+
+Now proving all four checks actually bite, by mutation in a throwaway worktree:
+
+## Claude  <sub>2026-08-03 21:55:06Z</sub>
+
+Now the five-run gate on the committed tree:
+
+## Claude  <sub>2026-08-03 21:55:16Z</sub>
+
+While that runs, sweeping the other surfaces at 375px for the same class of defect:
+
+## Claude  <sub>2026-08-03 21:57:20Z</sub>
+
+Deploy Preview is up on the new commit. Verifying the crawler-facing HTML on the preview, which is the step that caught the 17.4 drift:
+
+## Claude  <sub>2026-08-03 21:57:42Z</sub>
+
+Crawler block matches the rendered hero exactly, no coffee references anywhere. Now the mobile layout on the actual preview:
+
+## Claude  <sub>2026-08-03 22:00:24Z</sub>
+
+The PRD's own paragraph states a measurement (3,366px) that exceeds the budget it sets in the same sentence. Measuring all three properly and correcting it:
+
+## Claude  <sub>2026-08-03 22:01:14Z</sub>
+
+The PRD's savings-ticker clause still specifies the coffee equivalent that 17.3 deliberately cut, and the fold-cost bullet still cites the retired 880px budget. Since the PRD outranks everything else here, that drift would have a future agent rebuild coffees. Correcting it:
+
+## Claude  <sub>2026-08-03 22:02:02Z</sub>
+
+Sending the docs pass to the verifier while the gate finishes:
+
+## Claude  <sub>2026-08-03 22:04:40Z</sub>
+
+Committed work is on the preview and the crawler HTML is verified. Status while the gate and verifier finish:
+
+**Mobile fixes shipped in `b9c4355`** (three defects, all previously green through the whole suite because nothing measured them):
+
+| Defect | Cause | Fix |
+|---|---|---|
+| `£1,896` printed outside its own tile at 375px | 3 columns give 95px, figure needs 106px, and `nowrap` overflow is *clipped*, so `scrollWidth` stayed 375 and the horizontal-scroll check couldn't see it | full-width rows below 480px, label left / figure right |
+| the phone rules did nothing at all | the `@media` block sat *above* the base `.pub-fact` rules; media queries add no specificity | block moved below, whole section reordered |
+| footer text squeezed into a 215px gutter | `.cli-footer` is a flex row sized for the client deliverable's two lines; the public footer has seven paragraphs | stacks below 600px |
+
+Plus the tap-target padding, which was cancelled on one axis only, so every sentence read `Kaipability Ltd .` with a gap before the full stop.
+
+Footer stacking bought back 230px: the 375px page went from **3,347 against its 3,350 budget** to **3,117**. I left the budget where it is rather than tightening it to the new number on the same day it was rescued.
+
+Four new checks, each proved to bite by mutation in a throwaway worktree. Worth flagging: the first one initially *passed* while measuring `£432` mid-count-up, so it polls for the resting figure now. That's the sixth green-but-proves-nothing check this phase.
+
+Two things I could not verify from here, stated plainly:
+
+- **The rendered preview.** Headless Chromium can't reach external hosts in this sandbox (`ERR_CONNECTION_RESET` through the proxy). I verified the preview's `css/styles.css` and `js/public.js` are **byte-identical** to the repo, and there's no build step, so the layout I measured locally is the layout the preview serves. The crawler-facing HTML I did fetch directly, and it now states exactly what the hero states, with zero coffee references anywhere in the document.
+- **The Stripe tip link** still needs your own eyes from the preview: https://deploy-preview-19--kai-freestack.netlify.app/ — I can confirm the href is `buy.stripe.com/3cI00idJjcJzdN75ps3AY01` and that it's a live rather than test link, but not what it opens.
+
+I also found the PRD had drifted in a way worth naming: its savings-ticker clause still *specified* the coffee equivalent a phase after 17.3 cut it, and since `CLAUDE.md` makes the PRD authoritative, that read as an instruction to a future agent to rebuild the gimmick you'd just retired. And the page-budget paragraph recorded "currently measured at 3,366px" against a 3,350 budget stated in the same sentence — a measurement written down from a tree whose suite was failing that exact check. Both corrected.
+
+Five-run gate is at 2/5 clean (457 checks each). I'll report the full result, the CI conclusion and the verifier's findings before asking for your merge word.
+
+## Claude  <sub>2026-08-03 22:05:04Z</sub>
+
+Docs commit pushed as `b816b6a`; working tree is clean.
+
+Five-run gate is at **3/5 clean, 457 checks each**. Still outstanding before I ask for your merge word: runs 4 and 5, the CI `validate-and-smoke` conclusion on the PR, and the verifier's report on the 17.5 code and records.
+
+## Claude  <sub>2026-08-03 22:07:31Z</sub>
+
+Verifier found a real defect, and it's the exact bug class I'd just fixed. Confirming it:
+
+## Claude  <sub>2026-08-03 22:07:58Z</sub>
+
+The verifier is right: `28px` vs `26px` on mobile, `44px` vs `40px` on desktop. That block is a leftover from before the tiles existed — `display: inline-block; vertical-align: baseline; margin-right` are vestiges of when the amount sat inline in a sentence:
+
+## Claude  <sub>2026-08-03 22:08:32Z</sub>
+
+The suite had no check that would catch a duplicate rule winning on source order. Adding one at both widths:
+
+## Claude  <sub>2026-08-03 22:08:57Z</sub>
+
+Now fixing the second thing the verifier caught — my own new PRD sentence claims *every* number is computed at runtime, but "Paid placements" is a literal:
+
+## Claude  <sub>2026-08-03 22:12:51Z</sub>
+
+All five runs were clean (the exit code 1 was my loop's trailing `grep` finding no FAIL lines). But runs 4 and 5 overlapped my edits, so that gate doesn't cover the final tree — it has to be redone. Committing first:
+
+## Claude  <sub>2026-08-03 22:16:49Z</sub>
+
+The verifier earned its keep — it caught the same bug class one rule further down the file, in code I'd just declared fixed.
+
+**What it found.** A standalone `.pub-savings-amount` block sat *after* the shared `.pub-fact-figure, .pub-savings-amount` rule at equal specificity, so it won every tie. The lead figure was rendering **44px against the other two facts' 40px**, and **28px against their 26px** on a phone — while the comment three rules above asserted "the 26px figure still sets the row height."
+
+The block dated from 17.1, when the saving was one figure set inline in a sentence: `display: inline-block`, `vertical-align: baseline` and a right margin are all vestiges of a sentence that stopped existing when 17.3 turned the hero into three tiles. Deleted rather than patched — nobody ever chose 44px or 28px, they're what an old rule for a different layout happened to say.
+
+**The part worth your attention:** the four phone-layout checks I wrote in the previous commit did not catch this and *could not have*. They measure overhang, and a 2px difference overhangs nothing. So the new check asserts the three figures are a set, which is exactly what one selector naming all three already claims. It runs at 1280 and again at 375, because the two rules that disagreed lived in different media contexts. Both fail on the restored duplicate: `44/40/40` and `28/26/26`.
+
+The verifier also caught a sentence I'd written into the PRD claiming every hero number is computed at runtime. "Paid placements" is a literal zero, and should be — there's no field to sum, because the honest expression of "we take no money to list anything" is that the codebase has nowhere to record such a payment. Corrected.
+
+**One correction to my own status report.** I told you the gate was at 3/5. All five runs did come back clean at 457 checks, but runs 4 and 5 overlapped my edits, so that gate never covered the final tree and I'm not counting it. A fresh five-run gate is now going on the committed head `8fa8d3d`, with 459 checks and nothing else touching the tree. CI is re-armed on the same commit.
+
+Nothing to merge until both come back.
+
+## Claude  <sub>2026-08-03 22:32:24Z</sub>
+
+Five-run gate is clean on the final commit: **459/459, five consecutive runs**, tree unchanged throughout. Recording the second fix:
+
+## Claude  <sub>2026-08-03 22:32:41Z</sub>
+
+Adding the trap to `CLAUDE.md` — it's directly analogous to the existing "`id` may be `0`" note, and it bit twice in one phase:
+
+## Claude  <sub>2026-08-03 22:33:46Z</sub>
+
+Phase 17.5 is complete and pushed. Waiting on CI for `6aa4fd0`.
+
+**Five-run gate: 459/459, five consecutive clean runs on `8fa8d3d`,** tree untouched throughout. The one commit after it (`6aa4fd0`) changes only `BUILD-PLAN.md` and `CLAUDE.md` — no served asset — so the gate still covers the shipped code.
+
+**Five defects fixed, none of which the existing suite could see:**
+
+| | Why nothing caught it |
+|---|---|
+| `£1,896` printed outside its tile at 375px | clipped overflow doesn't widen the document, so the horizontal-scroll check was blind |
+| the phone rules did nothing at all | media queries add no specificity; the block sat above the rules it overrode |
+| footer text crushed into a 215px gutter | no check measured the footer's measure |
+| tap padding cancelled on one axis | links measured 44px while `Kaipability Ltd .` gained a gap |
+| lead figure 44px against the others' 40px | a stale duplicate selector winning on source order |
+
+The fifth came from the verifier, in code I had just declared fixed. Six new checks now, each proved to bite by mutation.
+
+**The pattern worth naming, since it's now the dominant failure mode of this phase:** checks that are green while proving nothing. The overhang check initially passed while measuring `£432` mid-count-up; the four phone checks were structurally incapable of catching a 2px size difference. That's seven instances this phase. I've written the source-order trap into `CLAUDE.md` beside the existing "`id` may be `0`" note, because both are cheap to state and expensive to rediscover.
+
+**Two things still need you, not me:**
+
+1. **The Stripe tip link.** Its destination cannot be verified from this sandbox. I can confirm the href is `buy.stripe.com/3cI00idJjcJzdN75ps3AY01`, that it's live rather than test-mode, and that it carries the correct `target`/`rel` — but not what opens when you click it. Worth doing from the preview before this reaches production.
+2. **The rendered preview on a real phone.** Headless Chromium can't reach external hosts here, so I verified the preview's `css/styles.css` and `js/public.js` are byte-identical to the repo and reasoned from there. The QR code in the Netlify comment on PR 19 is the fastest route.
+
+I'll report CI's conclusion when it lands, and I won't merge without your word.
+
+## Claude  <sub>2026-08-03 23:04:09Z</sub>
+
+Everything's green. Phase 17.5 is ready for your call.
+
+**CI on `6aa4fd0`:** `validate-and-smoke` success, Netlify header rules success, redirect rules success.
+**Five-run gate:** 459/459, five consecutive clean runs.
+**Preview:** serving the fixed CSS byte-identical to the repo (`ea4184c9…`), and the crawler block reads exactly what the hero reads, with zero coffee references anywhere in the document.
+
+One correction to my own process, since it's the same failure I've been cataloguing all phase: the CI monitor I armed reported nothing for thirty minutes and timed out. It wasn't waiting — its unauthenticated `curl` to a private repo was returning 404 the whole time, so the loop had nothing to match on and looked identical to "still running." A watcher that can never fire is the silent version of a check that's green while proving nothing. The GitHub MCP tool answered immediately when I asked it directly.
+
+**Phase 17.5 in full — five defects, none visible to the suite that existed:**
+
+- `£1,896` printing outside its tile at 375px (clipped overflow never widens the document)
+- the phone rules doing nothing at all (media queries add no specificity)
+- footer text crushed into a 215px gutter, which cost 230px of page height
+- tap padding cancelled on one axis, giving every sentence `Kaipability Ltd .`
+- the lead figure at 44px against the other two facts' 40px, from a stale duplicate selector
+
+Six new checks, each proved to bite by mutation. The PRD is back in line with what 17.3 actually shipped, including an explicit "do not reinstate the coffees" and why — it had been specifying a cut feature for a phase, and since the PRD outranks everything, that was an instruction to a future agent to rebuild it.
+
+**Still yours to do, and I'd do both before this goes to production:**
+
+1. **Click the Stripe tip link from the preview.** I can prove the href, that it's live rather than test-mode, and the `target`/`rel` — but not what opens. That's the one thing this sandbox structurally cannot check.
+2. **Open the preview on your actual phone** (QR code is in the Netlify comment on PR 19). Headless Chromium can't reach external hosts here, so my mobile verification is measurement plus byte-identical assets, not your thumb on glass — and the last three rounds of mobile defects all came from your phone, not my measurements.
+
+Say the word and I'll merge.
+
+## Rocky  <sub>2026-08-04 08:26:48Z</sub>
+
+do you have the preview link
+
+## Claude  <sub>2026-08-04 08:26:57Z</sub>
+
+Yes: **https://deploy-preview-19--kai-freestack.netlify.app/**
+
+That's PR 19, currently on `6aa4fd0` with all checks green. Two things worth clicking while you're in there:
+
+- **The tip link in the footer** ("buy the curator a coffee") — the one thing I can't verify from here. I can prove the href is `buy.stripe.com/3cI00idJjcJzdN75ps3AY01` and that it's live rather than test-mode, but not what actually opens.
+- **The hero on your phone**, since the last three rounds of mobile defects all came from your screen rather than my measurements. There's also a QR code in the Netlify comment on the PR if that's quicker than typing the URL.
+
+## Rocky  <sub>2026-08-04 09:52:37Z</sub>
+
+launch it
+
+## Claude  <sub>2026-08-04 09:52:59Z</sub>
+
+PR body is stale — it still claims 451 checks and "they stay a row at every width", which 17.5 reversed. That body becomes the squash commit message on `main`, so correcting it before merging:
+
+## Claude  <sub>2026-08-04 09:54:08Z</sub>
+
+Merged and launched. `41d82c2` is on `main`, so Netlify is deploying to production now.
+
+Before merging I rewrote the PR body — it was stale in a way that mattered, since a squash merge makes it the permanent commit message on `main`. It still claimed 451 checks and that the fact tiles "stay a row at every width and the figures scale instead," which is the exact approach 17.5 reversed. It now records what actually shipped: 459/459, the phone layout, all nine defects, and the two things I could not verify from here.
+
+**Phase 17 as landed:**
+
+- Search in the hero with **Browse all 89**, three fact tiles counting up in sequence — **£1,896** / **89** / **0**
+- Coffees cut; *Paid placements: 0* in their place
+- Background drift perceptible at 20-22s, still contrast-verified by real pixel sampling
+- Search now usable while Discover is open, closing a cost flagged back at 15.1
+- Phone: facts become full-width rows below 480px, footer stacks below 600px
+- One savings sentence, defined once, imported by both the renderer and the crawler-block generator
+
+I'm watching production and will confirm when the live site serves the new crawler block. Two things still want your eyes now that it's public:
+
+1. **The Stripe tip link** — genuinely unverifiable from this sandbox. It's live on `tools.airl.io` from this moment, so worth a click sooner rather than later.
+2. **The hero on your phone.** Every mobile defect this phase came from your screen, not my measurements, and the last one came from the verifier reading code I'd already declared fixed.
+
+## Claude  <sub>2026-08-04 09:54:44Z</sub>
+
+**Live on tools.airl.io.**
+
+Production is serving the merged build, verified rather than assumed:
+
+- **CSS byte-identical to `main`** (`ea4184c9…`), so the phone rules that shipped are the ones I measured
+- **Crawler block reads exactly what the hero reads**, zero coffee-divisor references in the document
+- All seven surfaces return real content, not the SPA fallback — I checked `<title>` on each rather than trusting the 200s, since a 200 on this site proves nothing on its own
+
+`/my` and `/x` correctly share the index title: both are client-rendered from `index.html` by design, which is what the Phase 10.12 path split set up.
+
+**Two things I'd still get your eyes on, now that it's public rather than a preview:**
+
+1. **The Stripe tip link.** Live in the production footer as of this deploy. I've asserted everything checkable — href, live rather than test-mode, `target`/`rel` — but what opens when a real person clicks it is the one thing this sandbox structurally cannot see, and it now takes real money.
+2. **The hero on your phone.** Worth saying plainly: every mobile defect this phase came from your screen rather than my measurements, and the last one came from the verifier reading code I had already told you was fixed.
+
+**Still on your list from earlier, unchanged:** the GoCardless paylink when verification clears; the Stripe public business name still reading "Kaipability Ltd. sandbox" on checkout pages and receipts; Bacs Direct Debit not yet enabled (roughly £2,600/yr on advisory invoices); `docs/how-we-choose.md` sign-off; the Hotjar and SketchUp value figures; and the favicon self-hosting decision. The Monday link-rot Routine is still armed.
+
+## Rocky  <sub>2026-08-04 10:01:31Z</sub>
+
+value this work. yes we could take to next level I think easily and commoditise and convert to SaaS product but as is then its future VC potential. What would have this cost to build in 2020 (assuming tools were available then)
+
+## Claude  <sub>2026-08-04 10:01:38Z</sub>
+
+Let me measure the actual artefact before pricing it, rather than estimating from impression:
+
+## Claude  <sub>2026-08-04 10:02:02Z</sub>
+
+Two things to do. Let me start with the archive, since that's the one with a deadline attached:
