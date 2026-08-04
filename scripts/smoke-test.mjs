@@ -86,6 +86,16 @@ const active = allTools.filter((t) => !t.archived);
 const activeCore = active.filter((t) => t.type === 'core').length;
 const activeCategories = new Set(active.map((t) => t.category)).size;
 
+/* Phase 17: savings ticker (PRD section 16 amended layout item 1's
+   savings-ticker clause, BUILD-PLAN 17.1). Computed here straight from
+   data/tools.json, the same way js/public.js and scripts/build-seo.mjs
+   compute their own figures, so every check below is against a freshly
+   derived expectation rather than a literal copied out of the app. */
+const sumValue = (list) => list.reduce((total, t) => total + (Number.isFinite(t.value) ? t.value : 0), 0);
+const activeCeilingValue = sumValue(active);
+const activeCoreValue = sumValue(active.filter((t) => t.type === 'core'));
+const gbp = (n) => `£${n.toLocaleString('en-GB')}`;
+
 const browser = await chromium.launch();
 const page = await browser.newPage();
 const pageErrors = [];
@@ -221,10 +231,6 @@ await page.waitForFunction(() => document.querySelectorAll('#public-root .card-g
    paths and their order, the Discover stub's scroll (never a dead end
    before js/discover.js exists), persona chips composing with the rest of
    the filter state, and the reduced-motion reveal contract. */
-const heroCountText = await page.locator('.pub-hero-count').textContent();
-check('homepage: hero count equals the active tools.json count',
-  heroCountText.includes(String(active.length)), heroCountText.trim());
-
 /* --- Phase 16.2: hero rewrite (PRD section 16 amended item 1, BUILD-PLAN
    16.2) -----------------------------------------------------------------
    The mandated headline and sub-line, verbatim, with the sub-line's count
@@ -239,9 +245,9 @@ check('homepage: hero headline states the PRD-mandated proposition sentence',
   heroHeadlineText.trim() === 'The free software directory for small business.', heroHeadlineText.trim());
 
 const heroSublineText = await page.locator('.pub-hero-subline').textContent();
-const expectedSubline = `${active.length} tool${active.length === 1 ? '' : 's'} with genuinely free tiers, honest limits, and at least two alternatives each. Nobody paid to be listed.`;
-check('homepage: hero sub-line carries the runtime tool count and the mandated closing sentence',
-  heroSublineText.trim() === expectedSubline, heroSublineText.trim());
+check('homepage: hero sub-line carries the mandated qualities sentence',
+  heroSublineText.trim() === 'Honest limits, at least two alternatives for every tool, and nobody paid to be listed.',
+  heroSublineText.trim());
 
 const publicJsSource = readFileSync(join(ROOT, 'js', 'public.js'), 'utf8');
 check('homepage: js/public.js never hard-codes the active tool count as a literal "89"',
@@ -250,6 +256,152 @@ check('homepage: js/public.js never hard-codes the active tool count as a litera
 const heroPanelText = await page.locator('.pub-header').textContent();
 check('homepage: the old duplicated "N free tools in the directory" trust line is gone (count now lives in the sub-line only)',
   !heroPanelText.includes('in the directory'));
+
+/* --- Phase 17: savings ticker (PRD section 16 amended layout item 1's
+   savings-ticker clause, BUILD-PLAN 17.1) ---------------------------------
+   SAVINGS_COUNT_MS (js/public.js) is 1100ms and, since 17.2, the three
+   figures start FACT_STAGGER_MS (260ms) apart, so the last one settles at
+   about 260*2 + 1100 = 1620ms. Waiting past that is what proves the RESTING
+   figures the count-ups settle on, never a mid-count sample; the previous
+   1300ms wait predated the stagger and would now read the coffee figure
+   mid-count. */
+await page.waitForTimeout(2000);
+const heroFactCountText = await page.locator('.pub-fact-figure').first().textContent();
+check('homepage: the first fact figure settles on the active tools.json count',
+  heroFactCountText.trim() === String(active.length), heroFactCountText.trim());
+const savingsAmountText = await page.locator('.pub-savings-amount').first().textContent();
+check('homepage: the lead tile figure equals a freshly computed sum of the CORE tool values',
+  savingsAmountText.trim() === gbp(activeCoreValue), `got=${savingsAmountText.trim()} want=${gbp(activeCoreValue)}`);
+
+const savingsTickerText = await page.locator('.pub-savings-ticker').first().textContent();
+const savingsVisibleText = await page.locator('.pub-savings-visible').first().textContent();
+check('homepage: the VISIBLE block carries both figures and the ceiling framing, not only the hidden a11y sentence',
+  /if you used all/i.test(savingsVisibleText)
+  && savingsVisibleText.includes(gbp(activeCoreValue))
+  && savingsVisibleText.includes(gbp(activeCeilingValue)), savingsVisibleText.trim());
+check('homepage: the ceiling never appears without its "if you used all N tools" framing',
+  savingsTickerText.includes(gbp(activeCeilingValue))
+  && /if you used all/i.test(savingsTickerText) && savingsTickerText.includes(`${active.length} tools the ceiling`),
+  savingsTickerText.trim());
+check('homepage: the ceiling never appears without the realistic core figure in the same block',
+  savingsTickerText.includes(gbp(activeCeilingValue)) && savingsTickerText.includes(gbp(activeCoreValue)),
+  savingsTickerText.trim());
+check('homepage: the core figure equals a freshly computed sum of active core-typed tool values',
+  savingsTickerText.includes(gbp(activeCoreValue)), savingsTickerText.trim());
+/* Assert the tile's own figure, not a substring of the block's concatenated
+   text: that text holds other digits, so a loose match would pass on the
+   wrong number. (The previous version of this line contained literal
+   backspace characters, a re.sub replacement-string escape accident, so it
+   searched for control codes and could never match.) */
+const paidPlacementFigure = (await page.locator('.pub-fact')
+  .filter({ hasText: /paid placements/i }).locator('.pub-fact-figure').first().textContent()).trim();
+check('homepage: the trust fact tile states zero paid placements',
+  /paid placements/i.test(savingsTickerText) && paidPlacementFigure === '0',
+  `figure=${paidPlacementFigure}`);
+
+/* 17.5. The three fact figures are styled by one selector,
+   `.pub-fact-figure, .pub-savings-amount`, so they are meant to be a set.
+   A standalone `.pub-savings-amount` block left over from 17.1's inline
+   sentence sat LATER in the file at equal specificity, so it won every tie
+   and the lead figure silently rendered 44px against the other two's 40px,
+   and 26px against 28px once the phone rules landed. Nothing caught it,
+   including the phone-layout checks written in the same commit: they
+   measured overhang, and a 2px difference overhangs nothing.
+
+   So this asserts the set is a set. If the lead figure should ever be
+   emphasised, that is a deliberate design decision and this check should
+   fail until someone writes it down here, which is the point. */
+const factFigureTreatment = await page.evaluate(() => {
+  return [...document.querySelectorAll('.pub-fact-figure, .pub-savings-amount')].map((n) => {
+    const cs = getComputedStyle(n);
+    return { text: n.textContent.trim(), fontSize: cs.fontSize, display: cs.display, fontWeight: cs.fontWeight };
+  });
+});
+const factTreatmentsAgree = factFigureTreatment.length === 3
+  && factFigureTreatment.every((f) => f.fontSize === factFigureTreatment[0].fontSize
+    && f.display === factFigureTreatment[0].display
+    && f.fontWeight === factFigureTreatment[0].fontWeight);
+check('homepage: all three hero fact figures share one computed treatment (no duplicate rule winning on source order)',
+  factTreatmentsAgree, JSON.stringify(factFigureTreatment));
+
+// Accessibility (BUILD-PLAN 17.1 item 4): the accessible name is one
+// settled sentence, present from the start, never aria-live; the animated
+// digits and their visible siblings are aria-hidden, so the count-up is
+// never read digit-by-digit or announced repeatedly.
+/* The static crawler block and the rendered hero must state the SAME
+   sentence. This check was specified at 17.1 and never written, and at 17.3
+   the two drifted: the block kept advertising a coffee equivalent the hero
+   had dropped, so crawlers and no-JS readers were told something the page no
+   longer said. Both now import js/savings-copy.js, which makes the drift
+   inexpressible rather than merely detectable, and this asserts it. */
+const staticHeroSentence = readFileSync(join(ROOT, 'index.html'), 'utf8');
+const renderedSavingsSentence = (await page.locator('.pub-savings-ticker .visually-hidden')
+  .first().textContent()).trim();
+check('homepage: the static crawler block states the SAME savings sentence the hero renders',
+  staticHeroSentence.includes(renderedSavingsSentence), renderedSavingsSentence);
+check('homepage: the static crawler block carries no retired coffee copy',
+  !/coffee/i.test(staticHeroSentence));
+
+const savingsHiddenSentence = await page.locator('.pub-savings-ticker .visually-hidden').first().textContent();
+check("homepage: the ticker's accessible sentence states the final figures up front",
+  savingsHiddenSentence.includes(gbp(activeCeilingValue)) && savingsHiddenSentence.includes(gbp(activeCoreValue))
+  && /if you used all/i.test(savingsHiddenSentence), savingsHiddenSentence.trim());
+const savingsVisibleAriaHidden = await page.locator('.pub-savings-visible').first().getAttribute('aria-hidden');
+check('homepage: the animated ceiling and its visible siblings are aria-hidden (no digit-by-digit spam)',
+  savingsVisibleAriaHidden === 'true');
+const savingsTickerLiveAttr = await page.locator('.pub-savings-ticker').first().getAttribute('aria-live');
+check('homepage: the ticker container carries no aria-live region (the static sentence is the accessible name instead)',
+  savingsTickerLiveAttr === null);
+const savingsTickerAnimName = await page.locator('.pub-savings-ticker').first().evaluate((n) => getComputedStyle(n).animationName);
+check('homepage: the savings ticker itself carries no CSS animation-name (a terminating rAF loop, not a third ambient exception)',
+  savingsTickerAnimName === 'none', savingsTickerAnimName);
+
+// No hard-coded total: the figures above are computed at runtime by
+// js/public.js and at generation time by scripts/build-seo.mjs, so the
+// literal digit strings should never appear as SOURCE text in either file.
+// They legitimately appear in generated OUTPUT (index.html's static block,
+// checked separately below, and the rendered DOM just read above), which is
+// the point of the feature, not a violation of this check.
+const buildSeoSource = readFileSync(join(ROOT, 'scripts', 'build-seo.mjs'), 'utf8');
+const literalCeiling = activeCeilingValue.toLocaleString('en-GB');
+const literalCore = activeCoreValue.toLocaleString('en-GB');
+check('grep: js/public.js never hard-codes the savings ceiling or core figure as a literal',
+  !publicJsSource.includes(literalCeiling) && !publicJsSource.includes(literalCore));
+check('grep: scripts/build-seo.mjs never hard-codes the savings ceiling or core figure as a literal',
+  !buildSeoSource.includes(literalCeiling) && !buildSeoSource.includes(literalCore));
+
+/* --- Phase 17 mutation test: the ticker must track the data, not a
+   snapshot (BUILD-PLAN 17.1: "proven by mutating data/tools.json ... archive
+   a high-value tool, confirm both figures follow"). Tool id 0 is
+   deliberately the one archived here: it is core-typed and carries real
+   value (£200), so archiving it moves BOTH the ceiling and the core figure,
+   and doing it via id 0 specifically doubles as a live proof that the
+   ticker's own summation never drops tool 0 through a truthiness check (the
+   section 4 id law this whole codebase is held to). Served via the
+   archiveIds mechanism (top of this file), which mutates only the copy this
+   test server hands out, never the committed data/tools.json (this suite's
+   own stand-in for a worktree with the archived flag flipped). */
+{
+  const mutatedActive = active.filter((t) => t.id !== 0);
+  const mutatedCeiling = sumValue(mutatedActive);
+  const mutatedCore = sumValue(mutatedActive.filter((t) => t.type === 'core'));
+  archiveIds = new Set([0]);
+  const mutPage = await browser.newPage();
+  await mutPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  await mutPage.goto(`${base}/`);
+  await mutPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+  await mutPage.waitForTimeout(1300);
+  const mutatedAmountText = await mutPage.locator('.pub-savings-amount').first().textContent();
+  const mutatedTickerText = await mutPage.locator('.pub-savings-ticker').first().textContent();
+  check('homepage: archiving a high-value core tool (id 0) moves the rendered lead figure to match',
+    mutatedAmountText.trim() === gbp(mutatedCore), `got=${mutatedAmountText.trim()} want=${gbp(mutatedCore)}`);
+  check('homepage: archiving that tool also moves the ceiling shown in the detail line',
+    mutatedTickerText.includes(gbp(mutatedCeiling)), mutatedTickerText.trim());
+  check('homepage: archiving a high-value core tool (id 0) moves the rendered core figure to match',
+    mutatedTickerText.includes(gbp(mutatedCore)), mutatedTickerText.trim());
+  await mutPage.close();
+  archiveIds = null;
+}
 
 // Phase 14.1 adaptation: PRD section 16 as amended retires the "Browse all"
 // entry card, its job passing to the shelf band's own Expand all / Collapse
@@ -364,6 +516,106 @@ const homeMobilePitches = await homeMobile.locator('.pub-entry-item .pub-entry-p
 check('homepage: entry paths still Discover-first at 375px',
   homeMobilePitches[0]?.startsWith('Discover:') && homeMobilePitches[1]?.toLowerCase().includes('shortlist'),
   homeMobilePitches.join(' | '));
+
+/* Phase 17.5, phone layout. Two defects shipped green through every check
+   above, so both get an assertion here.
+
+   1. The hero fact figures. Below 480px each fact is a full-width row,
+      label left and figure right, because three tiles cannot hold "£1,896"
+      at a legible size in a 95px column. The figure is `white-space:
+      nowrap`, so when the container is too narrow it does not wrap, it
+      OVERHANGS: the visible symptom is a currency figure printed outside
+      its own bordered tile, and document scrollWidth stays 375 throughout
+      because the overflow is clipped rather than scrolled. The check above
+      therefore cannot see it. Assert each figure's box against its own
+      tile's box instead.
+
+   2. The footer. .cli-footer is a flex row, logo beside text, which suits
+      the two-line client deliverable. The public footer carries seven
+      paragraphs, and on a phone the logo column left the text roughly
+      215px of measure: every line wrapped early and sat indented beside an
+      empty gutter. Assert the text block gets essentially the full
+      container width, which is only true once the footer stacks. */
+/* Wait for the count-ups to SETTLE before measuring. The lead figure grows
+   from "£0" to "£1,896" over SAVINGS_COUNT_MS, and a mid-count sample is a
+   shorter string: measured at "£432" the check passed on a layout that
+   overhangs at the resting value, which is the whole defect. Polled on the
+   expected resting text rather than slept on, so it cannot flake on a slow
+   run and cannot silently measure the wrong frame on a fast one. */
+await homeMobile.waitForFunction(
+  (want) => document.querySelector('.pub-savings-amount')?.textContent.trim() === want,
+  gbp(activeCoreValue),
+  { timeout: 5000 },
+);
+const factRowFit = await homeMobile.evaluate(() => {
+  return [...document.querySelectorAll('.pub-fact')].map((tile) => {
+    const figure = tile.querySelector('.pub-fact-figure, .pub-savings-amount');
+    const t = tile.getBoundingClientRect();
+    const f = figure.getBoundingClientRect();
+    return {
+      text: figure.textContent.trim(),
+      // Half a pixel of tolerance for sub-pixel layout, nothing more.
+      overhang: Math.round(Math.max(0, f.right - t.right, t.left - f.left)),
+    };
+  });
+});
+check('mobile: every hero fact figure sits inside its own tile at 375px (nowrap figures overhang silently, they never widen the page)',
+  factRowFit.length === 3 && factRowFit.every((r) => r.overhang === 0),
+  JSON.stringify(factRowFit));
+
+/* The same set check as at desktop width, repeated here because the two
+   rules that disagreed were in different media contexts: the phone override
+   and its unqualified twin. Passing at 1280 proved nothing about 375. */
+const mobileFactTreatment = await homeMobile.evaluate(() => {
+  return [...document.querySelectorAll('.pub-fact-figure, .pub-savings-amount')]
+    .map((n) => ({ text: n.textContent.trim(), fontSize: getComputedStyle(n).fontSize }));
+});
+check('mobile: all three hero fact figures share one computed font size at 375px',
+  mobileFactTreatment.length === 3
+    && mobileFactTreatment.every((f) => f.fontSize === mobileFactTreatment[0].fontSize),
+  JSON.stringify(mobileFactTreatment));
+
+const mobileFooterFit = await homeMobile.evaluate(() => {
+  const footer = document.querySelector('.pub-footer');
+  const textBlock = footer.querySelector('div');
+  return {
+    footerW: Math.round(footer.getBoundingClientRect().width),
+    textW: Math.round(textBlock.getBoundingClientRect().width),
+    flexDirection: getComputedStyle(footer).flexDirection,
+  };
+});
+check('mobile: the public footer stacks at 375px so its text gets the full measure, not the gutter beside the logo',
+  mobileFooterFit.flexDirection === 'column'
+    && mobileFooterFit.textW >= mobileFooterFit.footerW * 0.95,
+  JSON.stringify(mobileFooterFit));
+
+/* The 44px floor on footer links (Rocky's 26 Jul phone test) is enforced by
+   padding plus a negative margin that cancels it. Get the margin wrong on
+   one axis and the links still measure 44px while a visible gap opens
+   before every full stop, which is exactly what shipped. So this checks
+   both halves: the tap target AND that the box does not push the text it
+   sits in. */
+const footerLinkBoxes = await homeMobile.evaluate(() => {
+  return [...document.querySelectorAll('.pub-footer a')].map((a) => {
+    const cs = getComputedStyle(a);
+    const px = (v) => Math.round(parseFloat(v) || 0);
+    return {
+      text: a.textContent.trim().slice(0, 20),
+      height: Math.round(a.getBoundingClientRect().height),
+      // Padding minus the margin that cancels it: 0 means the link occupies
+      // exactly the width its text would have occupied inline.
+      netLeft: px(cs.paddingLeft) + px(cs.marginLeft),
+      netRight: px(cs.paddingRight) + px(cs.marginRight),
+    };
+  });
+});
+check('mobile: every public footer link clears the 44px tap floor at 375px',
+  footerLinkBoxes.length > 0 && footerLinkBoxes.every((l) => l.height >= 44),
+  JSON.stringify(footerLinkBoxes.filter((l) => l.height < 44)));
+check('mobile: footer link tap padding is cancelled horizontally, so no gap opens before the full stop after a link',
+  footerLinkBoxes.every((l) => l.netLeft === 0 && l.netRight === 0),
+  JSON.stringify(footerLinkBoxes.filter((l) => l.netLeft !== 0 || l.netRight !== 0)));
+
 await homeMobile.close();
 
 // Phase 14.1: shared helper, used throughout the rest of this file. Every
@@ -561,6 +813,20 @@ const reducedHeroAnimCount = await reducedMotionPage.locator('.pub-header').firs
   .evaluate((n) => n.getAnimations({ subtree: true }).length);
 check('homepage: the hero subtree runs zero animations under reduced motion (getAnimations)',
   reducedHeroAnimCount === 0, `count=${reducedHeroAnimCount}`);
+
+// Phase 17 (BUILD-PLAN 17.1): "reduced motion renders the final values
+// instantly with no counting". Read with NO post-load wait at all (unlike
+// the normal-motion check, which deliberately waits past SAVINGS_COUNT_MS):
+// animateSavingsCeiling's reduced-motion branch writes the exact resting
+// figure synchronously, with no rAF involved, so it must already be correct
+// the instant the card is attached.
+const reducedSavingsAmount = await reducedMotionPage.locator('.pub-savings-amount').first().textContent();
+check('homepage: reduced motion renders the lead figure final value immediately, with no counting',
+  reducedSavingsAmount.trim() === gbp(activeCoreValue), reducedSavingsAmount.trim());
+const reducedTickerAnimCount = await reducedMotionPage.locator('.pub-savings-ticker').first()
+  .evaluate((n) => n.getAnimations({ subtree: true }).length);
+check('homepage: reduced motion leaves zero animations on the savings ticker',
+  reducedTickerAnimCount === 0, `count=${reducedTickerAnimCount}`);
 await reducedMotionPage.close();
 
 // Same button, normal motion: the rewritten treatment's recorded exception,
@@ -1000,8 +1266,12 @@ const tool0 = active.find((t) => t.id === 0);
 const tool0Slug = slugifyForTest(tool0.category);
 
 // Height budgets, both widths, all shelves collapsed (the default state on
-// a fresh load, before anything is clicked).
-for (const [width, budget] of [[375, 3200], [1280, 2300]]) {
+// a fresh load, before anything is clicked). Reconciled at Phase 17.1 from
+// 3,200/2,300 to 3,350/2,400: the savings ticker is a genuine block of hero
+// content beneath the sub-line (Rocky's own request), measured at 3,263px
+// and 2,328px respectively, each rounded up with headroom rather than
+// pinned to the exact measurement (PRD section 16, "Page height budgets").
+for (const [width, budget] of [[375, 3350], [1280, 2400]]) {
   const budgetPage = await browser.newPage({ viewport: { width, height: 900 } });
   const budgetErrors = [];
   budgetPage.on('pageerror', (e) => budgetErrors.push(String(e)));
@@ -1036,9 +1306,22 @@ await foldPage.waitForTimeout(400);
 const FIRST_VIEWPORT = 812;
 // PRD section 16's reconciled budget (BUILD-PLAN changelog, 31 Jul): the
 // search input sits inside the 812px viewport; the first shelf header's top
-// is at most 880px, since the mandated hero trust signals and ways-in band
-// honestly occupy most of the first screen (measured 863px as built).
-const FIRST_SHELF_BUDGET = 880;
+// is at most 1,050px, since the mandated hero trust signals and ways-in band
+// honestly occupy most of the first screen. Reconciled again at Phase 17.1
+// from 880 to 1,050: the savings ticker adds a genuine block of hero content
+// beneath the sub-line (Rocky's own request), measured at 995.5px as built,
+// rounded up with headroom rather than pinned to the exact measurement.
+/* Re-anchored at 17.3 to 1.5 viewport heights (812 * 1.5 = 1218) instead of
+   another hand-picked pixel figure. This number had moved three times in
+   three phases, 812 to 880 to 1,050, each time because hero content was
+   deliberately added, and a budget that moves whenever it binds is not a
+   constraint at all. What it exists to protect is stated in the PRD as
+   "the shelves one thumb-flick away", so it is now expressed as exactly
+   that: a screen and a half on the reference viewport. If a future change
+   breaches THIS, the honest answer is to cut hero content, not to move the
+   number again, because there is no principled place left to move it to. */
+const REFERENCE_VIEWPORT_H = 812;
+const FIRST_SHELF_BUDGET = Math.round(REFERENCE_VIEWPORT_H * 1.5);
 const searchBox = await foldPage.locator('.pub-search').boundingBox();
 const firstShelfHeaderBox = await foldPage.locator('.pub-shelf-header').first().boundingBox();
 // Playwright's boundingBox() returns {x, y, width, height}, not the DOM
@@ -1049,7 +1332,7 @@ const searchTop = searchBox ? searchBox.y : null;
 const firstShelfHeaderTop = firstShelfHeaderBox ? firstShelfHeaderBox.y : null;
 check('shelf: the search input sits within the first 375x812 mobile viewport',
   searchTop !== null && searchTop <= FIRST_VIEWPORT, `searchTop=${searchTop}`);
-check('shelf: the first shelf header top is within the reconciled 880px budget at 375x812',
+check(`shelf: the first shelf header top is within ${FIRST_SHELF_BUDGET}px (1.5 viewports) at 375x812`,
   firstShelfHeaderTop !== null && firstShelfHeaderTop <= FIRST_SHELF_BUDGET, `firstShelfHeaderTop=${firstShelfHeaderTop}`);
 await foldPage.close();
 
@@ -3728,8 +4011,23 @@ check('csp: changelog.html introduces no additional inline script beyond the sha
   check('aeo: raw fetch of / contains the trust lines and a link to /faq.html',
     rawRootHtml.includes('No affiliates, no sponsors, no paid placement.')
     && rawRootHtml.includes(`${active.length} tool`)
-    && rawRootHtml.includes('Nobody paid to be listed.')
+    && rawRootHtml.includes('nobody paid to be listed.')
     && /href="\/faq\.html"/.test(rawRootHtml));
+  // Phase 17 (BUILD-PLAN 17.1: "the static crawler block states the same
+  // figures"): a non-JS visitor's only view of the savings ticker is this
+  // static sentence, generated by scripts/build-seo.mjs from the same
+  // `active` array the rendered, JS-driven ticker counts up from. Same
+  // three checks as the live DOM version below: the ceiling never appears
+  // without its "if you used all N tools" framing or without the core
+  // figure in the same paragraph, and the coffee line names its divisor.
+  check('aeo: raw fetch of / states the savings ceiling with its "if you used all N tools" framing',
+    rawRootHtml.includes(gbp(activeCeilingValue))
+    && new RegExp(`if you used all ${active.length} tool`, 'i').test(rawRootHtml));
+  check('aeo: raw fetch of / states the savings ceiling beside the realistic core figure',
+    rawRootHtml.includes(gbp(activeCeilingValue)) && rawRootHtml.includes(gbp(activeCoreValue)));
+  // Coffees retired at 17.3; the crawler block carries the replacement fact.
+  check('aeo: raw fetch of / states the zero-paid-placements fact',
+    /zero paid placements/i.test(rawRootHtml));
   // Phase 16 (Rocky, 2 Aug): the "Recently updated" strip is removed from
   // the homepage entirely, not just hidden. Checked against the raw page
   // source, not only the rendered DOM (the earlier "no changelog node of
@@ -4000,8 +4298,10 @@ check('csp: changelog.html introduces no additional inline script beyond the sha
   // Re-measure the 14.1 fold and page-height budgets now that the FAQ slot
   // is genuinely visible (collapsed, but no longer `hidden`), rather than
   // assuming it stays within budget: "they will not, but assert it" per the
-  // coordinator's brief.
-  for (const [width, budget] of [[375, 3200], [1280, 2300]]) {
+  // coordinator's brief. Same reconciled figures as the top-of-file budget
+  // check (Phase 17.1: 3,200/2,300 moved to 3,350/2,400 for the savings
+  // ticker's added hero height).
+  for (const [width, budget] of [[375, 3350], [1280, 2400]]) {
     const faqBudgetPage = await browser.newPage({ viewport: { width, height: 900 } });
     await faqBudgetPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
     await faqBudgetPage.goto(`${base}/`);
@@ -4022,8 +4322,8 @@ check('csp: changelog.html introduces no additional inline script beyond the sha
   await faqFoldPage.waitForTimeout(300);
   const faqFoldFirstShelfBox = await faqFoldPage.locator('.pub-shelf-header').first().boundingBox();
   const faqFoldFirstShelfTop = faqFoldFirstShelfBox?.y ?? null;
-  check('aeo: the pinned 880px first-shelf budget is unaffected by the now-visible FAQ slot (which sits below the shelves)',
-    faqFoldFirstShelfTop !== null && faqFoldFirstShelfTop <= 880, `firstShelfHeaderTop=${faqFoldFirstShelfTop}`);
+  check(`aeo: the ${FIRST_SHELF_BUDGET}px first-shelf budget is unaffected by the now-visible FAQ slot (which sits below the shelves)`,
+    faqFoldFirstShelfTop !== null && faqFoldFirstShelfTop <= FIRST_SHELF_BUDGET, `firstShelfHeaderTop=${faqFoldFirstShelfTop}`);
   await faqFoldPage.close();
 
   // ?tool= permalink Q&A (js/client.js, PRD section 18 per-tool surfacing):

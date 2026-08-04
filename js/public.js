@@ -76,8 +76,9 @@
  * client mode's own entrance (Phase 4, `#client-root`) is untouched since
  * the selector only ever matches inside a shelf.
  */
-import { el, themeToggleButton, readPlainMode, writePlainMode, withViewTransition } from './data-loader.js';
+import { el, themeToggleButton, readPlainMode, writePlainMode, withViewTransition, money } from './data-loader.js';
 import { buildCardSections, categoryIcon } from './client.js';
+import { savingsFigures, savingsSentence } from './savings-copy.js';
 import { PAYMENT_LINKS } from './payments.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -153,6 +154,47 @@ function revealFirstPaint(node, index, reduced) {
   const clearDelay = () => { node.style.transitionDelay = ''; };
   node.addEventListener('transitionend', clearDelay, { once: true });
   setTimeout(clearDelay, delayMs + 600); // fallback buffer covers the 480ms entrance itself
+}
+
+/* --- motion: savings ticker count-up (Phase 17, PRD section 16 amended
+   layout item 1's savings-ticker clause; BUILD-PLAN 17.1) -----------------
+   "Runs ONCE on arrival, then rests forever. Not a loop." A plain rAF
+   loop that terminates itself once SAVINGS_COUNT_MS has elapsed is not the
+   banned `animation: infinite` the exception sweep above polices: it
+   belongs to motion inventory item 1's first-paint family (an entrance,
+   not ambient motion), and introduces no third exception alongside items
+   8 and 9. Ease-out cubic decelerates into the final figure rather than a
+   linear count that reads as mechanical. The very last write is always
+   money(target), never whatever the eased interpolation happened to land
+   on that frame, so the resting figure can never be a rounding artefact of
+   the animation, per the phase brief's own wording. Under reduced motion
+   the final figure is written once, synchronously, with no rAF at all: no
+   frame of this ever runs, so there is nothing for the reduced-motion
+   sweep to find. */
+const SAVINGS_COUNT_MS = 1100;
+/* Phase 17.2 (Rocky: the figures "load one after the other so
+   eye scans"): each figure takes its own start offset, so the three read
+   left to right as a sequence rather than three things moving at once. The
+   stagger is the whole point of the change: a reader's eye is led across the
+   row instead of having to choose where to look. Still one entrance apiece,
+   still terminating, so this remains motion item 1's family and adds no
+   third ambient exception. */
+const FACT_STAGGER_MS = 260;
+function animateFigure(node, target, reduced, { delayMs = 0, format = (n) => String(n) } = {}) {
+  if (reduced) { node.textContent = format(target); return; }
+  // Hold the start value until this figure's turn, so a staggered figure is
+  // not silently sitting at its final value before it animates.
+  node.textContent = format(0);
+  const begin = performance.now() + delayMs;
+  function step(now) {
+    if (now < begin) { requestAnimationFrame(step); return; }
+    const progress = Math.min(1, (now - begin) / SAVINGS_COUNT_MS);
+    const eased = 1 - (1 - progress) ** 3;
+    node.textContent = format(Math.round(target * eased));
+    if (progress < 1) requestAnimationFrame(step);
+    else node.textContent = format(target); // exact, never an eased-interpolation artefact
+  }
+  requestAnimationFrame(step);
 }
 
 /* --- motion: shelf-expansion stagger (motion inventory item 2, "the
@@ -336,8 +378,77 @@ export function renderPublic(root, tools) {
   // BUILD-PLAN 16.2 already gave this figure, now scoped to where the count
   // actually lives rather than a whole paragraph of its own.
   const heroSubline = el('p', { class: 'subtitle pub-hero-subline' },
-    el('strong', { class: 'pub-hero-count' }, String(active.length)),
-    ` tool${active.length === 1 ? '' : 's'} with genuinely free tiers, honest limits, and at least two alternatives each. Nobody paid to be listed.`,
+    'Honest limits, at least two alternatives for every tool, and nobody paid to be listed.',
+  );
+  /* Every figure here derives from `active` at runtime, never a hard-coded
+     total, exactly like the tool count. The honesty rule (PRD section 10,
+     "a figure nobody would pay is a bug the validator cannot catch"): the
+     ceiling sums every active tool's value and nobody adopts all of them,
+     so the tiles lead with the realistic starter-stack figure and the
+     ceiling appears only in the detail line, explicitly framed. */
+  /* Figures and the canonical sentence both come from js/savings-copy.js,
+     imported by scripts/build-seo.mjs too. Two hand-written copies of one
+     sentence drifted at 17.3 (the crawler block kept advertising coffees
+     after the rendered hero dropped them), so the sentence now has exactly
+     one definition and the drift cannot be expressed. */
+  const coreTools = active.filter((t) => t.type === 'core');
+  const figures = savingsFigures(active);
+  const savingsCeiling = figures.ceiling;
+  const savingsCore = figures.core;
+  // Accessibility (item 4 of the phase brief): the accessible name is set
+  // from the start as one settled sentence, never `aria-live`, so a screen
+  // reader announces it once regardless of how the animated digits below
+  // are updating; those digits (savingsAmountEl, inside
+  // .pub-savings-visible) are `aria-hidden`, so the count-up itself is
+  // never read digit-by-digit or announced sixty-odd times over. Chosen
+  // over aria-live="off" because a static, complete sentence read on
+  // arrival is more informative than an off-live-region node a screen
+  // reader may still expose to "browse mode" navigation as a fragment of
+  // rendered digits with no framing words attached.
+  const heroSavingsSentence = savingsSentence(figures);
+  /* Three facts, read left to right (Phase 17.2, Rocky: "make the facts
+     three columns", the figures loading one after another so
+     eye scans"). The container keeps the .pub-savings-ticker class the
+     honesty checks already target: every one of them asserts on this
+     element's aggregate text, so the ceiling still cannot render without
+     its "if you used all N tools" framing or without the core figure, which
+     is exactly the guarantee that must survive a layout change. */
+  /* Three facts as tiles, per Rocky's 3 Aug mock-up. They lead with the
+     REALISTIC figure, not the ceiling: a starter stack is what a business
+     actually adopts, so it is the number that belongs in the largest type.
+     The ceiling still appears, subordinated to the detail line beneath, so
+     the maximum Rocky asked for is present without being the headline
+     claim. "Paid placements: 0" replaces the coffee equivalent (17.3): the
+     coffee gag only impressed off the ceiling, invited quibbles about what
+     a cup actually costs on a page whose whole claim is honest figures,
+     and this is the one fact a competitor structurally cannot print. */
+  const savingsAmountEl = el('span', { class: 'pub-savings-amount' }, money(0));
+  const toolCountEl = el('span', { class: 'pub-fact-figure' }, '0');
+  const savingsTicker = el('div', { class: 'pub-savings-ticker pub-hero-facts' },
+    el('p', { class: 'visually-hidden' }, heroSavingsSentence),
+    el('div', { class: 'pub-savings-visible', 'aria-hidden': 'true' },
+      el('div', { class: 'pub-fact pub-fact-money' },
+        el('p', { class: 'pub-fact-label' }, 'Starter stack'),
+        savingsAmountEl,
+      ),
+      el('div', { class: 'pub-fact' },
+        el('p', { class: 'pub-fact-label' }, 'Tools listed'),
+        toolCountEl,
+      ),
+      el('div', { class: 'pub-fact' },
+        el('p', { class: 'pub-fact-label' }, 'Paid placements'),
+        el('span', { class: 'pub-fact-figure' }, '0'),
+      ),
+      el('p', { class: 'pub-fact-detail' },
+        'A year, on the ',
+        el('strong', {}, String(coreTools.length)),
+        ' core tools. If you used all ',
+        el('strong', {}, String(active.length)),
+        ' tools the ceiling is ',
+        el('strong', {}, money(savingsCeiling)),
+        ' a year.',
+      ),
+    ),
   );
   // Drifting stack planes (motion inventory item 9, PRD section 16 amended):
   // the second and final recorded exception to the ban on looping ambient
@@ -555,22 +666,10 @@ export function renderPublic(root, tools) {
     measureTopbar(44);
   }
 
-  const header = el('header', { class: 'panel pub-header' },
-    heroBg,
-    el('img', { class: 'logo', src: 'design-system/assets/kaipability-logo-lockup.png', alt: 'Kaipability' }),
-    el('h1', { class: 'pub-hero-headline' }, 'The free software directory for small business.'),
-    heroSubline,
-    heroTrust,
-  );
-
-  /* --- ways-in band (PRD section 16, "Ways-in band") -----------------------
-     Search promoted to first-class, full width, its placeholder count
-     computed at runtime, above the Discover and persona-pack entry items.
-     The "Browse all" entry card is retired: its job passes to the shelves
-     below plus the Expand all / Collapse all toggle on the shelf-band
-     header. Mobile vs desktop ordering of the two remaining entry items is
-     handled by CSS layout alone (see the PUBLIC block of styles.css), never
-     by rendering the markup twice. */
+  /* Declared before the header assembles, because the header now renders
+     the search row itself (17.3): a const referenced from an earlier line
+     is a temporal dead zone error, which took the whole page down until
+     the smoke suite could not even find a card. */
   const searchInput = el('input', {
     class: 'input pub-search', type: 'search',
     placeholder: `Search ${active.length} tool${active.length === 1 ? '' : 's'}: invoicing, design, CRM…`,
@@ -591,7 +690,32 @@ export function renderPublic(root, tools) {
     clearTimeout(filterDebounceTimer);
     filterDebounceTimer = setTimeout(() => withViewTransition(applyFilter), FILTER_VT_DEBOUNCE_MS);
   });
-  const searchRow = el('div', { class: 'pub-search-row' }, searchInput);
+  const browseAllBtn = el('button', { class: 'btn btn-ghost pub-browse-all', type: 'button' },
+    `Browse all ${active.length}`);
+  browseAllBtn.addEventListener('click', () => {
+    withViewTransition(() => expandAllShelves(true));
+    shelfBand.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+  });
+  const searchRow = el('div', { class: 'pub-search-row' }, searchInput, browseAllBtn);
+
+  const header = el('header', { class: 'panel pub-header' },
+    heroBg,
+    el('img', { class: 'logo', src: 'design-system/assets/kaipability-logo-lockup.png', alt: 'Kaipability' }),
+    el('h1', { class: 'pub-hero-headline' }, 'The free software directory for small business.'),
+    heroSubline,
+    searchRow,
+    savingsTicker,
+    heroTrust,
+  );
+
+  /* --- ways-in band (PRD section 16, "Ways-in band") -----------------------
+     Search promoted to first-class, full width, its placeholder count
+     computed at runtime, above the Discover and persona-pack entry items.
+     The "Browse all" entry card is retired: its job passes to the shelves
+     below plus the Expand all / Collapse all toggle on the shelf-band
+     header. Mobile vs desktop ordering of the two remaining entry items is
+     handled by CSS layout alone (see the PUBLIC block of styles.css), never
+     by rendering the markup twice. */
 
   // PRD section 16: "Discover entry: button plus one-line pitch" and
   // "Persona chips: behaviour unchanged". Neither calls for the heading and
@@ -615,8 +739,12 @@ export function renderPublic(root, tools) {
     personaChipRow,
   );
 
+  /* searchRow is NOT in here any more (17.3). .pub-entry is what the
+     deck-open hide targets, so keeping search out of it means search stays
+     usable while the deck is open: the cost flagged when that hide landed
+     at 15.1 ("a reader who wants to search has to close the deck first")
+     is resolved rather than merely documented. */
   const entryPaths = el('section', { class: 'pub-entry', 'aria-label': 'Ways to find a tool' },
-    searchRow,
     el('div', { class: 'pub-entry-grid' }, discoverItem, personaItem),
   );
 
@@ -1143,6 +1271,11 @@ export function renderPublic(root, tools) {
   // static content, never rebuilt after this.
   const reduced = prefersReducedMotion();
   [header, discoverItem, personaItem].forEach((node, i) => revealFirstPaint(node, i, reduced));
+  // Savings ticker count-up (Phase 17): fires once here, on mount, after
+  // `reduced` above is known; never re-triggered by any later redraw (a
+  // plainMode toggle rebuilds the shelves, never the header).
+  animateFigure(savingsAmountEl, savingsCore, reduced, { delayMs: 0, format: money });
+  animateFigure(toolCountEl, active.length, reduced, { delayMs: FACT_STAGGER_MS });
 
   loadPersonaPacks(personaChipRow, activeIds, {
     setPersonaIds: (ids) => { activePersonaIds = ids; },

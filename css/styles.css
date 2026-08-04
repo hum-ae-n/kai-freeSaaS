@@ -1421,6 +1421,9 @@ html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
    full-width row above the entry-path grid, on every viewport, not only
    below 768px (the PRD's floor, not a ceiling: there is no reason to shrink
    it back down again once there is room to spare). */
+.pub-header .pub-search-row { margin-top: var(--s-3); display: flex; gap: var(--s-2); align-items: stretch; flex-wrap: wrap; }
+.pub-header .pub-search { flex: 1 1 16rem; min-width: 0; }
+.pub-header .pub-browse-all { flex: 0 0 auto; white-space: nowrap; }
 .pub-search-row { margin-bottom: var(--s-5); }
 .pub-search { width: 100%; min-width: 0; }
 
@@ -1488,6 +1491,114 @@ html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
    js/public.js's heroSubline): the selector targets the class directly. */
 .pub-hero-count { color: var(--ink); font-family: var(--font-sans); }
 
+/* --- savings ticker (Phase 17, PRD section 16 amended layout item 1's
+   savings-ticker clause; BUILD-PLAN 17.1) -----------------------------------
+   Sits beneath .pub-hero-subline, above the two trust-signal lines (see
+   js/public.js's header build). The visible figure counts up once on
+   arrival via js/public.js's animateSavingsCeiling, a terminating rAF
+   loop, never a CSS `infinite` animation: nothing in this block carries an
+   `animation` or `transition` declaration, so it introduces no third
+   ambient exception alongside items 8 and 9 (the exception sweep further
+   down this file greps this exact block and would fail if it did), and the
+   reduced-motion sweep has nothing here to disable either, since there is
+   nothing running to begin with. font-variant-numeric: tabular-nums keeps
+   every digit the same width while the count-up runs, so the line does not
+   visibly jitter sideways as the figure grows from one digit to five. */
+.pub-savings-ticker { margin-top: var(--s-3); }
+/* Three facts side by side (Phase 17.2). Grid is right here, unlike the
+   ceiling line this phase already had to un-flex: these are three discrete
+   blocks, not one sentence broken into fragments. Three abreast from 481px
+   up; the phone layout is the media query at the bottom of this section. */
+.pub-savings-visible {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-2);
+  max-width: none;
+  align-items: stretch; /* ragged tile heights otherwise */
+}
+@media (min-width: 640px) { .pub-savings-visible { gap: var(--s-6); } }
+/* The framing sentence spans the full row beneath the three figures, so the
+   ceiling can never be read without "if you used all N tools" and without
+   the realistic core figure, at any width. */
+.pub-fact-detail {
+  grid-column: 1 / -1;
+  margin: var(--s-1) 0 0;
+  max-width: none;
+  color: var(--ink-2);
+  font-size: var(--fs-14);
+  line-height: var(--lh-14);
+}
+.pub-fact {
+  min-width: 0;
+  padding: var(--s-2);
+  border: var(--border);
+  border-radius: var(--radius-sm, 4px);
+  background: color-mix(in srgb, var(--paper) 70%, transparent);
+}
+.pub-fact-figure, .pub-savings-amount {
+  display: block;
+  margin-top: var(--s-1);
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(15px, 4.6vw, 40px);
+  white-space: nowrap; /* never "£1,8 / 96" */
+  line-height: 1;
+  color: var(--oxblood);
+  font-variant-numeric: tabular-nums;
+}
+.pub-fact-label {
+  margin: 0;
+  max-width: none;
+  color: var(--ink-2);
+  font-size: var(--fs-14);
+  line-height: var(--lh-14);
+  overflow-wrap: break-word; /* "placements" overhangs a narrow column */
+  hyphens: auto;
+}
+/* Phone layout. Below 480px three tiles cannot hold a five-character currency
+   figure: at 375px the column is 95px and "£1,896" needs 106px at a legible
+   size. Shrinking the type made the lead figure illegible and wrapping it
+   produced "£1,8 / 96", so each fact becomes a full-width row, label left and
+   figure right. The eye still reads the three in order, which was the point.
+
+   This block must stay BELOW the base rules above. Media queries add no
+   specificity, so when it sat higher in the file every declaration here lost
+   to its unqualified twin and the phone layout silently did nothing.
+
+   Vertical padding is --s-1, not --s-2: three stacked rows cost more page
+   height than the row of three tiles they replace, which broke the 375px
+   budget. That budget has already moved twice this phase and moving it a
+   third time would make it decoration, so the height comes out of the rows
+   instead. The 26px figure still sets the row height. */
+@media (max-width: 480px) {
+  .pub-savings-visible { grid-template-columns: 1fr; gap: var(--s-1); }
+  .pub-fact {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-3);
+    padding: var(--s-1) var(--s-3);
+  }
+  .pub-fact-figure, .pub-savings-amount { margin-top: 0; font-size: 26px; }
+}
+
+/* The standalone .pub-savings-amount block that used to sit here was deleted
+   in 17.5. It dated from 17.1, when the saving was one figure set inline in
+   a sentence: `display: inline-block`, `vertical-align: baseline` and a
+   right margin are all vestiges of that sentence, and there has been no
+   sentence to sit in since 17.3 turned the hero into three tiles.
+
+   It survived because it did no visible harm, but it was a duplicate of the
+   `.pub-fact-figure, .pub-savings-amount` rule above at equal specificity
+   and later in the file, so it won every tie. That meant the lead figure
+   rendered 44px against the other two facts' 40px, and, once 17.5 added the
+   phone rules, 28px against their 26px while the comment three rules up
+   asserted "the 26px figure still sets the row height". Nobody chose either
+   number: they are what an old rule for a different layout happened to say.
+   If the lead figure should be emphasised, that wants a rule that says so
+   on purpose, not a leftover winning on source order. */
+
+
 /* Contrast proof for motion inventory item 9, and the reasoning behind the
    two numbers below, since both were arrived at the hard way.
 
@@ -1540,44 +1651,44 @@ html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
   left: -14%;
   background: var(--oxblood);
   transform: rotate(-6deg) translate(0%, 0%);
-  animation: pub-hero-drift-1 26s ease-in-out infinite alternate;
+  animation: pub-hero-drift-1 20s ease-in-out infinite alternate;
 }
 .pub-hero-plane-2 {
   left: 18%;
   background: var(--paper-2);
   transform: rotate(5deg) translate(0%, 0%);
-  animation: pub-hero-drift-2 32s ease-in-out infinite alternate;
+  animation: pub-hero-drift-2 21s ease-in-out infinite alternate;
   animation-delay: -9s; /* negative delay: starts partway through its own loop, so the four planes never read as synchronised */
 }
 .pub-hero-plane-3 {
   left: 46%;
   background: var(--oxblood-deep);
   transform: rotate(-4deg) translate(0%, 0%);
-  animation: pub-hero-drift-3 29s ease-in-out infinite alternate;
+  animation: pub-hero-drift-3 20s ease-in-out infinite alternate;
   animation-delay: -14s;
 }
 .pub-hero-plane-4 {
   left: 70%;
   background: var(--paper-edge);
   transform: rotate(7deg) translate(0%, 0%);
-  animation: pub-hero-drift-4 35s ease-in-out infinite alternate;
+  animation: pub-hero-drift-4 22s ease-in-out infinite alternate;
   animation-delay: -21s;
 }
 @keyframes pub-hero-drift-1 {
   from { transform: rotate(-6deg) translate(0%, 0%); }
-  to   { transform: rotate(-3deg) translate(6%, 4%); }
+  to   { transform: rotate(-2deg) translate(13%, 8%); }
 }
 @keyframes pub-hero-drift-2 {
   from { transform: rotate(5deg) translate(0%, 0%); }
-  to   { transform: rotate(8deg) translate(-5%, 5%); }
+  to   { transform: rotate(10deg) translate(-11%, 10%); }
 }
 @keyframes pub-hero-drift-3 {
   from { transform: rotate(-4deg) translate(0%, 0%); }
-  to   { transform: rotate(-7deg) translate(4%, -4%); }
+  to   { transform: rotate(-8deg) translate(9%, -9%); }
 }
 @keyframes pub-hero-drift-4 {
   from { transform: rotate(7deg) translate(0%, 0%); }
-  to   { transform: rotate(4deg) translate(-6%, -3%); }
+  to   { transform: rotate(3deg) translate(-12%, -7%); }
 }
 /* Reduced motion: a single static composed frame, not the resting (0%)
    keyframe of any single plane repeated four times, since a flat identical
@@ -2270,7 +2381,22 @@ html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
    Inline-block plus vertical padding lifts each to the 44px floor without
    changing how the sentence reads. */
 @media (max-width: 768px) {
-  .pub-footer a { display: inline-block; padding: 12px 4px; margin: -4px 0; min-height: 44px; box-sizing: border-box; }
+  /* The negative margin cancels the padding on all four sides, not just the
+     vertical pair. With `margin: -4px 0` the 4px of horizontal padding was
+     real layout width, so every sentence rendered a visible gap before its
+     full stop: "Kaipability Ltd ." The tap area is unchanged, since only
+     the box's effect on surrounding text is pulled back. */
+  .pub-footer a { display: inline-block; padding: 12px 6px; margin: -12px -6px; min-height: 44px; box-sizing: border-box; }
+}
+/* .cli-footer is a flex ROW: logo beside text. That suits the client
+   deliverable, whose footer is two lines. The public footer carries seven
+   paragraphs, and on a phone the logo column left them roughly 215px of
+   measure, so "Want a stack chosen for your business?" broke across three
+   lines and every line below it sat indented beside an empty gutter. Below
+   600px the logo takes its own line and the text gets the full width. */
+@media (max-width: 600px) {
+  .pub-footer { flex-direction: column; gap: var(--s-3); }
+  .pub-footer > div { width: 100%; }
 }
 
 /* Homepage FAQ slot (PRD section 16 item 5, filled in wave 14.3b): ten
