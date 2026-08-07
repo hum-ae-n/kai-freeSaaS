@@ -27,9 +27,12 @@ notes are the story around it, not a replacement for it.
 
 ### `2026-08-session-log.md`
 
-The complete conversation for Phases 11 to 15 and the first payments wave:
-22 July to 2 August 2026, 621 turns. Verbatim, in order, from "read todo" to
-the live Stripe tip link.
+The complete conversation for Phases 11 to 17: 22 July to 4 August 2026,
+808 turns. Verbatim, in order, from "read todo" to the Phase 17 launch.
+
+Regenerated in place rather than split into a second file, because it is one
+continuous session: splitting it would put a phase boundary where the
+conversation has none.
 
 It covers, among much else:
 
@@ -43,6 +46,11 @@ It covers, among much else:
   the airl.io reference.
 - **Phase 13.1**, payments: hosted links only, the two trust rules, and the
   Stripe integration for Kaipability's own invoicing.
+- **Phase 16**, the hero rewrite and the fixed self-compressing top bar, plus
+  the removal of the changelog strip to its own page.
+- **Phase 17**, the savings figures: the ticker request, the retirement of the
+  coffee equivalent, and the decision to stop moving a page budget every time
+  it binds.
 
 It is also an honest record of things going wrong and being caught, which is
 most of its value. Among them: a coach overlay that silently killed keyboard
@@ -52,6 +60,19 @@ that finalised at £150 instead of £7,650 because `curl -d` does not URL-encode
 percent sign; and a test that claimed to pin a live payment URL and did not,
 proven by mutation after the claim had already been written into a commit
 message.
+
+Phase 17 turned that into a named pattern rather than a run of bad luck.
+Seven separate checks were found to be green while proving nothing: a contrast
+check reading the hidden accessibility sentence instead of the visible text; a
+regex containing literal backspace characters, so it hunted control codes and
+could never match; a figure-overhang check that sampled a count-up mid-flight
+and so measured a shorter string than the one that actually overflowed; and a
+static crawler block that advertised coffees for a phase after the page had
+dropped them, because the check meant to catch that was specified and never
+written. The structural answers adopted are worth more than the fixes: assert
+outcomes rather than mechanisms, record events rather than sampling computed
+style, prove every new check bites by mutating the code it guards, and prefer
+a shared definition over a test wherever drift is possible.
 
 **What has been stripped.** User and assistant prose only. Tool calls, command
 output, file diffs and subagent transcripts are removed: the raw session file is

@@ -8,7 +8,7 @@ A curated directory of free and freemium software for small business, by [Kaipab
 
 One page, four surfaces:
 
-- **Public directory** (`/`): the open, indexable catalogue of every active tool. A first-time visitor gets three equal-weight ways in: a short Discover deck to swipe or click through (see "Discover deck" below), the same persona packs curator mode uses, or just browsing the full list, now a compact landing rather than one long scroll: each category is a collapsed shelf, a single row you tap to reveal that category's cards, and searching or picking a persona chip opens the matching shelves for you. A "Frequently asked questions" page lives at `/faq.html`, and a static, JavaScript-free block of the same directory content sits behind the interactive page, so an AI crawler or a visitor with JavaScript blocked still gets real content instead of a loading message (see "Answer engine and search visibility" below). It is safe to link from anywhere, including kaipability.com, and there is no admin interface here, just the tools, a "recently updated" strip, and one call to action to talk to Kaipability.
+- **Public directory** (`/`): the open, indexable catalogue of every active tool. It opens on a hero that says what the site is, with search and a **Browse all** button in it, three fact figures that count up on arrival (what a starter stack saves, how many tools are listed, and paid placements, which is zero), and a fixed top bar carrying My Stack, FAQ, Plain English and the light/dark toggle, which compresses to a burger once you scroll past the hero. Below that, a first-time visitor gets two ways in: a short Discover deck to swipe or click through (see "Discover deck" below), or the browse list itself, a compact landing rather than one long scroll, where each category is a collapsed shelf, a single row you tap to reveal that category's cards, and searching or picking a persona chip opens the matching shelves for you. A "Frequently asked questions" page lives at `/faq.html` and the release history at `/changelog.html`, and a static, JavaScript-free block of the same directory content sits behind the interactive page, so an AI crawler or a visitor with JavaScript blocked still gets real content instead of a loading message (see "Answer engine and search visibility" below). It is safe to link from anywhere, including kaipability.com, and there is no admin interface here, just the tools, a footer carrying the good-practice and company lines, and one call to action to talk to Kaipability.
 - **Staff curator** (`/x`): the working cockpit, hidden from search engines and not linked from anywhere public. Filter, search, tick the tools relevant to a client, jump in with a "Start here" need chip or a persona starter pack, then generate a shareable client link or export the selection directly. Visiting `/x` once marks that device as staff, which is what makes "Open in curator" appear on client pages later (see "URL schema" below).
 - **Client mode** (`/?t=0,2,5&client=Acme+Ltd`): a clean, branded, read-only page showing only the selected tools. Cards show what the free tier covers and what it costs to outgrow it. The client can print it, save it as a PDF, share it, and tick off each tool as they set it up. Client links always point at the root path, `/`, never at `/x`, so a link a client already has keeps working exactly as before.
 - **My Stack workspace** (`/my`): a free account register for whichever tools a business actually adopts, tracking who owns each account, which email or login opened it, and what needs closing when someone leaves. It is a register, not a password manager: there is no password field anywhere in it. Accounts can be added one at a time or in a batch (several services sharing one identity, owner and 2FA method, entered once); a **planned** status covers a service the business means to sign up for but hasn't yet, and a sign-up to-do generator turns a shortlist of those into a printable, copyable checklist. The workspace is local-first, meaning the browser holds a working copy, but the file you export when you finish setup is the copy that actually lasts, since browsers (Safari especially) can clear their own storage without warning; CSV, text and print/PDF reading copies are also available from the Backup screen, but only that exported file can ever be imported back in. Linked from client pages and the public directory, never indexed. Full spec in [PRD-REGISTER.md](PRD-REGISTER.md).
@@ -179,11 +179,14 @@ The deck's completion screen offers "Open these in My Stack", which hands both l
 
 ## Changelog
 
-`data/changelog.json` feeds the "recently updated" strip on the public directory: tool additions, retirements and paid-tier price changes, read straight out of the git history of `data/tools.json`. It is generated, not hand-edited. Regenerate it after any data change:
+`data/changelog.json` records tool additions, retirements and paid-tier price changes, read straight out of the git history of `data/tools.json`. It is generated, not hand-edited. Regenerate it after any data change, then regenerate the SEO artefacts, since `scripts/build-seo.mjs` reads it:
 
 ```bash
 node scripts/changelog.mjs
+node scripts/build-seo.mjs
 ```
+
+It used to feed a "recently updated" strip on the homepage. Phase 16 moved that off the front page entirely (Rocky: "remove the recently updated and move it") and it is now the generated, indexable `/changelog.html`, built the same way `faq.html` is. The homepage keeps no trace of it, not a collapsed one; the footer links it.
 
 ## Answer engine and search visibility
 
@@ -222,19 +225,23 @@ why-register.html         standalone "Why we built this" awareness page for the 
 faq.html                  generated, static, indexable FAQ page: the ten canonical Q&As plus matching FAQPage JSON-LD
 privacy.html              static, indexable privacy page: what's tracked (nothing), what stays on-device, hosting logs and the favicon proxies, named plainly
 contact.html              static, indexable contact page: info@kaipability.com as the one contact route, plus the kaipability.com and www.airl.io company links
+changelog.html            generated, static, indexable release history: what was added, retired or repriced, from data/changelog.json
+404.html                  not-found page in the same shell, so a mistyped path still looks like the site
 sitemap.xml               generated; lists only the public, indexable URLs
 llms.txt                  generated; a short description of the site and its trust rules for AI crawlers
 data/tools.json           single source of truth, 98 entries (89 active, 9 archived)
 data/presets.json         starter-pack chips shown above the curator filters and, since Phase 12, the same persona packs on the public homepage
 data/category-intros.json hand-edited, one-sentence question-led intro per category, read by scripts/build-seo.mjs into the static block
 data/faq.json             generated by scripts/build-seo.mjs: the ten site-level Q&As plus one generated question and answer per active tool, fetched at runtime by the homepage FAQ slot and the `?tool=` permalink so every surface reads identical wording
-data/changelog.json       generated by scripts/changelog.mjs, feeds the public "recently updated" strip
+data/changelog.json       generated by scripts/changelog.mjs from git history, read by scripts/build-seo.mjs to build changelog.html
 css/styles.css            design tokens + components + all four surfaces (see DESIGN-SYSTEM.md)
 js/data-loader.js         fetch, URL parsing, routing (public / staff curator / client / My Stack), shared helpers, favicon fallback
 js/curator.js             staff curator, mounted at /x
 js/client.js              client mode, plus the card rendering shared with the public directory and embed mode
 js/public.js              the public directory mounted at /, including the homepage entry paths and judgement-parity chips
 js/discover.js            the Discover deck engine (swipe/judge, on-device persistence, the My Stack hand-off), dynamically imported by js/public.js so a blocked or missing module never stops the directory rendering
+js/savings-copy.js        the hero's savings sentence, defined once and imported by BOTH js/public.js and scripts/build-seo.mjs, so the rendered page and the static crawler block cannot state different figures (they did, for a phase)
+js/payments.js            the payment links and their labels, one small module so a provider swap is a URL change; an empty url renders nothing at all rather than a dead link
 js/qr.js                  self-generated QR code for the client-mode print block, no third-party service
 js/my/                    the My Stack workspace at /my: store.js (the only module touching storage), crypto.js, workspace.js (the app shell and screens), risks.js, templates.js, sample.js, copy.js, why-register.js. See PRD-REGISTER.md
 scripts/validate-data.mjs data schema gate
