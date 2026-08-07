@@ -13,7 +13,7 @@ contained a live Stripe secret key, which is exactly why the raw file is not
 committed. Harness noise (system reminders, task notifications, stop-hook messages)
 is dropped, so an occasional reply answers something that is not shown.
 
-**Turns.** 804 (156 from Rocky, 648 from Claude).
+**Turns.** 808 (158 from Rocky, 650 from Claude).
 
 ---
 
@@ -5655,3 +5655,73 @@ ok I want to sync all of this to my pc folder from github - best way?
 ## Claude  <sub>2026-08-07 22:25:35Z</sub>
 
 Two things to sort before you pull, or you'll get a stale copy. First, re-extracting the log so it includes this valuation conversation:
+
+## Claude  <sub>2026-08-07 22:26:27Z</sub>
+
+Log is now current through this conversation (804 turns) and pushed. **One decision before you pull:** the README update and the session log are on the branch `claude/read-todo-bk47qb`, not on `main`. Phase 17 code is on `main`; the docs aren't, because you gave me a merge word for the launch and not for these.
+
+So either say the word and I'll merge them to `main` first, or pull the branch directly with the commands below.
+
+**If you already have a local clone** (your offline copy), that's just:
+
+```bash
+cd path/to/kai-freeSaaS
+git fetch origin
+git checkout main && git pull                      # Phase 17 code, already merged
+git checkout claude/read-todo-bk47qb && git pull   # the docs and the chat log
+```
+
+**If you want a fresh folder:**
+
+```bash
+git clone https://github.com/hum-ae-n/kai-freeSaaS.git
+cd kai-freeSaaS
+git checkout claude/read-todo-bk47qb
+```
+
+It's about 19MB all in, so it's quick.
+
+**Auth, since you took the repo private.** HTTPS will prompt, and GitHub hasn't accepted account passwords for years, so a plain password fails with a confusing error. Easiest routes, in order:
+
+1. **GitHub Desktop** if it's on that machine. Handles the auth, and gives you a Fetch/Pull button rather than commands.
+2. **Git Credential Manager**, which ships with Git for Windows. First `git clone` opens a browser, you sign in once, done.
+3. **A fine-grained PAT** if you'd rather not sign in interactively: github.com → Settings → Developer settings → Tokens, scope it to this one repo with Contents: Read, then paste it as the password when prompted.
+
+**What you'll actually get in `docs/build-notes/`:**
+
+- `2026-08-session-log.md` — 499KB, 804 turns, 22 July to today, from "read todo" through the launch and the valuation
+- `README.md` — an index of which record answers which question, so future-you doesn't have to grep 499KB
+- `extract-log.py` — the extractor, so you can regenerate from any future session
+
+Worth knowing about that file: it's **prose only**. Tool calls, command output and diffs are stripped, because the raw session is 39MB and the reasoning is the part worth keeping. It also **redacts before writing, not after** — the raw transcript contains the live Stripe secret key you pasted, which is exactly why the raw file is not in the repo and never will be. I re-verified zero key-shaped strings before each push.
+
+Two things that are still true and unaffected by syncing: **that Stripe key still wants rolling**, and the tip link on the live site still needs your own click.
+
+## Rocky  <sub>2026-08-07 22:27:39Z</sub>
+
+will this chat be kept?
+
+## Claude  <sub>2026-08-07 22:28:01Z</sub>
+
+Three different copies, with three different lifespans. Worth separating them:
+
+**The container this session runs in: no.** It's ephemeral and gets reclaimed after a period of inactivity. The raw transcript at `/root/.claude/projects/…jsonl` (39MB) dies with it, and that's the only copy holding the unredacted Stripe key, which is a feature rather than a loss.
+
+**The session on claude.ai: probably, but it isn't yours to rely on.** It'll be in your session list at claude.ai/code and you can reopen it. I'm not going to tell you it's permanent, because I don't control that and neither do you.
+
+**The copy in the repo: yes, and it's the only one that's genuinely yours.** That's `docs/build-notes/2026-08-session-log.md`. But there's a real catch:
+
+> It's on the branch `claude/read-todo-bk47qb`, not on `main`. When you merge a PR, GitHub offers a "Delete branch" button right afterwards. Clicking it on an unmerged branch would take the session log with it.
+
+So the honest answer to "will this chat be kept" is: **not until it's on `main`.** Right now it's one stray click from gone.
+
+Two things I'd do, and I need your word on the first since it's a push to `main`:
+
+1. **Merge the docs branch.** No served file changes, so the deploy is a no-op for the site, but it puts the log somewhere a branch deletion can't reach.
+2. **Re-extract once more at the end**, because the log was generated a few messages ago and everything since, including this exchange, isn't in it. There's always a tail that's uncaptured, so the last extract should be the genuinely last thing I do.
+
+Say merge and I'll do both, in that order.
+
+## Rocky  <sub>2026-08-07 22:38:56Z</sub>
+
+ok

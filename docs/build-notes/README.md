@@ -28,7 +28,7 @@ notes are the story around it, not a replacement for it.
 ### `2026-08-session-log.md`
 
 The complete conversation for Phases 11 to 17: 22 July to 4 August 2026,
-804 turns. Verbatim, in order, from "read todo" to the Phase 17 launch.
+808 turns. Verbatim, in order, from "read todo" to the Phase 17 launch.
 
 Regenerated in place rather than split into a second file, because it is one
 continuous session: splitting it would put a phase boundary where the
