@@ -3551,9 +3551,13 @@ html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
 .my-awareness-link-line { margin-top: var(--s-2); }
 
 /* --- Awareness page ("Why we built this", section 12): a standalone static
-   page outside the app shell, reusing .panel/.eyebrow/.t-*/.my-quote rather
-   than inventing a parallel type system. Narrower measure than the public
-   directory: this is read top to bottom, not scanned like a card grid. */
+   page outside the app shell, reusing .panel, .eyebrow, the .t- classes and
+   .my-quote rather than inventing a parallel type system. Narrower measure
+   than the public directory: read top to bottom, not scanned like a card
+   grid. (Never write a class glob ending in star-slash inside a comment:
+   ".t-" followed by "*" and "/" closes the comment mid-sentence, and the
+   leftover words glue onto the next selector, which silently killed
+   #awareness-root's margins in production for a phase.) */
 #awareness-root {
   max-width: 760px;
   margin: 0 auto;
