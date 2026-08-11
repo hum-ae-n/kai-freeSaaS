@@ -1982,7 +1982,13 @@ html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
    needed here at all. Row height is pinned to exactly the button's own
    min-height (no extra vertical padding on the header or the section), so
    15 collapsed shelves stay well inside the page-height budget. */
-.pub-shelf-band { margin-bottom: var(--s-10); }
+/* No bottom margin (Rocky's 11 Aug "Why this exists" wave): the gap this
+   used to buy before the FAQ section now belongs to .pub-why, the section
+   that sits immediately after this one instead. The 1280px page-height
+   budget carries only about 14px of slack over the pre-existing content, far
+   less than a second full margin plus a 44px disclosure row would cost, so
+   the two sections share one gap rather than stacking two. */
+.pub-shelf-band { margin-bottom: 0; }
 /* Phase 16 retires the second row this header used to carry (Plain English
    and the theme toggle, moved into the hero utility bar above): title and
    Expand all are the whole header again, the shape it had before the
@@ -2466,6 +2472,51 @@ html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
   font-weight: 500;
 }
 .pub-faq-answer { margin-top: var(--s-2); color: var(--ink-2); }
+
+/* "Why this exists" disclosure (PRD section 16 amended, Rocky's 11 Aug
+   direction): a single collapsed <details>/<summary>, between the shelf band
+   and the FAQ block above, in the FAQ items' own visual language (quiet
+   hairline rules, list-style marker on the summary, no panel chrome) so it
+   reads as belonging rather than as a new component. Collapsed cost is one
+   summary row: a closed <details> renders only its <summary> per native HTML
+   behaviour, the same free ride .pub-faq-summary already relies on, so this
+   section costs the page-height budget almost nothing at rest. No motion
+   here either, for the same reason as the FAQ items: native details/summary
+   toggles instantly, so there is nothing for the reduced-motion sweep to
+   guard and nothing added to the motion inventory.
+   No margin of its own, top or bottom: the 1280px budget's roughly 14px of
+   slack cannot absorb a second full section margin on top of a 44px
+   disclosure row (see .pub-shelf-band's own comment, the section directly
+   above this one, for where that margin went instead). The hairline
+   border-top and border-bottom on .pub-why-item below still separate it
+   visually from the shelf band above and the FAQ heading below, the same
+   flush-with-hairline-divider treatment adjoining .pub-faq-item rows already
+   use against each other. */
+.pub-why { margin-bottom: 0; }
+.pub-why-item {
+  border-top: var(--bw-hair) solid var(--paper-edge);
+  border-bottom: var(--bw-hair) solid var(--paper-edge);
+}
+/* Byte-identical box model to .pub-faq-summary above (same 44px floor,
+   box-sizing discipline and 10px vertical padding): with the body's own
+   fs-16/lh-16 line box, 24px of line-height plus 20px of padding lands
+   exactly on the 44px min-height, never over it. A larger, heading-styled
+   summary (fs-21/lh-21, tried first) pushed this row to 50px, which alone
+   blew the 1280px budget's roughly 14px of slack; see .pub-shelf-band's own
+   comment for where the margin that used to sit here went instead. */
+.pub-why-summary {
+  cursor: pointer;
+  list-style-position: outside;
+  box-sizing: border-box;
+  min-height: 44px;
+  display: list-item;
+  padding: 10px 0;
+  font-family: var(--font-sans);
+  font-weight: 500;
+}
+.pub-why-body { max-width: var(--measure); padding-bottom: var(--s-6); }
+.pub-why-answer { margin-top: var(--s-3); color: var(--ink-2); }
+.pub-why-answer:first-child { margin-top: var(--s-2); }
 
 /* Embed mode (Feature 2, Batch I / BUILD-PLAN 10.11): chrome-free, sized to
    sit inside an iframe rather than assume a full browser viewport. */

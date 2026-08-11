@@ -59,6 +59,7 @@
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { savingsFigures, savingsSentence } from '../js/savings-copy.js';
+import { WHY_TITLE, WHY_PARAGRAPHS } from '../js/why-copy.js';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -279,7 +280,34 @@ function buildStaticBlockHtml(active, intros) {
 
   const faqLinkHtml = '  <p><a href="/faq.html">Frequently asked questions</a></p>';
 
-  return `${heroHtml}\n${sections}\n${faqLinkHtml}`;
+  return `${heroHtml}\n${sections}\n${buildWhyHtml()}\n${faqLinkHtml}`;
+}
+
+/* --- "Why this exists" block (PRD section 16 amended, Rocky's 11 Aug
+   direction) -----------------------------------------------------------
+   Same copy as js/public.js's collapsed <details>/<summary>, imported from
+   js/why-copy.js rather than kept as a second hand-written copy: exactly the
+   drift js/savings-copy.js's own banner already documents for the hero
+   sentence. Positioned to mirror the interactive page, after the category
+   sections and before the FAQ link. A link segment always becomes a real
+   <a> with target and rel set, never a bare string concatenated in. */
+function buildWhyParagraphHtml(segments) {
+  return segments.map((seg) => (
+    typeof seg === 'string'
+      ? escapeHtml(seg)
+      : `<a href="${escapeHtml(seg.href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(seg.text)}</a>`
+  )).join('');
+}
+function buildWhyHtml() {
+  const paragraphs = WHY_PARAGRAPHS
+    .map((segments) => `    <p>${buildWhyParagraphHtml(segments)}</p>`)
+    .join('\n');
+  return (
+    '  <section id="seo-why">\n'
+    + `    <h2>${escapeHtml(WHY_TITLE)}</h2>\n`
+    + `${paragraphs}\n`
+    + '  </section>'
+  );
 }
 
 /* --- title, meta description and JSON-LD (PRD section 18) ------------------ */
