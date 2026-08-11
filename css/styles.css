@@ -1437,28 +1437,58 @@ html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
 
 .pub-empty { color: var(--ink-2); padding: var(--s-10) 0; }
 
-/* The shared .cli-footer rule (CLIENT block) sets margin-top: var(--s-20)
-   (80px), plenty of breathing room for client mode's much shorter page.
-   Phase 15's good-practice block adds two more lines here, which the
-   1280px page-height budget (2200px, measured 2174px before this phase)
-   has no spare room for; tightening this one property, specific to
-   .pub-footer, buys back roughly what the two new lines cost, following
-   the same precedent as the align-items override just below. */
-.pub-footer { align-items: flex-start; margin-top: var(--s-10); }
+/* Sectioned public footer (Phase 19, PRD section 16 layout item 6, Rocky's
+   11 Aug direction). The public footer no longer borrows .cli-footer (the
+   CLIENT block's flex-row logo-beside-text rule): it is its own grid, four
+   columns at 768px and up (brand block plus three headed groups), one
+   column below it, with the bottom line always spanning full width as its
+   own row. The 1280px page-height budget carries single-digit slack, so
+   this replaces rather than adds to the old stacked-paragraph spacing; the
+   columns are expected to buy back height against it. */
+.pub-footer {
+  display: grid;
+  grid-template-columns: 1fr;
+  row-gap: var(--s-4);
+  column-gap: var(--s-5);
+  margin-top: var(--s-10);
+  padding: var(--s-6) 0 var(--s-2);
+  background: var(--paper-2);
+  border-top: var(--bw-heavy) solid var(--ink);
+}
+@media (min-width: 768px) {
+  /* The last column carries the CTA sentence plus up to two payment lines
+     (docs/PAYMENTS.md section 4), the tallest content of the four; a wider
+     track wraps fewer lines there without touching type scale, which is
+     what buys the 1280px page-height budget back against the columns. */
+  .pub-footer { grid-template-columns: minmax(160px, 1fr) minmax(120px, 0.85fr) minmax(140px, 0.9fr) minmax(170px, 1.25fr); align-items: start; }
+}
+.pub-footer-brand .logo { height: 26px; width: auto; margin-bottom: var(--s-2); }
+/* Same design-system bare `p` trap documented several times elsewhere in
+   this block: without max-width: none, the 68ch --measure cap wraps the
+   longer lines (the company identity line, the My Stack description) onto a
+   second line, which is what pushed the 1280px page-height budget over in
+   an earlier verifier pass. */
+.pub-footer-brand p, .pub-footer-group p, .pub-footer-bottom p { max-width: none; }
 .pub-cta { margin-top: var(--s-1); }
-/* Good-practice block (PRD section 16 amended, layout item 6, Phase 15):
-   the legal/practice line and the company identity line, same quiet t-meta
-   treatment as the existing my-awareness-link-line just below them. Same
-   design-system bare `p` trap documented several times elsewhere in this
-   block: without max-width: none, the 68ch --measure cap wraps the longer
-   company line onto two lines, which is what pushed the 1280px page-height
-   budget over in the verifier's first pass. */
-.pub-footer-legal, .pub-footer-company { margin-top: var(--s-1); max-width: none; }
+.pub-footer-heading { margin-bottom: var(--s-1); }
+.pub-footer-group p + p { margin-top: var(--s-1); }
+.pub-footer-links { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-1); }
 /* Payment links (docs/PAYMENTS.md section 4, Phase 13.1): same quiet t-meta
-   treatment as the good-practice block just above, adding no visible
-   footer height at all while js/payments.js ships both urls empty (the
-   elements are simply never built, see js/public.js). */
-.pub-footer-payment, .pub-footer-payment-trust { margin-top: var(--s-1); max-width: none; }
+   treatment the good-practice block already used, adding no visible footer
+   height at all while js/payments.js ships an empty url (the element is
+   simply never built, see js/public.js). */
+.pub-footer-payment, .pub-footer-payment-trust { margin-top: var(--s-1); }
+.pub-footer-payment, .pub-footer-payment-trust, .pub-footer-company { font-size: var(--fs-12); line-height: var(--lh-12); color: var(--ink-3); }
+/* Bottom line: full width beneath its own hairline rule, last in both DOM
+   order and visual order at every width (the PRD's explicit stacking
+   order). grid-column spans every track the four-column desktop layout
+   defines; on the single-column phone layout there is only one track, so
+   the property is a harmless no-op there. */
+.pub-footer-bottom {
+  grid-column: 1 / -1;
+  border-top: var(--bw-hair) solid var(--paper-edge);
+  padding-top: var(--s-1);
+}
 
 /* --- hero trust signals (Phase 12.1, PRD section 16; Phase 16 retires the
    count line into the sub-line above, leaving two) --------------------------
@@ -2394,16 +2424,12 @@ html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
      the box's effect on surrounding text is pulled back. */
   .pub-footer a { display: inline-block; padding: 12px 6px; margin: -12px -6px; min-height: 44px; box-sizing: border-box; }
 }
-/* .cli-footer is a flex ROW: logo beside text. That suits the client
-   deliverable, whose footer is two lines. The public footer carries seven
-   paragraphs, and on a phone the logo column left them roughly 215px of
-   measure, so "Want a stack chosen for your business?" broke across three
-   lines and every line below it sat indented beside an empty gutter. Below
-   600px the logo takes its own line and the text gets the full width. */
-@media (max-width: 600px) {
-  .pub-footer { flex-direction: column; gap: var(--s-3); }
-  .pub-footer > div { width: 100%; }
-}
+/* Phase 19 retires the 600px flex-column override this comment used to
+   document: .pub-footer's own grid-template-columns (1fr below 768px, four
+   tracks at and above it, declared with .pub-footer above) now IS the
+   stacking rule, at the width the PRD's brand-block-first, bottom-line-last
+   clause actually names, so there is no separate breakpoint left to keep in
+   step with it. */
 
 /* Homepage FAQ slot (PRD section 16 item 5, filled in wave 14.3b): ten
    native <details>/<summary> items, one per site Q&A, quiet editorial
