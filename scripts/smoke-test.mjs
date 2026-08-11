@@ -188,21 +188,48 @@ const heroMobileScrollW = await heroMobilePage.evaluate(() => document.documentE
 check('homepage: no horizontal scroll at 375px with the four-item hero utility bar', heroMobileScrollW <= 375, `scrollWidth=${heroMobileScrollW}`);
 await heroMobilePage.close();
 
-/* --- Phase 15: footer good-practice block (PRD section 16 amended, layout
+/* --- Phase 19: sectioned public footer (PRD section 16 amended, layout
    item 6) -------------------------------------------------------------- */
 const footerHtml = await page.locator('.pub-footer').innerHTML();
 check('homepage: footer links to /privacy.html and /contact.html',
   footerHtml.includes('href="/privacy.html"') && footerHtml.includes('href="/contact.html"'));
-// Phase 16: the footer's legal and practice line gains a Changelog link
-// (js/public.js renders the footer at runtime, so this is checked against
-// the rendered page, not the raw no-JS fetch the earlier static-content
-// checks use).
-check('homepage: footer legal line links /changelog.html', footerHtml.includes('href="/changelog.html"'));
+// Phase 16: the footer gains a Changelog link (js/public.js renders the
+// footer at runtime, so this is checked against the rendered page, not the
+// raw no-JS fetch the earlier static-content checks use).
+check('homepage: footer links to /changelog.html', footerHtml.includes('href="/changelog.html"'));
+check('homepage: footer links to /faq.html, /my and /why-register.html',
+  footerHtml.includes('href="/faq.html"') && footerHtml.includes('href="/my"') && footerHtml.includes('href="/why-register.html"'));
 const footerOutboundLinks = await page.locator('.pub-footer a[href^="https://kaipability.com"], .pub-footer a[href^="https://www.airl.io"]').all();
 const footerOutboundRels = await Promise.all(footerOutboundLinks.map((a) => a.getAttribute('rel')));
 check('homepage: footer carries outbound links to kaipability.com and www.airl.io, all rel=noopener noreferrer',
   footerOutboundLinks.length >= 2 && footerOutboundRels.every((r) => r === 'noopener noreferrer'),
   footerOutboundRels.join('|'));
+// Phase 19 (Rocky's 11 Aug direction): seven stacked paragraphs regrouped
+// under three eyebrow headings, and the public footer stops borrowing
+// .cli-footer (the client-mode/workspace footers still carry it, untouched).
+const footerHeadings = await page.locator('.pub-footer .pub-footer-heading').allTextContents();
+check('homepage: footer carries the three eyebrow group headings (Explore, Also free, Work with Kaipability)',
+  ['Explore', 'Also free', 'Work with Kaipability'].every((h) => footerHeadings.includes(h)),
+  JSON.stringify(footerHeadings));
+check('homepage: footer bottom line carries the company number', footerHtml.includes('Company No. 15772934'));
+check('homepage: public footer no longer carries the cli-footer class',
+  await page.locator('footer.cli-footer').count() === 0 && await page.locator('.pub-footer.cli-footer').count() === 0);
+// Column layout at 1280px: the brand block and the three headed groups sit
+// side by side, so their bounding boxes share a row (same top, not stacked).
+const footerColumnTops = await page.locator('.pub-footer > .pub-footer-brand, .pub-footer > .pub-footer-group').evaluateAll(
+  (nodes) => nodes.map((n) => Math.round(n.getBoundingClientRect().top)),
+);
+check('homepage: footer brand block and the three groups share one row at 1280px (column layout)',
+  footerColumnTops.length === 4 && footerColumnTops.every((t) => Math.abs(t - footerColumnTops[0]) <= 2),
+  JSON.stringify(footerColumnTops));
+// Bottom line spans the full row beneath the columns, not squeezed into one.
+const footerBottomWidth = await page.evaluate(() => {
+  const bottom = document.querySelector('.pub-footer-bottom');
+  const outer = document.querySelector('.pub-footer');
+  return { bottom: Math.round(bottom.getBoundingClientRect().width), outer: Math.round(outer.getBoundingClientRect().width) };
+});
+check('homepage: footer bottom line spans the full footer width at 1280px',
+  footerBottomWidth.bottom >= footerBottomWidth.outer * 0.95, JSON.stringify(footerBottomWidth));
 
 await page.fill('#public-root input[type=search]', 'canva');
 // Wave 14.2: the redraw is now debounced and runs inside the guarded View
@@ -576,18 +603,30 @@ check('mobile: all three hero fact figures share one computed font size at 375px
     && mobileFactTreatment.every((f) => f.fontSize === mobileFactTreatment[0].fontSize),
   JSON.stringify(mobileFactTreatment));
 
+/* Phase 19: the footer is a CSS grid (one column below 768px, four columns
+   at and above it) rather than a flex row, so "stacks" now means each of
+   the five top-level blocks (brand, the three headed groups, the bottom
+   line) sits on its own row at close to the full measure, in DOM order,
+   brand first and the bottom line last, per the PRD's explicit stacking
+   order. */
 const mobileFooterFit = await homeMobile.evaluate(() => {
   const footer = document.querySelector('.pub-footer');
-  const textBlock = footer.querySelector('div');
+  const blocks = [...footer.querySelectorAll(':scope > .pub-footer-brand, :scope > .pub-footer-group, :scope > .pub-footer-bottom')];
+  const footerW = Math.round(footer.getBoundingClientRect().width);
   return {
-    footerW: Math.round(footer.getBoundingClientRect().width),
-    textW: Math.round(textBlock.getBoundingClientRect().width),
-    flexDirection: getComputedStyle(footer).flexDirection,
+    footerW,
+    blocks: blocks.map((b) => {
+      const r = b.getBoundingClientRect();
+      return { cls: b.className, top: Math.round(r.top), width: Math.round(r.width) };
+    }),
   };
 });
-check('mobile: the public footer stacks at 375px so its text gets the full measure, not the gutter beside the logo',
-  mobileFooterFit.flexDirection === 'column'
-    && mobileFooterFit.textW >= mobileFooterFit.footerW * 0.95,
+check('mobile: the public footer stacks at 375px, brand block first and bottom line last, each block at full measure',
+  mobileFooterFit.blocks.length === 5
+    && mobileFooterFit.blocks.every((b) => b.width >= mobileFooterFit.footerW * 0.9)
+    && mobileFooterFit.blocks[0].cls.includes('pub-footer-brand')
+    && mobileFooterFit.blocks[4].cls.includes('pub-footer-bottom')
+    && mobileFooterFit.blocks.every((b, i) => i === 0 || b.top > mobileFooterFit.blocks[i - 1].top),
   JSON.stringify(mobileFooterFit));
 
 /* The 44px floor on footer links (Rocky's 26 Jul phone test) is enforced by

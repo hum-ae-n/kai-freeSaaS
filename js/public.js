@@ -1235,52 +1235,76 @@ export function renderPublic(root, tools) {
     : null;
 
   /* --- footer ---------------------------------------------------------------
-     The one CTA line points a visitor who wants a curated selection at
-     Kaipability directly, since the public directory itself never picks a
-     stack for them (that stays the curator's job). */
-  const footer = el('footer', { class: 'cli-footer pub-footer' },
-    el('img', { class: 'logo', src: 'design-system/assets/kaipability-logo-lockup.png', alt: '' }),
-    el('div', {},
-      el('p', {},
+     Sectioned site footer (Phase 19, PRD section 16 layout item 6, Rocky's
+     11 Aug direction: pull the accreted lines out into clear sections and
+     make it a real footer). Public directory only: the public footer stops
+     borrowing .cli-footer here, and the client-mode/workspace footers
+     (js/client.js) are untouched, still carrying their own .cli-footer.
+     Every link below preserves an identical href to the seven-paragraph
+     footer it replaces; nothing is added or removed, only regrouped under
+     headings. The one exception is text, not a link: the no-affiliates
+     practice line the PRD's brand block calls for was previously only
+     stated in the hero trust signals, not the footer, so it is new copy
+     here rather than a moved one. */
+  const footerGroup = (heading, ...children) => el('div', { class: 'pub-footer-group' },
+    el('p', { class: 'eyebrow pub-footer-heading' }, heading),
+    ...children,
+  );
+  const footer = el('footer', { class: 'pub-footer' },
+    el('div', { class: 'pub-footer-brand' },
+      el('img', { class: 'logo', src: 'design-system/assets/kaipability-logo-lockup.png', alt: '' }),
+      el('p', { class: 't-small' },
         'Curated by ',
         el('a', { href: 'https://kaipability.com', target: '_blank', rel: 'noopener noreferrer' }, 'Kaipability Ltd'),
         '.',
       ),
-      el('p', { class: 'pub-cta' },
+      el('p', { class: 't-meta' }, 'No affiliate links, no sponsored placements.'),
+    ),
+    // t-meta on the links list and the "Also free" lines below matches the
+    // quiet weight these carried pre-redesign (the legal line and the
+    // my-awareness-link-line were both t-meta): the design system's bare
+    // `p` default is 18px/28px, documented several times elsewhere in this
+    // block as a trap for exactly this reason, and every group here holding
+    // it at that scale is what blew the page-height budget the redesign
+    // must hold.
+    footerGroup('Explore',
+      el('ul', { class: 'pub-footer-links t-meta' },
+        el('li', {}, el('a', { href: '/faq.html' }, 'FAQ')),
+        el('li', {}, el('a', { href: '/changelog.html' }, 'Changelog')),
+        el('li', {}, el('a', { href: '/privacy.html' }, 'Privacy')),
+        el('li', {}, el('a', { href: '/contact.html' }, 'Contact')),
+      ),
+    ),
+    // Workspace entry point (PRD-REGISTER section 2, "a quiet link on the
+    // public directory") plus the Wave D awareness page link (section 12,
+    // "linked from the public directory footer").
+    footerGroup('Also free',
+      el('p', { class: 't-meta' },
+        el('a', { href: '/my' }, 'My Stack'),
+        ', a register for tracking who holds which account.',
+      ),
+      el('p', { class: 't-meta' }, el('a', { href: '/why-register.html' }, 'Why we built My Stack')),
+    ),
+    // The one CTA line points a visitor who wants a curated selection at
+    // Kaipability directly, since the public directory itself never picks a
+    // stack for them (that stays the curator's job). Payment links
+    // (docs/PAYMENTS.md section 4, Phase 13.1): tipLine, auditLine and
+    // paymentTrustLine are all built above as null when their url is empty,
+    // and el()'s null-child skip means a null here adds nothing to the DOM
+    // at all, not an empty or hidden node.
+    footerGroup('Work with Kaipability',
+      el('p', { class: 'pub-cta t-small' },
         'Want a stack chosen for your business? ',
         el('a', { href: 'https://kaipability.com', target: '_blank', rel: 'noopener noreferrer' }, 'Talk to Kaipability'),
         '.',
       ),
-      // Payment links (docs/PAYMENTS.md section 4, Phase 13.1): tipLine,
-      // auditLine and paymentTrustLine are all built above as null when
-      // their url is empty, and el()'s null-child skip means a null here
-      // adds nothing to the DOM at all, not an empty or hidden node.
       tipLine,
       auditLine,
       paymentTrustLine,
-      // Workspace entry point (PRD-REGISTER section 2, "a quiet link on the
-      // public directory") plus the Wave D awareness page link (section 12,
-      // "linked from the public directory footer"): both quiet text, same
-      // treatment as the two paragraphs above.
-      el('p', { class: 't-meta my-awareness-link-line' },
-        'Also free: ', el('a', { href: '/my' }, 'My Stack'),
-        ', a register for tracking who holds which account, and ',
-        el('a', { href: '/why-register.html' }, 'the reasoning behind it'),
-        '.',
-      ),
-      // Good-practice block (PRD section 16 amended, layout item 6, Phase
-      // 15): the legal/practice line and the company identity line, added
-      // below the existing lines rather than replacing any of them. Phase
-      // 16 adds Changelog: the "Recently updated" strip removed from this
-      // page (Rocky, 2 Aug) becomes its own linked page rather than
-      // vanishing outright.
-      el('p', { class: 't-meta pub-footer-legal' },
-        el('a', { href: '/privacy.html' }, 'Privacy'), ' · ',
-        el('a', { href: '/contact.html' }, 'Contact'), ' · ',
-        el('a', { href: '/faq.html' }, 'FAQ'), ' · ',
-        el('a', { href: '/changelog.html' }, 'Changelog'), ' · ',
-        el('a', { href: '/why-register.html' }, 'Why we built My Stack'),
-      ),
+    ),
+    // Bottom line (PRD section 16 amended, layout item 6): the company
+    // identity line, full width beneath a hairline rule.
+    el('div', { class: 'pub-footer-bottom' },
       el('p', { class: 't-meta pub-footer-company' },
         'Kaipability Ltd, registered in England and Wales, Company No. 15772934. ',
         el('a', { href: 'https://kaipability.com', target: '_blank', rel: 'noopener noreferrer' }, 'kaipability.com'),
