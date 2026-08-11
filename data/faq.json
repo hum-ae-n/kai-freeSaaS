@@ -397,6 +397,30 @@
     "97": {
       "q": "Is Airtable Free actually free for a small business?",
       "a": "Unlimited bases with up to 1,000 records each, 1GB of attachments per base, 5 editors per workspace and 100 automation runs a month. A spreadsheet that behaves like a database, with custom views, linked records and simple automations. Good for tracking customers, inventory or projects without building a bespoke system. Paid plans start from £16 a month. Alternatives include Google Sheets and Baserow."
+    },
+    "98": {
+      "q": "Is WordPress.com Free actually free for a small business?",
+      "a": "Free forever on a wordpress.com subdomain with WordPress.com adverts shown to visitors, 1GB storage, no custom domain and no plugin installation. A free way to build a simple website or blog on a wordpress.com subdomain, using the editor behind a large share of the world's websites. The free plan carries WordPress.com adverts, gives 1GB of storage and does not allow a custom domain or plugin installs, so it suits a hobby project or a placeholder page rather than a business's permanent home online. Paid plans start from £3 a month. Alternatives include WordPress.org (self-hosted) and Wix."
+    },
+    "99": {
+      "q": "Is Wix Free actually free for a small business?",
+      "a": "Free forever on a wixsite.com subdomain with Wix ads shown, 500MB storage and 500MB bandwidth. A drag-and-drop website builder with a genuinely free tier: a site on a wixsite.com subdomain, Wix branding and a Wix advert anchored to the page. Good for testing layouts and content before paying for a proper domain, but the free tier is not a credible face for a live business. Paid plans start from £9 a month. Alternatives include WordPress.org (self-hosted) and Google Sites."
+    },
+    "100": {
+      "q": "Is Google Sites actually free for a small business?",
+      "a": "Free forever with any Google account, no ads, no published page limit, but a custom domain requires a paid Google Workspace subscription. A no-frills website builder included free with any Google account, with an editing feel close to Google Docs. No ads and no page limits, but the site lives on a googlesites.com address unless the business already pays for Google Workspace, which is the only route to a custom domain. Paid plans start from £6 a month. Alternatives include Wix and Carrd."
+    },
+    "101": {
+      "q": "Is Carrd Free actually free for a small business?",
+      "a": "Up to 3 sites, no custom domain, no forms, no analytics, and a small Carrd badge shown in the footer. A tool for building a single, fast, responsive one-page site: a landing page, a coming-soon notice, a link-in-bio page or a simple digital business card. The free plan allows up to 3 sites with a small Carrd badge in the footer, no custom domain, no forms and no analytics. Paid plans start from £1 a month. Alternatives include Google Sites and Framer."
+    },
+    "102": {
+      "q": "Is Framer Free actually free for a small business?",
+      "a": "Free on a framer.website subdomain, with 1GB bandwidth, 10 CMS collections, up to 1,000 pages and up to 3 collaborators. No custom domain. A design-led, no-code website builder popular with agencies and design-conscious founders, publishing to a free framer.website address. The free plan includes the visual editor, a content management system and up to 1,000 pages, but a custom domain requires a paid plan. Paid plans start from £8 a month. Alternatives include Wix and WordPress.org (self-hosted)."
+    },
+    "103": {
+      "q": "Is Lovable Free actually free for a small business?",
+      "a": "A daily grant of 5 build credits (up to 30 a month) plus 20 monthly hosting credits, on shared free hosting with Lovable branding. No credit card required. An AI tool that builds a working website or simple web app from a plain-English description, generating real code and hosting it for you. The free plan grants a small daily allowance of build credits, enough to prototype a site or small app, but too limited for ongoing production use. Paid plans start from £20 a month. Alternatives include Bolt.new and Framer."
     }
   }
 }

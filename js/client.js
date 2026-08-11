@@ -974,6 +974,11 @@ const CATEGORY_ICONS = {
     ['path', { d: 'm16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5' }],
     ['rect', { x: '2', y: '6', width: '14', height: '12', rx: '2' }],
   ],
+  Websites: [
+    ['circle', { cx: '12', cy: '12', r: '10' }],
+    ['path', { d: 'M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20' }],
+    ['path', { d: 'M2 12h20' }],
+  ],
 };
 
 // Fallback for a category not in the map above: a plain tag glyph.

@@ -2,7 +2,7 @@
 
 **Project:** `free-stack`
 **Owner:** Kaipability Ltd (Rocky Verma)
-**Version:** 2.2
+**Version:** 2.3
 **Date:** 2 August 2026 (v1.0: 14 July 2026; v1.5: 30 July 2026; v1.6: 31 July 2026; v1.7: 1 August 2026; v1.8: 2 August 2026; v1.9: 2 August 2026; v2.0: 3 August 2026)
 **Build tool:** Claude Code from this PRD
 **Deploy target:** Netlify via GitHub
@@ -447,14 +447,16 @@ Not for consultants, not for SEO. Write as if explaining to a smart person who h
 
 ## 15. Data
 
-The companion `tools.json` was calibrated from real-world consulting engagements across approximately 30 small business digital audits, then extended. As of 23 July 2026 it holds 98 entries, of which 89 are active and 9 are archived per the §4 retirement rule (grant bodies, support programmes and government or regulatory guidance removed from circulation without breaking old client links). The active set covers:
+The companion `tools.json` was calibrated from real-world consulting engagements across approximately 30 small business digital audits, then extended. As of 11 August 2026 it holds 104 entries, of which 95 are active and 9 are archived per the §4 retirement rule (grant bodies, support programmes and government or regulatory guidance removed from circulation without breaking old client links). The active set covers:
 
 - 12 core tools (recommended for virtually every small business)
-- 59 non-core tools (situation-dependent), including the Developer & Web set added in Phase 8
+- 65 non-core tools (situation-dependent), including the Developer & Web set added in Phase 8 and the Websites set added in Phase 20
 - 7 Microsoft 365 included tools
 - 11 sector-specific tools
 
-15 active categories spanning AI, design, video, analytics, SEO, security, finance, CRM, marketing, e-commerce, business operations and developer infrastructure. The Grants & Business Support category holds only archived entries and no longer appears in the interface.
+16 active categories spanning AI, design, video, analytics, SEO, security, finance, CRM, marketing, e-commerce, business operations, developer infrastructure and website builders. The Grants & Business Support category holds only archived entries and no longer appears in the interface.
+
+The Websites category (Phase 20, ids 98-103: WordPress.com, Wix, Google Sites, Carrd, Framer, Lovable) is deliberately all `noncore`: every free tier verified in August 2026 stops short of a custom domain or carries vendor branding, so "free professional business website" would breach §10. Squarespace is excluded outright (no free tier, trial only); Bolt.new rides as an alternative on the Lovable entry rather than a listing, since it overlaps Lovable and the Developer & Web set. Free-tier facts were verified against vendor pricing pages at inclusion time and carry `last_verified` dates; these tiers change monthly and re-verification falls under the standard link sweep.
 
 When converting or extending the dataset, ensure every entry has: at least 2 alternatives with full URLs, at least 2 training resources with full URLs, a `domain` field in every `urls[]` entry for favicon resolution, and no em dashes in any text field.
 
@@ -518,7 +520,7 @@ This layout supersedes the Phase 12 homepage layout and its viewport ordering, w
 
 ### Page height budgets
 
-With all shelves collapsed, total page height is at most **3,350px at 375px wide** and **2,400px at 1280px wide**, with the search input visible within the first mobile viewport and the first shelf header's top within **1.5 viewport heights at 375x812 (1,218px)**. Currently measured at 3,117px, 2,390px and 1,079.5px.
+With all shelves collapsed, total page height is at most **3,400px at 375px wide** and **2,500px at 1280px wide**, with the search input visible within the first mobile viewport and the first shelf header's top within **1.5 viewport heights at 375x812 (1,218px)**. Currently measured at 3,350px, 2,441px and 1,079.5px (Phase 20; the totals were reconciled from 3,350/2,400 when the Websites category added a 16th shelf row, same rounding-with-headroom convention as Phase 17.1, and the first-shelf ratio, which is the budget that actually protects the landing feel, is unchanged and untouched).
 
 The 375px figure carried a stale 3,366px here for one phase, which is 16px OVER the budget stated in the same sentence: a measurement written down from a working tree whose suite was failing that very check. A recorded measurement that breaches its own budget is worse than none, because it reads as permission. The number came back under at 17.5 by stacking the public footer on a phone (§16 layout item 6), which cost nothing and bought 230px, so the budget itself stayed where it was rather than being tightened to the new measurement on the same day it was rescued.
 

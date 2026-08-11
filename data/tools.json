@@ -4926,5 +4926,300 @@
     "paid_from": 16,
     "scales_with": "usage",
     "byo": "A structured tracker for one specific job, customers with notes and follow-up dates, or stock with reorder levels, is a small spreadsheet-plus-script or a one-page web app, well within reach of an AI-assisted build. Airtable earns its keep once several people need to view and edit the same data with proper permissions and linked tables, which a homemade tool has to handle from day one."
+  },
+  {
+    "id": 98,
+    "name": "WordPress.com Free",
+    "urls": [
+      {
+        "label": "wordpress.com",
+        "domain": "wordpress.com"
+      }
+    ],
+    "category": "Websites",
+    "type": "noncore",
+    "description": "A free way to build a simple website or blog on a wordpress.com subdomain, using the editor behind a large share of the world's websites. The free plan carries WordPress.com adverts, gives 1GB of storage and does not allow a custom domain or plugin installs, so it suits a hobby project or a placeholder page rather than a business's permanent home online.",
+    "plain": "A free blog or basic site, but on a wordpress.com web address with adverts shown.",
+    "alternatives": [
+      {
+        "name": "WordPress.org (self-hosted)",
+        "url": "https://wordpress.org"
+      },
+      {
+        "name": "Wix",
+        "url": "https://www.wix.com"
+      },
+      {
+        "name": "Google Sites",
+        "url": "https://sites.google.com"
+      },
+      {
+        "name": "Publii (open-source static CMS)",
+        "url": "https://getpublii.com"
+      }
+    ],
+    "training": [
+      {
+        "name": "WordPress.com Support",
+        "url": "https://wordpress.com/support/"
+      },
+      {
+        "name": "WordPress.org Learn",
+        "url": "https://learn.wordpress.org/"
+      },
+      {
+        "name": "YouTube: WordPress.com tutorial for beginners",
+        "url": "https://www.youtube.com/results?search_query=WordPress.com+tutorial+for+beginners"
+      }
+    ],
+    "value": 60,
+    "when": "A quick blog, personal project or placeholder page where a wordpress.com address and on-page ads are acceptable. For a client's actual business site, budget for the Personal plan (custom domain, no ads) or self-hosted WordPress.org on paid hosting instead.",
+    "last_verified": "2026-08-11",
+    "free_limit": "Free forever on a wordpress.com subdomain with WordPress.com adverts shown to visitors, 1GB storage, no custom domain and no plugin installation.",
+    "paid_from": 3,
+    "scales_with": "features",
+    "notes": [
+      "The cheapest paid tier that removes ads and allows a custom domain is the Personal plan, from around £3/month billed annually.",
+      "Squarespace is a common comparison but has no free tier at all, only a 14-day trial, so it is not listed as a free tool here."
+    ]
+  },
+  {
+    "id": 99,
+    "name": "Wix Free",
+    "urls": [
+      {
+        "label": "wix.com",
+        "domain": "wix.com"
+      }
+    ],
+    "category": "Websites",
+    "type": "noncore",
+    "description": "A drag-and-drop website builder with a genuinely free tier: a site on a wixsite.com subdomain, Wix branding and a Wix advert anchored to the page. Good for testing layouts and content before paying for a proper domain, but the free tier is not a credible face for a live business.",
+    "plain": "A free drag-and-drop website builder, but on a wixsite.com address with a Wix advert.",
+    "alternatives": [
+      {
+        "name": "WordPress.org (self-hosted)",
+        "url": "https://wordpress.org"
+      },
+      {
+        "name": "Google Sites",
+        "url": "https://sites.google.com"
+      },
+      {
+        "name": "Framer",
+        "url": "https://www.framer.com"
+      }
+    ],
+    "training": [
+      {
+        "name": "Wix Help Center",
+        "url": "https://support.wix.com/en"
+      },
+      {
+        "name": "Wix Learn Library",
+        "url": "https://www.wix.com/learn/library"
+      },
+      {
+        "name": "YouTube: Wix tutorial for beginners",
+        "url": "https://www.youtube.com/results?search_query=Wix+tutorial+for+beginners"
+      }
+    ],
+    "value": 120,
+    "when": "Sole traders and micro-businesses drafting or previewing a first website before committing to a paid plan and domain. Not a substitute for a properly specified business site once the client is trading seriously.",
+    "last_verified": "2026-08-11",
+    "free_limit": "Free forever on a wixsite.com subdomain with Wix ads shown, 500MB storage and 500MB bandwidth.",
+    "paid_from": 9,
+    "scales_with": "features",
+    "notes": [
+      "Removing ads and connecting a custom domain requires the Light plan, from roughly £9/month billed annually."
+    ]
+  },
+  {
+    "id": 100,
+    "name": "Google Sites",
+    "urls": [
+      {
+        "label": "sites.google.com",
+        "domain": "sites.google.com"
+      }
+    ],
+    "category": "Websites",
+    "type": "noncore",
+    "description": "A no-frills website builder included free with any Google account, with an editing feel close to Google Docs. No ads and no page limits, but the site lives on a googlesites.com address unless the business already pays for Google Workspace, which is the only route to a custom domain.",
+    "plain": "A free, simple website builder from Google, ad-free but without your own web address.",
+    "alternatives": [
+      {
+        "name": "Wix",
+        "url": "https://www.wix.com"
+      },
+      {
+        "name": "Carrd",
+        "url": "https://carrd.co"
+      },
+      {
+        "name": "WordPress.org (self-hosted)",
+        "url": "https://wordpress.org"
+      }
+    ],
+    "training": [
+      {
+        "name": "Google Sites Help",
+        "url": "https://support.google.com/sites"
+      },
+      {
+        "name": "YouTube: Google Sites tutorial for beginners",
+        "url": "https://www.youtube.com/results?search_query=Google+Sites+tutorial+for+beginners"
+      }
+    ],
+    "value": 100,
+    "when": "An internal wiki, event page, project hub or very simple one-off page for a client who already has a Google account and does not need a custom domain immediately.",
+    "last_verified": "2026-08-11",
+    "free_limit": "Free forever with any Google account, no ads, no published page limit, but a custom domain requires a paid Google Workspace subscription.",
+    "paid_from": 6,
+    "scales_with": "none",
+    "notes": [
+      "A custom domain is only possible by subscribing to Google Workspace, from around £6/user/month billed annually, which bundles business email and other Workspace tools alongside the site."
+    ]
+  },
+  {
+    "id": 101,
+    "name": "Carrd Free",
+    "urls": [
+      {
+        "label": "carrd.co",
+        "domain": "carrd.co"
+      }
+    ],
+    "category": "Websites",
+    "type": "noncore",
+    "description": "A tool for building a single, fast, responsive one-page site: a landing page, a coming-soon notice, a link-in-bio page or a simple digital business card. The free plan allows up to 3 sites with a small Carrd badge in the footer, no custom domain, no forms and no analytics.",
+    "plain": "A free tool for a single simple page, like a coming-soon or link-in-bio page.",
+    "alternatives": [
+      {
+        "name": "Google Sites",
+        "url": "https://sites.google.com"
+      },
+      {
+        "name": "Framer",
+        "url": "https://www.framer.com"
+      },
+      {
+        "name": "WordPress.org (self-hosted)",
+        "url": "https://wordpress.org"
+      }
+    ],
+    "training": [
+      {
+        "name": "Carrd Docs",
+        "url": "https://carrd.co/docs"
+      },
+      {
+        "name": "YouTube: Carrd tutorial for beginners",
+        "url": "https://www.youtube.com/results?search_query=Carrd+tutorial+for+beginners"
+      }
+    ],
+    "value": 50,
+    "when": "A single-purpose page needed fast: a coming-soon holding page, an event RSVP, a link-in-bio for social profiles, or a simple one-page pitch. Not suited to a multi-page business site.",
+    "last_verified": "2026-08-11",
+    "free_limit": "Up to 3 sites, no custom domain, no forms, no analytics, and a small Carrd badge shown in the footer.",
+    "paid_from": 1,
+    "scales_with": "features",
+    "notes": [
+      "A custom domain, forms and analytics require the Pro Standard tier, from around $19/year (roughly £1/month), billed annually only."
+    ]
+  },
+  {
+    "id": 102,
+    "name": "Framer Free",
+    "urls": [
+      {
+        "label": "framer.com",
+        "domain": "framer.com"
+      }
+    ],
+    "category": "Websites",
+    "type": "noncore",
+    "description": "A design-led, no-code website builder popular with agencies and design-conscious founders, publishing to a free framer.website address. The free plan includes the visual editor, a content management system and up to 1,000 pages, but a custom domain requires a paid plan.",
+    "plain": "A free, design-focused website builder, but without your own web address.",
+    "alternatives": [
+      {
+        "name": "Wix",
+        "url": "https://www.wix.com"
+      },
+      {
+        "name": "WordPress.org (self-hosted)",
+        "url": "https://wordpress.org"
+      },
+      {
+        "name": "Webflow",
+        "url": "https://webflow.com"
+      }
+    ],
+    "training": [
+      {
+        "name": "Framer Help Center",
+        "url": "https://www.framer.com/help/"
+      },
+      {
+        "name": "YouTube: Framer tutorial for beginners",
+        "url": "https://www.youtube.com/results?search_query=Framer+tutorial+for+beginners"
+      }
+    ],
+    "value": 80,
+    "when": "A design-conscious client wanting a polished, animated site and comfortable prototyping on a framer.website address before paying for a domain. Best fit where visual design quality matters more than content volume.",
+    "last_verified": "2026-08-11",
+    "free_limit": "Free on a framer.website subdomain, with 1GB bandwidth, 10 CMS collections, up to 1,000 pages and up to 3 collaborators. No custom domain.",
+    "paid_from": 8,
+    "scales_with": "features",
+    "notes": [
+      "A custom domain requires the Basic plan, from around $10/month (roughly £8/month) billed annually, which also raises the bandwidth allowance."
+    ]
+  },
+  {
+    "id": 103,
+    "name": "Lovable Free",
+    "urls": [
+      {
+        "label": "lovable.dev",
+        "domain": "lovable.dev"
+      }
+    ],
+    "category": "Websites",
+    "type": "noncore",
+    "description": "An AI tool that builds a working website or simple web app from a plain-English description, generating real code and hosting it for you. The free plan grants a small daily allowance of build credits, enough to prototype a site or small app, but too limited for ongoing production use.",
+    "plain": "Describe a website in plain English and free AI credits build it for you.",
+    "alternatives": [
+      {
+        "name": "Bolt.new",
+        "url": "https://bolt.new"
+      },
+      {
+        "name": "Framer",
+        "url": "https://www.framer.com"
+      },
+      {
+        "name": "WordPress.org (self-hosted)",
+        "url": "https://wordpress.org"
+      }
+    ],
+    "training": [
+      {
+        "name": "Lovable Docs",
+        "url": "https://docs.lovable.dev"
+      },
+      {
+        "name": "YouTube: Lovable AI tutorial for beginners",
+        "url": "https://www.youtube.com/results?search_query=Lovable+AI+tutorial+for+beginners"
+      }
+    ],
+    "value": 150,
+    "when": "A client wanting a quick working prototype of a website or simple app to test an idea before commissioning a proper build, or a founder comfortable steering an AI tool with plain-English instructions.",
+    "last_verified": "2026-08-11",
+    "free_limit": "A daily grant of 5 build credits (up to 30 a month) plus 20 monthly hosting credits, on shared free hosting with Lovable branding. No credit card required.",
+    "paid_from": 20,
+    "scales_with": "usage",
+    "notes": [
+      "The free credit allowance suits a prototype, not day-to-day production use. The Pro plan, from around $25/month (roughly £20/month), raises the monthly credit allowance and removes Lovable branding."
+    ]
   }
 ]

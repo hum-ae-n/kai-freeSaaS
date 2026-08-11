@@ -1,6 +1,6 @@
 # Free Stack by Kaipability
 
-> A free, curated directory of 89 genuinely free software tools for UK small businesses. No affiliate links, no sponsored placements, no paid tiers to unlock a listing.
+> A free, curated directory of 95 genuinely free software tools for UK small businesses. No affiliate links, no sponsored placements, no paid tiers to unlock a listing.
 
 Kaipability Ltd maintains this directory from real client work. Every tool lists its true free-tier limits, at least two alternatives (including open source or self-hosted where they exist), and training resources.
 
