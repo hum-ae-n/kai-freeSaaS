@@ -79,6 +79,7 @@
 import { el, themeToggleButton, readPlainMode, writePlainMode, withViewTransition, money } from './data-loader.js';
 import { buildCardSections, categoryIcon } from './client.js';
 import { savingsFigures, savingsSentence } from './savings-copy.js';
+import { WHY_TITLE, WHY_PARAGRAPHS } from './why-copy.js';
 import { PAYMENT_LINKS } from './payments.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -316,6 +317,37 @@ function groupByCategory(list) {
     map.get(tool.category).push(tool);
   }
   return map;
+}
+
+/** "Why this exists" disclosure (PRD section 16 amended, Rocky's 11 Aug
+    direction), sitting between the shelf band and the FAQ section in both
+    source and DOM order. A single native <details>/<summary> in the FAQ
+    items' own visual language (see the PUBLIC block of styles.css), collapsed
+    by default. The copy comes from js/why-copy.js, imported by this file and
+    scripts/build-seo.mjs alike, so the rendered section and the static
+    crawler block state the same words rather than two hand-kept copies (the
+    same drift-proofing js/savings-copy.js already established for the hero
+    sentence). Every segment renders through el()'s own text-node/attribute
+    discipline: a string segment is never concatenated into markup, and the
+    one link segment (the Guardian report) always becomes a real anchor with
+    target and rel set explicitly, never a string template. No motion is
+    added anywhere here: details/summary toggles instantly by native browser
+    behaviour, exactly like loadFaqSection's items beside it, so there is
+    nothing for the reduced-motion sweep to guard. */
+function buildWhyParagraph(segments) {
+  return el('p', { class: 'pub-why-answer' }, segments.map((seg) => (
+    typeof seg === 'string'
+      ? seg
+      : el('a', { href: seg.href, target: '_blank', rel: 'noopener noreferrer' }, seg.text)
+  )));
+}
+function buildWhySection() {
+  return el('section', { class: 'pub-why', 'aria-label': 'Why this exists' },
+    el('details', { class: 'pub-why-item' },
+      el('summary', { class: 'pub-why-summary' }, WHY_TITLE),
+      el('div', { class: 'pub-why-body' }, WHY_PARAGRAPHS.map(buildWhyParagraph)),
+    ),
+  );
 }
 
 export function renderPublic(root, tools) {
@@ -1155,6 +1187,12 @@ export function renderPublic(root, tools) {
     if (hash.startsWith('cat-')) openShelfBySlug(hash.slice(4));
   }
 
+  /* --- "Why this exists" section (built above at module scope; see
+     buildWhySection's own comment for the PRD section and the drift-proofing
+     rationale). Sits between the shelf band and the FAQ section below, in
+     both source order and the root.replaceChildren(...) call further down. */
+  const whySection = buildWhySection();
+
   /* --- FAQ section slot (BUILD-PLAN 14.1 reserved the slot; wave 14.3b
      fills it, PRD section 16 item 5 and section 18). The ten site Q&As come
      from data/faq.json (scripts/build-seo.mjs), the same file the ?tool=
@@ -1261,7 +1299,7 @@ export function renderPublic(root, tools) {
   // it is mounted first here purely for readable source order, top of page
   // to bottom. heroEndSentinel sits immediately after `header`, the
   // boundary the compress observer watches.
-  root.replaceChildren(topbar, header, heroEndSentinel, entryPaths, discoverMount, shelfBand, faqSection, footer);
+  root.replaceChildren(topbar, header, heroEndSentinel, entryPaths, discoverMount, shelfBand, whySection, faqSection, footer);
   document.title = 'Free Stack · Kaipability';
 
   handleHashDeepLink();

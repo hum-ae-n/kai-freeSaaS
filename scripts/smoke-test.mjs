@@ -18,6 +18,7 @@ import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';
 import { inflateSync } from 'node:zlib';
 import { PRIVACY_NOTICE } from '../js/my/copy.js';
+import { WHY_TITLE, WHY_PARAGRAPHS } from '../js/why-copy.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -4294,6 +4295,54 @@ check('csp: changelog.html introduces no additional inline script beyond the sha
     homeFaqOpenCount === 0);
   const homeFaqSummaryHeights = await page.locator('.pub-faq-summary').evaluateAll((nodes) => nodes.map((n) => n.getBoundingClientRect().height));
   check('aeo: homepage FAQ summaries are at least 44px tall', homeFaqSummaryHeights.every((h) => h >= 44), JSON.stringify(homeFaqSummaryHeights));
+
+  // "Why this exists" disclosure (PRD section 16 amended, Rocky's 11 Aug
+  // direction): a single collapsed <details>/<summary> between the shelf
+  // band and the FAQ block, sourced from js/why-copy.js (the same module
+  // js/public.js and scripts/build-seo.mjs both import), so this suite
+  // checks against the one canonical copy rather than a third hand-kept
+  // string. Sits below the shelf band, so no shelf needs expanding to find
+  // it, same as the FAQ slot above.
+  await page.waitForSelector('.pub-why-item');
+  const whySummaryText = await page.locator('.pub-why-summary').textContent();
+  check('why: homepage renders the "Why this exists" disclosure with the exact summary text',
+    whySummaryText === WHY_TITLE, whySummaryText);
+  const whyOpenBeforeCount = await page.locator('.pub-why-item[open]').count();
+  check('why: disclosure is collapsed by default', whyOpenBeforeCount === 0);
+  const whySummaryBox = await page.locator('.pub-why-summary').boundingBox();
+  check('why: summary is a real 44px-minimum disclosure target',
+    !!whySummaryBox && whySummaryBox.height >= 43.9, JSON.stringify(whySummaryBox));
+  await page.locator('.pub-why-summary').click();
+  const whyOpenAfterCount = await page.locator('.pub-why-item[open]').count();
+  check('why: disclosure opens on activation', whyOpenAfterCount === 1);
+  const whyBodyText = await page.locator('.pub-why-body').textContent();
+  const whyParagraphPlainText = (segments) => segments.map((seg) => (typeof seg === 'string' ? seg : seg.text)).join('');
+  check('why: opened body carries all four paragraphs of the canonical copy',
+    WHY_PARAGRAPHS.every((segments) => whyBodyText.includes(whyParagraphPlainText(segments))));
+  const whyLink = page.locator('.pub-why-body a');
+  const guardianSegment = WHY_PARAGRAPHS[0].find((seg) => typeof seg === 'object');
+  check('why: Guardian link has the exact href, target=_blank and rel containing noopener',
+    await whyLink.count() === 1
+    && await whyLink.getAttribute('href') === guardianSegment.href
+    && await whyLink.getAttribute('target') === '_blank'
+    && (await whyLink.getAttribute('rel') ?? '').includes('noopener'));
+  check('why: rendered copy contains no em dash character', !whyBodyText.includes('—'));
+
+  // Same copy, in the static crawler block (raw fetch below, no JS): proves
+  // the interactive page and the block a non-rendering crawler receives can
+  // never drift, since both traced back to the one import above.
+  const whyStaticMatch = rawRootHtml.match(/<section id="seo-why">([\s\S]*?)<\/section>/);
+  const whyStaticInner = whyStaticMatch ? whyStaticMatch[1] : '';
+  check('why: static crawler block carries the section with the exact title',
+    !!whyStaticMatch && whyStaticInner.includes(`<h2>${escapeHtmlForCheck(WHY_TITLE)}</h2>`));
+  const whyPlainParagraphs = WHY_PARAGRAPHS.filter((segments) => segments.every((seg) => typeof seg === 'string'));
+  check('why: static crawler block carries the plain-text paragraphs of the canonical copy verbatim',
+    !!whyStaticMatch && whyPlainParagraphs.every((segments) => whyStaticInner.includes(escapeHtmlForCheck(whyParagraphPlainText(segments)))));
+  check('why: static crawler block carries the Guardian link with the exact href, target=_blank and rel containing noopener',
+    !!whyStaticMatch && whyStaticInner.includes(
+      `<a href="${escapeHtmlForCheck(guardianSegment.href)}" target="_blank" rel="noopener noreferrer">${escapeHtmlForCheck(guardianSegment.text)}</a>`,
+    ));
+  check('why: static crawler block contains no em dash character', !!whyStaticMatch && !whyStaticInner.includes('—'));
 
   // Re-measure the 14.1 fold and page-height budgets now that the FAQ slot
   // is genuinely visible (collapsed, but no longer `hidden`), rather than
