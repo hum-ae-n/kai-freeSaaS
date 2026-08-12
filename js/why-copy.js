@@ -10,9 +10,13 @@
  *
  * Each paragraph is an array of segments. A plain string segment is rendered
  * as text; an object segment ({ text, href }) is a link and is always built
- * as a real anchor, never templated into an HTML or text string, so the one
- * link in this copy (the Guardian report) gets identical href, target and
- * rel treatment on both surfaces.
+ * as a real anchor, never templated into an HTML or text string, so the
+ * Guardian report link in this copy gets identical href, target and rel
+ * treatment on both surfaces. An object segment may also carry
+ * `internal: true` (Phase 21, the closing /why-register.html pointer): both
+ * surfaces then omit target and rel, per the standard same-tab internal
+ * link rule, rather than opening in a new tab like the external Guardian
+ * link above it.
  */
 
 export const WHY_TITLE = 'Why this exists';
@@ -34,5 +38,10 @@ export const WHY_PARAGRAPHS = [
   ],
   [
     'If you are starting a business, begin with a starter stack: a working toolkit at zero cost from day one. If you are established, read this page as a subscription audit: set what you pay against what is free here, and keep the difference.',
+  ],
+  [
+    'There is a longer story behind the register side of this site: ',
+    { text: 'Why we built My Stack', href: '/why-register.html', internal: true },
+    '.',
   ],
 ];

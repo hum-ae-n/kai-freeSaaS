@@ -6,6 +6,30 @@ import { el, favicon, extLink, money, showToast, shareUrl, themeToggleButton } f
 
 const TYPE_LABEL = { core: 'CORE', noncore: 'NON-CORE', m365: 'M365', sector: 'SECTOR' };
 
+/* --- first-visit walkthrough (Phase 21, PRD section 6, "First-visit
+   walkthrough") ------------------------------------------------------------
+   The curator's unlisted URL is its only door (no login), so this panel is
+   the signage: four plain-words steps for someone who has never used the
+   page, shown above the link generator the first time a device opens /x
+   (freestack:v1:curatorcoach unset) and recoverable any time afterwards via
+   the header's own "How this works" button. Plain flow content, never a
+   modal: no dialog contract, no focus trap, nothing added to any motion
+   inventory (this surface carries none). Dismissing writes the key;
+   reopening from the header does not touch it, so a curator who dismissed
+   it once is never nagged again just for asking to see it. */
+const CURATOR_COACH_KEY = 'freestack:v1:curatorcoach';
+
+function readCuratorCoachDismissed() {
+  try { return localStorage.getItem(CURATOR_COACH_KEY) === '1'; }
+  catch { return false; }
+}
+/** Best-effort write, silent on failure (private mode, a blocked store):
+    worst case the panel shows again next visit, never a broken page. */
+function writeCuratorCoachDismissed() {
+  try { localStorage.setItem(CURATOR_COACH_KEY, '1'); }
+  catch { /* private mode, webview, quota: shows again next visit */ }
+}
+
 /** opts.initialSelection: id array from ?edit= (Feature 2), or null when
     absent, in which case the core defaults apply as before. Ids outside the
     active catalogue (an archived tool, or a stale/garbled param) are
@@ -38,7 +62,36 @@ export function renderCurator(root, allTools, opts = {}) {
   // as a manual edit and immediately clear the very chip that caused it.
   let chipDrivenChange = false;
 
+  /* --- first-visit walkthrough (built ahead of the header, which carries
+     the "How this works" button that reopens it) ------------------------- */
+  const walkthroughDismissBtn = el('button', { class: 'btn btn-ghost btn-lg', type: 'button' }, 'Dismiss');
+  const walkthroughPanel = el('section', {
+    class: 'panel cur-walkthrough', 'aria-label': 'How this works',
+    hidden: readCuratorCoachDismissed(),
+  },
+    el('div', { class: 'cur-walkthrough-head' },
+      el('span', { class: 'eyebrow' }, 'How this works'),
+      walkthroughDismissBtn,
+    ),
+    el('ol', { class: 'cur-walkthrough-steps' },
+      el('li', {}, 'Tick the tools your client needs, or start from a persona pack below.'),
+      el('li', {}, "Add the client's name and an optional personal note."),
+      el('li', {}, 'Generate link.'),
+      el('li', {}, 'Send that link. It always points at the public site, never at this page.'),
+    ),
+  );
+  walkthroughDismissBtn.addEventListener('click', () => {
+    walkthroughPanel.hidden = true;
+    writeCuratorCoachDismissed();
+  });
+
   /* --- header ------------------------------------------------------------ */
+  // Reopening never clears freestack:v1:curatorcoach: this button is a
+  // recall, not a re-confirmation, so a curator who already dismissed the
+  // panel once is never nagged again on a later page load just for asking
+  // to see it now.
+  const howThisWorksBtn = el('button', { class: 'btn btn-ghost btn-lg', type: 'button' }, 'How this works');
+  howThisWorksBtn.addEventListener('click', () => { walkthroughPanel.hidden = false; });
   const header = el('header', { class: 'cur-header' },
     el('img', { class: 'logo', src: 'design-system/assets/kaipability-logo-lockup.png', alt: 'Kaipability' }),
     el('div', {},
@@ -47,6 +100,7 @@ export function renderCurator(root, allTools, opts = {}) {
       el('p', { class: 'trust-line' }, 'No affiliates, no sponsors, no paid placement.'),
     ),
     el('p', { class: 'tool-count' }, `${tools.length} tools in the catalogue`),
+    howThisWorksBtn,
     themeToggleButton(),
   );
 
@@ -488,7 +542,7 @@ export function renderCurator(root, allTools, opts = {}) {
   }
 
   root.replaceChildren(
-    header, linkgen, needsRow, presetsRow, toolbar, stats, legend,
+    header, walkthroughPanel, linkgen, needsRow, presetsRow, toolbar, stats, legend,
     el('div', { class: 'table-wrap' }, table),
     actions,
   );

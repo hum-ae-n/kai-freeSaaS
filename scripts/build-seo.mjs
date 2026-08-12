@@ -280,23 +280,27 @@ function buildStaticBlockHtml(active, intros) {
 
   const faqLinkHtml = '  <p><a href="/faq.html">Frequently asked questions</a></p>';
 
-  return `${heroHtml}\n${sections}\n${buildWhyHtml()}\n${faqLinkHtml}`;
+  return `${heroHtml}\n${buildWhyHtml()}\n${sections}\n${faqLinkHtml}`;
 }
 
 /* --- "Why this exists" block (PRD section 16 amended, Rocky's 11 Aug
-   direction) -----------------------------------------------------------
+   direction; repositioned Phase 21, Rocky's 12 Aug direction) -------------
    Same copy as js/public.js's collapsed <details>/<summary>, imported from
    js/why-copy.js rather than kept as a second hand-written copy: exactly the
    drift js/savings-copy.js's own banner already documents for the hero
-   sentence. Positioned to mirror the interactive page, after the category
-   sections and before the FAQ link. A link segment always becomes a real
-   <a> with target and rel set, never a bare string concatenated in. */
+   sentence. Positioned to mirror the interactive page: after the hero (the
+   static equivalent of the hero and ways-in/discover content) and before the
+   category sections. An external link segment becomes a real <a> with
+   target and rel set; a segment carrying `internal: true` (the closing
+   /why-register.html pointer) omits both, same-tab, per the standard
+   internal link rule. Neither is ever templated into the string as a bare
+   href. */
 function buildWhyParagraphHtml(segments) {
-  return segments.map((seg) => (
-    typeof seg === 'string'
-      ? escapeHtml(seg)
-      : `<a href="${escapeHtml(seg.href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(seg.text)}</a>`
-  )).join('');
+  return segments.map((seg) => {
+    if (typeof seg === 'string') return escapeHtml(seg);
+    const attrs = seg.internal ? '' : ' target="_blank" rel="noopener noreferrer"';
+    return `<a href="${escapeHtml(seg.href)}"${attrs}>${escapeHtml(seg.text)}</a>`;
+  }).join('');
 }
 function buildWhyHtml() {
   const paragraphs = WHY_PARAGRAPHS

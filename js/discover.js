@@ -177,6 +177,24 @@ export function wasFreshlyDecided(id) {
   return true;
 }
 
+/* --- deck-coach visibility (Phase 21, PRD section 16 amended, "First-
+   judgement explainer") ------------------------------------------------
+   Whether the deck's own first-open coach overlay (showCoachIfNeeded /
+   dismissCoach below) is up right now, for whichever deck is currently
+   open. At most one deck is ever open at a time (public.js guards
+   re-entrant opens), so a single module-level flag mirrors the per-open
+   closure's own `coachVisible` exactly. js/judge-coach.js's caller reads
+   this before showing the public-surface judgement explainer, per the
+   PRD's "never fires during the deck's own first-open coach" rule: while
+   this is true the browse list below is still fully interactive (the deck
+   is an inline panel, never a modal), so a judgement made there from a
+   chip or quick-judge button has to wait for the next judgement event
+   rather than stack a second coach mark on top of the deck's own. */
+let deckCoachVisible = false;
+export function isDeckCoachOpen() {
+  return deckCoachVisible;
+}
+
 /** Current decision for a tool id, or null when unjudged. Read API for the
     browse list's state chip and corner controls. Number.isInteger, never a
     truthiness test, so tool id 0 is never mistaken for "no id given". */
@@ -673,6 +691,13 @@ function buildCard(tool) {
  *   by any route (Escape, the close button, or "Browse all").
  * @param {() => void} [options.onBrowseAll] - called after close when the
  *   reader chooses "Browse all" from the completion or empty-deck screen.
+ * @param {() => void} [options.onJudge] - Phase 21 (PRD section 16 amended,
+ *   "First-judgement explainer"): called once a genuine have/want judgement
+ *   commits (never for skip, matching wasFreshlyDecided's own exclusion),
+ *   so the caller can offer its own public-surface coaching. This module
+ *   never imports js/judge-coach.js itself: the callback shape keeps the
+ *   deck engine decoupled from a dialog that only exists on the public
+ *   surface, the same reasoning as onClose/onBrowseAll above.
  * @param {boolean} [options.deferFocus] - Wave 14.2, motion inventory item 4
  *   ("Deck-open morph"): when true, this function does not call
  *   panel.focus() itself. js/public.js sets this only when it is about to
@@ -687,7 +712,9 @@ function buildCard(tool) {
  *   own deferred focus callback runs).
  */
 export function openDiscoverDeck(options) {
-  const { tools, container, opener, seed = { type: 'default' }, onClose, onBrowseAll, deferFocus = false } = options;
+  const {
+    tools, container, opener, seed = { type: 'default' }, onClose, onBrowseAll, onJudge, deferFocus = false,
+  } = options;
   // The shared, page-lifetime state object (Phase 12.3): reads anywhere in
   // this closure stay live, since setDecision/clearDecision called from the
   // browse list mutate this exact same object's properties rather than
@@ -824,6 +851,7 @@ export function openDiscoverDeck(options) {
     if (coachTimer) { clearTimeout(coachTimer); coachTimer = null; }
     coachOverlay?.remove();
     coachOverlay = null;
+    deckCoachVisible = false;
     haveBtn.disabled = false;
     skipBtn.disabled = false;
     wantBtn.disabled = false;
@@ -856,6 +884,7 @@ export function openDiscoverDeck(options) {
   function showCoachIfNeeded() {
     if (Object.keys(state.decisions).length > 0 || state.coachDone) return;
     coachVisible = true;
+    deckCoachVisible = true;
     haveBtn.disabled = true;
     skipBtn.disabled = true;
     wantBtn.disabled = true;
@@ -954,6 +983,12 @@ export function openDiscoverDeck(options) {
     // but kept precise anyway.
     if (decision !== 'skip') freshDecisionId = id;
     notify(); // a card judged here must reach the browse list's chip too
+    // Phase 21: skip carries no judgement of its own (matches the
+    // freshDecisionId exclusion just above), and the deck's own coach can
+    // never be visible here (every judge control, including this gesture's
+    // commit path, is unreachable while showCoachIfNeeded's overlay is up),
+    // so this is always a genuine, coach-clear judgement event.
+    if (decision !== 'skip' && typeof onJudge === 'function') onJudge();
     session.index += 1;
     undoBtn.hidden = false;
     updateProgress();
