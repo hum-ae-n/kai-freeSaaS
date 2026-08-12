@@ -100,13 +100,20 @@ function loadDiscoverModule() {
   return discoverModulePromise;
 }
 
-/** Live search across name, category and description (whichever text is
+/** Live search across name, category, description (whichever text is
     currently on screen: plain when Plain English is on and the tool has a
-    plain entry, the normal description otherwise), case-insensitive. */
+    plain entry, the normal description otherwise), alternative product
+    names and notes, case-insensitive. Alternatives and notes are included
+    because a subscription-auditing visitor searches for the paid product
+    they already pay for (Photoshop, Squarespace) rather than the free
+    tool's own name, and those names live in alternatives/notes, not the
+    description. */
 function matchesSearch(tool, term, plainMode) {
   if (!term) return true;
   const descriptionText = plainMode && tool.plain ? tool.plain : tool.description;
-  const haystacks = [tool.name, tool.category, descriptionText, tool.plain]
+  const altNames = (tool.alternatives ?? []).map((a) => a.name);
+  const notes = tool.notes ?? [];
+  const haystacks = [tool.name, tool.category, descriptionText, tool.plain, ...altNames, ...notes]
     .filter((s) => typeof s === 'string')
     .map((s) => s.toLowerCase());
   return haystacks.some((h) => h.includes(term));

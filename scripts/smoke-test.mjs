@@ -251,6 +251,54 @@ check('public: no changelog node of any kind remains on the homepage',
 await page.fill('#public-root input[type=search]', '');
 await page.waitForFunction(() => document.querySelectorAll('#public-root .card-grid > li[hidden]').length === 0);
 
+/* --- Widened search haystack (BUILD-PLAN, js/public.js matchesSearch):
+   alternatives names and notes text now join the search haystack, since a
+   subscription-auditing visitor types the paid product they already pay
+   for (Photoshop, Squarespace), not the free tool's own name, and those
+   words live in alternatives/notes rather than the description. Squarespace
+   appears only in Websites tool 98's notes (verified above by reading the
+   data directly); Photoshop appears in the Design & Images tools' own
+   alternatives lists (GIMP id 4, Photopea.com id 5). A garbage string still
+   yields the existing zero-match state (matchCountLine's own copy). */
+// Polled on the match-count line's own hidden flag, which applyFilter only
+// clears once it has genuinely run for the current term (li.hidden, by
+// contrast, is unconditionally reset to false for every card whenever
+// filtering is off, so polling that alone is already true before the new
+// term's debounce ever fires: a race the first version of this check
+// missed, and it read the stale pre-filter DOM). The match line starts
+// hidden right after the previous fill('') above cleared filtering, so
+// waiting for it to become visible again is a genuine "this search has run"
+// signal, distinct for each new term typed.
+await page.fill('#public-root input[type=search]', 'squarespace');
+await page.waitForFunction(() => document.querySelector('.pub-shelf-match-count')?.hidden === false);
+const squarespaceMatches = await page.locator('#public-root .tool-card:visible').count();
+check('public: searching "squarespace" (present only in a Websites tool\'s notes) now matches at least one tool',
+  squarespaceMatches >= 1, `visible=${squarespaceMatches}`);
+
+await page.fill('#public-root input[type=search]', '');
+await page.waitForFunction(() => document.querySelector('.pub-shelf-match-count')?.hidden === true);
+await page.fill('#public-root input[type=search]', 'photoshop');
+await page.waitForFunction(() => document.querySelector('.pub-shelf-match-count')?.hidden === false);
+const photoshopVisibleNames = await page.locator('#public-root .tool-card:visible').evaluateAll(
+  (nodes) => nodes.map((n) => n.textContent),
+);
+check('public: searching "photoshop" (present in Design & Images tools\' alternatives lists) matches at least one tool',
+  photoshopVisibleNames.length >= 1
+  && photoshopVisibleNames.some((t) => t.includes('GIMP') || t.includes('Photopea')),
+  `visible=${photoshopVisibleNames.length}`);
+
+await page.fill('#public-root input[type=search]', '');
+await page.waitForFunction(() => document.querySelector('.pub-shelf-match-count')?.hidden === true);
+await page.fill('#public-root input[type=search]', 'zzznotarealtoolxyz');
+await page.waitForFunction(() => document.querySelector('.pub-shelf-match-count')?.hidden === false);
+const garbageVisible = await page.locator('#public-root .tool-card:visible').count();
+const garbageMatchText = (await page.locator('.pub-shelf-match-count').textContent()).trim();
+check('public: a garbage search term still yields the zero-match state',
+  garbageVisible === 0 && garbageMatchText === 'No tools match your search.', `visible=${garbageVisible} text="${garbageMatchText}"`);
+
+await page.fill('#public-root input[type=search]', '');
+await page.waitForFunction(() => document.querySelectorAll('#public-root .card-grid > li[hidden]').length === 0);
+
 /* --- Phase 12.1: redesigned public homepage (PRD section 16) --------------
    Robots meta and the CSP hash set are already exercised by the checks
    above and by the csp: block further down respectively; this wave adds no
@@ -1311,7 +1359,10 @@ const tool0Slug = slugifyForTest(tool0.category);
 // content beneath the sub-line (Rocky's own request), measured at 3,263px
 // and 2,328px respectively, each rounded up with headroom rather than
 // pinned to the exact measurement (PRD section 16, "Page height budgets").
-for (const [width, budget] of [[375, 3350], [1280, 2400]]) {
+// Reconciled again at Phase 20 from 3,350/2,400 to 3,400/2,500: the
+// Websites category (Rocky's own request) adds a 16th shelf row, measured
+// at 3,350px and 2,441px, same rounding-with-headroom convention.
+for (const [width, budget] of [[375, 3400], [1280, 2500]]) {
   const budgetPage = await browser.newPage({ viewport: { width, height: 900 } });
   const budgetErrors = [];
   budgetPage.on('pageerror', (e) => budgetErrors.push(String(e)));
@@ -1595,6 +1646,38 @@ check('shelf: Collapse all round-trips back to fully collapsed',
   stillOpenAfterCollapseAll === 0 && labelAfterCollapseAll === 'Expand all',
   `stillOpen=${stillOpenAfterCollapseAll} label="${labelAfterCollapseAll}"`);
 await shelfMechPage.close();
+
+/* --- Websites category (BUILD-PLAN, ids 98-103): shelf renders with the
+   PRD-mandated count in its header, opens to reveal its six cards including
+   Lovable Free, and its header icon is the new globe glyph, not a
+   zero-size or missing svg (the same fallback bug that would show if the
+   category string in tools.json and CATEGORY_ICONS ever drifted). Count
+   read from the data (websitesCount), not hard-coded, so the check
+   self-adjusts if the shelf grows later. */
+const websitesCount = active.filter((t) => t.category === 'Websites').length;
+const websitesSlug = slugifyForTest('Websites');
+const websitesPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await websitesPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await websitesPage.goto(`${base}/#cat-${websitesSlug}`);
+await websitesPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+const websitesHeaderSelector = `#cat-${websitesSlug} .pub-shelf-header`;
+const websitesCountText = await websitesPage.locator(`${websitesHeaderSelector} .pub-shelf-count`).textContent();
+check(`shelf: the Websites shelf header states ${websitesCount} tools`,
+  websitesCountText.trim() === `· ${websitesCount} tool${websitesCount === 1 ? '' : 's'}`,
+  websitesCountText.trim());
+const websitesGridId = await websitesPage.locator(websitesHeaderSelector).getAttribute('aria-controls');
+await websitesPage.waitForFunction((gridId) => document.getElementById(gridId)?.hidden === false, websitesGridId);
+const websitesVisibleNames = await websitesPage.locator(`#${websitesGridId} .tool-card`).evaluateAll(
+  (nodes) => nodes.map((n) => n.textContent),
+);
+check('shelf: the Websites shelf opens to show its six cards, Lovable Free among them',
+  websitesVisibleNames.length === websitesCount && websitesVisibleNames.some((t) => t.includes('Lovable')),
+  `count=${websitesVisibleNames.length}`);
+const websitesIconBox = await websitesPage.locator(`${websitesHeaderSelector} .cli-category-icon`).boundingBox();
+check('shelf: the Websites shelf header carries a non-zero-size icon (the new globe glyph, not the tag fallback silently)',
+  websitesIconBox !== null && websitesIconBox.width > 0 && websitesIconBox.height > 0,
+  JSON.stringify(websitesIconBox));
+await websitesPage.close();
 
 /* --- Phase 15.4: sticky shelf headers (PRD section 16 amended shelf
    mechanics) --------------------------------------------------------------
@@ -1962,7 +2045,7 @@ await shelf375Page.waitForSelector('#public-root .tool-card', { state: 'attached
 const headerHeights375 = await shelf375Page.locator('.pub-shelf-header').evaluateAll(
   (nodes) => nodes.map((n) => n.getBoundingClientRect().height));
 check('shelf: every shelf header is at least 44px tall at 375px',
-  headerHeights375.length === 15 && headerHeights375.every((h) => h >= 44), JSON.stringify(headerHeights375));
+  headerHeights375.length === activeCategories && headerHeights375.every((h) => h >= 44), JSON.stringify(headerHeights375));
 await shelf375Page.close();
 
 /* --- Phase 15.6: scent line retired (PRD section 16 amended layout item 4,
@@ -4389,7 +4472,7 @@ check('csp: changelog.html introduces no additional inline script beyond the sha
   // coordinator's brief. Same reconciled figures as the top-of-file budget
   // check (Phase 17.1: 3,200/2,300 moved to 3,350/2,400 for the savings
   // ticker's added hero height).
-  for (const [width, budget] of [[375, 3350], [1280, 2400]]) {
+  for (const [width, budget] of [[375, 3400], [1280, 2500]]) {
     const faqBudgetPage = await browser.newPage({ viewport: { width, height: 900 } });
     await faqBudgetPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
     await faqBudgetPage.goto(`${base}/`);
