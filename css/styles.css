@@ -318,6 +318,33 @@ html.js-boot #static-root { display: none; }
   max-width: none;
 }
 
+/* First-visit walkthrough (Phase 21, PRD section 6, "First-visit
+   walkthrough"): the same panel idiom as .linkgen directly below it (an
+   oxblood top rule on the shared .panel backing), since the two sit
+   stacked and are meant to read as one family, not a new component. Plain
+   flow content: no overlay, no backdrop, no focus trap, nothing here reads
+   as a dialog. */
+.cur-walkthrough {
+  padding: var(--s-6) var(--s-8);
+  margin-bottom: var(--s-6);
+  border-top: var(--bw-rule) solid var(--oxblood);
+}
+.cur-walkthrough-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  margin-bottom: var(--s-3);
+}
+.cur-walkthrough-steps {
+  margin: 0;
+  padding-left: var(--s-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  color: var(--ink-2);
+}
+
 /* Link generator */
 .linkgen {
   padding: var(--s-6) var(--s-8);
@@ -2560,6 +2587,54 @@ html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
   text-align: center;
 }
 .embed-footer a { color: inherit; }
+
+/* Judgement explainer dialog (PRD section 16 amended, Phase 21,
+   "First-judgement explainer"): the first genuine modal on the public
+   surface, role="dialog" and aria-modal per the 16.4 contract, built by
+   js/judge-coach.js. Every other panel in this block is either inline
+   (the discover mount) or a plain outside-click popover (the judge
+   chooser), so this needed a new idiom rather than reuse: a fixed backdrop
+   plus a centred card in the same visual family as DISCOVER's own
+   .discover-coach below (--paper-2 backing, --shadow-2, an oxblood rule),
+   never a new colour. Instant appearance throughout: no entrance
+   transition anywhere here, so the exhaustive motion inventory (PRD
+   section 16) gains nothing from this dialog. */
+.pub-judgecoach-backdrop {
+  position: fixed;
+  inset: 0;
+  /* Above the fixed topbar (z-index: 40) and the sticky shelf headers
+     (z-index: 3), below the toast (z-index: 100, BASE block): a save
+     confirmation firing while this dialog happens to be open must still
+     read on top of it, the same ordering the topbar's own comment states. */
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-4);
+  background: color-mix(in srgb, var(--ink) 55%, transparent);
+}
+.pub-judgecoach {
+  max-width: 440px;
+  width: 100%;
+  padding: var(--s-6);
+  background: var(--paper-2);
+  border: var(--border);
+  border-top: var(--bw-heavy) solid var(--oxblood);
+  border-radius: var(--r-3);
+  box-shadow: var(--shadow-2);
+}
+.pub-judgecoach h2 { margin: 0 0 var(--s-3); font-size: var(--fs-21); line-height: var(--lh-21); }
+.pub-judgecoach p { margin: 0 0 var(--s-3); color: var(--ink-2); }
+.pub-judgecoach p:last-of-type { margin-bottom: 0; }
+.pub-judgecoach-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+  margin-top: var(--s-4);
+}
+.pub-judgecoach-actions .btn { min-height: 44px; }
+.pub-judgecoach-actions a { min-height: 44px; display: inline-flex; align-items: center; }
 
 /* === DISCOVER ================================================================
    Wave 12.2, js/discover.js, PRD section 17. The inline panel public.js

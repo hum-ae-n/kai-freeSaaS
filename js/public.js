@@ -81,6 +81,7 @@ import { buildCardSections, categoryIcon } from './client.js';
 import { savingsFigures, savingsSentence } from './savings-copy.js';
 import { WHY_TITLE, WHY_PARAGRAPHS } from './why-copy.js';
 import { PAYMENT_LINKS } from './payments.js';
+import { maybeShowJudgeCoach } from './judge-coach.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -327,25 +328,29 @@ function groupByCategory(list) {
 }
 
 /** "Why this exists" disclosure (PRD section 16 amended, Rocky's 11 Aug
-    direction), sitting between the shelf band and the FAQ section in both
-    source and DOM order. A single native <details>/<summary> in the FAQ
+    direction; moved above the shelf band in Phase 21, Rocky's 12 Aug
+    direction), sitting between the discover mount and the shelf band in
+    both source and DOM order. A single native <details>/<summary> in the FAQ
     items' own visual language (see the PUBLIC block of styles.css), collapsed
     by default. The copy comes from js/why-copy.js, imported by this file and
     scripts/build-seo.mjs alike, so the rendered section and the static
     crawler block state the same words rather than two hand-kept copies (the
     same drift-proofing js/savings-copy.js already established for the hero
     sentence). Every segment renders through el()'s own text-node/attribute
-    discipline: a string segment is never concatenated into markup, and the
-    one link segment (the Guardian report) always becomes a real anchor with
-    target and rel set explicitly, never a string template. No motion is
-    added anywhere here: details/summary toggles instantly by native browser
-    behaviour, exactly like loadFaqSection's items beside it, so there is
-    nothing for the reduced-motion sweep to guard. */
+    discipline: a string segment is never concatenated into markup. A link
+    segment becomes a real anchor with target and rel set explicitly for an
+    external destination (the Guardian report), never a string template; an
+    internal link segment (the closing /why-register.html pointer, added
+    Phase 21) omits target and rel, per the standard same-tab internal link
+    rule, distinguished by the segment's own `internal: true` flag rather
+    than by sniffing the href. */
 function buildWhyParagraph(segments) {
   return el('p', { class: 'pub-why-answer' }, segments.map((seg) => (
     typeof seg === 'string'
       ? seg
-      : el('a', { href: seg.href, target: '_blank', rel: 'noopener noreferrer' }, seg.text)
+      : seg.internal
+        ? el('a', { href: seg.href }, seg.text)
+        : el('a', { href: seg.href, target: '_blank', rel: 'noopener noreferrer' }, seg.text)
   )));
 }
 function buildWhySection() {
@@ -792,6 +797,13 @@ export function renderPublic(root, tools) {
   // opened.
   const discoverMount = el('div', { class: 'discover-mount', hidden: true });
 
+  /* --- "Why this exists" section (built here at module scope; see
+     buildWhySection's own comment for the PRD section and the drift-proofing
+     rationale). Moved above the shelf band in Phase 21 (Rocky's 12 Aug
+     direction), so it sits between the discover mount and the shelf band in
+     both source order and the root.replaceChildren(...) call further down. */
+  const whySection = buildWhySection();
+
   function scrollToShelfBand() {
     shelfBand.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
   }
@@ -859,6 +871,19 @@ export function renderPublic(root, tools) {
         // button, and "Browse all" below) funnels through.
         onClose: () => { discoverOpen = false; showWaysInBand(); },
         onBrowseAll: () => { discoverOpen = false; scrollToShelfBand(); },
+        // Phase 21 (PRD section 16 amended, "First-judgement explainer"):
+        // `mod` (not the closure's own `judgeApi`, which the separate
+        // parity bootstrap further down may not have set yet) is the
+        // module reference this exact deck is already using, so
+        // isDeckCoachOpen() below always reads the right flag. restoreFocus
+        // re-queries the panel rather than holding a stale reference: by
+        // the time the dialog closes the deck may already be gone.
+        onJudge: () => {
+          maybeShowJudgeCoach({
+            deckCoachVisible: mod.isDeckCoachOpen(),
+            restoreFocus: () => discoverMount.querySelector('.discover-panel')?.focus({ preventScroll: true }),
+          });
+        },
       };
       // Motion inventory item 4 ("Deck-open morph"): guarded the same way as
       // every other item, feature-detected and off under reduced motion.
@@ -1194,12 +1219,6 @@ export function renderPublic(root, tools) {
     if (hash.startsWith('cat-')) openShelfBySlug(hash.slice(4));
   }
 
-  /* --- "Why this exists" section (built above at module scope; see
-     buildWhySection's own comment for the PRD section and the drift-proofing
-     rationale). Sits between the shelf band and the FAQ section below, in
-     both source order and the root.replaceChildren(...) call further down. */
-  const whySection = buildWhySection();
-
   /* --- FAQ section slot (BUILD-PLAN 14.1 reserved the slot; wave 14.3b
      fills it, PRD section 16 item 5 and section 18). The ten site Q&As come
      from data/faq.json (scripts/build-seo.mjs), the same file the ?tool=
@@ -1330,7 +1349,7 @@ export function renderPublic(root, tools) {
   // it is mounted first here purely for readable source order, top of page
   // to bottom. heroEndSentinel sits immediately after `header`, the
   // boundary the compress observer watches.
-  root.replaceChildren(topbar, header, heroEndSentinel, entryPaths, discoverMount, shelfBand, whySection, faqSection, footer);
+  root.replaceChildren(topbar, header, heroEndSentinel, entryPaths, discoverMount, whySection, shelfBand, faqSection, footer);
   document.title = 'Free Stack · Kaipability';
 
   handleHashDeepLink();
@@ -1446,6 +1465,23 @@ function focusJudgeChip(li) {
   article.addEventListener('blur', () => article.removeAttribute('tabindex'), { once: true });
 }
 
+/** The single write choke-point for a genuine browse-list judgement (Phase
+    21, PRD section 16 amended, "First-judgement explainer"): both the
+    quick-judge rail and the chip chooser's Got it/Add to my list buttons
+    call this, never discover.js's setDecision directly, so the coach hook
+    lives in exactly one place rather than being duplicated at each of the
+    four call sites (two rail buttons, two chooser buttons). Clearing a
+    judgement is deliberately NOT routed through here: it is not a
+    judgement being recorded, so it never needs to trigger the coach. */
+function judgeWithCoach(li, tool, judgeApi, decision) {
+  judgeApi.setDecision(tool.id, decision);
+  focusJudgeChip(li);
+  maybeShowJudgeCoach({
+    deckCoachVisible: judgeApi.isDeckCoachOpen(),
+    restoreFocus: () => focusJudgeChip(li),
+  });
+}
+
 /** Quick-judge rail (PRD section 16; re-verify round 2 rearchitecture):
     tick ("Got it") and plus ("Try it", the rail's short label for "add to
     my list"). The previous shape was an absolutely-positioned overlay
@@ -1477,14 +1513,12 @@ function buildJudgeRail(li, tool, judgeApi) {
     'aria-label': 'Try it', title: 'Try it', 'aria-pressed': String(decision === 'want'),
   }, '+');
   haveBtn.addEventListener('click', () => {
-    if (judgeApi.getDecision(tool.id) === 'have') judgeApi.clearDecision(tool.id);
-    else judgeApi.setDecision(tool.id, 'have');
-    focusJudgeChip(li);
+    if (judgeApi.getDecision(tool.id) === 'have') { judgeApi.clearDecision(tool.id); focusJudgeChip(li); }
+    else judgeWithCoach(li, tool, judgeApi, 'have');
   });
   wantBtn.addEventListener('click', () => {
-    if (judgeApi.getDecision(tool.id) === 'want') judgeApi.clearDecision(tool.id);
-    else judgeApi.setDecision(tool.id, 'want');
-    focusJudgeChip(li);
+    if (judgeApi.getDecision(tool.id) === 'want') { judgeApi.clearDecision(tool.id); focusJudgeChip(li); }
+    else judgeWithCoach(li, tool, judgeApi, 'want');
   });
   return el('div', { class: 'pub-judge-rail' }, haveBtn, wantBtn);
 }
@@ -1557,8 +1591,8 @@ function buildJudgeChipWrap(li, tool, judgeApi) {
     const gotItBtn = el('button', { class: 'btn btn-secondary', type: 'button' }, 'Got it');
     const wantBtn = el('button', { class: 'btn btn-secondary', type: 'button' }, 'Add to my list');
     const clearBtn = el('button', { class: 'btn btn-ghost', type: 'button' }, 'Clear');
-    gotItBtn.addEventListener('click', () => { judgeApi.setDecision(tool.id, 'have'); focusJudgeChip(li); });
-    wantBtn.addEventListener('click', () => { judgeApi.setDecision(tool.id, 'want'); focusJudgeChip(li); });
+    gotItBtn.addEventListener('click', () => judgeWithCoach(li, tool, judgeApi, 'have'));
+    wantBtn.addEventListener('click', () => judgeWithCoach(li, tool, judgeApi, 'want'));
     clearBtn.addEventListener('click', () => { judgeApi.clearDecision(tool.id); focusJudgeChip(li); });
     chooser = el('div', {
       class: 'pub-judge-chooser', role: 'group', 'aria-label': `Change judgement for ${tool.name}`,

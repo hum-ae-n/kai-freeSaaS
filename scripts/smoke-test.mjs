@@ -98,6 +98,36 @@ const activeCoreValue = sumValue(active.filter((t) => t.type === 'core'));
 const gbp = (n) => `£${n.toLocaleString('en-GB')}`;
 
 const browser = await chromium.launch();
+/* Phase 21: every page and context this suite creates defaults to already
+   having dismissed the first-judgement explainer dialog
+   (freestack:v1:judgecoach, js/judge-coach.js). Dozens of pre-existing
+   checks throughout this file judge a tool as a means to test something
+   else entirely (deck parity, keyboard handling, motion, and so on) on a
+   freshly isolated page or context with no prior localStorage of its own,
+   exactly clearDiscoverStorage's own coachDone: true pre-seed exists to
+   stop the DECK's first-open coach from swallowing those same checks'
+   first tap. This is the equivalent default for the newer public-surface
+   dialog: applied once, here, via addInitScript so it survives every
+   reload and navigation on every page/context this suite ever creates,
+   rather than patched into each of those call sites individually. The
+   dedicated judgecoach block below overrides it per page, via its own,
+   later-registered addInitScript, wherever a genuinely fresh key is the
+   point of the test. */
+const JUDGECOACH_DEFAULT_SCRIPT = () => {
+  try { localStorage.setItem('freestack:v1:judgecoach', '1'); } catch { /* private mode: irrelevant here */ }
+};
+const newContextWithJudgecoachDefault = browser.newContext.bind(browser);
+browser.newContext = async (...args) => {
+  const ctx = await newContextWithJudgecoachDefault(...args);
+  await ctx.addInitScript(JUDGECOACH_DEFAULT_SCRIPT);
+  return ctx;
+};
+const newPageWithJudgecoachDefault = browser.newPage.bind(browser);
+browser.newPage = async (...args) => {
+  const pg = await newPageWithJudgecoachDefault(...args);
+  await pg.addInitScript(JUDGECOACH_DEFAULT_SCRIPT);
+  return pg;
+};
 const page = await browser.newPage();
 const pageErrors = [];
 page.on('pageerror', (e) => pageErrors.push(String(e)));
@@ -3153,6 +3183,131 @@ check('discover: the coach overlay disappears within about 6 seconds with no int
 check('discover: auto-dismiss never judges a card', Object.keys(decisionsAfterCoachTimeout).length === 0, JSON.stringify(decisionsAfterCoachTimeout));
 await coachTimeoutPage.close();
 
+/* --- Phase 21: the first-judgement explainer dialog (PRD section 16
+   amended, "First-judgement explainer"; js/judge-coach.js) ---------------
+   freestack:v1:judgecoach, a public-surface key. The deck's own coachDone
+   is pre-seeded true throughout this block (clearDiscoverStorage's usual
+   job) except where the deck coach itself is the point of the test, so a
+   browse-list judgement here is never accidentally intercepted by the
+   deck's own first-open overlay, which this surface never even mounts.
+   Every page below that needs a genuinely unset key overrides the
+   suite-wide default (see browser.newPage's own comment above) with a
+   second, later-registered addInitScript, so the override survives the
+   reload each of these does after seeding data/tools.json's discover
+   state, not just the first navigation. */
+const jcPage = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
+await jcPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await jcPage.addInitScript(() => {
+  try { localStorage.removeItem('freestack:v1:judgecoach'); } catch { /* private mode: irrelevant here */ }
+});
+await jcPage.goto(`${base}/`);
+await jcPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+await jcPage.evaluate(() => {
+  localStorage.setItem('freestack:v1:discover', JSON.stringify({
+    v: 1, lastVisit: new Date().toISOString(), seenIds: [], decisions: {}, coachDone: true,
+  }));
+});
+await jcPage.reload();
+await jcPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+await jcPage.waitForTimeout(400); // let the judgement-parity bootstrap import/decorate settle
+await expandAllShelves(jcPage);
+const jcFirstLi = jcPage.locator('#public-root .card-grid > li').first();
+await jcFirstLi.hover();
+await jcFirstLi.locator('.pub-judge-rail-have').click();
+await jcPage.waitForSelector('.pub-judgecoach');
+check('judgecoach: a first browse-list judgement (deck coach not involved) shows the dialog exactly once',
+  (await jcPage.locator('.pub-judgecoach').count()) === 1);
+const jcDialogRoleAttrs = await jcPage.locator('.pub-judgecoach').evaluate((n) => ({
+  role: n.getAttribute('role'),
+  ariaModal: n.getAttribute('aria-modal'),
+  labelledby: n.getAttribute('aria-labelledby'),
+  headingPresent: !!document.getElementById(n.getAttribute('aria-labelledby')),
+}));
+check('judgecoach: dialog carries role="dialog", aria-modal="true" and a valid aria-labelledby',
+  jcDialogRoleAttrs.role === 'dialog' && jcDialogRoleAttrs.ariaModal === 'true' && jcDialogRoleAttrs.headingPresent,
+  JSON.stringify(jcDialogRoleAttrs));
+const jcKeepBtn = jcPage.locator('.pub-judgecoach-actions button', { hasText: 'Keep browsing' });
+const jcMyLink = jcPage.locator('.pub-judgecoach-actions a');
+const jcKeepBox = await jcKeepBtn.boundingBox();
+const jcMyLinkHref = await jcMyLink.getAttribute('href');
+const jcMyLinkBox = await jcMyLink.boundingBox();
+check('judgecoach: dialog carries the /my link and a Keep browsing button, both at least 44px tall',
+  jcMyLinkHref === '/my' && jcKeepBox && jcKeepBox.height >= 44 && jcMyLinkBox && jcMyLinkBox.height >= 44,
+  JSON.stringify({ jcMyLinkHref, jcKeepBox, jcMyLinkBox }));
+const jcBodyText = await jcPage.locator('.pub-judgecoach').textContent();
+check('judgecoach: copy contains no em dash character', !jcBodyText.includes('—'));
+
+await jcPage.keyboard.press('Escape');
+await jcPage.waitForSelector('.pub-judgecoach', { state: 'detached' });
+const jcShownFlagAfterEscape = await jcPage.evaluate(() => localStorage.getItem('freestack:v1:judgecoach'));
+check('judgecoach: Escape closes the dialog and sets the storage key', jcShownFlagAfterEscape === '1');
+const jcFocusedClassAfterEscape = await jcPage.evaluate(() => document.activeElement?.className ?? '');
+check('judgecoach: focus returns to the judged card\'s own control after Escape',
+  jcFocusedClassAfterEscape.includes('pub-judge-chip'), jcFocusedClassAfterEscape);
+
+// A second judgement never re-shows it.
+const jcSecondLi = jcPage.locator('#public-root .card-grid > li').nth(1);
+await jcSecondLi.hover();
+await jcSecondLi.locator('.pub-judge-rail-want').click();
+await jcPage.waitForTimeout(300);
+check('judgecoach: a second judgement never re-shows the dialog',
+  (await jcPage.locator('.pub-judgecoach').count()) === 0);
+await jcPage.close();
+
+// With the key pre-set, no dialog on a first judgement.
+const jcPresetPage = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
+await jcPresetPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await jcPresetPage.goto(`${base}/`);
+await jcPresetPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+await jcPresetPage.evaluate(() => {
+  localStorage.setItem('freestack:v1:judgecoach', '1');
+  localStorage.setItem('freestack:v1:discover', JSON.stringify({
+    v: 1, lastVisit: new Date().toISOString(), seenIds: [], decisions: {}, coachDone: true,
+  }));
+});
+await jcPresetPage.reload();
+await jcPresetPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+await jcPresetPage.waitForTimeout(400);
+await expandAllShelves(jcPresetPage);
+const jcPresetLi = jcPresetPage.locator('#public-root .card-grid > li').first();
+await jcPresetLi.hover();
+await jcPresetLi.locator('.pub-judge-rail-have').click();
+await jcPresetPage.waitForTimeout(300);
+check('judgecoach: with the key pre-set, no dialog shows on a first judgement',
+  (await jcPresetPage.locator('.pub-judgecoach').count()) === 0);
+await jcPresetPage.close();
+
+// Never stacks with the deck's own first-open coach: a genuinely first-ever
+// deck open shows the deck coach only; dismissing it and then making the
+// device's first-ever judgement (inside the deck) shows the public-surface
+// dialog on its own, never both at once.
+const stackPage = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
+await stackPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await stackPage.addInitScript(() => {
+  try { localStorage.removeItem('freestack:v1:judgecoach'); } catch { /* private mode: irrelevant here */ }
+});
+await stackPage.goto(`${base}/`);
+await stackPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+await stackPage.evaluate(() => {
+  localStorage.removeItem('freestack:v1:discover'); // genuinely first-ever deck
+});
+await stackPage.reload();
+await stackPage.waitForSelector('#public-root .tool-card', { state: 'attached' });
+await stackPage.locator('[data-discover-entry]').click();
+await stackPage.waitForSelector('.discover-coach');
+check('judgecoach: the dialog never appears while the deck\'s own first-open coach is up',
+  (await stackPage.locator('.pub-judgecoach').count()) === 0);
+await stackPage.locator('.discover-coach-dismiss').click();
+await stackPage.waitForSelector('.discover-coach', { state: 'detached' });
+await stackPage.locator('.discover-panel').press('ArrowLeft'); // the device's first-ever judgement
+await stackPage.waitForTimeout(500);
+const stackJudgecoachCount = await stackPage.locator('.pub-judgecoach').count();
+const stackDeckCoachCount = await stackPage.locator('.discover-coach').count();
+check('judgecoach: a first judgement made inside the deck (its coach already dismissed) shows exactly one dialog, never stacked with the deck coach',
+  stackJudgecoachCount === 1 && stackDeckCoachCount === 0,
+  `judgecoach=${stackJudgecoachCount} deckCoach=${stackDeckCoachCount}`);
+await stackPage.close();
+
 /* --- Phase 12.3: list parity and quick-judge (PRD section 16) -------------
    getDecision/setDecision/clearDecision/subscribe live in js/discover.js;
    this section drives them only through the UI (the browse list's chip
@@ -3777,6 +3932,59 @@ await page.fill('#client-name', 'Acme Ltd');
 await page.click('text=Generate link');
 const url = await page.locator('.generated-url').textContent();
 check('curator: generated URL has t= and client=', /[?&]t=0,/.test(url) && url.includes('client=Acme+Ltd'), url);
+
+/* --- curator: first-visit walkthrough (Phase 21, PRD section 6, "First-
+   visit walkthrough") ---------------------------------------------------
+   A dedicated page, isolated from the shared `page` object the rest of
+   this curator section reuses, since this exercises its own storage key
+   and reload cycle. */
+const curCoachPage = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
+await curCoachPage.route(/^(?!.*localhost).*$/, (route) => route.abort());
+await curCoachPage.goto(`${base}/x`);
+await curCoachPage.waitForSelector('.tools-table');
+await curCoachPage.evaluate(() => localStorage.removeItem('freestack:v1:curatorcoach'));
+await curCoachPage.reload();
+await curCoachPage.waitForSelector('.tools-table');
+const curWalkthroughStepsFresh = await curCoachPage.locator('.cur-walkthrough-steps li').allTextContents();
+const curWalkthroughVisibleFresh = await curCoachPage.locator('.cur-walkthrough').isVisible();
+check('curatorcoach: fresh /x shows the walkthrough panel above the link generator with 4 steps',
+  curWalkthroughVisibleFresh && curWalkthroughStepsFresh.length === 4,
+  `visible=${curWalkthroughVisibleFresh} steps=${curWalkthroughStepsFresh.length}`);
+const curWalkthroughBeforeLinkgen = await curCoachPage.evaluate(() => {
+  const walkthrough = document.querySelector('.cur-walkthrough');
+  const linkgen = document.querySelector('.linkgen');
+  return !!walkthrough && !!linkgen
+    && !!(walkthrough.compareDocumentPosition(linkgen) & Node.DOCUMENT_POSITION_FOLLOWING);
+});
+check('curatorcoach: walkthrough panel sits above the link generator in DOM order', curWalkthroughBeforeLinkgen);
+
+await curCoachPage.locator('.cur-walkthrough-head button', { hasText: 'Dismiss' }).click();
+const curWalkthroughHiddenAfterDismiss = !(await curCoachPage.locator('.cur-walkthrough').isVisible());
+const curCoachKeyAfterDismiss = await curCoachPage.evaluate(() => localStorage.getItem('freestack:v1:curatorcoach'));
+check('curatorcoach: dismissing hides the panel and sets the storage key',
+  curWalkthroughHiddenAfterDismiss && curCoachKeyAfterDismiss === '1');
+
+await curCoachPage.reload();
+await curCoachPage.waitForSelector('.tools-table');
+const curWalkthroughVisibleAfterReload = await curCoachPage.locator('.cur-walkthrough').isVisible();
+check('curatorcoach: reloading with the key already set does not show the panel again',
+  curWalkthroughVisibleAfterReload === false);
+
+await curCoachPage.locator('.cur-header button', { hasText: 'How this works' }).click();
+const curWalkthroughVisibleAfterReopen = await curCoachPage.locator('.cur-walkthrough').isVisible();
+const curCoachKeyAfterReopen = await curCoachPage.evaluate(() => localStorage.getItem('freestack:v1:curatorcoach'));
+check('curatorcoach: the "How this works" header button reopens the panel without clearing the key',
+  curWalkthroughVisibleAfterReopen && curCoachKeyAfterReopen === '1');
+
+const curWalkthroughTargetHeights = await curCoachPage
+  .locator('.cur-walkthrough-head button, .cur-header button')
+  .evaluateAll((nodes) => nodes
+    .filter((n) => /Dismiss|How this works/.test(n.textContent ?? ''))
+    .map((n) => n.getBoundingClientRect().height));
+check('curatorcoach: Dismiss and How this works are both at least 44px tall',
+  curWalkthroughTargetHeights.length === 2 && curWalkthroughTargetHeights.every((h) => h >= 44),
+  JSON.stringify(curWalkthroughTargetHeights));
+await curCoachPage.close();
 
 /* --- client mode --------------------------------------------------------- */
 await page.goto(url);
@@ -4419,12 +4627,28 @@ check('csp: changelog.html introduces no additional inline script beyond the sha
   check('aeo: homepage FAQ summaries are at least 44px tall', homeFaqSummaryHeights.every((h) => h >= 44), JSON.stringify(homeFaqSummaryHeights));
 
   // "Why this exists" disclosure (PRD section 16 amended, Rocky's 11 Aug
-  // direction): a single collapsed <details>/<summary> between the shelf
-  // band and the FAQ block, sourced from js/why-copy.js (the same module
+  // direction; moved above the shelf band in Phase 21, Rocky's 12 Aug
+  // direction): a single collapsed <details>/<summary> between the discover
+  // mount and the shelf band, sourced from js/why-copy.js (the same module
   // js/public.js and scripts/build-seo.mjs both import), so this suite
   // checks against the one canonical copy rather than a third hand-kept
-  // string. Sits below the shelf band, so no shelf needs expanding to find
-  // it, same as the FAQ slot above.
+  // string.
+  const whyDomOrder = await page.evaluate(() => {
+    const discoverMount = document.querySelector('.discover-mount');
+    const why = document.querySelector('.pub-why');
+    const shelfBand = document.querySelector('.pub-shelf-band');
+    const faq = document.querySelector('.pub-faq');
+    const before = (a, b) => !!a && !!b
+      && !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+    return {
+      discoverBeforeWhy: before(discoverMount, why),
+      whyBeforeShelf: before(why, shelfBand),
+      shelfBeforeFaq: before(shelfBand, faq),
+    };
+  });
+  check('why: DOM order is discover mount, why section, shelf band, then FAQ (Phase 21 move)',
+    whyDomOrder.discoverBeforeWhy && whyDomOrder.whyBeforeShelf && whyDomOrder.shelfBeforeFaq,
+    JSON.stringify(whyDomOrder));
   await page.waitForSelector('.pub-why-item');
   const whySummaryText = await page.locator('.pub-why-summary').textContent();
   check('why: homepage renders the "Why this exists" disclosure with the exact summary text',
@@ -4439,15 +4663,25 @@ check('csp: changelog.html introduces no additional inline script beyond the sha
   check('why: disclosure opens on activation', whyOpenAfterCount === 1);
   const whyBodyText = await page.locator('.pub-why-body').textContent();
   const whyParagraphPlainText = (segments) => segments.map((seg) => (typeof seg === 'string' ? seg : seg.text)).join('');
-  check('why: opened body carries all four paragraphs of the canonical copy',
+  check('why: opened body carries every paragraph of the canonical copy',
     WHY_PARAGRAPHS.every((segments) => whyBodyText.includes(whyParagraphPlainText(segments))));
-  const whyLink = page.locator('.pub-why-body a');
+  const whyLink = page.locator('.pub-why-body a[target="_blank"]');
   const guardianSegment = WHY_PARAGRAPHS[0].find((seg) => typeof seg === 'object');
   check('why: Guardian link has the exact href, target=_blank and rel containing noopener',
     await whyLink.count() === 1
     && await whyLink.getAttribute('href') === guardianSegment.href
     && await whyLink.getAttribute('target') === '_blank'
     && (await whyLink.getAttribute('rel') ?? '').includes('noopener'));
+  // Closing internal link (Phase 21): the /why-register.html pointer, same
+  // tab, no target/rel, distinct from the external Guardian link above.
+  const internalSegment = WHY_PARAGRAPHS.flat().find((seg) => typeof seg === 'object' && seg.internal);
+  const whyRegisterLink = page.locator('.pub-why-body a[href="/why-register.html"]');
+  check('why: rendered section carries the closing /why-register.html link with no target/rel (same tab)',
+    !!internalSegment
+    && await whyRegisterLink.count() === 1
+    && (await whyRegisterLink.textContent()) === internalSegment.text
+    && (await whyRegisterLink.getAttribute('target')) === null
+    && (await whyRegisterLink.getAttribute('rel')) === null);
   check('why: rendered copy contains no em dash character', !whyBodyText.includes('—'));
 
   // Same copy, in the static crawler block (raw fetch below, no JS): proves
@@ -4464,6 +4698,12 @@ check('csp: changelog.html introduces no additional inline script beyond the sha
     !!whyStaticMatch && whyStaticInner.includes(
       `<a href="${escapeHtmlForCheck(guardianSegment.href)}" target="_blank" rel="noopener noreferrer">${escapeHtmlForCheck(guardianSegment.text)}</a>`,
     ));
+  check('why: static crawler block carries the closing /why-register.html link with no target/rel (same tab)',
+    !!whyStaticMatch && !!internalSegment && whyStaticInner.includes(
+      `<a href="${escapeHtmlForCheck(internalSegment.href)}">${escapeHtmlForCheck(internalSegment.text)}</a>`,
+    ));
+  check('why: static crawler block sits before the category sections (mirrors the discover-then-why-then-shelves order)',
+    !!whyStaticMatch && rawRootHtml.indexOf('<section id="seo-why">') < rawRootHtml.indexOf('<h2>AI Assistants</h2>'));
   check('why: static crawler block contains no em dash character', !!whyStaticMatch && !whyStaticInner.includes('—'));
 
   // Re-measure the 14.1 fold and page-height budgets now that the FAQ slot
