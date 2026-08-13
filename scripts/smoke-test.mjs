@@ -5822,6 +5822,171 @@ await withStubbedPayments(async (pg) => {
     !/REGISTER_FIELDS\s*=\s*\[[^\]]*password/i.test(src));
 }
 
+/* --- Phase 22 (PRD-REGISTER section 9.4, "Conversion exposure"): the Costs
+   screen's indicative "if every free tier here converted" line, and the
+   honest "no known conversion price" count, both computed at render time
+   from the catalogue and NEVER written into the register document. Five
+   rows constructed directly through store.js (the one write choke-point):
+   a planned row linked to tool 0 (pins the id-zero law, CLAUDE.md: toolId 0
+   is real, Number.isInteger not truthiness); an active row costed at £0
+   with a renewal date, so it also exercises the renewal-list per-row note;
+   an active row with a REAL cost, linked to the same tool, which must be
+   excluded entirely; a planned manual row with no toolId, which counts
+   toward the "no known price" line rather than vanishing; and an active row
+   with no cost and no renewal date, which exercises the uncosted-list
+   per-row note. ------------------------------------------------------- */
+{
+  const exposureTool1 = active.find((t) => t.id !== 0 && Number.isInteger(t.paid_from) && t.paid_from > 0);
+  const zeroTool = active.find((t) => t.id === 0);
+  if (!exposureTool1 || !zeroTool || !Number.isInteger(zeroTool.paid_from) || zeroTool.paid_from <= 0) {
+    throw new Error('smoke: Phase 22 exposure test needs tool 0 and a second active tool, both with a known paid_from');
+  }
+  const renewalIso = new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10);
+
+  const ctx = await browser.newContext();
+  await ctx.route(/^(?!.*localhost).*$/, (route) => route.abort());
+  const pg = await ctx.newPage();
+  await pg.goto(`${base}/my`);
+  await pg.waitForSelector('#my-root:not([hidden])');
+  await completeHeadlessSetup(pg, 'Exposure Test Ltd');
+  await pg.evaluate(async ({ tool1Id, renewalIso: renewal }) => {
+    const s = await import('/js/my/store.js');
+    const doc = await s.load();
+    doc.accounts.push(
+      {
+        id: 'exp-planned-zero', service: 'Zero Id Tool', url: '', toolId: 0,
+        identity: '', owner: '', admin: 'unknown', mfa: 'unknown',
+        plan: '', renewal: null, monthlyCost: null, status: 'planned', notes: '', shared: false,
+      },
+      {
+        id: 'exp-active-zero', service: 'Zero Cost Tool', url: '', toolId: tool1Id,
+        identity: '', owner: '', admin: 'unknown', mfa: 'unknown',
+        plan: '', renewal, monthlyCost: 0, status: 'active', notes: '', shared: false,
+      },
+      {
+        id: 'exp-active-paying', service: 'Paying Tool', url: '', toolId: tool1Id,
+        identity: '', owner: '', admin: 'unknown', mfa: 'unknown',
+        plan: '', renewal: null, monthlyCost: 50, status: 'active', notes: '', shared: false,
+      },
+      {
+        id: 'exp-planned-manual', service: 'Hand Typed Tool', url: '', toolId: null,
+        identity: '', owner: '', admin: 'unknown', mfa: 'unknown',
+        plan: '', renewal: null, monthlyCost: null, status: 'planned', notes: '', shared: false,
+      },
+      {
+        id: 'exp-active-uncosted', service: 'Uncosted Free Tool', url: '', toolId: tool1Id,
+        identity: '', owner: '', admin: 'unknown', mfa: 'unknown',
+        plan: '', renewal: null, monthlyCost: null, status: 'active', notes: '', shared: false,
+      },
+    );
+    await s.save(doc, doc.revision);
+  }, { tool1Id: exposureTool1.id, renewalIso });
+  await pg.reload();
+  await pg.waitForSelector('.my-nav-item');
+
+  // 3 qualifying rows: planned+tool0, active £0, active uncosted. Row-based,
+  // not tool-based: exposureTool1 is linked twice and counted twice.
+  const expectedMonthly = zeroTool.paid_from + (exposureTool1.paid_from * 2);
+  const expectedAnnual = expectedMonthly * 12;
+
+  await pg.locator('.my-nav-item', { hasText: 'Costs' }).click();
+  await pg.waitForSelector('.my-costs-figure');
+
+  const realTotalText = (await pg.locator('.my-costs-figure').textContent()).trim();
+  check('my: Phase 22 real total counts only the genuinely paying row (£50), not the £0 or uncosted rows',
+    realTotalText === '£50', realTotalText);
+
+  const exposureFigureText = (await pg.locator('.my-costs-exposure-figure').textContent()).trim();
+  check('my: Phase 22 exposure line renders "If every free tier here converted: from £N/month" with the correct row-based sum',
+    exposureFigureText === `If every free tier here converted: from £${expectedMonthly.toLocaleString('en-GB')}/month`,
+    exposureFigureText);
+  const exposureBlockText = await pg.locator('.my-costs-exposure').textContent();
+  check('my: exposure line carries the honesty tail, "vendor prices as last checked"',
+    /vendor prices as last checked/i.test(exposureBlockText), exposureBlockText);
+  check('my: exposure meta states the qualifying row count (3)', exposureBlockText.includes('3 free rows'), exposureBlockText);
+
+  const unknownText = (await pg.locator('.my-costs-exposure-unknown').textContent()).trim();
+  check('my: the honest "no known conversion price" line reports exactly the one manual planned row',
+    unknownText === '1 free row with no known conversion price.', unknownText);
+
+  const uncostedText = await pg.locator('.my-costs-uncosted').textContent();
+  check('my: the uncosted-list per-row note appears for the qualifying uncosted row',
+    uncostedText.includes('Uncosted Free Tool') && uncostedText.includes(`Free today, from £${exposureTool1.paid_from}/mo if it converts`),
+    uncostedText);
+
+  const renewalListText = await pg.locator('.my-renewal-block', { hasText: 'Renewing in the next 14 days' }).textContent();
+  check('my: the renewal-list per-row note appears for the £0 row that also has a renewal date',
+    renewalListText.includes('Zero Cost Tool') && renewalListText.includes(`Free today, from £${exposureTool1.paid_from}/mo if it converts`),
+    renewalListText);
+  check('my: the renewal-list row for the genuinely paying twin carries no exposure note',
+    !renewalListText.includes('Paying Tool'), renewalListText); // paying row has no renewal date, so absent here anyway; guards a future regression
+
+  // Toggle to annual: both the real total and the exposure line multiply by
+  // 12, "the same as the real total" (PRD-REGISTER section 9.4).
+  await pg.locator('.my-costs-toggle button', { hasText: 'Annual' }).click();
+  const realTotalAnnual = (await pg.locator('.my-costs-figure').textContent()).trim();
+  const exposureFigureAnnual = (await pg.locator('.my-costs-exposure-figure').textContent()).trim();
+  check('my: annual toggle multiplies the real total by 12', realTotalAnnual === '£600', realTotalAnnual);
+  check('my: annual toggle multiplies the exposure line by 12 too, suffix switches to "/year"',
+    exposureFigureAnnual === `If every free tier here converted: from £${expectedAnnual.toLocaleString('en-GB')}/year`,
+    exposureFigureAnnual);
+  await pg.locator('.my-costs-toggle button', { hasText: 'Monthly' }).click();
+
+  // Per-row note in the account drawer: present for a qualifying row, absent
+  // for the paying twin sharing the same linked tool.
+  await pg.locator('.my-nav-item', { hasText: 'Accounts' }).click();
+  await waitForAccountsScreen(pg);
+  async function drawerTextFor(serviceName) {
+    // The Service column is a live <input>, not text: its value never shows
+    // up in a plain textContent/hasText match.
+    const row = pg.locator(`tr.my-acc-row:has(input[value="${serviceName}"])`);
+    await row.locator('button', { hasText: 'Details' }).click();
+    const text = await pg.locator('tr.my-acc-drawer-row').textContent();
+    await row.locator('button', { hasText: 'Close details' }).click();
+    return text;
+  }
+  const zeroIdDrawerText = await drawerTextFor('Zero Id Tool');
+  check('my: drawer per-row note appears for the planned row linked to tool 0 (id-zero law: Number.isInteger, never truthiness)',
+    zeroIdDrawerText.includes(`Free today, from £${zeroTool.paid_from}/mo if it converts`), zeroIdDrawerText);
+  const payingDrawerText = await drawerTextFor('Paying Tool');
+  check('my: drawer carries no exposure note for the row that already has a real monthly cost',
+    !payingDrawerText.includes('Free today, from'), payingDrawerText);
+  const manualDrawerText = await drawerTextFor('Hand Typed Tool');
+  check('my: drawer carries no exposure note for the free manual row with no linked tool (honest, not invented)',
+    !manualDrawerText.includes('Free today, from'), manualDrawerText);
+
+  // Never written to the register document: neither the in-memory doc nor
+  // the real exported .fsr.json file carries any exposure-derived text or a
+  // new field. Downloaded through the actual Backup-screen export flow, not
+  // just store.load(), so this proves the real export file, not only the
+  // in-memory object.
+  const docCheck = await diskDoc(pg);
+  const docJson = JSON.stringify(docCheck);
+  check('my: the in-memory register document carries no exposure-derived text',
+    !/converted|paid_from|conversion price/i.test(docJson), docJson.slice(0, 200));
+
+  await pg.locator('.my-nav-item', { hasText: 'Backup' }).click();
+  await pg.waitForSelector('button:has-text("Download a backup now")');
+  const [exportDownload] = await Promise.all([
+    pg.waitForEvent('download'),
+    pg.locator('button', { hasText: 'Download a backup now' }).click(),
+  ]);
+  const exportText = await readFile(await exportDownload.path(), 'utf8');
+  check('my: the real exported register file contains no exposure line, per-row note or "converted" wording',
+    !/if every free tier|free today, from|no known conversion price/i.test(exportText), exportText.slice(0, 200));
+  const exportedDoc = JSON.parse(exportText);
+  const exposureKeyOffenders = (exportedDoc.accounts || []).filter((a) => Object.keys(a).some((k) => /exposure|paidFrom/i.test(k)));
+  check('my: no exported account row carries a new exposure-shaped field (no schema change, section 9.4)',
+    exposureKeyOffenders.length === 0, JSON.stringify(exposureKeyOffenders));
+
+  // House style: no em dash in any of the Phase 22 copy.
+  const allExposureText = `${exposureFigureText} ${exposureBlockText} ${unknownText} ${uncostedText} ${renewalListText} ${zeroIdDrawerText}`;
+  check('my: no em dash anywhere in the Phase 22 copy', !allExposureText.includes('—'), allExposureText);
+
+  await pg.close();
+  await ctx.close();
+}
+
 check('no page errors across all loads', pageErrors.length === 0, pageErrors.join(' | ').slice(0, 300));
 
 await browser.close();

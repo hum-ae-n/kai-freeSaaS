@@ -3498,10 +3498,21 @@ html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
 .my-renewal-date { color: var(--ink-2); min-width: 7rem; }
 .my-renewal-service { flex: 1 1 160px; }
 .my-renewal-amount { font-family: var(--font-sans); }
+/* Phase 22: the per-row exposure note on a renewal row always takes its own
+   line rather than crowding onto the date/service/amount row it explains,
+   the same "text label always" discipline as the risk chips elsewhere. */
+.my-renewal-exposure { flex-basis: 100%; }
 .my-costs-total { max-width: 420px; margin-bottom: var(--s-4); }
 .my-costs-toggle { display: flex; gap: var(--s-2); margin-bottom: var(--s-2); }
 .my-costs-figure { font-family: var(--font-sans); font-size: var(--fs-34); font-weight: 500; color: var(--oxblood); margin: 0; }
+/* Phase 22 conversion exposure (section 9.4): deliberately quieter than
+   .my-costs-figure above it. This is an indicative "from" line, not the
+   real total, and must never compete with it for the reader's eye. */
+.my-costs-exposure { max-width: 480px; margin-bottom: var(--s-4); padding-top: var(--s-3); border-top: var(--bw-hair) solid var(--paper-edge); }
+.my-costs-exposure-figure { font-family: var(--font-sans); font-size: var(--fs-21); font-weight: 500; color: var(--ink-2); margin: 0 0 var(--s-1); }
+.my-costs-exposure-unknown { max-width: 480px; margin-bottom: var(--s-4); }
 .my-costs-uncosted { max-width: 480px; margin-bottom: var(--s-4); }
+.my-costs-uncosted-item { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 .my-costs-chart-note { max-width: 480px; }
 
 /* --- Leavers (section 9.5) ------------------------------------------------- */

@@ -1506,6 +1506,11 @@ export async function renderWorkspace(root) {
 
     /* --- Accounts: the register (section 9.2) ------------------------------ */
     function screenAccounts() {
+      // The drawer's tool-name line and Phase 22 exposure note both read
+      // toolsCache; fetch it here too so a reader who lands straight on
+      // Accounts (rather than My tools or Costs first) still sees them once
+      // it lands, not only "tool id N" until they happen to visit elsewhere.
+      ensureToolsThenRedraw();
       const ui = state.accountsUi;
       const readOnly = state.example;
       const accounts = doc.accounts;
@@ -2057,6 +2062,32 @@ export async function renderWorkspace(root) {
       return el('label', { class: 'my-field my-template-row', for: id }, cb, el('span', { class: 't-small' }, labelText));
     }
 
+    /** Conversion exposure (section 9.4, "Conversion exposure (Phase 22)").
+        A row is free today if it is not closed and is either still only
+        planned, or costed at nothing (no monthlyCost recorded, or recorded
+        as exactly zero). This is a render-time read of the catalogue's
+        `paid_from`, never written back into the register document: the
+        register records facts about the business, and a vendor's future
+        price is not one. toolId 0 is a real tool throughout, exactly as
+        everywhere else on this surface: Number.isInteger, never
+        truthiness. */
+    function isFreeRow(a) {
+      return a.status !== 'closed' && (a.status === 'planned' || a.monthlyCost === null || a.monthlyCost === undefined || a.monthlyCost === 0);
+    }
+    /** The linked tool, only when it carries a usable paid tier (an integer
+        above zero); null otherwise, whether that is no link, an unresolved
+        catalogue fetch, or a tool with no known paid_from. Callers gate this
+        on isFreeRow() first: a row that is already paying is never exposure. */
+    function exposureToolFor(a) {
+      if (!Number.isInteger(a.toolId)) return null;
+      const tool = (toolsCache || []).find((t) => t.id === a.toolId);
+      if (!tool || !Number.isInteger(tool.paid_from) || tool.paid_from <= 0) return null;
+      return tool;
+    }
+    function exposureNoteText(tool) {
+      return `Free today, from ${money(tool.paid_from)}/mo if it converts`;
+    }
+
     /** Everything not in the five visible columns (section 9.2, section
         4.2): url, toolId (read-only: it comes from an import, not typed),
         admin, plan, monthlyCost, status, notes. */
@@ -2074,6 +2105,12 @@ export async function renderWorkspace(root) {
       const plannedHint = (!readOnly && a.status === 'planned')
         ? el('p', { class: 't-meta my-field-wide' }, 'Not opened yet. When you do sign up, come back here, mark this active, and check the identity above is the one you actually used.')
         : null;
+      // Phase 22 per-row note, right beside the field it explains: this row
+      // shows £0 today only because the vendor has not asked for money yet.
+      const exposureTool = isFreeRow(a) ? exposureToolFor(a) : null;
+      const exposureNote = exposureTool
+        ? el('p', { class: 't-meta my-field-wide' }, exposureNoteText(exposureTool))
+        : null;
       return el('div', { class: 'my-acc-drawer' },
         toolLine,
         el('div', { class: 'my-acc-drawer-grid' },
@@ -2081,6 +2118,7 @@ export async function renderWorkspace(root) {
           drawerSelect('Access level', a, 'admin', ['owner', 'admin', 'member', 'unknown'], ADMIN_LABEL, readOnly),
           drawerField('Plan', a, 'plan', 'text', readOnly),
           drawerField('Monthly cost (GBP)', a, 'monthlyCost', 'number', readOnly),
+          exposureNote,
           drawerSelect('Status', a, 'status', STATUS_OPTIONS, STATUS_LABEL, readOnly),
           drawerCheckbox('Shared login (more than one person knows it)', a, 'shared', readOnly),
           drawerTextarea('Notes', a, 'notes', readOnly),
@@ -2147,10 +2185,16 @@ export async function renderWorkspace(root) {
 
     /* --- Costs: a ledger, not a dashboard (section 9.4) -------------------- */
     function renewalRow(a) {
+      // Phase 22: a renewal date and a £0 amount together are exactly the
+      // trap ("free trial ends, converts automatically") this note exists
+      // to name, so it belongs on this row even though the row itself
+      // already shows a cost.
+      const exposureTool = isFreeRow(a) ? exposureToolFor(a) : null;
       return el('div', { class: 'my-renewal-row' },
         el('span', { class: 'my-renewal-date' }, formatDate(a.renewal)),
         el('span', { class: 'my-renewal-service' }, a.service || 'Untitled account'),
         el('span', { class: 'my-renewal-amount' }, a.monthlyCost != null ? money(a.monthlyCost) : 'No cost recorded'),
+        exposureTool ? el('span', { class: 'my-renewal-exposure t-meta' }, exposureNoteText(exposureTool)) : null,
       );
     }
     function renewalList(accounts, days, titleText) {
@@ -2173,6 +2217,7 @@ export async function renderWorkspace(root) {
       return `/?${params.toString()}`;
     }
     function screenCosts() {
+      ensureToolsThenRedraw();
       // Section 16 extension (BUILD-PLAN 12.4 fix round, 27 Jul): a planned
       // row is an intention the business has not paid for by definition, so
       // it never enters the renewal lists, the uncosted list or the
@@ -2184,6 +2229,22 @@ export async function renderWorkspace(root) {
       const monthlyTotal = costed.reduce((sum, a) => sum + a.monthlyCost, 0);
       const ui = state.costsUi;
       const totalFigure = ui.mode === 'annual' ? monthlyTotal * 12 : monthlyTotal;
+
+      // Conversion exposure (Phase 22). Unlike the total above, this reads
+      // the WHOLE register, including planned rows: an intention to sign up
+      // for something free is exactly the row this line exists to warn
+      // about. Computed here only, at render time, from the catalogue
+      // already in memory; never written back into doc.
+      let exposureMonthly = 0;
+      let exposureRowCount = 0;
+      let exposureUnknownCount = 0;
+      for (const a of doc.accounts) {
+        if (!isFreeRow(a)) continue;
+        const tool = exposureToolFor(a);
+        if (tool) { exposureMonthly += tool.paid_from; exposureRowCount += 1; }
+        else exposureUnknownCount += 1;
+      }
+      const exposureFigure = ui.mode === 'annual' ? exposureMonthly * 12 : exposureMonthly;
 
       const monthlyBtn = el('button', { class: `btn btn-sm ${ui.mode === 'monthly' ? 'btn-primary' : 'btn-ghost'}`, type: 'button', 'aria-pressed': String(ui.mode === 'monthly') }, 'Monthly');
       monthlyBtn.addEventListener('click', () => { ui.mode = 'monthly'; draw(); });
@@ -2201,9 +2262,25 @@ export async function renderWorkspace(root) {
         el('ul', { class: 'my-attention-list' }, ...uncosted.map((a) => {
           const btn = el('button', { class: 'btn btn-ghost btn-sm', type: 'button' }, `${a.service || 'Untitled account'}: no cost recorded`);
           btn.addEventListener('click', () => openAccountDrawer(a.id));
-          return el('li', {}, btn);
+          const exposureTool = isFreeRow(a) ? exposureToolFor(a) : null;
+          const note = exposureTool ? el('p', { class: 't-meta' }, exposureNoteText(exposureTool)) : null;
+          return el('li', { class: 'my-costs-uncosted-item' }, btn, note);
         })),
       ) : null;
+
+      // Section 9.4's own wording: an indicative line, always "from", never
+      // a forecast, and it does not render at all when nothing qualifies
+      // (a register with no free rows linked to a priced tool has nothing
+      // to be indicative about). The "no known price" honesty count is
+      // independent of it: it can appear even when the figure above cannot.
+      const exposurePanel = exposureRowCount ? el('div', { class: 'panel my-costs-exposure' },
+        el('p', { class: 'my-costs-exposure-figure' },
+          `If every free tier here converted: from ${money(exposureFigure)}${ui.mode === 'annual' ? '/year' : '/month'}`),
+        el('p', { class: 't-meta' },
+          `Vendor prices as last checked, summed from ${exposureRowCount} free row${exposureRowCount === 1 ? '' : 's'} with a known paid tier.`),
+      ) : null;
+      const exposureUnknownPanel = exposureUnknownCount ? el('p', { class: 't-small my-costs-exposure-unknown' },
+        `${exposureUnknownCount} free row${exposureUnknownCount === 1 ? '' : 's'} with no known conversion price.`) : null;
 
       const stackLink = buildStackLink(doc);
       const chartNote = stackLink ? el('div', { class: 'panel my-costs-chart-note' },
@@ -2216,6 +2293,8 @@ export async function renderWorkspace(root) {
         renewalList(accounts, 14, 'Renewing in the next 14 days'),
         renewalList(accounts, 60, 'Renewing in the next 60 days'),
         totalPanel,
+        exposurePanel,
+        exposureUnknownPanel,
         uncostedPanel,
         chartNote,
       );
