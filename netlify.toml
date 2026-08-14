@@ -66,6 +66,19 @@
   for = "/my"
   [headers.values]
     Referrer-Policy = "no-referrer"
+    # Pre-publicity security sweep, 14 Aug: the DENY rules above match the
+    # literal request paths "/", "/index.html" and "/x", and the SPA fallback
+    # serving index.html for /my does NOT inherit them (headers match on the
+    # requested path, not the file served). That left the one page with
+    # destructive one-click actions and a passphrase field framable. Denied
+    # here, and on /my/ below, mirroring /x.
+    X-Frame-Options = "DENY"
+
+[[headers]]
+  for = "/my/"
+  [headers.values]
+    Referrer-Policy = "no-referrer"
+    X-Frame-Options = "DENY"
 
 # Embed mode (BUILD-PLAN 10.11): frame-ancestors is the modern, allow-listed
 # replacement for X-Frame-Options, so this is the one page on the whole site
@@ -211,6 +224,15 @@
   force = true
 [[redirects]]
   from = "/design-system/components.css"
+  to = "/404.html"
+  status = 404
+  force = true
+# Pre-publicity sweep, 14 Aug: the templates/ subfolder (engagement-quote
+# template and its css/js/readme) was live but unlinked, an internal
+# business-development artefact with no reason to be fetchable. The splat
+# covers the whole subfolder; nothing the site loads lives under it.
+[[redirects]]
+  from = "/design-system/templates/*"
   to = "/404.html"
   status = 404
   force = true

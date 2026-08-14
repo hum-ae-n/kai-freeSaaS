@@ -36,7 +36,7 @@
  * that should survive a redraw (search, inline table edits, the drawer's
  * fields) carries a stable data-focus-key for this to key off.
  */
-import { el, themeToggleButton, readPlainMode, writePlainMode, showToast, parseSelection, money } from '../data-loader.js';
+import { el, themeToggleButton, readPlainMode, writePlainMode, showToast, parseSelection } from '../data-loader.js';
 import * as store from './store.js';
 import { sampleDocument, sampleStatus } from './sample.js';
 import {
@@ -151,6 +151,36 @@ function statusChipLevel(status) {
   if (status === 'to-close') return 'amber';
   if (status === 'planned') return 'quiet';
   return null;
+}
+
+/** Money, Costs-screen discipline (PRD-REGISTER section 9.4, Phase 23,
+    "money renders to two decimal places on this screen"): this is a
+    ledger, and ledgers carry pence, so £54.60 renders as £54.60, never
+    £54.6 or £54. Deliberately local and separate from the shared,
+    whole-pound `money()` in data-loader.js, which stays exactly as it is
+    for the directory's own value-equivalent estimates (CLAUDE.md: those
+    are estimates, and a penny of precision on an estimate would claim
+    precision it does not have). Applied workspace-wide to every actual
+    recorded or derived money amount, not only the Costs screen itself, so
+    the surface reads as one consistent convention rather than two. */
+function money2(n) {
+  return `£${Number(n).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+/** Billing currency (Phase 23). Account rows carry an optional `currency`
+    enum, GBP/USD/EUR, absent meaning GBP with no migration needed (the
+    same additive discipline section 16 already set for `status: planned`).
+    `moneyForCurrency` renders a row's OWN entered amount in its own
+    currency symbol; GBP totals/subtotals still go through money2 above,
+    since a total is always a GBP figure once converted. */
+const CURRENCY_OPTIONS = ['GBP', 'USD', 'EUR'];
+const CURRENCY_SYMBOL = { GBP: '£', USD: '$', EUR: '€' };
+const CURRENCY_LABEL = { GBP: 'GBP (£)', USD: 'USD ($)', EUR: 'EUR (€)' };
+function moneyForCurrency(n, currency) {
+  const symbol = CURRENCY_SYMBOL[currency] || '£';
+  return `${symbol}${Number(n).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+function rowCurrency(a) {
+  return (a && CURRENCY_OPTIONS.includes(a.currency)) ? a.currency : 'GBP';
 }
 
 function downloadBlob(blob, filename) {
@@ -358,7 +388,17 @@ async function copyGeneratorText(items, business) {
    Never any secret; `mfa` is a method label, never a password (section 4.1,
    restated because every export surface restates it).
    ========================================================================= */
-const REGISTER_FIELDS = ['id', 'service', 'url', 'toolId', 'identity', 'owner', 'admin', 'mfa', 'plan', 'renewal', 'monthlyCost', 'status', 'notes'];
+const REGISTER_FIELDS = ['id', 'service', 'url', 'toolId', 'identity', 'owner', 'admin', 'mfa', 'plan', 'renewal', 'monthlyCost', 'currency', 'status', 'notes'];
+
+/** The only URL shape a register row's url may take before it reaches an
+    href: plain http(s). Everything else (javascript:, data:, vbscript:,
+    file:, protocol-relative) returns '' and renders as no link at all.
+    User-entered AND import-supplied urls both pass through here; a crafted
+    register file is attacker-controlled by definition (section 9.2's
+    escape discipline, extended to URL schemes by the 14 Aug sweep). */
+function safeHttpUrl(url) {
+  return (typeof url === 'string' && /^https?:\/\//i.test(url.trim())) ? url.trim() : '';
+}
 const READING_COPY_LAW = 'This is a reading copy. It cannot be imported back into My Stack: only the register file (.fsr.json) can.';
 /** OWASP formula-injection escaping (section 20, mandatory): any cell whose
     value starts with '=', '+', '-', '@' or a literal tab gets a leading
@@ -2085,7 +2125,60 @@ export async function renderWorkspace(root) {
       return tool;
     }
     function exposureNoteText(tool) {
-      return `Free today, from ${money(tool.paid_from)}/mo if it converts`;
+      return `Free today, from ${money2(tool.paid_from)}/mo if it converts`;
+    }
+
+    /** Billing currency (section 9.4, Phase 23). The document's own
+        user-set indicative rates, never a live rate: the /my CSP is
+        connect-src 'self' and nothing here ever calls a rate API, so the
+        business's own recorded assumption is the only fact this surface
+        can have about foreign-currency billing. Returns null, never a
+        made-up fallback, when the business has not set a rate for that
+        currency yet. */
+    function rateFor(currency) {
+      const settings = doc.settings || {};
+      if (currency === 'GBP') return 1;
+      if (currency === 'USD') return (typeof settings.usdToGbp === 'number' && settings.usdToGbp > 0) ? settings.usdToGbp : null;
+      if (currency === 'EUR') return (typeof settings.eurToGbp === 'number' && settings.eurToGbp > 0) ? settings.eurToGbp : null;
+      return null;
+    }
+    /** A costed row's GBP-equivalent monthly amount, or null when it is
+        billed in a currency with no rate set: those rows are excluded from
+        every GBP total and subtotal (section 9.4's own words), never
+        silently converted at a made-up rate. GBP rows always convert
+        (rate 1), so this is null only for the "no rate set" case. */
+    function gbpMonthlyCost(a) {
+      if (typeof a.monthlyCost !== 'number') return null;
+      const rate = rateFor(rowCurrency(a));
+      return rate === null ? null : a.monthlyCost * rate;
+    }
+    /** The row's own display text for its recorded amount: GBP renders
+        plainly; a non-GBP row shows its native amount beside the converted
+        figure ("$10.00, about £7.90 at your rate"), exactly section 9.4's
+        own example, or states plainly that no rate is set yet when it is
+        not, rather than guessing. Shared by the renewal list, the drawer
+        and anywhere else a row's amount renders. */
+    function rowAmountText(a) {
+      if (typeof a.monthlyCost !== 'number') return 'No cost recorded';
+      const currency = rowCurrency(a);
+      if (currency === 'GBP') return money2(a.monthlyCost);
+      const native = moneyForCurrency(a.monthlyCost, currency);
+      const rate = rateFor(currency);
+      if (rate === null) return `${native}, no rate set for ${currency} yet`;
+      return `${native}, about ${money2(a.monthlyCost * rate)} at your rate`;
+    }
+    /** The currency select beside "Monthly cost" in the drawer. Absent
+        `currency` reads as GBP (section 9.4: "optional currency field...
+        GBP default when absent"), so the select must show GBP selected in
+        that case rather than nothing at all being picked. */
+    function drawerCurrencySelect(a, readOnly) {
+      const current = rowCurrency(a);
+      if (readOnly) return el('div', { class: 'my-field' }, el('span', { class: 't-small' }, 'Currency'), el('p', {}, CURRENCY_LABEL[current]));
+      const id = `drawer-${a.id}-currency`;
+      const select = el('select', { class: 'select', dataset: { focusKey: id } },
+        ...CURRENCY_OPTIONS.map((v) => el('option', { value: v, selected: current === v }, CURRENCY_LABEL[v])));
+      select.addEventListener('change', () => { updateAccountField(a.id, 'currency', select.value); });
+      return el('label', { class: 'my-field' }, el('span', { class: 't-small' }, 'Currency'), select);
     }
 
     /** Everything not in the five visible columns (section 9.2, section
@@ -2111,13 +2204,22 @@ export async function renderWorkspace(root) {
       const exposureNote = exposureTool
         ? el('p', { class: 't-meta my-field-wide' }, exposureNoteText(exposureTool))
         : null;
+      // Billing currency (Phase 23): a native-beside-converted note, only
+      // when the row is actually costed in something other than GBP, right
+      // beside the fields it explains, same placement discipline as the
+      // exposure note above it.
+      const currencyNote = (typeof a.monthlyCost === 'number' && rowCurrency(a) !== 'GBP')
+        ? el('p', { class: 't-meta my-field-wide' }, rowAmountText(a))
+        : null;
       return el('div', { class: 'my-acc-drawer' },
         toolLine,
         el('div', { class: 'my-acc-drawer-grid' },
           drawerField('Website', a, 'url', 'url', readOnly),
           drawerSelect('Access level', a, 'admin', ['owner', 'admin', 'member', 'unknown'], ADMIN_LABEL, readOnly),
           drawerField('Plan', a, 'plan', 'text', readOnly),
-          drawerField('Monthly cost (GBP)', a, 'monthlyCost', 'number', readOnly),
+          drawerField('Monthly cost', a, 'monthlyCost', 'number', readOnly),
+          drawerCurrencySelect(a, readOnly),
+          currencyNote,
           exposureNote,
           drawerSelect('Status', a, 'status', STATUS_OPTIONS, STATUS_LABEL, readOnly),
           drawerCheckbox('Shared login (more than one person knows it)', a, 'shared', readOnly),
@@ -2137,7 +2239,14 @@ export async function renderWorkspace(root) {
       const icon = tool ? categoryIcon(tool.category) : null;
       const adoptionLevel = statusChipLevel(row.status);
       const adoption = el('span', { class: `my-chip${adoptionLevel ? ` my-chip-${adoptionLevel}` : ''}` }, ADOPTION_LABEL[row.status] || row.status);
-      const linkUrl = row.url || (tool && tool.urls && tool.urls[0] ? `https://${tool.urls[0].domain}` : '');
+      // Security (pre-publicity sweep, 14 Aug): row.url is user-entered and,
+      // worse, importable from a crafted .fsr.json a victim was sent, so it
+      // must never reach an href unless it is a plain http(s) URL. The same
+      // ^https?:// gate scripts/validate-data.mjs applies to tools.json; a
+      // row whose url fails it simply gets no Visit link, never a "fixed"
+      // one. This is the single site where a row's url becomes an href; any
+      // future one must reuse safeHttpUrl().
+      const linkUrl = safeHttpUrl(row.url) || (tool && tool.urls && tool.urls[0] ? `https://${tool.urls[0].domain}` : '');
       const visitLink = linkUrl ? el('a', { href: linkUrl, target: '_blank', rel: 'noopener noreferrer', class: 'btn btn-ghost btn-sm' }, 'Visit site') : null;
       const openBtn = el('button', { class: 'btn btn-ghost btn-sm', type: 'button' }, 'View in register');
       openBtn.addEventListener('click', () => openAccountDrawer(row.id));
@@ -2193,7 +2302,7 @@ export async function renderWorkspace(root) {
       return el('div', { class: 'my-renewal-row' },
         el('span', { class: 'my-renewal-date' }, formatDate(a.renewal)),
         el('span', { class: 'my-renewal-service' }, a.service || 'Untitled account'),
-        el('span', { class: 'my-renewal-amount' }, a.monthlyCost != null ? money(a.monthlyCost) : 'No cost recorded'),
+        el('span', { class: 'my-renewal-amount' }, rowAmountText(a)),
         exposureTool ? el('span', { class: 'my-renewal-exposure t-meta' }, exposureNoteText(exposureTool)) : null,
       );
     }
@@ -2216,6 +2325,34 @@ export async function renderWorkspace(root) {
       if (document_.business) params.set('client', document_.business);
       return `/?${params.toString()}`;
     }
+    /** Rates row (section 9.4, Phase 23): two labelled number inputs
+        editable from the Costs screen, saving through the standard
+        mutateDoc() path like every other mutation on this surface. Commits
+        on change/blur, the same discipline as every drawer field, so
+        typing a rate never fights a redraw mid-keystroke. An empty or
+        non-positive value clears the rate rather than storing a nonsense
+        number, which is exactly the "no rate set" state the rest of this
+        screen already knows how to read. */
+    function ratesField(labelText, key) {
+      const settings = doc.settings || {};
+      const id = `costs-rate-${key}`;
+      const input = el('input', {
+        class: 'input', type: 'number', step: '0.0001', min: '0', inputmode: 'decimal',
+        placeholder: 'Not set', value: typeof settings[key] === 'number' ? settings[key] : '',
+        dataset: { focusKey: id },
+      });
+      input.addEventListener('change', () => {
+        const v = input.value === '' ? null : Number(input.value);
+        mutateDoc((d) => {
+          const next = { ...(d.settings || {}) };
+          if (typeof v === 'number' && v > 0) next[key] = v; else delete next[key];
+          d.settings = next;
+          return d;
+        });
+      });
+      return el('label', { class: 'my-field' }, el('span', { class: 't-small' }, labelText), input);
+    }
+
     function screenCosts() {
       ensureToolsThenRedraw();
       // Section 16 extension (BUILD-PLAN 12.4 fix round, 27 Jul): a planned
@@ -2226,7 +2363,13 @@ export async function renderWorkspace(root) {
       const accounts = doc.accounts.filter((a) => a.status !== 'closed' && a.status !== 'planned');
       const costed = accounts.filter((a) => typeof a.monthlyCost === 'number');
       const uncosted = accounts.filter((a) => typeof a.monthlyCost !== 'number');
-      const monthlyTotal = costed.reduce((sum, a) => sum + a.monthlyCost, 0);
+      // Billing currency (Phase 23): a costed row only enters the GBP totals
+      // and subtotals below when it converts, GBP rows always convert (rate
+      // 1), a non-GBP row converts only once the business has set a rate.
+      // Never a hardcoded fallback rate (section 9.4's own words).
+      const costedConvertible = costed.filter((a) => gbpMonthlyCost(a) !== null);
+      const costedNoRate = costed.filter((a) => gbpMonthlyCost(a) === null);
+      const monthlyTotal = costedConvertible.reduce((sum, a) => sum + gbpMonthlyCost(a), 0);
       const ui = state.costsUi;
       const totalFigure = ui.mode === 'annual' ? monthlyTotal * 12 : monthlyTotal;
 
@@ -2234,7 +2377,9 @@ export async function renderWorkspace(root) {
       // the WHOLE register, including planned rows: an intention to sign up
       // for something free is exactly the row this line exists to warn
       // about. Computed here only, at render time, from the catalogue
-      // already in memory; never written back into doc.
+      // already in memory; never written back into doc. Exposure stays
+      // GBP-only throughout (section 9.4, Phase 23: "paid_from is GBP"),
+      // untouched by billing currency.
       let exposureMonthly = 0;
       let exposureRowCount = 0;
       let exposureUnknownCount = 0;
@@ -2253,9 +2398,70 @@ export async function renderWorkspace(root) {
 
       const totalPanel = el('div', { class: 'panel my-costs-total' },
         el('div', { class: 'my-costs-toggle', role: 'group', 'aria-label': 'Monthly or annual total' }, monthlyBtn, annualBtn),
-        el('p', { class: 'my-costs-figure' }, money(totalFigure)),
-        el('p', { class: 't-meta' }, `${ui.mode === 'annual' ? 'Per year' : 'Per month'}, summed from ${costed.length} account${costed.length === 1 ? '' : 's'} with a cost recorded.`),
+        el('p', { class: 'my-costs-figure' }, money2(totalFigure)),
+        el('p', { class: 't-meta' }, `${ui.mode === 'annual' ? 'Per year' : 'Per month'}, summed from ${costedConvertible.length} account${costedConvertible.length === 1 ? '' : 's'} with a cost recorded.`),
       );
+
+      // Billing currency (Phase 23): the honest count of costed rows this
+      // screen could not convert, right beside the total it therefore
+      // excludes them from, never folded silently into "no cost recorded".
+      const noRatePanel = costedNoRate.length ? el('p', { class: 't-small my-costs-norate' },
+        `${costedNoRate.length} row${costedNoRate.length === 1 ? '' : 's'} billed in ${costedNoRate.length === 1 ? 'another currency' : 'other currencies'}, no rate set.`) : null;
+
+      // Rates row (Phase 23): editable from this screen, right beside the
+      // total and the "no rate set" count it explains.
+      const ratesPanel = el('div', { class: 'panel my-costs-rates' },
+        el('p', { class: 't-small' }, 'Rates: your own indicative currency rates, used to convert non-GBP accounts into the totals above.'),
+        el('div', { class: 'my-costs-rates-grid' },
+          ratesField('GBP per USD', 'usdToGbp'),
+          ratesField('GBP per EUR', 'eurToGbp'),
+        ),
+        el('p', { class: 't-meta' }, 'Conversions use your own indicative rate. Card issuers typically add 2 to 3 percent on foreign-currency billing.'),
+      );
+
+      // Category subtotals (Phase 22.1, extended by Phase 23). Same source
+      // array as the grand total above (`costedConvertible`, not doc.accounts
+      // or `costed`), so the subtotals provably sum to it: no separate
+      // qualifying rule, no separate rounding, and a row billed in a
+      // currency with no rate set is excluded here exactly as it is from
+      // the total. A costed row with a resolvable toolId takes its linked
+      // tool's category; everything else (no toolId, or a toolId the
+      // catalogue does not recognise) buckets under one honest label rather
+      // than vanishing or inventing a category nobody recorded.
+      const UNLINKED_CATEGORY = 'Not linked to the catalogue';
+      const categoryTotals = new Map(); // category -> monthly sum, GBP
+      for (const a of costedConvertible) {
+        let category = UNLINKED_CATEGORY;
+        if (Number.isInteger(a.toolId)) {
+          const tool = (toolsCache || []).find((t) => t.id === a.toolId);
+          if (tool) category = tool.category;
+        }
+        categoryTotals.set(category, (categoryTotals.get(category) || 0) + gbpMonthlyCost(a));
+      }
+      const categoryRows = [...categoryTotals.entries()]
+        .sort(([nameA, subA], [nameB, subB]) => (subB - subA) || nameA.localeCompare(nameB));
+      const subtotalsPanel = categoryRows.length ? el('div', { class: 'panel my-costs-subtotals' },
+        el('p', { class: 't-small' }, 'Recorded spend by category:'),
+        el('div', { class: 'my-costs-subtotal-list' }, ...categoryRows.map(([category, subMonthly]) => {
+          const subFigure = ui.mode === 'annual' ? subMonthly * 12 : subMonthly;
+          // Spend-by-category bars (Phase 23): a flat bar, width the
+          // category's share of the recorded (GBP, converted) total, using
+          // this file's own `style="width:…%"` idiom (the same one the
+          // Accounts table's completeness meter already uses two screens
+          // over, `.my-completeness-fill`): a data-driven width cannot be a
+          // static class, and that is the established precedent for one in
+          // this codebase. Decorative reinforcement only, aria-hidden: the
+          // figures beside it stay the primary reading (section 9.4, "the
+          // ledger-not-dashboard rule stands").
+          const share = monthlyTotal > 0 ? Math.min(100, Math.round((subMonthly / monthlyTotal) * 1000) / 10) : 0;
+          return el('div', { class: 'my-costs-subtotal-row' },
+            el('div', { class: 'my-costs-subtotal-head' },
+              el('span', { class: 'my-costs-subtotal-category' }, category),
+              el('span', { class: 'my-costs-subtotal-amount' }, money2(subFigure))),
+            el('div', { class: 'my-costs-subtotal-bar', 'aria-hidden': 'true' },
+              el('div', { class: 'my-costs-subtotal-bar-fill', style: `width:${share}%` })));
+        })),
+      ) : null;
 
       const uncostedPanel = uncosted.length ? el('div', { class: 'panel my-costs-uncosted' },
         el('p', { class: 't-small' }, `${uncosted.length} account${uncosted.length === 1 ? '' : 's'} with no cost recorded:`),
@@ -2275,7 +2481,7 @@ export async function renderWorkspace(root) {
       // independent of it: it can appear even when the figure above cannot.
       const exposurePanel = exposureRowCount ? el('div', { class: 'panel my-costs-exposure' },
         el('p', { class: 'my-costs-exposure-figure' },
-          `If every free tier here converted: from ${money(exposureFigure)}${ui.mode === 'annual' ? '/year' : '/month'}`),
+          `If every free tier here converted: from ${money2(exposureFigure)}${ui.mode === 'annual' ? '/year' : '/month'}`),
         el('p', { class: 't-meta' },
           `Vendor prices as last checked, summed from ${exposureRowCount} free row${exposureRowCount === 1 ? '' : 's'} with a known paid tier.`),
       ) : null;
@@ -2288,15 +2494,26 @@ export async function renderWorkspace(root) {
         el('a', { href: stackLink }, 'View your stack'),
       ) : null;
 
+      // Scope note (Phase 22.1): always renders, states the ledger's own
+      // boundary rather than letting a complete-looking total imply this is
+      // a bookkeeping system, which it is not. Never stored, presentation
+      // only, same as the exposure line above it.
+      const scopeNote = el('p', { class: 't-meta my-costs-scope' },
+        'This ledger covers what is recorded here, typically software subscriptions. Advertising spend, usage-based infrastructure bills and one-off purchases sit outside it unless you record them as accounts with a monthly cost. My Stack is a register, not a bookkeeping system.');
+
       return el('section', { class: 'my-screen' },
         el('h2', {}, 'Costs'),
         renewalList(accounts, 14, 'Renewing in the next 14 days'),
         renewalList(accounts, 60, 'Renewing in the next 60 days'),
         totalPanel,
+        noRatePanel,
+        ratesPanel,
+        subtotalsPanel,
         exposurePanel,
         exposureUnknownPanel,
         uncostedPanel,
         chartNote,
+        scopeNote,
       );
     }
 
@@ -2434,7 +2651,7 @@ export async function renderWorkspace(root) {
           `Change the login for ${item.row.service || 'this account'} in your password manager.`,
           'This register never holds passwords: rotate it there, not here.'));
         const phase4 = phases.phase4.map((item) => leaverTickRow(existingEntry, item.key,
-          `Reclaim the seat and stop payment for ${item.row.service || 'this account'}${item.row.monthlyCost ? ` (${money(item.row.monthlyCost)}/mo)` : ''}.`));
+          `Reclaim the seat and stop payment for ${item.row.service || 'this account'}${item.row.monthlyCost ? ` (${moneyForCurrency(item.row.monthlyCost, rowCurrency(item.row))}/mo)` : ''}.`));
         const phase5 = phases.phase5.map((item) => leaverTickRow(existingEntry, item.key, item.text, item.caveat));
 
         // Honesty line (BUILD-PLAN 12.4 fix round, 27 Jul): the free-text

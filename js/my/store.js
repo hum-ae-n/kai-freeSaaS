@@ -54,6 +54,14 @@
  *   to go through this module, since nothing else may touch storage: kept
  *   as a clearly separate, clearly local-only export rather than folded
  *   into the seven seam methods above.
+ *
+ * Phase 23 (PRD-REGISTER section 9.4, billing currency): the document gains
+ * one more optional, additive pass-through field, `settings` (a plain
+ * object; today it may hold the Costs screen's own user-set `usdToGbp`/
+ * `eurToGbp` indicative rates), validated the same shallow way as `leavers`
+ * above. `schemaVersion` stays 1. No new interface method, no change to any
+ * existing method's signature: the seven-method contract (section 6) is
+ * unchanged.
  */
 import {
   deriveKey, deriveEnvelopeKey, openEnvelopeWithKey, sealWithKey, randomBytes,
@@ -265,6 +273,16 @@ export async function save(data, expectedRevision, opts = {}) {
       people: Array.isArray(data.people) ? data.people : [],
       accounts: Array.isArray(data.accounts) ? data.accounts : [],
       leavers: Array.isArray(data.leavers) ? data.leavers : (diskDoc?.leavers || []),
+      // Phase 23 addition (PRD-REGISTER section 9.4, billing currency): one
+      // more pass-through document field, same discipline as `leavers`
+      // above, so the Costs screen's user-set indicative rates (usdToGbp,
+      // eurToGbp) survive a save exactly like every other document field.
+      // Shallow-validated the same way accounts/leavers are (must be a
+      // plain object, else it falls back to whatever was already on disk,
+      // or an empty object for a brand new document): this module still
+      // does not know or care what settings a caller keeps here.
+      settings: (data.settings && typeof data.settings === 'object' && !Array.isArray(data.settings))
+        ? data.settings : (diskDoc?.settings || {}),
       createdAt: diskDoc?.createdAt || data.createdAt || now,
       updatedAt: now,
       revision: diskRevision + 1,
