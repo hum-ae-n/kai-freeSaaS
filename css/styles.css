@@ -2045,7 +2045,12 @@ html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
    budget carries only about 14px of slack over the pre-existing content, far
    less than a second full margin plus a 44px disclosure row would cost, so
    the two sections share one gap rather than stacking two. */
-.pub-shelf-band { margin-bottom: 0; }
+/* Phase 19 zeroed this margin to pay for the sectioned footer, safe because
+   the why-section below the band provided the separation from the FAQ.
+   Phase 21 then moved the why-section ABOVE the band, so the band sat flush
+   against the FAQ heading (Rocky's 14 Aug screenshot). Restored at s-8
+   inside the reconciled 1280 budget's 59px slack (Phase 23). */
+.pub-shelf-band { margin-bottom: var(--s-8); }
 /* Phase 16 retires the second row this header used to carry (Plain English
    and the theme toggle, moved into the hero utility bar above): title and
    Expand all are the whole header again, the shape it had before the
@@ -3509,17 +3514,37 @@ html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
    second headline, so it sits at the same quiet scale as the renewal rows
    rather than the exposure line's fs-21. */
 .my-costs-subtotals { max-width: 480px; margin-bottom: var(--s-4); }
-.my-costs-subtotal-list { display: flex; flex-direction: column; gap: 2px; margin-top: var(--s-2); }
+.my-costs-subtotal-list { display: flex; flex-direction: column; gap: var(--s-1); margin-top: var(--s-2); }
 .my-costs-subtotal-row {
   display: flex;
-  justify-content: space-between;
-  gap: var(--s-3);
+  flex-direction: column;
+  gap: 4px;
   padding: var(--s-1) 0;
   border-bottom: var(--bw-hair) solid var(--paper-edge);
   font-size: var(--fs-14);
   color: var(--ink-2);
 }
+.my-costs-subtotal-head { display: flex; justify-content: space-between; gap: var(--s-3); }
 .my-costs-subtotal-amount { font-family: var(--font-sans); color: var(--ink); }
+/* Spend-by-category bars (Phase 23, section 9.4): a flat track/fill pair,
+   width set per row from JS as an inline percentage (the same
+   `style="width:…%"` idiom as .my-completeness-fill above: a data-driven
+   share cannot be a static class). Industrial neutral fill, deliberately
+   not oxblood: this is reinforcement, not an alarm. Decorative only
+   (aria-hidden in the markup); the figures above carry the real reading,
+   so the ledger-not-dashboard rule stands even for a reader who never sees
+   the bar at all. */
+.my-costs-subtotal-bar { width: 100%; height: 6px; background: var(--paper-edge); border: var(--bw-hair) solid var(--steel-3); }
+.my-costs-subtotal-bar-fill { display: block; height: 100%; background: var(--steel); }
+/* Billing currency (Phase 23): the honest "no rate set" count, same quiet
+   scale as the uncosted-list heading it sits beside. */
+.my-costs-norate { max-width: 480px; margin-bottom: var(--s-2); }
+/* Billing currency (Phase 23): the Rates row, editable from this screen.
+   Two number fields side by side down to a reasonable width, stacking
+   below it exactly like the drawer grid already does. */
+.my-costs-rates { max-width: 480px; margin-bottom: var(--s-4); }
+.my-costs-rates-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--s-3); margin: var(--s-2) 0; }
+.my-costs-rates .my-field { margin-bottom: 0; }
 /* Phase 22 conversion exposure (section 9.4): deliberately quieter than
    .my-costs-figure above it. This is an indicative "from" line, not the
    real total, and must never compete with it for the reader's eye. */

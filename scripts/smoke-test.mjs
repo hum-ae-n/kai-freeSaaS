@@ -5822,23 +5822,36 @@ await withStubbedPayments(async (pg) => {
     !/REGISTER_FIELDS\s*=\s*\[[^\]]*password/i.test(src));
 }
 
-/* --- Phase 22 (PRD-REGISTER section 9.4, "Conversion exposure") and Phase
-   22.1 (category subtotals, scope note): the Costs screen's indicative "if
-   every free tier here converted" line, the honest "no known conversion
-   price" count, real-spend subtotals grouped by catalogue category, and
-   the always-on scope note, all computed at render time from the catalogue
-   and NEVER written into the register document. Six rows constructed
-   directly through store.js (the one write choke-point): a planned row
-   linked to tool 0 (pins the id-zero law, CLAUDE.md: toolId 0 is real,
-   Number.isInteger not truthiness); an active row costed at £0 with a
-   renewal date, so it also exercises the renewal-list per-row note; an
-   active row with a REAL cost, linked to the same tool, which must be
-   excluded from exposure but included in the real total and that tool's
-   category subtotal; a planned manual row with no toolId, which counts
-   toward the "no known price" line rather than vanishing; an active row
-   with no cost and no renewal date, which exercises the uncosted-list
-   per-row note; and an active, costed, manual row with no toolId, which
-   proves the "Not linked to the catalogue" subtotal bucket. ------------- */
+/** en-GB, minimumFractionDigits: 2, maximumFractionDigits: 2, matching
+    workspace.js's own local money2() exactly (PRD-REGISTER section 9.4,
+    Phase 23: "money renders to two decimal places on this screen"). */
+function money2(n) {
+  return `£${n.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/* --- Phase 22 (PRD-REGISTER section 9.4, "Conversion exposure"), Phase
+   22.1 (category subtotals, scope note) and Phase 23 (two-decimal-place
+   money, spend-by-category bars, billing currency): the Costs screen's
+   indicative "if every free tier here converted" line, the honest "no
+   known conversion price" count, real-spend subtotals grouped by catalogue
+   category, the always-on scope note, pence-accurate money throughout, and
+   a non-GBP costed row's native-beside-converted rendering, all computed
+   at render time from the catalogue (and, for currency, the document's own
+   `settings`) and NEVER written into the register document as anything
+   derived. Seven rows constructed directly through store.js (the one
+   write choke-point): a planned row linked to tool 0 (pins the id-zero
+   law, CLAUDE.md: toolId 0 is real, Number.isInteger not truthiness); an
+   active row costed at £0 with a renewal date, so it also exercises the
+   renewal-list per-row note; an active row with a REAL cost, linked to the
+   same tool, which must be excluded from exposure but included in the
+   real total and that tool's category subtotal; a planned manual row with
+   no toolId, which counts toward the "no known price" line rather than
+   vanishing; an active row with no cost and no renewal date, which
+   exercises the uncosted-list per-row note; an active, costed, manual row
+   with no toolId, which proves the "Not linked to the catalogue" subtotal
+   bucket; and an active, USD-costed, manual row with no toolId and no rate
+   set yet, which proves the Phase 23 exclusion and its honest count before
+   a rate exists, then the conversion once one is set. ------------------- */
 {
   const exposureTool1 = active.find((t) => t.id !== 0 && Number.isInteger(t.paid_from) && t.paid_from > 0);
   const zeroTool = active.find((t) => t.id === 0);
@@ -5887,6 +5900,14 @@ await withStubbedPayments(async (pg) => {
         identity: '', owner: '', admin: 'unknown', mfa: 'unknown',
         plan: '', renewal: null, monthlyCost: 20, status: 'active', notes: '', shared: false,
       },
+      // Phase 23: costed in USD, no rate set yet. $10.00 at a later rate of
+      // 0.8 is a clean £8.00, chosen deliberately so the converted totals
+      // below are exact, not a rounded approximation.
+      {
+        id: 'exp-active-usd-norate', service: 'Dollar Billed Tool', url: '', toolId: null,
+        identity: '', owner: '', admin: 'unknown', mfa: 'unknown',
+        plan: '', renewal: null, monthlyCost: 10, currency: 'USD', status: 'active', notes: '', shared: false,
+      },
     );
     await s.save(doc, doc.revision);
   }, { tool1Id: exposureTool1.id, renewalIso });
@@ -5899,22 +5920,53 @@ await withStubbedPayments(async (pg) => {
   const expectedAnnual = expectedMonthly * 12;
   // Real total: the £0 row (0) + the paying row (50) + the manual costed
   // row (20). The two uncosted-in-spirit rows (planned, no-cost) never
-  // enter `costed` at all.
+  // enter `costed` at all. The USD row is excluded too, until a rate is
+  // set further down.
   const expectedRealMonthly = 0 + 50 + 20;
   const expectedRealAnnual = expectedRealMonthly * 12;
+  // Once the 0.8 USD rate is set below: $10.00 converts to a clean £8.00.
+  const expectedRealMonthlyWithRate = expectedRealMonthly + 8;
   // Category subtotals: exposureTool1's category picks up the £0 and £50
   // rows (50 total); the manual costed row has no toolId, so it buckets
   // under "Not linked to the catalogue" (20). 50 > 20, so that order pins
-  // the "largest first" rule too.
+  // the "largest first" rule too. Once the rate is set, the USD row joins
+  // the same unlinked bucket (20 + 8 = 28).
   const expectedCategorySubtotal = 0 + 50;
   const expectedUnlinkedSubtotal = 20;
+  const expectedUnlinkedSubtotalWithRate = 20 + 8;
 
   await pg.locator('.my-nav-item', { hasText: 'Costs' }).click();
   await pg.waitForSelector('.my-costs-figure');
 
   const realTotalText = (await pg.locator('.my-costs-figure').textContent()).trim();
   check('my: Phase 22 real total sums every costed row (£0 + £50 + £20 = £70), planned/uncosted rows excluded',
-    realTotalText === `£${expectedRealMonthly}`, realTotalText);
+    realTotalText === money2(expectedRealMonthly), realTotalText);
+  check('my: Phase 23, money renders to two decimal places on the Costs screen (£70.00, never £70)',
+    realTotalText === '£70.00', realTotalText);
+
+  // Phase 23: the USD row is costed but has no rate set yet, so it is
+  // excluded from the real total above and counted here instead, never
+  // silently converted at a made-up rate.
+  const noRateTextBefore = (await pg.locator('.my-costs-norate').textContent()).trim();
+  check('my: Phase 23, one row billed in another currency with no rate set is counted plainly, singular wording',
+    noRateTextBefore === '1 row billed in another currency, no rate set.', noRateTextBefore);
+
+  // Phase 23: the drawer shows the USD row's native amount, honestly
+  // stating no rate is set yet rather than guessing one.
+  await pg.locator('.my-nav-item', { hasText: 'Accounts' }).click();
+  await waitForAccountsScreen(pg);
+  async function drawerTextForCosts(serviceName) {
+    const row = pg.locator(`tr.my-acc-row:has(input[value="${serviceName}"])`);
+    await row.locator('button', { hasText: 'Details' }).click();
+    const text = await pg.locator('tr.my-acc-drawer-row').textContent();
+    await row.locator('button', { hasText: 'Close details' }).click();
+    return text;
+  }
+  const usdDrawerTextBefore = await drawerTextForCosts('Dollar Billed Tool');
+  check('my: Phase 23, drawer shows the USD row\'s native amount and states plainly no rate is set',
+    usdDrawerTextBefore.includes('$10.00') && /no rate set for USD/i.test(usdDrawerTextBefore), usdDrawerTextBefore);
+  await pg.locator('.my-nav-item', { hasText: 'Costs' }).click();
+  await pg.waitForSelector('.my-costs-figure');
 
   // Phase 22.1: category subtotals. Only categories with a costed row
   // appear (2 here, not the catalogue's full category list), largest
@@ -5937,13 +5989,38 @@ await withStubbedPayments(async (pg) => {
     subtotalsMonthly[0]?.category === exposureTool1.category && subtotalsMonthly[0]?.value === expectedCategorySubtotal
     && subtotalsMonthly[1]?.category === 'Not linked to the catalogue' && subtotalsMonthly[1]?.value === expectedUnlinkedSubtotal,
     JSON.stringify(subtotalsMonthly));
+  check('my: Phase 23, category subtotal amounts render to two decimal places too',
+    subtotalsMonthly[0]?.amount === '£50.00' && subtotalsMonthly[1]?.amount === '£20.00', JSON.stringify(subtotalsMonthly));
   const subtotalSumMonthly = subtotalsMonthly.reduce((s, r) => s + r.value, 0);
   check('my: category subtotals sum exactly to the grand total, monthly',
     subtotalSumMonthly === Number(realTotalText.replace(/[£,]/g, '')), `subtotals=${subtotalSumMonthly} total=${realTotalText}`);
 
+  // Phase 23: spend-by-category bars. A flat fill inside a track, width the
+  // row's share of the recorded total, decorative (aria-hidden), widths
+  // ordered the same as the subtotal amounts themselves (both rows already
+  // sorted largest first above).
+  async function readBarShares() {
+    const barLoc = pg.locator('.my-costs-subtotal-bar');
+    const count = await barLoc.count();
+    const shares = [];
+    for (let i = 0; i < count; i += 1) {
+      const ariaHidden = await barLoc.nth(i).getAttribute('aria-hidden');
+      const fillStyle = await barLoc.nth(i).locator('.my-costs-subtotal-bar-fill').getAttribute('style');
+      const match = /width:\s*([\d.]+)%/.exec(fillStyle || '');
+      shares.push({ ariaHidden, share: match ? Number(match[1]) : null });
+    }
+    return shares;
+  }
+  const barSharesMonthly = await readBarShares();
+  check('my: Phase 23, one bar per category subtotal row, each aria-hidden (decorative reinforcement, not the primary reading)',
+    barSharesMonthly.length === 2 && barSharesMonthly.every((b) => b.ariaHidden === 'true'), JSON.stringify(barSharesMonthly));
+  check('my: Phase 23, bar widths are proportional shares of the recorded total, ordered the same as the amounts (largest first)',
+    barSharesMonthly[0]?.share > barSharesMonthly[1]?.share && barSharesMonthly[0]?.share > 0 && barSharesMonthly[1]?.share > 0,
+    JSON.stringify(barSharesMonthly));
+
   const exposureFigureText = (await pg.locator('.my-costs-exposure-figure').textContent()).trim();
   check('my: Phase 22 exposure line renders "If every free tier here converted: from £N/month" with the correct row-based sum',
-    exposureFigureText === `If every free tier here converted: from £${expectedMonthly.toLocaleString('en-GB')}/month`,
+    exposureFigureText === `If every free tier here converted: from ${money2(expectedMonthly)}/month`,
     exposureFigureText);
   const exposureBlockText = await pg.locator('.my-costs-exposure').textContent();
   check('my: exposure line carries the honesty tail, "vendor prices as last checked"',
@@ -5956,12 +6033,12 @@ await withStubbedPayments(async (pg) => {
 
   const uncostedText = await pg.locator('.my-costs-uncosted').textContent();
   check('my: the uncosted-list per-row note appears for the qualifying uncosted row',
-    uncostedText.includes('Uncosted Free Tool') && uncostedText.includes(`Free today, from £${exposureTool1.paid_from}/mo if it converts`),
+    uncostedText.includes('Uncosted Free Tool') && uncostedText.includes(`Free today, from ${money2(exposureTool1.paid_from)}/mo if it converts`),
     uncostedText);
 
   const renewalListText = await pg.locator('.my-renewal-block', { hasText: 'Renewing in the next 14 days' }).textContent();
   check('my: the renewal-list per-row note appears for the £0 row that also has a renewal date',
-    renewalListText.includes('Zero Cost Tool') && renewalListText.includes(`Free today, from £${exposureTool1.paid_from}/mo if it converts`),
+    renewalListText.includes('Zero Cost Tool') && renewalListText.includes(`Free today, from ${money2(exposureTool1.paid_from)}/mo if it converts`),
     renewalListText);
   check('my: the renewal-list row for the genuinely paying twin carries no exposure note',
     !renewalListText.includes('Paying Tool'), renewalListText); // paying row has no renewal date, so absent here anyway; guards a future regression
@@ -5973,9 +6050,9 @@ await withStubbedPayments(async (pg) => {
   await pg.locator('.my-costs-toggle button', { hasText: 'Annual' }).click();
   const realTotalAnnual = (await pg.locator('.my-costs-figure').textContent()).trim();
   const exposureFigureAnnual = (await pg.locator('.my-costs-exposure-figure').textContent()).trim();
-  check('my: annual toggle multiplies the real total by 12', realTotalAnnual === `£${expectedRealAnnual}`, realTotalAnnual);
+  check('my: annual toggle multiplies the real total by 12', realTotalAnnual === money2(expectedRealAnnual), realTotalAnnual);
   check('my: annual toggle multiplies the exposure line by 12 too, suffix switches to "/year"',
-    exposureFigureAnnual === `If every free tier here converted: from £${expectedAnnual.toLocaleString('en-GB')}/year`,
+    exposureFigureAnnual === `If every free tier here converted: from ${money2(expectedAnnual)}/year`,
     exposureFigureAnnual);
   const subtotalsAnnual = await readSubtotals();
   const subtotalSumAnnual = subtotalsAnnual.reduce((s, r) => s + r.value, 0);
@@ -6009,13 +6086,51 @@ await withStubbedPayments(async (pg) => {
   }
   const zeroIdDrawerText = await drawerTextFor('Zero Id Tool');
   check('my: drawer per-row note appears for the planned row linked to tool 0 (id-zero law: Number.isInteger, never truthiness)',
-    zeroIdDrawerText.includes(`Free today, from £${zeroTool.paid_from}/mo if it converts`), zeroIdDrawerText);
+    zeroIdDrawerText.includes(`Free today, from ${money2(zeroTool.paid_from)}/mo if it converts`), zeroIdDrawerText);
   const payingDrawerText = await drawerTextFor('Paying Tool');
   check('my: drawer carries no exposure note for the row that already has a real monthly cost',
     !payingDrawerText.includes('Free today, from'), payingDrawerText);
   const manualDrawerText = await drawerTextFor('Hand Typed Tool');
   check('my: drawer carries no exposure note for the free manual row with no linked tool (honest, not invented)',
     !manualDrawerText.includes('Free today, from'), manualDrawerText);
+
+  // Phase 23: set the USD rate through the Costs screen's own "Rates" row
+  // (the standard mutateDoc()/store.save() path, not a direct store.js
+  // poke), then confirm the conversion reaches every total, subtotal and
+  // per-row rendering that reads it.
+  await pg.locator('.my-nav-item', { hasText: 'Costs' }).click();
+  await pg.waitForSelector('.my-costs-figure');
+  const usdRateInput = pg.locator('.my-costs-rates-grid label', { hasText: 'GBP per USD' }).locator('input');
+  await usdRateInput.fill('0.8');
+  await usdRateInput.dispatchEvent('change');
+  await pg.waitForFunction(() => document.querySelector('.my-costs-figure')?.textContent.includes('78.00'));
+
+  const realTotalWithRate = (await pg.locator('.my-costs-figure').textContent()).trim();
+  check('my: Phase 23, once a rate is set the USD row converts into the real total (£70.00 + £8.00 = £78.00)',
+    realTotalWithRate === money2(expectedRealMonthlyWithRate), realTotalWithRate);
+  const noRateAfterRate = await pg.locator('.my-costs-norate').count();
+  check('my: Phase 23, the "no rate set" line disappears once every costed currency has a rate', noRateAfterRate === 0, String(noRateAfterRate));
+  const subtotalsWithRate = await readSubtotals();
+  check('my: Phase 23, the USD row joins the "Not linked to the catalogue" subtotal once converted (£20.00 + £8.00 = £28.00)',
+    subtotalsWithRate.find((r) => r.category === 'Not linked to the catalogue')?.value === expectedUnlinkedSubtotalWithRate,
+    JSON.stringify(subtotalsWithRate));
+  const subtotalSumWithRate = subtotalsWithRate.reduce((s, r) => s + r.value, 0);
+  check('my: Phase 23, subtotals still sum exactly to the grand total once a currency row converts',
+    subtotalSumWithRate === Number(realTotalWithRate.replace(/[£,]/g, '')), `subtotals=${subtotalSumWithRate} total=${realTotalWithRate}`);
+
+  // Native-beside-converted rendering (section 9.4's own example): the
+  // drawer now shows both the native $10.00 and the converted £8.00.
+  await pg.locator('.my-nav-item', { hasText: 'Accounts' }).click();
+  await waitForAccountsScreen(pg);
+  const usdDrawerTextAfter = await drawerTextFor('Dollar Billed Tool');
+  check('my: Phase 23, drawer shows the native amount beside the converted figure once a rate is set',
+    usdDrawerTextAfter.includes('$10.00') && usdDrawerTextAfter.includes('about £8.00 at your rate'), usdDrawerTextAfter);
+  await pg.locator('.my-nav-item', { hasText: 'Costs' }).click();
+  await pg.waitForSelector('.my-costs-figure');
+  const quietRateNoteText = (await pg.locator('.my-costs-rates').textContent()).trim();
+  check('my: Phase 23, the quiet rates note mentions the business\'s own indicative rate and the card-issuer surcharge, no em dash',
+    /your own indicative rate/i.test(quietRateNoteText) && /2 to 3 percent/i.test(quietRateNoteText) && !quietRateNoteText.includes('—'),
+    quietRateNoteText);
 
   // Never written to the register document: neither the in-memory doc nor
   // the real exported .fsr.json file carries any exposure-derived text or a
@@ -6028,6 +6143,8 @@ await withStubbedPayments(async (pg) => {
     !/converted|paid_from|conversion price/i.test(docJson), docJson.slice(0, 200));
   check('my: the in-memory register document carries no scope-note text (advertising, bookkeeping)',
     !/advertising|bookkeeping/i.test(docJson), docJson.slice(0, 200));
+  check('my: Phase 23, the rate set through the UI actually persisted to disk via the normal store.js save flow',
+    docCheck?.settings?.usdToGbp === 0.8, JSON.stringify(docCheck?.settings));
 
   await pg.locator('.my-nav-item', { hasText: 'Backup' }).click();
   await pg.waitForSelector('button:has-text("Download a backup now")');
@@ -6045,10 +6162,33 @@ await withStubbedPayments(async (pg) => {
   check('my: no exported account row carries a new exposure-shaped field (no schema change, section 9.4)',
     exposureKeyOffenders.length === 0, JSON.stringify(exposureKeyOffenders));
 
-  // House style: no em dash in any of the Phase 22/22.1 copy.
+  // Phase 23: the export file rides the document naturally (section 9.4's
+  // own words), so it carries both the currency field on the USD row and
+  // the rate the business set, with no separate export code path needed.
+  const exportedUsdRow = (exportedDoc.accounts || []).find((a) => a.id === 'exp-active-usd-norate');
+  check('my: Phase 23, the exported register file carries the row\'s currency field',
+    exportedUsdRow?.currency === 'USD', JSON.stringify(exportedUsdRow));
+  check('my: Phase 23, the exported register file carries the business\'s own rate',
+    exportedDoc?.settings?.usdToGbp === 0.8, JSON.stringify(exportedDoc?.settings));
+
+  // Phase 23: rates surviving an actual export/import round trip, not only
+  // presence in the export bytes, through store.importBlob() exactly as
+  // the Backup screen's own import path would call it.
+  const reimported = await pg.evaluate(async (text) => {
+    const s = await import('/js/my/store.js');
+    const result = await s.importBlob(text);
+    return result.document;
+  }, exportText);
+  check('my: Phase 23, rates and currency survive a real export/import round trip',
+    reimported?.settings?.usdToGbp === 0.8
+    && (reimported.accounts || []).find((a) => a.id === 'exp-active-usd-norate')?.currency === 'USD',
+    JSON.stringify({ settings: reimported?.settings, row: (reimported.accounts || []).find((a) => a.id === 'exp-active-usd-norate') }));
+
+  // House style: no em dash in any of the Phase 22/22.1/23 copy.
   const allExposureText = `${exposureFigureText} ${exposureBlockText} ${unknownText} ${uncostedText} ${renewalListText} ${zeroIdDrawerText} `
-    + `${scopeNoteText} ${subtotalsMonthly.map((r) => `${r.category} ${r.amount}`).join(' ')}`;
-  check('my: no em dash anywhere in the Phase 22/22.1 copy', !allExposureText.includes('—'), allExposureText);
+    + `${scopeNoteText} ${subtotalsMonthly.map((r) => `${r.category} ${r.amount}`).join(' ')} `
+    + `${noRateTextBefore} ${usdDrawerTextBefore} ${usdDrawerTextAfter} ${quietRateNoteText}`;
+  check('my: no em dash anywhere in the Phase 22/22.1/23 copy', !allExposureText.includes('—'), allExposureText);
 
   await pg.close();
   await ctx.close();
