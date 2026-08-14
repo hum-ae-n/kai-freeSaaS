@@ -2257,6 +2257,35 @@ export async function renderWorkspace(root) {
         el('p', { class: 't-meta' }, `${ui.mode === 'annual' ? 'Per year' : 'Per month'}, summed from ${costed.length} account${costed.length === 1 ? '' : 's'} with a cost recorded.`),
       );
 
+      // Category subtotals (Phase 22.1). Same source array as the grand
+      // total above (`costed`, not doc.accounts), so the subtotals provably
+      // sum to it: no separate qualifying rule, no separate rounding. A
+      // costed row with a resolvable toolId takes its linked tool's
+      // category; everything else (no toolId, or a toolId the catalogue
+      // does not recognise) buckets under one honest label rather than
+      // vanishing or inventing a category nobody recorded.
+      const UNLINKED_CATEGORY = 'Not linked to the catalogue';
+      const categoryTotals = new Map(); // category -> monthly sum
+      for (const a of costed) {
+        let category = UNLINKED_CATEGORY;
+        if (Number.isInteger(a.toolId)) {
+          const tool = (toolsCache || []).find((t) => t.id === a.toolId);
+          if (tool) category = tool.category;
+        }
+        categoryTotals.set(category, (categoryTotals.get(category) || 0) + a.monthlyCost);
+      }
+      const categoryRows = [...categoryTotals.entries()]
+        .sort(([nameA, subA], [nameB, subB]) => (subB - subA) || nameA.localeCompare(nameB));
+      const subtotalsPanel = categoryRows.length ? el('div', { class: 'panel my-costs-subtotals' },
+        el('p', { class: 't-small' }, 'Recorded spend by category:'),
+        el('div', { class: 'my-costs-subtotal-list' }, ...categoryRows.map(([category, subMonthly]) => {
+          const subFigure = ui.mode === 'annual' ? subMonthly * 12 : subMonthly;
+          return el('div', { class: 'my-costs-subtotal-row' },
+            el('span', { class: 'my-costs-subtotal-category' }, category),
+            el('span', { class: 'my-costs-subtotal-amount' }, money(subFigure)));
+        })),
+      ) : null;
+
       const uncostedPanel = uncosted.length ? el('div', { class: 'panel my-costs-uncosted' },
         el('p', { class: 't-small' }, `${uncosted.length} account${uncosted.length === 1 ? '' : 's'} with no cost recorded:`),
         el('ul', { class: 'my-attention-list' }, ...uncosted.map((a) => {
@@ -2288,15 +2317,24 @@ export async function renderWorkspace(root) {
         el('a', { href: stackLink }, 'View your stack'),
       ) : null;
 
+      // Scope note (Phase 22.1): always renders, states the ledger's own
+      // boundary rather than letting a complete-looking total imply this is
+      // a bookkeeping system, which it is not. Never stored, presentation
+      // only, same as the exposure line above it.
+      const scopeNote = el('p', { class: 't-meta my-costs-scope' },
+        'This ledger covers what is recorded here, typically software subscriptions. Advertising spend, usage-based infrastructure bills and one-off purchases sit outside it unless you record them as accounts with a monthly cost. My Stack is a register, not a bookkeeping system.');
+
       return el('section', { class: 'my-screen' },
         el('h2', {}, 'Costs'),
         renewalList(accounts, 14, 'Renewing in the next 14 days'),
         renewalList(accounts, 60, 'Renewing in the next 60 days'),
         totalPanel,
+        subtotalsPanel,
         exposurePanel,
         exposureUnknownPanel,
         uncostedPanel,
         chartNote,
+        scopeNote,
       );
     }
 

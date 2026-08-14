@@ -5822,19 +5822,23 @@ await withStubbedPayments(async (pg) => {
     !/REGISTER_FIELDS\s*=\s*\[[^\]]*password/i.test(src));
 }
 
-/* --- Phase 22 (PRD-REGISTER section 9.4, "Conversion exposure"): the Costs
-   screen's indicative "if every free tier here converted" line, and the
-   honest "no known conversion price" count, both computed at render time
-   from the catalogue and NEVER written into the register document. Five
-   rows constructed directly through store.js (the one write choke-point):
-   a planned row linked to tool 0 (pins the id-zero law, CLAUDE.md: toolId 0
-   is real, Number.isInteger not truthiness); an active row costed at £0
-   with a renewal date, so it also exercises the renewal-list per-row note;
-   an active row with a REAL cost, linked to the same tool, which must be
-   excluded entirely; a planned manual row with no toolId, which counts
-   toward the "no known price" line rather than vanishing; and an active row
+/* --- Phase 22 (PRD-REGISTER section 9.4, "Conversion exposure") and Phase
+   22.1 (category subtotals, scope note): the Costs screen's indicative "if
+   every free tier here converted" line, the honest "no known conversion
+   price" count, real-spend subtotals grouped by catalogue category, and
+   the always-on scope note, all computed at render time from the catalogue
+   and NEVER written into the register document. Six rows constructed
+   directly through store.js (the one write choke-point): a planned row
+   linked to tool 0 (pins the id-zero law, CLAUDE.md: toolId 0 is real,
+   Number.isInteger not truthiness); an active row costed at £0 with a
+   renewal date, so it also exercises the renewal-list per-row note; an
+   active row with a REAL cost, linked to the same tool, which must be
+   excluded from exposure but included in the real total and that tool's
+   category subtotal; a planned manual row with no toolId, which counts
+   toward the "no known price" line rather than vanishing; an active row
    with no cost and no renewal date, which exercises the uncosted-list
-   per-row note. ------------------------------------------------------- */
+   per-row note; and an active, costed, manual row with no toolId, which
+   proves the "Not linked to the catalogue" subtotal bucket. ------------- */
 {
   const exposureTool1 = active.find((t) => t.id !== 0 && Number.isInteger(t.paid_from) && t.paid_from > 0);
   const zeroTool = active.find((t) => t.id === 0);
@@ -5878,6 +5882,11 @@ await withStubbedPayments(async (pg) => {
         identity: '', owner: '', admin: 'unknown', mfa: 'unknown',
         plan: '', renewal: null, monthlyCost: null, status: 'active', notes: '', shared: false,
       },
+      {
+        id: 'exp-active-manual-costed', service: 'Manual Paid Tool', url: '', toolId: null,
+        identity: '', owner: '', admin: 'unknown', mfa: 'unknown',
+        plan: '', renewal: null, monthlyCost: 20, status: 'active', notes: '', shared: false,
+      },
     );
     await s.save(doc, doc.revision);
   }, { tool1Id: exposureTool1.id, renewalIso });
@@ -5888,13 +5897,49 @@ await withStubbedPayments(async (pg) => {
   // not tool-based: exposureTool1 is linked twice and counted twice.
   const expectedMonthly = zeroTool.paid_from + (exposureTool1.paid_from * 2);
   const expectedAnnual = expectedMonthly * 12;
+  // Real total: the £0 row (0) + the paying row (50) + the manual costed
+  // row (20). The two uncosted-in-spirit rows (planned, no-cost) never
+  // enter `costed` at all.
+  const expectedRealMonthly = 0 + 50 + 20;
+  const expectedRealAnnual = expectedRealMonthly * 12;
+  // Category subtotals: exposureTool1's category picks up the £0 and £50
+  // rows (50 total); the manual costed row has no toolId, so it buckets
+  // under "Not linked to the catalogue" (20). 50 > 20, so that order pins
+  // the "largest first" rule too.
+  const expectedCategorySubtotal = 0 + 50;
+  const expectedUnlinkedSubtotal = 20;
 
   await pg.locator('.my-nav-item', { hasText: 'Costs' }).click();
   await pg.waitForSelector('.my-costs-figure');
 
   const realTotalText = (await pg.locator('.my-costs-figure').textContent()).trim();
-  check('my: Phase 22 real total counts only the genuinely paying row (£50), not the £0 or uncosted rows',
-    realTotalText === '£50', realTotalText);
+  check('my: Phase 22 real total sums every costed row (£0 + £50 + £20 = £70), planned/uncosted rows excluded',
+    realTotalText === `£${expectedRealMonthly}`, realTotalText);
+
+  // Phase 22.1: category subtotals. Only categories with a costed row
+  // appear (2 here, not the catalogue's full category list), largest
+  // first, and they must sum to exactly the grand total shown above.
+  async function readSubtotals() {
+    const rowLoc = pg.locator('.my-costs-subtotal-row');
+    const count = await rowLoc.count();
+    const rows = [];
+    for (let i = 0; i < count; i += 1) {
+      const category = (await rowLoc.nth(i).locator('.my-costs-subtotal-category').textContent()).trim();
+      const amount = (await rowLoc.nth(i).locator('.my-costs-subtotal-amount').textContent()).trim();
+      rows.push({ category, amount, value: Number(amount.replace(/[£,]/g, '')) });
+    }
+    return rows;
+  }
+  const subtotalsMonthly = await readSubtotals();
+  check('my: exactly 2 category subtotal rows render, one per category with a costed row (no line for uncosted-only categories)',
+    subtotalsMonthly.length === 2, JSON.stringify(subtotalsMonthly));
+  check('my: category subtotals are grouped and ordered largest first (tool category before "Not linked to the catalogue")',
+    subtotalsMonthly[0]?.category === exposureTool1.category && subtotalsMonthly[0]?.value === expectedCategorySubtotal
+    && subtotalsMonthly[1]?.category === 'Not linked to the catalogue' && subtotalsMonthly[1]?.value === expectedUnlinkedSubtotal,
+    JSON.stringify(subtotalsMonthly));
+  const subtotalSumMonthly = subtotalsMonthly.reduce((s, r) => s + r.value, 0);
+  check('my: category subtotals sum exactly to the grand total, monthly',
+    subtotalSumMonthly === Number(realTotalText.replace(/[£,]/g, '')), `subtotals=${subtotalSumMonthly} total=${realTotalText}`);
 
   const exposureFigureText = (await pg.locator('.my-costs-exposure-figure').textContent()).trim();
   check('my: Phase 22 exposure line renders "If every free tier here converted: from £N/month" with the correct row-based sum',
@@ -5921,16 +5966,33 @@ await withStubbedPayments(async (pg) => {
   check('my: the renewal-list row for the genuinely paying twin carries no exposure note',
     !renewalListText.includes('Paying Tool'), renewalListText); // paying row has no renewal date, so absent here anyway; guards a future regression
 
-  // Toggle to annual: both the real total and the exposure line multiply by
-  // 12, "the same as the real total" (PRD-REGISTER section 9.4).
+  // Toggle to annual: the real total, the category subtotals and the
+  // exposure line all multiply by 12, "the same as the real total"
+  // (PRD-REGISTER section 9.4, extended to subtotals by 9.4's Phase 22.1
+  // bullet: "the monthly/annual toggle applying throughout").
   await pg.locator('.my-costs-toggle button', { hasText: 'Annual' }).click();
   const realTotalAnnual = (await pg.locator('.my-costs-figure').textContent()).trim();
   const exposureFigureAnnual = (await pg.locator('.my-costs-exposure-figure').textContent()).trim();
-  check('my: annual toggle multiplies the real total by 12', realTotalAnnual === '£600', realTotalAnnual);
+  check('my: annual toggle multiplies the real total by 12', realTotalAnnual === `£${expectedRealAnnual}`, realTotalAnnual);
   check('my: annual toggle multiplies the exposure line by 12 too, suffix switches to "/year"',
     exposureFigureAnnual === `If every free tier here converted: from £${expectedAnnual.toLocaleString('en-GB')}/year`,
     exposureFigureAnnual);
+  const subtotalsAnnual = await readSubtotals();
+  const subtotalSumAnnual = subtotalsAnnual.reduce((s, r) => s + r.value, 0);
+  check('my: category subtotals sum exactly to the grand total, annual too',
+    subtotalSumAnnual === Number(realTotalAnnual.replace(/[£,]/g, '')), `subtotals=${subtotalSumAnnual} total=${realTotalAnnual}`);
+  check('my: category subtotal values themselves scale by 12 under the annual toggle',
+    subtotalsAnnual[0]?.value === expectedCategorySubtotal * 12 && subtotalsAnnual[1]?.value === expectedUnlinkedSubtotal * 12,
+    JSON.stringify(subtotalsAnnual));
   await pg.locator('.my-costs-toggle button', { hasText: 'Monthly' }).click();
+
+  // Phase 22.1 scope note: always renders (not conditional on any row),
+  // states the ledger's boundary and names advertising by name.
+  const scopeNoteText = (await pg.locator('.my-costs-scope').textContent()).trim();
+  check('my: the scope note renders on the Costs screen and mentions advertising spend',
+    /advertising/i.test(scopeNoteText), scopeNoteText);
+  check('my: the scope note does not claim the register is a bookkeeping system',
+    /not a bookkeeping system/i.test(scopeNoteText), scopeNoteText);
 
   // Per-row note in the account drawer: present for a qualifying row, absent
   // for the paying twin sharing the same linked tool.
@@ -5964,6 +6026,8 @@ await withStubbedPayments(async (pg) => {
   const docJson = JSON.stringify(docCheck);
   check('my: the in-memory register document carries no exposure-derived text',
     !/converted|paid_from|conversion price/i.test(docJson), docJson.slice(0, 200));
+  check('my: the in-memory register document carries no scope-note text (advertising, bookkeeping)',
+    !/advertising|bookkeeping/i.test(docJson), docJson.slice(0, 200));
 
   await pg.locator('.my-nav-item', { hasText: 'Backup' }).click();
   await pg.waitForSelector('button:has-text("Download a backup now")');
@@ -5974,14 +6038,17 @@ await withStubbedPayments(async (pg) => {
   const exportText = await readFile(await exportDownload.path(), 'utf8');
   check('my: the real exported register file contains no exposure line, per-row note or "converted" wording',
     !/if every free tier|free today, from|no known conversion price/i.test(exportText), exportText.slice(0, 200));
+  check('my: the real exported register file contains no scope-note wording either (advertising, bookkeeping)',
+    !/advertising|bookkeeping/i.test(exportText), exportText.slice(0, 200));
   const exportedDoc = JSON.parse(exportText);
   const exposureKeyOffenders = (exportedDoc.accounts || []).filter((a) => Object.keys(a).some((k) => /exposure|paidFrom/i.test(k)));
   check('my: no exported account row carries a new exposure-shaped field (no schema change, section 9.4)',
     exposureKeyOffenders.length === 0, JSON.stringify(exposureKeyOffenders));
 
-  // House style: no em dash in any of the Phase 22 copy.
-  const allExposureText = `${exposureFigureText} ${exposureBlockText} ${unknownText} ${uncostedText} ${renewalListText} ${zeroIdDrawerText}`;
-  check('my: no em dash anywhere in the Phase 22 copy', !allExposureText.includes('—'), allExposureText);
+  // House style: no em dash in any of the Phase 22/22.1 copy.
+  const allExposureText = `${exposureFigureText} ${exposureBlockText} ${unknownText} ${uncostedText} ${renewalListText} ${zeroIdDrawerText} `
+    + `${scopeNoteText} ${subtotalsMonthly.map((r) => `${r.category} ${r.amount}`).join(' ')}`;
+  check('my: no em dash anywhere in the Phase 22/22.1 copy', !allExposureText.includes('—'), allExposureText);
 
   await pg.close();
   await ctx.close();
