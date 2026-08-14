@@ -389,6 +389,16 @@ async function copyGeneratorText(items, business) {
    restated because every export surface restates it).
    ========================================================================= */
 const REGISTER_FIELDS = ['id', 'service', 'url', 'toolId', 'identity', 'owner', 'admin', 'mfa', 'plan', 'renewal', 'monthlyCost', 'currency', 'status', 'notes'];
+
+/** The only URL shape a register row's url may take before it reaches an
+    href: plain http(s). Everything else (javascript:, data:, vbscript:,
+    file:, protocol-relative) returns '' and renders as no link at all.
+    User-entered AND import-supplied urls both pass through here; a crafted
+    register file is attacker-controlled by definition (section 9.2's
+    escape discipline, extended to URL schemes by the 14 Aug sweep). */
+function safeHttpUrl(url) {
+  return (typeof url === 'string' && /^https?:\/\//i.test(url.trim())) ? url.trim() : '';
+}
 const READING_COPY_LAW = 'This is a reading copy. It cannot be imported back into My Stack: only the register file (.fsr.json) can.';
 /** OWASP formula-injection escaping (section 20, mandatory): any cell whose
     value starts with '=', '+', '-', '@' or a literal tab gets a leading
@@ -2229,7 +2239,14 @@ export async function renderWorkspace(root) {
       const icon = tool ? categoryIcon(tool.category) : null;
       const adoptionLevel = statusChipLevel(row.status);
       const adoption = el('span', { class: `my-chip${adoptionLevel ? ` my-chip-${adoptionLevel}` : ''}` }, ADOPTION_LABEL[row.status] || row.status);
-      const linkUrl = row.url || (tool && tool.urls && tool.urls[0] ? `https://${tool.urls[0].domain}` : '');
+      // Security (pre-publicity sweep, 14 Aug): row.url is user-entered and,
+      // worse, importable from a crafted .fsr.json a victim was sent, so it
+      // must never reach an href unless it is a plain http(s) URL. The same
+      // ^https?:// gate scripts/validate-data.mjs applies to tools.json; a
+      // row whose url fails it simply gets no Visit link, never a "fixed"
+      // one. This is the single site where a row's url becomes an href; any
+      // future one must reuse safeHttpUrl().
+      const linkUrl = safeHttpUrl(row.url) || (tool && tool.urls && tool.urls[0] ? `https://${tool.urls[0].domain}` : '');
       const visitLink = linkUrl ? el('a', { href: linkUrl, target: '_blank', rel: 'noopener noreferrer', class: 'btn btn-ghost btn-sm' }, 'Visit site') : null;
       const openBtn = el('button', { class: 'btn btn-ghost btn-sm', type: 'button' }, 'View in register');
       openBtn.addEventListener('click', () => openAccountDrawer(row.id));
