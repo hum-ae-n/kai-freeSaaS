@@ -3505,6 +3505,21 @@ html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
 .my-costs-total { max-width: 420px; margin-bottom: var(--s-4); }
 .my-costs-toggle { display: flex; gap: var(--s-2); margin-bottom: var(--s-2); }
 .my-costs-figure { font-family: var(--font-sans); font-size: var(--fs-34); font-weight: 500; color: var(--oxblood); margin: 0; }
+/* Phase 22.1 category subtotals: a breakdown of the total above, not a
+   second headline, so it sits at the same quiet scale as the renewal rows
+   rather than the exposure line's fs-21. */
+.my-costs-subtotals { max-width: 480px; margin-bottom: var(--s-4); }
+.my-costs-subtotal-list { display: flex; flex-direction: column; gap: 2px; margin-top: var(--s-2); }
+.my-costs-subtotal-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-1) 0;
+  border-bottom: var(--bw-hair) solid var(--paper-edge);
+  font-size: var(--fs-14);
+  color: var(--ink-2);
+}
+.my-costs-subtotal-amount { font-family: var(--font-sans); color: var(--ink); }
 /* Phase 22 conversion exposure (section 9.4): deliberately quieter than
    .my-costs-figure above it. This is an indicative "from" line, not the
    real total, and must never compete with it for the reader's eye. */
@@ -3514,6 +3529,10 @@ html.pub-has-topbar { scroll-padding-top: var(--topbar-h, 44px); }
 .my-costs-uncosted { max-width: 480px; margin-bottom: var(--s-4); }
 .my-costs-uncosted-item { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 .my-costs-chart-note { max-width: 480px; }
+/* Phase 22.1 scope note: always renders, at the foot of the screen, quieter
+   than everything above it (the ledger stating its own boundary, not
+   another figure competing for attention). */
+.my-costs-scope { max-width: 560px; margin-top: var(--s-4); }
 
 /* --- Leavers (section 9.5) ------------------------------------------------- */
 .my-leaver-picker { max-width: 480px; display: flex; flex-direction: column; gap: var(--s-3); align-items: start; }
