@@ -237,6 +237,17 @@
   status = 404
   force = true
 
+# Entity binding (14 Aug): freestack.kaipability.com is a Netlify domain
+# alias of this site, added so the brand name has a domain we own; every
+# request to it 301s to the canonical host rather than serving duplicate
+# content. Requires the alias in the Netlify dashboard and a CNAME to
+# kai-freestack.netlify.app (Rocky's task list, 14 Aug).
+[[redirects]]
+  from = "https://freestack.kaipability.com/*"
+  to = "https://tools.airl.io/:splat"
+  status = 301
+  force = true
+
 # SPA fallback. Netlify serves real files first and only applies this rule for
 # paths that do not exist, so /data/tools.json and /css/* still resolve normally.
 # Do not add force = true here or it will shadow the data file and break the app.
