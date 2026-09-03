@@ -325,19 +325,31 @@ function buildMetaDescription(count) {
 }
 
 function buildJsonLdBlock(active) {
+  // Entity binding (14 Aug, the freestack.tools conflation): sameAs ties
+  // this site's Organization to the company's own properties so search
+  // engines bind the name "Free Stack" to OUR urls rather than guessing
+  // (Google's AI Overview hallucinated io.kaipability.com paths and linked
+  // an exact-match-domain competitor). The WebSite name carries the full
+  // "Free Stack by Kaipability" so the brand phrase and the entity travel
+  // together. Only urls we control appear here, verified live.
   const organization = {
     '@context': 'https://schema.org',
     '@type': 'Organization',
     name: 'Kaipability Ltd',
     url: 'https://kaipability.com',
     logo: `${SITE_URL}/design-system/assets/kaipability-logo-lockup.png`,
+    sameAs: [
+      'https://www.kaipability.com',
+      'https://www.airl.io',
+    ],
   };
   const website = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    name: 'Free Stack',
+    name: 'Free Stack by Kaipability',
+    alternateName: 'Free Stack',
     url: `${SITE_URL}/`,
-    publisher: { '@type': 'Organization', name: 'Kaipability Ltd' },
+    publisher: { '@type': 'Organization', name: 'Kaipability Ltd', url: 'https://kaipability.com' },
   };
   const itemList = {
     '@context': 'https://schema.org',
